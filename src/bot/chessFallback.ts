@@ -111,33 +111,89 @@ function moveId(m: Move): string {
   return `m:${m.from}:${m.to}`;
 }
 
-function isBadHangingCapture(state: GameState, move: Move): boolean {
-  if (move.kind !== "capture") return false;
+function topPieceAt(state: GameState, sq: string): any | null {
+  const stack = state.board.get(sq);
+  if (!stack || stack.length === 0) return null;
+  return stack[stack.length - 1];
+}
 
-  const fromStack = state.board.get(move.from);
-  const moving = fromStack && fromStack.length ? fromStack[fromStack.length - 1] : null;
-  const movingValue = pieceValue((moving as any)?.rank);
+function pieceValueAt(state: GameState, sq: string): number {
+  const top = topPieceAt(state, sq);
+  return pieceValue((top as any)?.rank);
+}
 
-  const overStack = state.board.get(move.over);
-  const captured = overStack && overStack.length ? overStack[overStack.length - 1] : null;
-  const capturedValue = pieceValue((captured as any)?.rank);
-
-  // Only guard against the most common low-skill blunder:
-  // capturing a small piece with a much more valuable one that can be
-  // immediately recaptured.
-  if (movingValue <= 0) return false;
-  if (movingValue - capturedValue < 250) return false;
-
-  let next: GameState;
+function givesCheck(stateAfterOurMove: GameState, us: Player): boolean {
   try {
-    next = applyMove(state, move);
+    return isKingInCheckChess(stateAfterOurMove, other(us));
+  } catch {
+    return false;
+  }
+}
+
+function worstNetLossAfterOpponentCaptureAndOurRecapture(stateAfterOurMove: GameState, us: Player): number {
+  // Conservative 2-ply exchange sanity:
+  // assume opponent will choose the capture that maximizes our net loss,
+  // and we will respond with an immediate recapture of the capturing piece if possible.
+  const oppMoves = generateLegalMoves(stateAfterOurMove);
+  let worst = 0;
+
+  for (const om of oppMoves) {
+    if (om.kind !== "capture") continue;
+
+    // Value of our piece that gets captured.
+    const capturedValue = pieceValueAt(stateAfterOurMove, (om as any).over);
+    if (capturedValue <= 0) continue;
+
+    let afterOpp: GameState;
+    try {
+      afterOpp = applyMove(stateAfterOurMove, om);
+    } catch {
+      continue;
+    }
+
+    const captureSquare = String((om as any).to);
+    const capturerValue = pieceValueAt(afterOpp, captureSquare);
+
+    // Can we immediately capture the capturing piece back?
+    const ourReplies = generateLegalMoves(afterOpp);
+    const canRecapture = ourReplies.some((rm) => rm.kind === "capture" && (rm as any).over === captureSquare);
+    const recaptureValue = canRecapture ? capturerValue : 0;
+
+    const netLoss = capturedValue - recaptureValue;
+    if (netLoss > worst) worst = netLoss;
+  }
+
+  return worst;
+}
+
+function isUnsoundSacrifice(
+  state: GameState,
+  move: Move,
+  scoreForUs: number | null
+): boolean {
+  // Avoid giving up material without an immediate recapture or clearly positive eval.
+  // This is meant to be a *stability guard* for the fallback engine, especially
+  // when it times out before deeper search resolves tactics.
+
+  let afterOur: GameState;
+  try {
+    afterOur = applyMove(state, move);
   } catch {
     return false;
   }
 
-  const target = move.to;
-  const replies = generateLegalMoves(next);
-  return replies.some((r) => r.kind === "capture" && r.over === target);
+  const us = state.toMove;
+  const worstNetLoss = worstNetLossAfterOpponentCaptureAndOurRecapture(afterOur, us);
+  if (worstNetLoss <= 0) return false;
+
+  // Allow sacrifices that appear to have immediate tactical purpose.
+  // - Giving check is often a forcing resource.
+  // - A high enough search score indicates compensation.
+  if (givesCheck(afterOur, us)) return false;
+  const okCompensationScore = 160; // ~1.6 pawns; conservative.
+  if (scoreForUs !== null && scoreForUs >= okCompensationScore) return false;
+
+  return true;
 }
 
 function negamax(
@@ -288,16 +344,21 @@ export function pickFallbackMoveChess(
     return captures.length ? rng.pick(captures) : rng.pick(rootMoves);
   }
 
-  // Final sanity: avoid hanging a major piece for a pawn/minor if the opponent
-  // can recapture immediately. This stabilizes play under tight time budgets.
+  // Final sanity: avoid unsound sacrifices (hanging pieces / bad trades)
+  // that shallow search can miss under tight time budgets.
   if (bestScoredMoves && bestScoredMoves.length) {
     const ordered = bestScoredMoves
       .slice()
       .sort((a, b) => (b.score !== a.score ? b.score - a.score : moveId(a.move).localeCompare(moveId(b.move))));
 
+    const limit = 12;
+    let checked = 0;
     for (const cand of ordered) {
-      if (!isBadHangingCapture(state, cand.move)) return cand.move;
+      if (checked++ >= limit) break;
+      if (!isUnsoundSacrifice(state, cand.move, cand.score)) return cand.move;
     }
+
+    // If the top candidates are all unsound, fall back to the best-scoring move.
   }
 
   // If we found a move but it looks catastrophically losing, still play it.

@@ -139,4 +139,24 @@ describe("chess fallback", () => {
     // The blunder would be capturing the pawn with the queen.
     expect((m as any).from === "r7c3" && (m as any).to === "r6c3" && m!.kind === "capture").toBe(false);
   });
+
+  it("avoids sacrificing a rook for a pawn under tight time budget", () => {
+    const s = mkEmptyChessState("W");
+
+    // Kings are required for legal-move generation.
+    s.board.set("r7c4", [{ owner: "W", rank: "K" }]);
+    s.board.set("r0c4", [{ owner: "B", rank: "K" }]);
+
+    // Tempting capture: Rxa7 (here r7c0 -> r1c0) wins a pawn...
+    // ...but black responds with Rxa7 (r0c0 -> r1c0) and white cannot recapture.
+    s.board.set("r7c0", [{ owner: "W", rank: "R" }]);
+    s.board.set("r1c0", [{ owner: "B", rank: "P" }]);
+    s.board.set("r0c0", [{ owner: "B", rank: "R" }]);
+
+    const m = pickFallbackMoveChess(s, { tier: "beginner", seed: "avoid-rook-sac", timeBudgetMs: 1 });
+    expect(m).toBeTruthy();
+
+    // The unsound sacrifice would be capturing the pawn with the rook.
+    expect((m as any).from === "r7c0" && (m as any).to === "r1c0" && m!.kind === "capture").toBe(false);
+  });
 });
