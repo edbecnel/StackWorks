@@ -289,6 +289,26 @@
         margin-bottom: 0;
       }
 
+      /* Move History: add a slightly lighter surface so black piece SVGs remain visible. */
+      #moveHistory {
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        padding: 6px;
+      }
+
+      /* Single-column layout rows (rendered as direct children divs). */
+      #moveHistory > div[data-history-index] {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.135);
+        margin: 2px 0;
+      }
+
+      #moveHistory > div[data-history-index][data-is-current="1"] {
+        background: rgba(255, 255, 255, 0.21);
+      }
+
       .historyGrid {
         display: grid;
         grid-template-columns: 2.8em 1fr 1fr;
@@ -300,6 +320,11 @@
       .historyGrid .cell {
         padding: 2px 6px;
         border-radius: 6px;
+      }
+
+      /* Two-column layout cells: give move cells a soft background. */
+      .historyGrid .cell:not(.hdr):not(.num) {
+        background: rgba(255, 255, 255, 0.135);
       }
 
       .historyGrid .cell.clickable {
