@@ -4,6 +4,49 @@ import { pickFallbackMoveChess } from "./chessFallback.ts";
 import { createInitialGameStateForVariant } from "../game/state.ts";
 import { applyMove } from "../game/applyMove.ts";
 import { uciToLegalMove } from "./chessMoveMap.ts";
+import { generateLegalMoves } from "../game/movegen.ts";
+
+function pieceValue(rank: string | undefined): number {
+  switch (rank) {
+    case "Q":
+      return 900;
+    case "R":
+      return 500;
+    case "B":
+    case "N":
+      return 320;
+    case "P":
+      return 100;
+    case "K":
+      return 0;
+    default:
+      return 0;
+  }
+}
+
+function topAt(s: GameState, sq: string): any | null {
+  const st = s.board.get(sq);
+  return st && st.length ? st[st.length - 1] : null;
+}
+
+function valuablePieceIsHangingNextMove(stateAfterMove: GameState): boolean {
+  // Detect whether the side to move (opponent) has a capture of a valuable
+  // piece (minor+) such that we cannot immediately recapture the capturer.
+  const oppCaptures = generateLegalMoves(stateAfterMove).filter((m) => m.kind === "capture") as any[];
+  for (const om of oppCaptures) {
+    const captured = topAt(stateAfterMove, String(om.over));
+    const capturedValue = pieceValue(captured?.rank);
+    if (capturedValue < 250) continue;
+
+    const afterOpp = applyMove(stateAfterMove, om);
+    const captureSquare = String(om.to);
+
+    const ourReplies = generateLegalMoves(afterOpp);
+    const canRecapture = ourReplies.some((rm: any) => rm.kind === "capture" && String(rm.over) === captureSquare);
+    if (!canRecapture) return true;
+  }
+  return false;
+}
 
 function mkEmptyChessState(toMove: "W" | "B"): GameState {
   return {
@@ -158,5 +201,28 @@ describe("chess fallback", () => {
 
     // The unsound sacrifice would be capturing the pawn with the rook.
     expect((m as any).from === "r7c0" && (m as any).to === "r1c0" && m!.kind === "capture").toBe(false);
+  });
+
+  it("does not leave the queen en prise when avoidable", () => {
+    const s = mkEmptyChessState("W");
+
+    // Kings are required for legal-move generation.
+    s.board.set("r7c4", [{ owner: "W", rank: "K" }]);
+    s.board.set("r0c4", [{ owner: "B", rank: "K" }]);
+
+    // Queen is currently attacked by a rook along the file.
+    s.board.set("r6c3", [{ owner: "W", rank: "Q" }]);
+    s.board.set("r0c3", [{ owner: "B", rank: "R" }]);
+
+    // Sanity: if it were black to move, capture is available.
+    const asBlack = { ...s, toMove: "B" as const };
+    const blackMoves = generateLegalMoves(asBlack);
+    expect(blackMoves.some((m: any) => m.kind === "capture" && String(m.to) === "r6c3")).toBe(true);
+
+    const m = pickFallbackMoveChess(s, { tier: "beginner", seed: "save-queen", timeBudgetMs: 1 });
+    expect(m).toBeTruthy();
+
+    const after = applyMove(s, m!);
+    expect(valuablePieceIsHangingNextMove(after)).toBe(false);
   });
 });

@@ -130,12 +130,16 @@ function givesCheck(stateAfterOurMove: GameState, us: Player): boolean {
   }
 }
 
-function worstNetLossAfterOpponentCaptureAndOurRecapture(stateAfterOurMove: GameState, us: Player): number {
+function worstNetLossAfterOpponentCaptureAndOurRecapture(
+  stateAfterOurMove: GameState,
+  us: Player
+): { worstNetLoss: number; worstCapturedValue: number } {
   // Conservative 2-ply exchange sanity:
   // assume opponent will choose the capture that maximizes our net loss,
   // and we will respond with an immediate recapture of the capturing piece if possible.
   const oppMoves = generateLegalMoves(stateAfterOurMove);
-  let worst = 0;
+  let worstNetLoss = 0;
+  let worstCapturedValue = 0;
 
   for (const om of oppMoves) {
     if (om.kind !== "capture") continue;
@@ -160,10 +164,13 @@ function worstNetLossAfterOpponentCaptureAndOurRecapture(stateAfterOurMove: Game
     const recaptureValue = canRecapture ? capturerValue : 0;
 
     const netLoss = capturedValue - recaptureValue;
-    if (netLoss > worst) worst = netLoss;
+    if (netLoss > worstNetLoss) {
+      worstNetLoss = netLoss;
+      worstCapturedValue = capturedValue;
+    }
   }
 
-  return worst;
+  return { worstNetLoss, worstCapturedValue };
 }
 
 function isUnsoundSacrifice(
@@ -183,15 +190,22 @@ function isUnsoundSacrifice(
   }
 
   const us = state.toMove;
-  const worstNetLoss = worstNetLossAfterOpponentCaptureAndOurRecapture(afterOur, us);
+  const { worstNetLoss, worstCapturedValue } = worstNetLossAfterOpponentCaptureAndOurRecapture(afterOur, us);
   if (worstNetLoss <= 0) return false;
 
+  // Avoid "leave a real piece en prise" blunders; don't overreact to pawns.
+  // (Pawns can be gambited for development; the fallback bot mainly needs
+  // to not drop minors/rooks/queens for free.)
+  const VALUABLE_PIECE = 250; // below minor-piece value; excludes pawns.
+  if (worstCapturedValue < VALUABLE_PIECE) return false;
+
   // Allow sacrifices that appear to have immediate tactical purpose.
-  // - Giving check is often a forcing resource.
-  // - A high enough search score indicates compensation.
-  if (givesCheck(afterOur, us)) return false;
-  const okCompensationScore = 160; // ~1.6 pawns; conservative.
-  if (scoreForUs !== null && scoreForUs >= okCompensationScore) return false;
+  // - Giving check is often a forcing resource, but don't allow it to justify
+  //   dropping a major piece.
+  // - Only trust search score if it *covers the loss* (relative, not absolute).
+  if (givesCheck(afterOur, us) && worstNetLoss <= 200) return false;
+  const compensationMargin = 120;
+  if (scoreForUs !== null && scoreForUs >= worstNetLoss + compensationMargin) return false;
 
   return true;
 }
@@ -346,19 +360,39 @@ export function pickFallbackMoveChess(
 
   // Final sanity: avoid unsound sacrifices (hanging pieces / bad trades)
   // that shallow search can miss under tight time budgets.
-  if (bestScoredMoves && bestScoredMoves.length) {
-    const ordered = bestScoredMoves
-      .slice()
-      .sort((a, b) => (b.score !== a.score ? b.score - a.score : moveId(a.move).localeCompare(moveId(b.move))));
+  {
+    // Important: under extreme time pressure, we may have only evaluated a
+    // small prefix of root moves. If that prefix contains a tactical blunder
+    // (e.g. Q takes rook but gets captured by king), we still want to find a
+    // safe move among the *unscored* root moves.
 
-    const limit = 12;
+    const scoredOrdered = (bestScoredMoves && bestScoredMoves.length
+      ? bestScoredMoves
+          .slice()
+          .sort((a, b) => (b.score !== a.score ? b.score - a.score : moveId(a.move).localeCompare(moveId(b.move))))
+      : []
+    ).map((x) => ({ move: x.move, score: x.score as number | null }));
+
+    const seen = new Set(scoredOrdered.map((x) => moveId(x.move)));
+    const unscored = rootMoves
+      .filter((m) => !seen.has(moveId(m)))
+      .slice()
+      .sort((a, b) => {
+        const ka = moveOrderingKey(state, a);
+        const kb = moveOrderingKey(state, b);
+        if (kb !== ka) return kb - ka;
+        return moveId(a).localeCompare(moveId(b));
+      })
+      .map((m) => ({ move: m, score: null as number | null }));
+
+    const candidates = scoredOrdered.concat(unscored);
+
+    const limit = opts.tier === "beginner" ? 80 : opts.tier === "intermediate" ? 60 : 45;
     let checked = 0;
-    for (const cand of ordered) {
+    for (const cand of candidates) {
       if (checked++ >= limit) break;
       if (!isUnsoundSacrifice(state, cand.move, cand.score)) return cand.move;
     }
-
-    // If the top candidates are all unsound, fall back to the best-scoring move.
   }
 
   // If we found a move but it looks catastrophically losing, still play it.
