@@ -204,6 +204,28 @@ describe("chess fallback", () => {
     expect((m as any).from === "r7c3" && (m as any).to === "r1c3" && m!.kind === "capture").toBe(false);
   });
 
+  it("avoids blocking queen recapture and dropping the d-pawn in the opening", () => {
+    // Scenario: Black pawn on d5 is attacked by a white knight on c3.
+    // If black plays Nbd7, it blocks the queen on d8 from recapturing after Nxd5.
+    const s = mkEmptyChessState("B");
+
+    // Kings are required for legal-move generation.
+    s.board.set("r7c4", [{ owner: "W", rank: "K" }]);
+    s.board.set("r0c4", [{ owner: "B", rank: "K" }]);
+
+    // Insert the b8 knight first so Nbd7 is an early candidate under tight budgets.
+    s.board.set("r0c1", [{ owner: "B", rank: "N" }]); // b8
+    s.board.set("r0c3", [{ owner: "B", rank: "Q" }]); // d8
+    s.board.set("r3c3", [{ owner: "B", rank: "P" }]); // d5
+    s.board.set("r5c2", [{ owner: "W", rank: "N" }]); // c3
+
+    const m = pickFallbackMoveChess(s, { tier: "beginner", seed: "avoid-nbd7-drop", timeBudgetMs: 1 });
+    expect(m).toBeTruthy();
+
+    // Nbd7 would be r0c1 -> r1c3.
+    expect((m as any).from === "r0c1" && (m as any).to === "r1c3" && m!.kind === "move").toBe(false);
+  });
+
   it("avoids sacrificing a rook for a pawn under tight time budget", () => {
     const s = mkEmptyChessState("W");
 

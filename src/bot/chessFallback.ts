@@ -39,6 +39,16 @@ function pieceValue(rank: string | undefined): number {
   }
 }
 
+function countPieces(state: GameState): number {
+  let n = 0;
+  for (const stack of state.board.values()) {
+    if (!stack || stack.length === 0) continue;
+    // Classic chess uses stacks of size 1, but keep it defensive.
+    n += stack.length;
+  }
+  return n;
+}
+
 function evalForSideToMove(state: GameState): number {
   // Simple chess eval from the perspective of `state.toMove`.
   const me = state.toMove;
@@ -176,7 +186,8 @@ function worstNetLossAfterOpponentCaptureAndOurRecapture(
 function isUnsoundSacrifice(
   state: GameState,
   move: Move,
-  scoreForUs: number | null
+  scoreForUs: number | null,
+  tier: BotTier
 ): boolean {
   // Avoid giving up material without an immediate recapture or clearly positive eval.
   // This is meant to be a *stability guard* for the fallback engine, especially
@@ -244,8 +255,18 @@ function isUnsoundSacrifice(
   // Avoid "leave a real piece en prise" blunders; don't overreact to pawns.
   // (Pawns can be gambited for development; the fallback bot mainly needs
   // to not drop minors/rooks/queens for free.)
-  const VALUABLE_PIECE = 250; // below minor-piece value; excludes pawns.
-  if (worstCapturedValue < VALUABLE_PIECE) return false;
+  // Pawn blunders matter most in the opening when search is shallow.
+  // In later phases, pawn sacs/gambits are more common and the bot should be freer.
+  const openingLike = countPieces(state) >= 24;
+  const valuableThreshold = (() => {
+    // Minor+ are always "valuable".
+    if (worstCapturedValue >= 250) return 250;
+    // Pawns: treat as valuable only for weaker tiers and only early.
+    if (worstCapturedValue === 100 && openingLike && (tier === "beginner" || tier === "intermediate")) return 100;
+    return 250;
+  })();
+
+  if (worstCapturedValue < valuableThreshold) return false;
 
   // Allow sacrifices that appear to have immediate tactical purpose.
   // - Giving check is often a forcing resource, but don't allow it to justify
@@ -439,7 +460,7 @@ export function pickFallbackMoveChess(
     let checked = 0;
     for (const cand of candidates) {
       if (checked++ >= limit) break;
-      if (!isUnsoundSacrifice(state, cand.move, cand.score)) return cand.move;
+      if (!isUnsoundSacrifice(state, cand.move, cand.score, opts.tier)) return cand.move;
     }
   }
 
