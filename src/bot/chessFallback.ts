@@ -191,7 +191,55 @@ function isUnsoundSacrifice(
 
   const us = state.toMove;
   const { worstNetLoss, worstCapturedValue } = worstNetLossAfterOpponentCaptureAndOurRecapture(afterOur, us);
-  if (worstNetLoss <= 0) return false;
+
+  // Additional guard for a very common blunder pattern:
+  // we capture a lower-value piece with a higher-value piece, then opponent can
+  // capture that moved piece with a lower-value piece (often a knight/pawn).
+  // Treat this as unsound unless the search score clearly shows compensation.
+  let worstCaptureTradeLoss = 0;
+  if (move.kind === "capture") {
+    const movedValue = pieceValueAt(state, move.from);
+    const takenValue = pieceValueAt(state, (move as any).over);
+    const dest = String((move as any).to);
+
+    if (movedValue > 0 && takenValue > 0 && movedValue > takenValue) {
+      const oppMoves = generateLegalMoves(afterOur);
+      for (const om of oppMoves) {
+        if (om.kind !== "capture") continue;
+
+        const omTo = String((om as any).to);
+        const omOver = String((om as any).over);
+        if (omTo !== dest && omOver !== dest) continue;
+
+        const capturerValue = pieceValueAt(afterOur, (om as any).from);
+        if (capturerValue <= 0) continue;
+        if (capturerValue >= movedValue) continue;
+
+        let afterOpp: GameState;
+        try {
+          afterOpp = applyMove(afterOur, om);
+        } catch {
+          continue;
+        }
+
+        const ourReplies = generateLegalMoves(afterOpp);
+        const canRecapture = ourReplies.some(
+          (rm) =>
+            rm.kind === "capture" &&
+            (String((rm as any).to) === dest || String((rm as any).over) === dest)
+        );
+        const recaptureGain = canRecapture ? capturerValue : 0;
+
+        // Net of the micro-sequence: (we win takenValue) - (we lose movedValue) + (maybe win capturer)
+        const net = takenValue - movedValue + recaptureGain;
+        const loss = net < 0 ? -net : 0;
+        if (loss > worstCaptureTradeLoss) worstCaptureTradeLoss = loss;
+      }
+    }
+  }
+
+  const worstLoss = Math.max(worstNetLoss, worstCaptureTradeLoss);
+  if (worstLoss <= 0) return false;
 
   // Avoid "leave a real piece en prise" blunders; don't overreact to pawns.
   // (Pawns can be gambited for development; the fallback bot mainly needs
@@ -203,9 +251,9 @@ function isUnsoundSacrifice(
   // - Giving check is often a forcing resource, but don't allow it to justify
   //   dropping a major piece.
   // - Only trust search score if it *covers the loss* (relative, not absolute).
-  if (givesCheck(afterOur, us) && worstNetLoss <= 200) return false;
+  if (givesCheck(afterOur, us) && worstLoss <= 200) return false;
   const compensationMargin = 120;
-  if (scoreForUs !== null && scoreForUs >= worstNetLoss + compensationMargin) return false;
+  if (scoreForUs !== null && scoreForUs >= worstLoss + compensationMargin) return false;
 
   return true;
 }

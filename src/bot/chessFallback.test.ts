@@ -183,6 +183,27 @@ describe("chess fallback", () => {
     expect((m as any).from === "r7c3" && (m as any).to === "r6c3" && m!.kind === "capture").toBe(false);
   });
 
+  it("avoids a bad capture trade (Q takes B, then N takes Q)", () => {
+    const s = mkEmptyChessState("W");
+
+    // Kings are required for legal-move generation.
+    s.board.set("r7c4", [{ owner: "W", rank: "K" }]);
+    s.board.set("r0c4", [{ owner: "B", rank: "K" }]);
+
+    // White queen can capture a black bishop up the file...
+    // ...but black knight can immediately capture the queen.
+    // Coordinates: r7c3 = d1, r1c3 = d7, r2c5 = f6.
+    s.board.set("r7c3", [{ owner: "W", rank: "Q" }]);
+    s.board.set("r1c3", [{ owner: "B", rank: "B" }]);
+    s.board.set("r2c5", [{ owner: "B", rank: "N" }]);
+
+    const m = pickFallbackMoveChess(s, { tier: "beginner", seed: "avoid-bad-trade", timeBudgetMs: 1 });
+    expect(m).toBeTruthy();
+
+    // The blunder would be Qxd7 (r7c3 -> r1c3).
+    expect((m as any).from === "r7c3" && (m as any).to === "r1c3" && m!.kind === "capture").toBe(false);
+  });
+
   it("avoids sacrificing a rook for a pawn under tight time budget", () => {
     const s = mkEmptyChessState("W");
 
