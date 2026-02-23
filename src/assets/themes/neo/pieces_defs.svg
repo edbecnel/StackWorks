@@ -2,17 +2,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" aria-hidden="true">
   <defs>
     <!--
-      Neo theme: a permissive SVG piece set, with OPTIONAL local PNG overrides.
+      Neo theme: a permissive SVG piece set, with OPTIONAL local SVG overrides.
 
       How it works:
       - The base pieces are SVG-only and safe to commit/deploy (GitHub Pages, etc).
-      - If you ALSO place PNGs under /public/pieces/neo/*.png, they will render on top.
-      - If a PNG is missing (common in online deployments), it is removed at runtime
-        and the SVG fallback stays visible.
+      - If you place SVGs under /public/pieces/neo/*.svg, they will render on top.
+      - If an override is missing, the built-in SVG fallback stays visible.
 
-      Optional local PNG filenames (relative to site root):
-        pieces/neo/wp.png pieces/neo/wn.png pieces/neo/wb.png pieces/neo/wr.png pieces/neo/wq.png pieces/neo/wk.png
-        pieces/neo/bp.png pieces/neo/bn.png pieces/neo/bb.png pieces/neo/br.png pieces/neo/bq.png pieces/neo/bk.png
+      Optional local SVG filenames (relative to site root):
+        pieces/neo/wp.svg pieces/neo/wn.svg pieces/neo/wb.svg pieces/neo/wr.svg pieces/neo/wq.svg pieces/neo/wk.svg
+        pieces/neo/bp.svg pieces/neo/bn.svg pieces/neo/bb.svg pieces/neo/br.svg pieces/neo/bq.svg pieces/neo/bk.svg
     -->
 
     <radialGradient id="neoDiscW" cx="35%" cy="30%" r="70%">
@@ -145,19 +144,19 @@
     <symbol id="fallbackB_O" viewBox="0 0 100 100"><use href="#neoDiscB" /><g class="neoPieceB"><use href="#neoKnight" /></g></symbol>
 
     <!-- ===== Final symbols (PNG over fallback when available) ===== -->
-    <symbol id="W_P" viewBox="0 0 100 100"><use href="#fallbackW_P" /><image class="rasterPiece" href="pieces/neo/wp.png" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
-    <symbol id="W_N" viewBox="0 0 100 100"><use href="#fallbackW_N" /><image class="rasterPiece" href="pieces/neo/wn.png" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
-    <symbol id="W_B" viewBox="0 0 100 100"><use href="#fallbackW_B" /><image class="rasterPiece" href="pieces/neo/wb.png" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
-    <symbol id="W_R" viewBox="0 0 100 100"><use href="#fallbackW_R" /><image class="rasterPiece" href="pieces/neo/wr.png" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
-    <symbol id="W_Q" viewBox="0 0 100 100"><use href="#fallbackW_Q" /><image class="rasterPiece" href="pieces/neo/wq.png" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
-    <symbol id="W_K" viewBox="0 0 100 100"><use href="#fallbackW_K" /><image class="rasterPiece" href="pieces/neo/wk.png" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="W_P" viewBox="0 0 100 100"><use href="#fallbackW_P" /><image class="rasterPiece" href="pieces/neo/wp.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="W_N" viewBox="0 0 100 100"><use href="#fallbackW_N" /><image class="rasterPiece" href="pieces/neo/wn.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="W_B" viewBox="0 0 100 100"><use href="#fallbackW_B" /><image class="rasterPiece" href="pieces/neo/wb.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="W_R" viewBox="0 0 100 100"><use href="#fallbackW_R" /><image class="rasterPiece" href="pieces/neo/wr.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="W_Q" viewBox="0 0 100 100"><use href="#fallbackW_Q" /><image class="rasterPiece" href="pieces/neo/wq.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="W_K" viewBox="0 0 100 100"><use href="#fallbackW_K" /><image class="rasterPiece" href="pieces/neo/wk.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
 
-    <symbol id="B_P" viewBox="0 0 100 100"><use href="#fallbackB_P" /><image class="rasterPiece" href="pieces/neo/bp.png" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
-    <symbol id="B_N" viewBox="0 0 100 100"><use href="#fallbackB_N" /><image class="rasterPiece" href="pieces/neo/bn.png" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
-    <symbol id="B_B" viewBox="0 0 100 100"><use href="#fallbackB_B" /><image class="rasterPiece" href="pieces/neo/bb.png" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
-    <symbol id="B_R" viewBox="0 0 100 100"><use href="#fallbackB_R" /><image class="rasterPiece" href="pieces/neo/br.png" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
-    <symbol id="B_Q" viewBox="0 0 100 100"><use href="#fallbackB_Q" /><image class="rasterPiece" href="pieces/neo/bq.png" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
-    <symbol id="B_K" viewBox="0 0 100 100"><use href="#fallbackB_K" /><image class="rasterPiece" href="pieces/neo/bk.png" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="B_P" viewBox="0 0 100 100"><use href="#fallbackB_P" /><image class="rasterPiece" href="pieces/neo/bp.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="B_N" viewBox="0 0 100 100"><use href="#fallbackB_N" /><image class="rasterPiece" href="pieces/neo/bn.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="B_B" viewBox="0 0 100 100"><use href="#fallbackB_B" /><image class="rasterPiece" href="pieces/neo/bb.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="B_R" viewBox="0 0 100 100"><use href="#fallbackB_R" /><image class="rasterPiece" href="pieces/neo/br.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="B_Q" viewBox="0 0 100 100"><use href="#fallbackB_Q" /><image class="rasterPiece" href="pieces/neo/bq.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="B_K" viewBox="0 0 100 100"><use href="#fallbackB_K" /><image class="rasterPiece" href="pieces/neo/bk.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
 
     <symbol id="W_S" viewBox="0 0 100 100"><use href="#fallbackW_S" /></symbol>
     <symbol id="B_S" viewBox="0 0 100 100"><use href="#fallbackB_S" /></symbol>
