@@ -1279,6 +1279,11 @@ export class GameController {
 
   private maybeToastTurnChange(): void {
     if (this.isGameOver) return;
+
+    // If an AI/bot pause-resume sticky toast is active, don't flash a timed
+    // generic turn-change toast underneath it.
+    const suppressTurnToastForStickyResume =
+      this.stickyToastKey === "chessbot_paused_turn" || this.stickyToastKey === "aiPausedTapResume";
     if (this.driver.mode === "online") {
       if (this.onlineTransportStatus !== "connected") return;
 
@@ -1303,6 +1308,8 @@ export class GameController {
         return;
       }
       this.lastCheckToastSig = null;
+
+      if (suppressTurnToastForStickyResume) return;
 
       if (!shouldToast) return;
       const legal = isChessLike ? [] : this.getLegalMovesForTurn();
@@ -1350,6 +1357,7 @@ export class GameController {
     this.lastCheckToastSig = null;
 
     if (shouldToast) {
+      if (suppressTurnToastForStickyResume) return;
       if (this.isChessLikeRuleset()) {
         this.showToast(`${this.sideLabel(toMove)} to Play`, 1500);
       } else {
@@ -2522,12 +2530,12 @@ export class GameController {
     // If the loaded position is already terminal for the player to move, end immediately.
     this.checkAndHandleCurrentPlayerLost();
 
-    // Always re-toast after load.
+    // Always re-toast after load, but notify listeners first so subsystems
+    // (e.g. bots) can install sticky resume toasts and suppress the generic
+    // timed turn-change toast.
     this.lastToastToMove = null;
-    this.maybeToastTurnChange();
-    
-    // Notify history change
     this.fireHistoryChange("loadGame");
+    this.maybeToastTurnChange();
   }
 
   private ensureHistoryLastMoveHints(): void {

@@ -464,6 +464,42 @@ describe("GameController loadGame reconstructs last-move hints", () => {
     controller.jumpToHistory(1);
     expect(controller.getState().ui?.lastMove).toEqual({ from: "r1c1", to: "r2c2" });
   });
+
+  it("does not flash a timed turn toast when a sticky resume-bot toast is active after load", () => {
+    const s0: GameState = {
+      board: new Map([
+        ["r1c1", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+    };
+
+    const loaded: GameState = {
+      board: new Map([
+        ["r1c1", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+      meta: { variantId: "chess_classic" as any, rulesetId: "chess", boardSize: 8 },
+    };
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, s0, new HistoryManager());
+    controller.addHistoryChangeCallback((reason) => {
+      if (reason !== "loadGame") return;
+      controller.showStickyToast(
+        "chessbot_paused_turn",
+        "Black to Play. Tap here to resume bot",
+        { force: true }
+      );
+    });
+
+    controller.loadGame(loaded, { states: [s0, loaded], notation: ["", ""], currentIndex: 1 });
+
+    const toast = document.querySelector(".lascaToast") as HTMLElement | null;
+    expect(toast?.textContent).toBe("Black to Play. Tap here to resume bot");
+  });
 });
 
 describe("GameController online opponent presence toasts", () => {

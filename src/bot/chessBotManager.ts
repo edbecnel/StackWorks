@@ -133,6 +133,10 @@ export class ChessBotManager {
   // want to avoid sticky resume prompts once the human resumes live play.
   private autoPausedFromHistoryNav = false;
   private autoResumeAfterHistoryNav = false;
+  // After loading a save, the restored history may include future/redo states
+  // (i.e. currentIndex < last). In that case we still want the sticky
+  // "tap to resume" toast to appear if it's bot-to-move.
+  private allowPausedTurnToastWhileViewingPast = false;
   private lastAutoPausedHumanFirstTurnToastSig: string | null = null;
   private autoResumeAfterTurnToastTimer: number | null = null;
   private autoResumeAfterTurnToastSig: string | null = null;
@@ -578,6 +582,7 @@ export class ChessBotManager {
     this.autoPausedAtStart = false;
     this.autoPausedFromHistoryNav = false;
     this.autoResumeAfterHistoryNav = false;
+    this.allowPausedTurnToastWhileViewingPast = false;
     this.lastAutoPausedHumanFirstTurnToastSig = null;
     if (this.autoResumeAfterTurnToastTimer) {
       window.clearTimeout(this.autoResumeAfterTurnToastTimer);
@@ -627,7 +632,7 @@ export class ChessBotManager {
   }
 
   private syncPausedTurnToastNow(): void {
-    if (this.isViewingPastInHistory()) {
+    if (this.isViewingPastInHistory() && !this.allowPausedTurnToastWhileViewingPast) {
       this.controller.clearStickyToast(ChessBotManager.PAUSED_TURN_TOAST_KEY);
       return;
     }
@@ -848,6 +853,7 @@ export class ChessBotManager {
           this.setPaused(true);
           this.autoPausedFromHistoryNav = true;
           this.autoResumeAfterHistoryNav = false;
+          this.allowPausedTurnToastWhileViewingPast = false;
         }
       }
     } catch {
@@ -856,6 +862,52 @@ export class ChessBotManager {
 
     this.refreshUI();
     this.updateInputForCurrentTurn();
+    this.schedulePausedTurnToastSync();
+  }
+
+  private onLoadGame(): void {
+    // Loading a save is an explicit user navigation event.
+    // Cancel any in-flight bot computation so it doesn't immediately play from
+    // the newly loaded position.
+    if (this.busy) {
+      this.requestId++;
+      this.busy = false;
+    }
+
+    const anyBot = this.settings.white !== "human" || this.settings.black !== "human";
+    if (!anyBot) {
+      this.refreshUI();
+      this.updateInputForCurrentTurn();
+      return;
+    }
+
+    // If the loaded position is bot-to-move, pause and show the sticky
+    // "tap to resume" toast. This prevents the bot from auto-playing a move
+    // immediately after loading.
+    try {
+      const state = this.controller.getState();
+      if (state.meta?.rulesetId === "chess") {
+        const tier = tierForPlayer(this.settings, state.toMove);
+        const isBotTurn = tier !== null;
+        if (isBotTurn) {
+          this.setPaused(true);
+          this.autoPausedAtStart = false;
+          this.autoPausedFromHistoryNav = false;
+          this.autoResumeAfterHistoryNav = false;
+          this.lastAutoPausedHumanFirstTurnToastSig = null;
+          this.allowPausedTurnToastWhileViewingPast = true;
+        } else {
+          this.allowPausedTurnToastWhileViewingPast = false;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    this.refreshUI();
+    this.updateInputForCurrentTurn();
+    // Show immediately so loadGame's turn-change toast can be suppressed.
+    this.syncPausedTurnToastNow();
     this.schedulePausedTurnToastSync();
   }
 
@@ -869,6 +921,17 @@ export class ChessBotManager {
       this.onUndoRedoJump(reason);
       return;
     }
+
+    if (reason === "loadGame") {
+      this.onLoadGame();
+      // Still kick() to refresh status, keep warmup going, and ensure toasts
+      // are synchronized. maybeMove() will no-op while paused.
+      this.kick();
+      return;
+    }
+
+    // For non-load navigation, never keep the "allow while viewing past" override.
+    this.allowPausedTurnToastWhileViewingPast = false;
 
     // Any other history change invalidates pending auto-resume timers.
     if (this.autoResumeAfterTurnToastTimer) {
