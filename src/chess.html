@@ -138,6 +138,17 @@
         line-height: 1;
       }
 
+      .iconToggleGroup {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .iconToggleBtn[aria-pressed="true"] {
+        background: var(--themeMenuSelectedBg);
+        border-color: var(--themeMenuBorder);
+      }
+
       .panelSelect {
         width: 100%;
         min-width: 0;
@@ -220,6 +231,77 @@
         background: rgba(0, 0, 0, 0.18);
         border-radius: var(--panel-radius);
         padding: 10px;
+      }
+
+      /* ===== Classic Chess: Evaluation quantity bars ===== */
+      .chessEvalBars {
+        margin-top: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .chessEvalBarTrack {
+        position: relative;
+        width: 100%;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        overflow: hidden;
+      }
+
+      .chessEvalBarTrack::after {
+        content: attr(data-hint);
+        position: absolute;
+        right: 0;
+        top: -26px;
+        max-width: 100%;
+        padding: 4px 8px;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.82);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: rgba(255, 255, 255, 0.92);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        opacity: 0;
+        transform: translateY(2px);
+        transition:
+          opacity 120ms ease,
+          transform 120ms ease;
+        pointer-events: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .chessEvalBarTrack:hover::after,
+      .chessEvalBarTrack:focus-visible::after,
+      .chessEvalBarTrack.showHint::after {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* Slightly lighter track so the black bar remains visible. */
+      .chessEvalBarTrackBlack {
+        background: rgba(255, 255, 255, 0.18);
+      }
+
+      .chessEvalBarFill {
+        height: 100%;
+        width: 0%;
+        transition: width 180ms ease;
+      }
+
+      .chessEvalBarFillWhite {
+        background: rgba(255, 255, 255, 0.92);
+      }
+
+      .chessEvalBarFillBlack {
+        /* Black fill; the track behind it is lightened for contrast. */
+        background: rgba(0, 0, 0, 0.92);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
       }
 
       /* Classic Chess: Piece Inspector currently unused */
@@ -1239,6 +1321,115 @@
         </div>
 
         <div class="sidebarBody">
+          <div
+            class="panelSection"
+            id="evaluationPanel"
+            data-section="evaluation"
+          >
+            <div class="sectionHeader" data-toggle="evaluation">
+              <h3>Evaluation</h3>
+              <span class="collapseBtn">▼</span>
+            </div>
+            <div class="sectionContent">
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 72px 1fr;
+                  gap: 8px 10px;
+                  align-items: center;
+                  font-size: 12px;
+                "
+              >
+                <label for="evaluationMode">Show</label>
+                <div
+                  id="evaluationMode"
+                  class="iconToggleGroup"
+                  role="group"
+                  aria-label="Evaluation display mode"
+                >
+                  <button
+                    type="button"
+                    class="panelBtn iconToggleBtn evalModeBtn"
+                    data-mode="material"
+                    aria-pressed="false"
+                    title="Material balance"
+                    aria-label="Material balance"
+                  >
+                    ⛀
+                  </button>
+                  <button
+                    type="button"
+                    class="panelBtn iconToggleBtn evalModeBtn"
+                    data-mode="mobility"
+                    aria-pressed="false"
+                    title="Mobility (legal moves)"
+                    aria-label="Mobility (legal moves)"
+                  >
+                    ⇄
+                  </button>
+                  <button
+                    type="button"
+                    class="panelBtn iconToggleBtn evalModeBtn"
+                    data-mode="center"
+                    aria-pressed="false"
+                    title="Center control"
+                    aria-label="Center control"
+                  >
+                    ⌖
+                  </button>
+                  <button
+                    type="button"
+                    class="panelBtn iconToggleBtn evalModeBtn"
+                    data-mode="threats"
+                    aria-pressed="false"
+                    title="Threats (attacked / hanging pieces)"
+                    aria-label="Threats (attacked / hanging pieces)"
+                  >
+                    ⚔
+                  </button>
+                </div>
+              </div>
+              <div
+                id="evaluationValue"
+                style="
+                  margin-top: 10px;
+                  font-size: 12px;
+                  color: rgba(255, 255, 255, 0.78);
+                  white-space: pre-line;
+                "
+              >
+                —
+              </div>
+
+              <div class="chessEvalBars" aria-label="Evaluation quantity bars">
+                <div
+                  class="chessEvalBarTrack"
+                  aria-label="White quantity"
+                  tabindex="0"
+                  data-hint="White: 0"
+                >
+                  <div
+                    id="evaluationBarWhite"
+                    class="chessEvalBarFill chessEvalBarFillWhite"
+                    style="width: 0%"
+                  ></div>
+                </div>
+                <div
+                  class="chessEvalBarTrack chessEvalBarTrackBlack"
+                  aria-label="Black quantity"
+                  tabindex="0"
+                  data-hint="Black: 0"
+                >
+                  <div
+                    id="evaluationBarBlack"
+                    class="chessEvalBarFill chessEvalBarFillBlack"
+                    style="width: 0%"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="panelSection" data-section="theme">
             <div class="sectionHeader" data-toggle="theme">
               <h3>Board & Pieces</h3>

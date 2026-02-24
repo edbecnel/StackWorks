@@ -29,6 +29,7 @@ import { applyMove } from "./game/applyMove.ts";
 import { nodeIdToA1 } from "./game/coordFormat.ts";
 import { createBoardLoadingOverlay } from "./ui/boardLoadingOverlay";
 import { nextPaint } from "./ui/nextPaint";
+import { bindChessEvaluationPanel } from "./ui/chessEvaluationPanel.ts";
 
 const ACTIVE_VARIANT_ID: VariantId = "chess_classic";
 
@@ -184,6 +185,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const controller = new GameController(svg, piecesLayer, inspector as any, state, history, driver);
   controller.bind();
+
+  bindChessEvaluationPanel(controller);
 
   // Classic Chess: theme select (2D / 3D / Neo) + Neo PNG availability hint.
   // Note: Neo is SVG-only and does not require external assets.
