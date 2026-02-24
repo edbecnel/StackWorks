@@ -11,6 +11,8 @@ type Inspector = {
   cancelHide: () => void;
   show: (nodeId: string, stack: Stack, opts?: { rulesetId?: string; boardSize?: number }) => void;
   hideSoon: () => void;
+  pin?: () => void;
+  unpin?: () => void;
 };
 
 export function renderStackAtNode(
@@ -66,6 +68,24 @@ export function renderStackAtNode(
     });
   };
 
+  const bindInspectorTouchPin = (el: SVGGElement): void => {
+    if (!inspector || stack.length <= 1) return;
+    const pinAndStop = (ev: Event) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      (ev as any).stopImmediatePropagation?.();
+      // Clicking/tapping a mini spine should keep the inspector visible
+      // so the user can scroll/inspect the full stack.
+      inspector.cancelHide();
+      inspector.pin?.();
+      inspector.show(nodeId, stack, { rulesetId, boardSize });
+    };
+
+    // Stop both pointerdown and click: controller selection is bound to SVG click.
+    el.addEventListener("pointerdown", pinAndStop, { capture: true });
+    el.addEventListener("click", pinAndStop, { capture: true });
+  };
+
   const spineTarget = spinesLayer ?? g;
   const spineG =
     spineTarget === g
@@ -88,6 +108,9 @@ export function renderStackAtNode(
 
   bindInspectorHover(g);
   if (spineG !== g) bindInspectorHover(spineG);
+
+  // Only the mini spine should be pinnable by touch.
+  if (spineG !== g) bindInspectorTouchPin(spineG);
 
   piecesLayer.appendChild(g);
 }

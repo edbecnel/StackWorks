@@ -315,6 +315,35 @@ describe("GameController forced game-over toasts", () => {
     const toast = document.querySelector(".lascaToast") as HTMLElement | null;
     expect(toast).toBe(null);
   });
+
+  it("shows a sticky game-over toast matching Status Message", () => {
+    // Sticky game-over reason should always be shown, even if timed toasts are disabled.
+    localStorage.setItem("lasca.opt.toasts", "0");
+
+    // Minimal status panel nodes used by updatePanel().
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      '<div id="statusTurn"></div><div id="statusPhase"></div><div id="statusMessage"></div>'
+    );
+
+    const history = new HistoryManager();
+    const s: GameState = {
+      board: new Map(),
+      toMove: "W",
+      phase: "idle",
+      meta: { rulesetId: "damasca_classic" as any, boardSize: 8, variantId: "damasca_classic" as any },
+    };
+    history.push(s);
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, s, history);
+    (controller as any).playSfx = vi.fn();
+
+    // Trigger game-over check: with an empty board, the player to move has no pieces.
+    (controller as any).checkAndHandleCurrentPlayerLost();
+
+    const toast = document.querySelector(".lascaToast") as HTMLElement | null;
+    expect(toast?.textContent).toBe("Dark wins — Light has no pieces");
+  });
 });
 
 describe("GameController forced check toasts", () => {

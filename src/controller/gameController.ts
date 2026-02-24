@@ -101,6 +101,8 @@ export class GameController {
   private reportIssueHintLastShownAtMs: number = 0;
   private lastDeadPlayWarning: string | null = null;
   private lastGameOverToast: string | null = null;
+  private lastGameOverStickyToast: string | null = null;
+  private static readonly GAME_OVER_STICKY_TOAST_KEY = "game_over";
   private lastToastToMove: GameState["toMove"] | null = null;
   private lastCheckToastSig: string | null = null;
   private toastTimer: number | null = null;
@@ -1265,6 +1267,40 @@ export class GameController {
     this.showToast(msg, 3200, { force });
   }
 
+  private computeTerminalStatusMessage(): string {
+    const forcedMsg = (this.state as any)?.forcedGameOver?.message;
+    const terminal = checkCurrentPlayerLost(this.state);
+    const fallback = getWinner(this.state);
+    const baseMsg =
+      typeof forcedMsg === "string" && forcedMsg.trim()
+        ? forcedMsg.trim()
+        : (terminal.reason || fallback.reason || "Game Over");
+
+    if (this.isCheckmateMessage(baseMsg)) {
+      const w = terminal.winner ?? fallback.winner;
+      return w ? `Checkmate - ${this.sideLabel(w)} wins!` : "Checkmate";
+    }
+
+    return baseMsg;
+  }
+
+  private showGameOverStickyToast(message: string): void {
+    const msg = typeof message === "string" ? message.trim() : "";
+    if (!msg) return;
+
+    const alreadyShowing =
+      this.stickyToastKey === GameController.GAME_OVER_STICKY_TOAST_KEY && this.stickyToastText === msg;
+    if (alreadyShowing && this.lastGameOverStickyToast === msg) return;
+
+    this.lastGameOverStickyToast = msg;
+    this.showStickyToast(GameController.GAME_OVER_STICKY_TOAST_KEY, msg, { force: true });
+  }
+
+  private clearGameOverStickyToast(): void {
+    this.lastGameOverStickyToast = null;
+    this.clearStickyToast(GameController.GAME_OVER_STICKY_TOAST_KEY);
+  }
+
   private resetGameOverToastDedupe(): void {
     // Allow terminal toasts (e.g. Checkmate/Stalemate) to re-appear when the
     // user navigates history (playback/undo/redo/jump) out of a game-over state.
@@ -1863,6 +1899,7 @@ export class GameController {
       // Allow undoing out of terminal states.
       this.isGameOver = false;
       this.resetGameOverToastDedupe();
+      this.clearGameOverStickyToast();
 
       // Cancel any transient UI timers from the previous position.
       if (this.bannerTimer) {
@@ -1898,6 +1935,7 @@ export class GameController {
       // Allow redoing out of terminal states.
       this.isGameOver = false;
       this.resetGameOverToastDedupe();
+      this.clearGameOverStickyToast();
 
       // Cancel any transient UI timers from the previous position.
       if (this.bannerTimer) {
@@ -1933,6 +1971,7 @@ export class GameController {
     // Allow jumping out of terminal states.
     this.isGameOver = false;
     this.resetGameOverToastDedupe();
+    this.clearGameOverStickyToast();
 
     // Cancel any transient UI timers.
     if (this.bannerTimer) {
@@ -2471,6 +2510,7 @@ export class GameController {
     this.driver.setState(initialState);
     this.isGameOver = false;
     this.resetGameOverToastDedupe();
+    this.clearGameOverStickyToast();
     this.clearSelection();
 
     this.recomputeRepetitionCounts();
@@ -2512,6 +2552,7 @@ export class GameController {
     const baseState = currentFromHistory ?? loadedState;
     this.isGameOver = false;
     this.resetGameOverToastDedupe();
+    this.clearGameOverStickyToast();
     this.state = { ...baseState, phase: "idle" };
     this.driver.setState(this.state);
     
@@ -2611,21 +2652,9 @@ export class GameController {
     // Always reflect the terminal reason in the Status Message row.
     // (This matters for both live play and when replaying/stepping through history.)
     if (elMsg && this.isGameOver) {
-      const forcedMsg = (this.state as any)?.forcedGameOver?.message;
-      const terminal = checkCurrentPlayerLost(this.state);
-      const fallback = getWinner(this.state);
-      const baseMsg =
-        typeof forcedMsg === "string" && forcedMsg.trim()
-          ? forcedMsg.trim()
-          : (terminal.reason || fallback.reason || "Game Over");
-
-      // For chess variants, make checkmate crystal clear and always include the winner.
-      if (this.isCheckmateMessage(baseMsg)) {
-        const w = terminal.winner ?? fallback.winner;
-        elMsg.textContent = w ? `Checkmate - ${this.sideLabel(w)} wins!` : "Checkmate";
-      } else {
-        elMsg.textContent = baseMsg;
-      }
+      const msg = this.computeTerminalStatusMessage();
+      elMsg.textContent = msg;
+      this.showGameOverStickyToast(msg);
     }
 
     // Board HUD: show whose turn it is as a small icon in the board's upper-left.

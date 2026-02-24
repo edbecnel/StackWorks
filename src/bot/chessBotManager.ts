@@ -509,12 +509,17 @@ export class ChessBotManager {
     if (this.elDelayReset) this.elDelayReset.title = `Reset to default speed (${DEFAULT_DELAY_MS} ms)`;
     const anyBot = this.settings.white !== "human" || this.settings.black !== "human";
     if (this.elPause) {
-      this.elPause.disabled = !anyBot;
+      this.elPause.disabled = !anyBot || this.controller.isOver();
       this.elPause.textContent = this.settings.paused ? "Resume bot" : "Pause bot";
     }
 
     if (!anyBot) {
       this.setStatus("Bot off");
+      return;
+    }
+
+    if (this.controller.isOver()) {
+      this.setStatus("Game over");
       return;
     }
 
@@ -985,6 +990,7 @@ export class ChessBotManager {
     } finally {
       this.controller.setInputEnabled(true);
       this.setStatus("Game over");
+      this.refreshUI();
     }
   }
 

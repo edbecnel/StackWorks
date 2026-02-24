@@ -23,6 +23,7 @@ export function createStackInspector(
   zoomSvg: SVGSVGElement
 ) {
   let hideTimer: number | null = null;
+  let pinned: boolean = false;
 
   function clearZoom(): void {
     while (zoomSvg.firstChild) zoomSvg.removeChild(zoomSvg.firstChild);
@@ -165,7 +166,17 @@ export function createStackInspector(
     hideTimer = null;
   }
 
+  function pin(): void {
+    pinned = true;
+    cancelHide();
+  }
+
+  function unpin(): void {
+    pinned = false;
+  }
+
   function hideSoon(): void {
+    if (pinned) return;
     if (hideTimer) window.clearTimeout(hideTimer);
     hideTimer = window.setTimeout(() => {
       zoomTitle.textContent = "Stack Inspector";
@@ -175,5 +186,5 @@ export function createStackInspector(
     }, 80);
   }
 
-  return { show, hideSoon, cancelHide, clearZoom };
+  return { show, hideSoon, cancelHide, clearZoom, pin, unpin };
 }

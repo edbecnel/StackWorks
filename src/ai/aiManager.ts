@@ -489,15 +489,21 @@ export class AIManager {
     if (this.elDelayReset) this.elDelayReset.title = `Reset to default speed (${DEFAULT_DELAY_MS} ms)`;
 
     if (this.elPause) {
+      this.elPause.disabled = this.controller.isOver();
       this.elPause.textContent = this.settings.paused ? "Resume bot" : "Pause bot";
     }
 
-    // Input lock: if it's an AI turn and we are not paused, lock input.
-    const p: Player = this.controller.getState().toMove;
-    const diff = difficultyForPlayer(this.settings, p);
-    const shouldLock = !this.settings.paused && diff !== "human";
+    // Input lock: if it's a bot-controlled side to move, lock input
+    // even while paused. Resume happens via bot controls / sticky toast.
     if (this.controller.setInputEnabled) {
-      this.controller.setInputEnabled(!shouldLock);
+      if (this.controller.isOver()) {
+        this.controller.setInputEnabled(true);
+      } else {
+        const p: Player = this.controller.getState().toMove;
+        const diff = difficultyForPlayer(this.settings, p);
+        const shouldLock = diff !== "human";
+        this.controller.setInputEnabled(!shouldLock);
+      }
     }
 
     if (this.elInfo) {

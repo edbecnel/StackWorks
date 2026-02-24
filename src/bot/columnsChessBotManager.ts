@@ -49,6 +49,8 @@ export class ColumnsChessBotManager {
   private controller: GameController;
   private settings: BotSettings;
 
+  private lastBoardTapAtMs: number = 0;
+
   private elWhite: HTMLSelectElement | null = null;
   private elBlack: HTMLSelectElement | null = null;
   private elDelay: HTMLInputElement | null = null;
@@ -96,6 +98,8 @@ export class ColumnsChessBotManager {
         // ignore
       }
     }
+
+    this.installBoardClickToPauseBotVsBot();
 
     if (this.elWhite) {
       this.elWhite.value = this.settings.white;
@@ -173,6 +177,39 @@ export class ColumnsChessBotManager {
     this.kick();
   }
 
+  private installBoardClickToPauseBotVsBot(): void {
+    if (typeof document === "undefined") return;
+
+    const elBoard = document.getElementById("boardWrap") as HTMLElement | null;
+    if (!elBoard) return;
+
+    const onTap = (ev: Event) => {
+      // On many devices, a single tap produces both pointerdown and click.
+      // Avoid handling both.
+      const now = Date.now();
+      if (ev.type === "click" && now - this.lastBoardTapAtMs < 350) {
+        return;
+      }
+
+      // Only pause via board-tap while bot-vs-bot is actively running.
+      // Resume must happen via the sticky toast (same as other variants).
+      if (this.settings.paused) return;
+      if (this.settings.white === "human" || this.settings.black === "human") return;
+      if (this.controller.isOver()) return;
+
+      const state = this.controller.getState();
+      if (state.meta?.rulesetId !== "columns_chess") return;
+
+      ev.preventDefault();
+      ev.stopPropagation();
+      this.lastBoardTapAtMs = now;
+      this.pause();
+    };
+
+    elBoard.addEventListener("pointerdown", onTap, { capture: true });
+    elBoard.addEventListener("click", onTap, { capture: true });
+  }
+
   private loadSettings(): BotSettings {
     try {
       const white = parseSide(localStorage.getItem(LS_KEYS.white));
@@ -206,7 +243,7 @@ export class ColumnsChessBotManager {
 
     const anyBot = this.settings.white !== "human" || this.settings.black !== "human";
     if (this.elPause) {
-      this.elPause.disabled = !anyBot;
+      this.elPause.disabled = !anyBot || this.controller.isOver();
       this.elPause.textContent = this.settings.paused ? "Resume bot" : "Pause bot";
     }
 
@@ -216,6 +253,13 @@ export class ColumnsChessBotManager {
 
     if (!anyBot) {
       this.setStatus("Bot off");
+      this.controller.setInputEnabled(true);
+      return;
+    }
+
+    if (this.controller.isOver()) {
+      this.setStatus("Game over");
+      this.controller.setInputEnabled(true);
       return;
     }
 
@@ -232,6 +276,20 @@ export class ColumnsChessBotManager {
 
     const mode = this.settings.paused ? "paused" : "active";
     this.setStatus(`Bot ${mode} (W:${this.settings.white} B:${this.settings.black})${turnSummary}`);
+
+    // Input lock: if it's a bot-controlled side to move, lock input even while paused.
+    // Resume happens via bot controls / sticky toast.
+    try {
+      const s = this.controller.getState();
+      if (s.meta?.rulesetId === "columns_chess") {
+        const isBotTurn = botEnabledFor(this.settings, s.toMove);
+        this.controller.setInputEnabled(!isBotTurn);
+      } else {
+        this.controller.setInputEnabled(true);
+      }
+    } catch {
+      // ignore
+    }
   }
 
   private pause(): void {
