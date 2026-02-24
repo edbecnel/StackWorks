@@ -122,9 +122,15 @@ window.addEventListener("DOMContentLoaded", async () => {
   const checkerboardThemeHelp = document.getElementById("checkerboardThemeHelp") as HTMLElement | null;
   const checkerboardThemeSelect = document.getElementById("checkerboardThemeSelect") as HTMLSelectElement | null;
 
-  const canUseCheckerboardTheme = activeVariant.boardSize === 8 && useCheckered8x8;
-  if (checkerboardThemeRow) checkerboardThemeRow.style.display = canUseCheckerboardTheme ? "flex" : "none";
-  if (checkerboardThemeHelp) checkerboardThemeHelp.style.display = canUseCheckerboardTheme ? "block" : "none";
+  const shouldShowCheckerboardTheme = activeVariant.boardSize === 8;
+  const canUseCheckerboardTheme = shouldShowCheckerboardTheme && useCheckered8x8;
+  if (checkerboardThemeRow) checkerboardThemeRow.style.display = shouldShowCheckerboardTheme ? "flex" : "none";
+  if (checkerboardThemeHelp) {
+    checkerboardThemeHelp.style.display = shouldShowCheckerboardTheme ? "block" : "none";
+    checkerboardThemeHelp.textContent = canUseCheckerboardTheme
+      ? "Checkerboard background colors"
+      : "Enable \"Checkered 8×8 board\" in Options to customize board colors";
+  }
   if (checkerboardThemeSelect) checkerboardThemeSelect.disabled = !canUseCheckerboardTheme;
 
   const readCheckerboardTheme = (): CheckerboardThemeId =>
@@ -133,9 +139,12 @@ window.addEventListener("DOMContentLoaded", async () => {
     applyCheckerboardTheme(svg, id);
   };
 
+  if (checkerboardThemeSelect) {
+    checkerboardThemeSelect.value = readCheckerboardTheme();
+  }
+
   if (canUseCheckerboardTheme) {
     if (checkerboardThemeSelect) {
-      checkerboardThemeSelect.value = readCheckerboardTheme();
       checkerboardThemeSelect.addEventListener("change", () => {
         const picked = normalizeCheckerboardThemeId(checkerboardThemeSelect.value);
         writeStringPref(LS_OPT_KEYS.checkerboardTheme, picked);
@@ -469,21 +478,92 @@ window.addEventListener("DOMContentLoaded", async () => {
   const undoBtn = document.getElementById("undoBtn") as HTMLButtonElement | null;
   const redoBtn = document.getElementById("redoBtn") as HTMLButtonElement | null;
   const moveHistoryEl = document.getElementById("moveHistory") as HTMLElement | null;
+  const moveHistoryLayoutSel = document.getElementById("moveHistoryLayout") as HTMLSelectElement | null;
+
+  type MoveHistoryLayout = "single" | "two";
+  const MOVE_HISTORY_LAYOUT_KEY = "lasca.moveHistoryLayout";
+  const readMoveHistoryLayout = (): MoveHistoryLayout => {
+    const raw = String(window.localStorage.getItem(MOVE_HISTORY_LAYOUT_KEY) ?? "").trim();
+    return raw === "two" || raw === "single" ? (raw as MoveHistoryLayout) : "single";
+  };
+  const writeMoveHistoryLayout = (layout: MoveHistoryLayout) => {
+    try {
+      window.localStorage.setItem(MOVE_HISTORY_LAYOUT_KEY, layout);
+    } catch {
+      // ignore
+    }
+  };
+
+  let moveHistoryLayout: MoveHistoryLayout = readMoveHistoryLayout();
+  if (moveHistoryLayoutSel) {
+    moveHistoryLayoutSel.value = moveHistoryLayout;
+    moveHistoryLayoutSel.addEventListener("change", () => {
+      const v = String(moveHistoryLayoutSel.value);
+      moveHistoryLayout = v === "two" ? "two" : "single";
+      writeMoveHistoryLayout(moveHistoryLayout);
+      updateHistoryUI("jump");
+    });
+  }
 
   const updateHistoryUI = (reason?: import("./controller/gameController.ts").HistoryChangeReason) => {
     if (undoBtn) undoBtn.disabled = !controller.canUndo();
     if (redoBtn) redoBtn.disabled = !controller.canRedo();
 
-    if (moveHistoryEl) {
-      const historyData = controller.getHistory();
-      if (historyData.length === 0) {
-        moveHistoryEl.textContent = "No moves yet";
+    if (!moveHistoryEl) return;
+
+    const historyData = controller.getHistory();
+    if (historyData.length === 0) {
+      moveHistoryEl.textContent = "No moves yet";
+    } else {
+      const renderStartCell = (entry: (typeof historyData)[number]) => {
+        const cls = `cell clickable start${entry.isCurrent ? " current" : ""}`;
+        const currentAttr = entry.isCurrent ? ' data-is-current="1"' : "";
+        return `<div class="${cls}" data-history-index="${entry.index}"${currentAttr}>Start</div>`;
+      };
+
+      const renderMoveCell = (entry: (typeof historyData)[number]) => {
+        const whoMoved = entry.toMove === "B" ? "W" : "B";
+        const playerIcon = whoMoved === "B" ? "⚫" : "⚪";
+        let label = `${playerIcon}`;
+        if (entry.notation) label += ` ${entry.notation}`;
+        const cls = `cell clickable${entry.isCurrent ? " current" : ""}`;
+        const currentAttr = entry.isCurrent ? ' data-is-current="1"' : "";
+        return `<div class="${cls}" data-history-index="${entry.index}" data-history-who="${whoMoved}"${currentAttr}>${label}</div>`;
+      };
+
+      if (moveHistoryLayout === "two") {
+        const totalMoves = Math.ceil((historyData.length - 1) / 2);
+        const parts: string[] = [];
+        parts.push('<div class="historyGrid">');
+        parts.push('<div class="cell hdr">#</div>');
+        parts.push('<div class="cell hdr">⚪ Light</div>');
+        parts.push('<div class="cell hdr">⚫ Dark</div>');
+
+        parts.push(renderStartCell(historyData[0]!));
+
+        for (let m = 1; m <= totalMoves; m++) {
+          const lightIdx = 2 * m - 1;
+          const darkIdx = 2 * m;
+          parts.push(`<div class="cell num">${m}.</div>`);
+
+          const lightEntry = historyData[lightIdx];
+          const darkEntry = historyData[darkIdx];
+
+          if (lightEntry) parts.push(renderMoveCell(lightEntry));
+          else parts.push('<div class="cell"></div>');
+
+          if (darkEntry) parts.push(renderMoveCell(darkEntry));
+          else parts.push('<div class="cell"></div>');
+        }
+
+        parts.push("</div>");
+        moveHistoryEl.innerHTML = parts.join("");
       } else {
         moveHistoryEl.innerHTML = historyData
           .map((entry, idx) => {
             if (idx === 0) {
               const baseStyle = entry.isCurrent
-                ? "font-weight: bold; color: rgba(255, 255, 255, 0.95); background: rgba(255, 255, 255, 0.1); padding: 2px 6px; border-radius: 4px;"
+                ? "font-weight: bold; color: rgba(255, 255, 255, 0.95);"
                 : "";
               const style = `${baseStyle}${baseStyle ? " " : ""}cursor: pointer;`;
               const currentAttr = entry.isCurrent ? ' data-is-current="1"' : "";
@@ -494,6 +574,7 @@ window.addEventListener("DOMContentLoaded", async () => {
             // If toMove is "B", White just moved. If toMove is "W", Black just moved.
             const playerWhoMoved = entry.toMove === "B" ? "Light" : "Dark";
             const playerIcon = playerWhoMoved === "Dark" ? "⚫" : "⚪";
+            const whoMoved = playerWhoMoved === "Light" ? "W" : "B";
 
             // Calculate move number: each player's move increments the counter
             const moveNum = playerWhoMoved === "Dark"
@@ -505,26 +586,26 @@ window.addEventListener("DOMContentLoaded", async () => {
               label += ` ${entry.notation}`;
             }
             const baseStyle = entry.isCurrent
-              ? "font-weight: bold; color: rgba(255, 255, 255, 0.95); background: rgba(255, 255, 255, 0.1); padding: 2px 6px; border-radius: 4px;"
+              ? "font-weight: bold; color: rgba(255, 255, 255, 0.95);"
               : "";
             const style = `${baseStyle}${baseStyle ? " " : ""}cursor: pointer;`;
             const currentAttr = entry.isCurrent ? ' data-is-current="1"' : "";
-            return `<div data-history-index="${entry.index}"${currentAttr} style="${style}">${label}</div>`;
+            return `<div data-history-index="${entry.index}" data-history-who="${whoMoved}"${currentAttr} style="${style}">${label}</div>`;
           })
           .join("");
       }
-
-      // Keep the latest move visible.
-      // Use rAF so layout reflects the updated HTML before scrolling.
-      requestAnimationFrame(() => {
-        if (reason === "jump" || reason === "undo" || reason === "redo") {
-          const currentEl = moveHistoryEl.querySelector('[data-is-current="1"]') as HTMLElement | null;
-          if (currentEl) currentEl.scrollIntoView({ block: "nearest" });
-          return;
-        }
-        moveHistoryEl.scrollTop = moveHistoryEl.scrollHeight;
-      });
     }
+
+    // Keep the latest move visible.
+    // Use rAF so layout reflects the updated HTML before scrolling.
+    requestAnimationFrame(() => {
+      if (reason === "jump" || reason === "undo" || reason === "redo") {
+        const currentEl = moveHistoryEl.querySelector('[data-is-current="1"]') as HTMLElement | null;
+        if (currentEl) currentEl.scrollIntoView({ block: "nearest" });
+        return;
+      }
+      moveHistoryEl.scrollTop = moveHistoryEl.scrollHeight;
+    });
   };
 
   if (moveHistoryEl) {

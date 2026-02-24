@@ -278,6 +278,8 @@
           flex: 1 1 0;
           min-height: 0;
           display: flex;
+          flex-direction: column;
+          gap: 8px;
           overflow: hidden;
         }
 
@@ -416,6 +418,92 @@
 
       .panelSection.collapsed .sectionHeader {
         margin-bottom: 0;
+      }
+
+      /* Move History: add a slightly lighter surface so black piece glyphs remain visible. */
+      #moveHistory {
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        padding: 6px;
+      }
+
+      /* Single-column layout rows (rendered as direct children divs). */
+      #moveHistory > div[data-history-index] {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.135);
+        margin: 2px 0;
+      }
+
+      #moveHistory > div[data-history-index][data-is-current="1"] {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      /* Match two-column color intent: black moves are slightly lighter than white moves. */
+      #moveHistory > div[data-history-index][data-history-who="B"] {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      #moveHistory
+        > div[data-history-index][data-history-who="B"][data-is-current="1"] {
+        background: rgba(255, 255, 255, 0.28);
+      }
+
+      .historyGrid {
+        display: grid;
+        grid-template-columns: 2.8em 1fr 1fr;
+        column-gap: 8px;
+        row-gap: 4px;
+        align-items: baseline;
+      }
+
+      .historyGrid .cell {
+        padding: 2px 6px;
+        border-radius: 6px;
+      }
+
+      /* Two-column layout cells: give move cells a soft background. */
+      .historyGrid .cell:not(.hdr):not(.num) {
+        background: rgba(255, 255, 255, 0.135);
+      }
+
+      /* Two-column layout: lighten only the Dark (Black) column cells.
+         DOM order is: hdr(3), start(1), then repeating triplets: #(col1), Light(col2), Dark(col3).
+         That makes Dark cells :nth-child(3n+1), excluding the Start row.
+         Keep Light column background as-is. */
+      .historyGrid > .cell:not(.hdr):not(.num):not(.start):nth-child(3n + 1) {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .historyGrid
+        > .cell.current:not(.hdr):not(.num):not(.start):nth-child(3n + 1) {
+        background: rgba(255, 255, 255, 0.28);
+      }
+
+      .historyGrid .cell.clickable {
+        cursor: pointer;
+      }
+
+      .historyGrid .cell.hdr {
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.8);
+        padding: 2px 6px 4px 6px;
+      }
+
+      .historyGrid .cell.num {
+        color: rgba(255, 255, 255, 0.55);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .historyGrid .cell.current {
+        font-weight: bold;
+        color: rgba(255, 255, 255, 0.95);
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .historyGrid .cell.start {
+        grid-column: 1 / span 3;
       }
 
       .kv {
@@ -1953,6 +2041,37 @@
               <span class="collapseBtn">▼</span>
             </div>
             <div class="sectionContent">
+              <div
+                style="
+                  display: flex;
+                  gap: 8px;
+                  align-items: center;
+                  margin-bottom: 8px;
+                "
+              >
+                <label
+                  for="moveHistoryLayout"
+                  style="
+                    font-size: 12px;
+                    color: rgba(255, 255, 255, 0.7);
+                    white-space: nowrap;
+                  "
+                  >Layout</label
+                >
+                <select
+                  id="moveHistoryLayout"
+                  class="panelSelect"
+                  style="
+                    width: auto;
+                    flex: 1 1 auto;
+                    padding: 4px 10px;
+                    font-size: 12px;
+                  "
+                >
+                  <option value="single">Single column</option>
+                  <option value="two">Two columns</option>
+                </select>
+              </div>
               <div
                 id="moveHistory"
                 style="

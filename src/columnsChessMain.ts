@@ -25,6 +25,7 @@ import type { Stack } from "./types";
 import { bindPlaybackControls } from "./ui/playbackControls.ts";
 import { createBoardLoadingOverlay } from "./ui/boardLoadingOverlay";
 import { nextPaint } from "./ui/nextPaint";
+import { ColumnsChessBotManager } from "./bot/columnsChessBotManager.ts";
 
 const ACTIVE_VARIANT_ID: VariantId = "columns_chess";
 
@@ -199,6 +200,16 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const controller = new GameController(svg, piecesLayer, orientedInspector as any, state, history, driver);
   controller.bind();
+
+  // Offline-only: Bot controls (Columns Chess fallback bot).
+  if (driver.mode !== "online") {
+    const bot = new ColumnsChessBotManager(controller);
+    bot.bind();
+  } else {
+    // Hide bot panel in online mode.
+    const botSection = document.querySelector('[data-section="bot"]') as HTMLElement | null;
+    if (botSection) botSection.style.display = "none";
+  }
 
   // Columns Chess: theme select (Discs / 2D / 3D / Neo) + Neo PNG availability hint.
   {
@@ -602,7 +613,7 @@ window.addEventListener("DOMContentLoaded", async () => {
           .map((entry, idx) => {
             if (idx === 0) {
               const baseStyle = entry.isCurrent
-                ? "font-weight: bold; color: rgba(255, 255, 255, 0.95); background: rgba(255, 255, 255, 0.1); padding: 2px 6px; border-radius: 4px;"
+                ? "font-weight: bold; color: rgba(255, 255, 255, 0.95);"
                 : "";
               const style = `${baseStyle}${baseStyle ? " " : ""}cursor: pointer;`;
               const currentAttr = entry.isCurrent ? ' data-is-current="1"' : "";
@@ -628,11 +639,11 @@ window.addEventListener("DOMContentLoaded", async () => {
             if (entry.notation) label += ` ${entry.notation}`;
 
             const baseStyle = entry.isCurrent
-              ? "font-weight: bold; color: rgba(255, 255, 255, 0.95); background: rgba(255, 255, 255, 0.1); padding: 2px 6px; border-radius: 4px;"
+              ? "font-weight: bold; color: rgba(255, 255, 255, 0.95);"
               : "";
             const style = `${baseStyle}${baseStyle ? " " : ""}cursor: pointer;`;
             const currentAttr = entry.isCurrent ? ' data-is-current="1"' : "";
-            return `<div data-history-index=\"${entry.index}\"${currentAttr} style=\"${style}\">${label}</div>`;
+            return `<div data-history-index=\"${entry.index}\" data-history-who=\"${whoMoved}\"${currentAttr} style=\"${style}\">${label}</div>`;
           })
           .join("");
       }

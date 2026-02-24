@@ -306,7 +306,19 @@
       }
 
       #moveHistory > div[data-history-index][data-is-current="1"] {
-        background: rgba(255, 255, 255, 0.21);
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      /* Single-column layout: match two-column column colors.
+         White moves keep the default (same as the White column).
+         Black moves use the lighter Black-column background. */
+      #moveHistory > div[data-history-index][data-history-who="B"] {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      #moveHistory
+        > div[data-history-index][data-history-who="B"][data-is-current="1"] {
+        background: rgba(255, 255, 255, 0.28);
       }
 
       .historyGrid {
@@ -325,6 +337,19 @@
       /* Two-column layout cells: give move cells a soft background. */
       .historyGrid .cell:not(.hdr):not(.num) {
         background: rgba(255, 255, 255, 0.135);
+      }
+
+      /* Two-column layout: lighten only the Black column cells.
+         DOM order is: hdr(3), start(1), then repeating triplets: #(col1), White(col2), Black(col3).
+         That makes Black cells :nth-child(3n+1), excluding the Start row.
+         Keep White column background as-is. */
+      .historyGrid > .cell:not(.hdr):not(.num):not(.start):nth-child(3n + 1) {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .historyGrid
+        > .cell.current:not(.hdr):not(.num):not(.start):nth-child(3n + 1) {
+        background: rgba(255, 255, 255, 0.28);
       }
 
       .historyGrid .cell.clickable {

@@ -181,6 +181,24 @@
         flex: 0 0 auto;
       }
 
+      /* Bot speed row: keep controls within section bounds on narrow sidebars. */
+      label[for="botDelay"] + div {
+        width: 100%;
+        min-width: 0;
+      }
+
+      #botDelay {
+        flex: 1 1 0 !important;
+        width: auto !important;
+        min-width: 0;
+        accent-color: rgba(255, 255, 255, 0.75);
+      }
+
+      #botDelayReset,
+      #botDelayLabel {
+        flex: 0 0 auto;
+      }
+
       a.panelBtn {
         text-decoration: none;
         display: inline-flex;
@@ -283,7 +301,19 @@
       }
 
       #moveHistory > div[data-history-index][data-is-current="1"] {
-        background: rgba(255, 255, 255, 0.21);
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      /* Single-column layout: match two-column column colors.
+         White moves keep the default (same as the White column).
+         Black moves use the lighter Black-column background. */
+      #moveHistory > div[data-history-index][data-history-who="B"] {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      #moveHistory
+        > div[data-history-index][data-history-who="B"][data-is-current="1"] {
+        background: rgba(255, 255, 255, 0.28);
       }
 
       .historyGrid {
@@ -302,6 +332,19 @@
       /* Two-column layout cells: give move cells a soft background. */
       .historyGrid .cell:not(.hdr):not(.num) {
         background: rgba(255, 255, 255, 0.135);
+      }
+
+      /* Two-column layout: lighten only the Black column cells.
+         DOM order is: hdr(3), start(1), then repeating triplets: #(col1), White(col2), Black(col3).
+         That makes Black cells :nth-child(3n+1), excluding the Start row.
+         Keep White column background as-is. */
+      .historyGrid > .cell:not(.hdr):not(.num):not(.start):nth-child(3n + 1) {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .historyGrid
+        > .cell.current:not(.hdr):not(.num):not(.start):nth-child(3n + 1) {
+        background: rgba(255, 255, 255, 0.28);
       }
 
       .historyGrid .cell.clickable {
@@ -931,6 +974,127 @@
                 >
                   Export Move History
                 </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panelSection" data-section="bot">
+            <div class="sectionHeader" data-toggle="bot">
+              <h3>Bot</h3>
+              <span class="collapseBtn">▼</span>
+            </div>
+            <div class="sectionContent">
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 52px minmax(0, 1fr);
+                  gap: 8px 10px;
+                  align-items: center;
+                  justify-items: start;
+                  font-size: 12px;
+                "
+              >
+                <label for="botWhiteSelect">White</label>
+                <select
+                  id="botWhiteSelect"
+                  class="panelSelect"
+                  style="width: 100%"
+                >
+                  <option value="human">Human</option>
+                  <option value="bot">Bot</option>
+                </select>
+
+                <label for="botBlackSelect">Black</label>
+                <select
+                  id="botBlackSelect"
+                  class="panelSelect"
+                  style="width: 100%"
+                >
+                  <option value="human">Human</option>
+                  <option value="bot">Bot</option>
+                </select>
+
+                <label for="botDelay">Speed</label>
+                <div style="display: flex; gap: 6px; align-items: center">
+                  <input
+                    id="botDelay"
+                    type="range"
+                    min="0"
+                    max="3000"
+                    step="100"
+                    value="500"
+                    style="flex: 0 1 105px; width: 105px"
+                  />
+                  <button
+                    id="botDelayReset"
+                    class="panelBtn iconToggleBtn"
+                    type="button"
+                    title="Reset to default speed"
+                    aria-label="Reset bot speed to default"
+                  >
+                    ↺
+                  </button>
+                  <div
+                    id="botDelayLabel"
+                    style="
+                      min-width: 52px;
+                      text-align: left;
+                      font-variant-numeric: tabular-nums;
+                      white-space: nowrap;
+                    "
+                  >
+                    500 ms
+                  </div>
+                </div>
+
+                <div
+                  style="
+                    grid-column: 1 / -1;
+                    display: flex;
+                    gap: 8px;
+                    width: 100%;
+                  "
+                >
+                  <button
+                    id="botPauseBtn"
+                    class="panelBtn"
+                    type="button"
+                    style="flex: 1; padding: 6px 12px"
+                  >
+                    Pause bot
+                  </button>
+
+                  <button
+                    id="botResetLearningBtn"
+                    class="panelBtn"
+                    type="button"
+                    style="flex: 1; padding: 6px 12px"
+                    title="Reset adaptive difficulty (not used for Columns Chess yet)"
+                  >
+                    Reset learning
+                  </button>
+                </div>
+
+                <div
+                  id="botStatus"
+                  style="
+                    grid-column: 1 / -1;
+                    font-size: 11px;
+                    color: rgba(255, 255, 255, 0.6);
+                  "
+                >
+                  Bot off
+                </div>
+              </div>
+              <div
+                style="
+                  font-size: 11px;
+                  color: rgba(255, 255, 255, 0.6);
+                  margin-top: 8px;
+                "
+              >
+                Columns Chess bot uses a fast fallback AI with stacking-aware
+                evaluation.
               </div>
             </div>
           </div>

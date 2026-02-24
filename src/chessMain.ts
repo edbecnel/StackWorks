@@ -1051,7 +1051,7 @@ window.addEventListener("DOMContentLoaded", async () => {
           .map((entry, idx) => {
             if (idx === 0) {
               const baseStyle = entry.isCurrent
-                ? "font-weight: bold; color: rgba(255, 255, 255, 0.95); background: rgba(255, 255, 255, 0.1); padding: 2px 6px; border-radius: 4px;"
+                ? "font-weight: bold; color: rgba(255, 255, 255, 0.95);"
                 : "";
               const style = `${baseStyle}${baseStyle ? " " : ""}cursor: pointer;`;
               const currentAttr = entry.isCurrent ? ' data-is-current="1"' : "";
@@ -1080,12 +1080,12 @@ window.addEventListener("DOMContentLoaded", async () => {
             if (entry.notation) label += ` ${entry.notation}`;
 
             const baseStyle = entry.isCurrent
-              ? "font-weight: bold; color: rgba(255, 255, 255, 0.95); background: rgba(255, 255, 255, 0.1); padding: 2px 6px; border-radius: 4px;"
+              ? "font-weight: bold; color: rgba(255, 255, 255, 0.95);"
               : "";
             const style = `${baseStyle}${baseStyle ? " " : ""}cursor: pointer;`;
             const currentAttr = entry.isCurrent ? ' data-is-current="1"' : "";
             const titleAttr = captureTooltip ? ` title=\"${escapeHtmlAttr(captureTooltip)}\"` : "";
-            return `<div data-history-index=\"${entry.index}\"${currentAttr}${titleAttr} style=\"${style}\">${label}</div>`;
+            return `<div data-history-index=\"${entry.index}\" data-history-who=\"${whoMoved}\"${currentAttr}${titleAttr} style=\"${style}\">${label}</div>`;
           })
           .join("");
       }

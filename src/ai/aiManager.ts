@@ -71,8 +71,14 @@ export class AIManager {
   private static readonly TAP_RESUME_TOAST_KEY = "aiPausedTapResume";
 
   private toastSyncTimer: number | null = null;
+  private autoResumeTimer: number | null = null;
 
   private lastBoardTapAtMs: number = 0;
+  private lastHistoryReason: HistoryChangeReason | undefined;
+
+  private pauseOrigin: "startup" | "newGame" | "loadGame" | "historyNav" | "gameOver" | "user" | "other" = "startup";
+
+  private static readonly TURN_TOAST_MS = 1500;
 
   constructor(controller: GameController) {
     this.controller = controller;
@@ -106,20 +112,54 @@ export class AIManager {
   }
 
   private isFreshGame(): boolean {
-    // Heuristic: `newGame()` clears history and pushes exactly one state.
-    // Avoid auto-pausing on normal moves/undo/redo.
+    // Heuristic: initial page load / `newGame()` clears history and pushes exactly one state.
+    // Some callers/tests don't reliably set `isCurrent` on the single entry, so just
+    // treat "history length === 1" as fresh.
     try {
       const h = this.controller.getHistory ? this.controller.getHistory() : null;
-      return Array.isArray(h) && h.length === 1 && !!h[0]?.isCurrent;
+      return Array.isArray(h) && h.length === 1;
     } catch {
       return false;
     }
   }
 
-  private forcePausedUI(): void {
+  private forcePausedUI(origin: typeof this.pauseOrigin = "other"): void {
+    if (this.autoResumeTimer) {
+      window.clearTimeout(this.autoResumeTimer);
+      this.autoResumeTimer = null;
+    }
+    this.pauseOrigin = origin;
     this.settings.paused = true;
     localStorage.setItem(LS_KEYS.paused, "true");
     this.refreshUI();
+  }
+
+  private scheduleAutoResumeAfterTurnToast(): void {
+    // Only relevant if we're currently paused.
+    if (!this.settings.paused) return;
+    if (this.autoResumeTimer) return;
+
+    this.autoResumeTimer = window.setTimeout(() => {
+      this.autoResumeTimer = null;
+      // Re-check conditions; user may have interacted or game may have ended.
+      if (!this.settings.paused) return;
+      if (this.controller.isOver()) return;
+
+      const rulesetId = this.controller.getState().meta?.rulesetId ?? "lasca";
+      const isChessLike = rulesetId === "chess" || rulesetId === "columns_chess";
+      if (isChessLike) return;
+
+      const toMove: Player = this.controller.getState().toMove;
+      const diff = difficultyForPlayer(this.settings, toMove);
+      const isAiTurn = diff !== "human";
+      if (!isAiTurn) return;
+
+      // Only auto-resume on fresh starts for human-vs-AI.
+      if (!this.isHumanVsAI()) return;
+      if (!(this.pauseOrigin === "startup" || this.pauseOrigin === "newGame")) return;
+
+      this.resumeAI();
+    }, AIManager.TURN_TOAST_MS);
   }
 
   private isHumanVsAI(): boolean {
@@ -148,11 +188,25 @@ export class AIManager {
     const isAiTurn = diff !== "human";
 
     const rulesetId = this.controller.getState().meta?.rulesetId ?? "lasca";
+    const isChessLike = rulesetId === "chess" || rulesetId === "columns_chess";
     const sideLabel = (p: Player): string => {
       // Chess nomenclature is White/Black; other variants use Light/Dark.
-      if (rulesetId === "chess" || rulesetId === "columns_chess") return p === "B" ? "Black" : "White";
+      if (isChessLike) return p === "B" ? "Black" : "White";
       return p === "B" ? "Dark" : "Light";
     };
+
+    // For non-chess variants, don't show the sticky "Tap here to resume bot" hint
+    // when the AI is paused due to initial startup / New Game.
+    // BUT: after loading a saved game, we *do* want the sticky hint if it's the
+    // bot's turn, because the user may not realize the bot is paused.
+    if (!isChessLike && this.settings.paused && isAiTurn) {
+      const suppressOnFreshStart = this.pauseOrigin === "startup" || this.pauseOrigin === "newGame";
+      if (suppressOnFreshStart) {
+        this.controller.clearStickyToast(AIManager.TAP_RESUME_TOAST_KEY);
+        this.scheduleAutoResumeAfterTurnToast();
+        return;
+      }
+    }
 
     if (this.settings.paused && isAiTurn) {
       const canRedo = typeof (this.controller as any).canRedo === "function" ? (this.controller as any).canRedo() : false;
@@ -329,7 +383,13 @@ export class AIManager {
 
     if (this.elPause) {
       this.elPause.addEventListener("click", () => {
-        this.settings.paused = !this.settings.paused;
+        const nextPaused = !this.settings.paused;
+        this.settings.paused = nextPaused;
+        if (nextPaused) this.pauseOrigin = "user";
+        if (nextPaused && this.autoResumeTimer) {
+          window.clearTimeout(this.autoResumeTimer);
+          this.autoResumeTimer = null;
+        }
         localStorage.setItem(LS_KEYS.paused, String(this.settings.paused));
         this.refreshUI();
         if (!this.settings.paused) this.kick();
@@ -347,9 +407,8 @@ export class AIManager {
       });
     }
 
-    // Always start in paused mode on page load.
-    // User must explicitly click Resume to start AI play.
-    this.forcePausedUI();
+    // Track that we're at startup; toast behavior depends on this.
+    this.pauseOrigin = "startup";
 
     // In AI-vs-AI, allow tapping the board to pause.
     this.bindBoardTapToPauseAiVsAi();
@@ -361,13 +420,25 @@ export class AIManager {
   }
 
   onHistoryChanged(reason?: HistoryChangeReason): void {
+    this.lastHistoryReason = reason;
+
+    if (this.autoResumeTimer) {
+      window.clearTimeout(this.autoResumeTimer);
+      this.autoResumeTimer = null;
+    }
+
+    // New Game should behave like a fresh start (no sticky tap-to-resume hint for non-chess).
+    if (reason === "newGame" && this.settings.paused) {
+      this.pauseOrigin = "newGame";
+    }
+
     // Loading a save should always pause AI.
     // Otherwise, a running AI can immediately start playing from the loaded position.
     if (reason === "loadGame") {
       if (this.busy || this.activeRequestId !== null) {
         this.onWorkerFailed();
       }
-      this.forcePausedUI();
+      this.forcePausedUI("loadGame");
       return;
     }
 
@@ -376,7 +447,7 @@ export class AIManager {
       if (this.busy || this.activeRequestId !== null) {
         this.onWorkerFailed();
       }
-      this.forcePausedUI();
+      this.forcePausedUI("gameOver");
       return;
     }
 
@@ -389,13 +460,13 @@ export class AIManager {
       if (this.busy || this.activeRequestId !== null) {
         this.onWorkerFailed();
       }
-      this.forcePausedUI();
+      this.forcePausedUI("historyNav");
       return;
     }
 
     // New Game should start paused when both sides are AI.
     if (this.isBothAI() && (reason === "newGame" || this.isFreshGame())) {
-      this.forcePausedUI();
+      this.forcePausedUI(reason === "newGame" ? "newGame" : "startup");
       return;
     }
 

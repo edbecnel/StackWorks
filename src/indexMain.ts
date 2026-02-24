@@ -18,6 +18,11 @@ const LS_KEYS = {
   aiDelayMs: "lasca.ai.delayMs",
   aiPaused: "lasca.ai.paused",
 
+  columnsBotWhite: "lasca.columnsChessBot.white",
+  columnsBotBlack: "lasca.columnsChessBot.black",
+  columnsBotDelayMs: "lasca.columnsChessBot.delayMs",
+  columnsBotPaused: "lasca.columnsChessBot.paused",
+
   variantId: "lasca.variantId",
 
   optMoveHints: "lasca.opt.moveHints",
@@ -44,6 +49,7 @@ const LS_KEYS = {
 type PreferredColor = "auto" | "W" | "B";
 
 type Difficulty = "human" | "easy" | "medium" | "advanced";
+type ColumnsBotSide = "human" | "bot";
 type PlayMode = "local" | "online";
 type OnlineAction = "create" | "join" | "spectate" | "rejoin";
 type GlassBg = "original" | "felt" | "walnut";
@@ -85,6 +91,23 @@ function chessBotSideToDifficulty(raw: string | null): Difficulty {
   if (raw === "intermediate") return "medium";
   if (raw === "strong") return "advanced";
   return "human";
+}
+
+function readColumnsBotSide(key: string, fallback: ColumnsBotSide): ColumnsBotSide {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw === "bot" ? "bot" : "human";
+  } catch {
+    return fallback;
+  }
+}
+
+function writeColumnsBotSide(key: string, value: ColumnsBotSide): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // ignore
+  }
 }
 
 function sanitizeResumeDisplayName(raw: unknown): string | undefined {
@@ -811,8 +834,14 @@ window.addEventListener("DOMContentLoaded", () => {
     writeBool(LS_KEYS.optToasts, elToasts.checked);
     writeBool(LS_KEYS.optSfx, elSfx.checked);
 
-    localStorage.setItem(LS_KEYS.aiWhite, elAiWhite.value);
-    localStorage.setItem(LS_KEYS.aiBlack, elAiBlack.value);
+    if (isColumnsChess) {
+      // Columns Chess uses a separate offline bot (Human/Bot). Keep generic AI prefs untouched.
+      writeColumnsBotSide(LS_KEYS.columnsBotWhite, (elAiWhite.value === "bot" ? "bot" : "human") as ColumnsBotSide);
+      writeColumnsBotSide(LS_KEYS.columnsBotBlack, (elAiBlack.value === "bot" ? "bot" : "human") as ColumnsBotSide);
+    } else {
+      localStorage.setItem(LS_KEYS.aiWhite, elAiWhite.value);
+      localStorage.setItem(LS_KEYS.aiBlack, elAiBlack.value);
+    }
 
     // Classic Chess uses a separate offline bot system (Stockfish) with its own localStorage keys.
     if (isClassicChess) {
@@ -822,10 +851,14 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     const delayMs = parseDelayMs(elAiDelay.value || "500", 500);
-    localStorage.setItem(LS_KEYS.aiDelayMs, String(delayMs));
-
-    // Startup should not force paused; let AIManager decide (it auto-pauses when both sides are AI).
-    localStorage.setItem(LS_KEYS.aiPaused, "false");
+    if (isColumnsChess) {
+      localStorage.setItem(LS_KEYS.columnsBotDelayMs, String(delayMs));
+      localStorage.setItem(LS_KEYS.columnsBotPaused, "false");
+    } else {
+      localStorage.setItem(LS_KEYS.aiDelayMs, String(delayMs));
+      // Startup should not force paused; let AIManager decide (it auto-pauses when both sides are AI).
+      localStorage.setItem(LS_KEYS.aiPaused, "false");
+    }
   };
 
   const launchOnline = async (args: {
@@ -1249,16 +1282,24 @@ window.addEventListener("DOMContentLoaded", () => {
   };
 
   const syncThemeConstraintsForVariant = (variantId: VariantId): void => {
+    const variant = getVariantById(variantId);
     const isColumnsChess = variantId === "columns_chess";
     const isClassicChess = variantId === "chess_classic";
-    const usesColumnsChessBoard = isColumnsChess || isClassicChess;
 
-    if (elColumnsChessBoardThemeRow) elColumnsChessBoardThemeRow.style.display = usesColumnsChessBoard ? "" : "none";
+    // Checkerboard theme:
+    // - Always applicable to Columns Chess / Classic Chess.
+    // - For other 8×8 variants, it applies only when the optional checkered 8×8 board is enabled.
+    //   Still show the control (disabled) so the option is discoverable.
+    const shouldShowCheckerboardTheme = isColumnsChess || isClassicChess || variant.boardSize === 8;
+    const canUseCheckerboardTheme =
+      isColumnsChess ||
+      isClassicChess ||
+      (variant.boardSize === 8 && Boolean(elBoard8x8Checkered?.checked));
+
+    if (elColumnsChessBoardThemeRow) elColumnsChessBoardThemeRow.style.display = shouldShowCheckerboardTheme ? "" : "none";
     if (elColumnsChessBoardTheme) {
-      elColumnsChessBoardTheme.disabled = !usesColumnsChessBoard;
-      if (usesColumnsChessBoard) {
-        elColumnsChessBoardTheme.value = normalizeCheckerboardThemeId(localStorage.getItem(LS_KEYS.optCheckerboardTheme));
-      }
+      elColumnsChessBoardTheme.disabled = !canUseCheckerboardTheme;
+      elColumnsChessBoardTheme.value = normalizeCheckerboardThemeId(localStorage.getItem(LS_KEYS.optCheckerboardTheme));
     }
 
     if (isColumnsChess) {
@@ -1393,7 +1434,16 @@ window.addEventListener("DOMContentLoaded", () => {
   elAiWhite.value = readDifficulty(LS_KEYS.aiWhite, "human");
   elAiBlack.value = readDifficulty(LS_KEYS.aiBlack, "human");
 
-  const delay = readDelayMs(LS_KEYS.aiDelayMs, 500);
+  const initialVariant = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
+  if (initialVariant === "columns_chess") {
+    elAiWhite.value = readColumnsBotSide(LS_KEYS.columnsBotWhite, "human");
+    elAiBlack.value = readColumnsBotSide(LS_KEYS.columnsBotBlack, "human");
+  } else if (initialVariant === "chess_classic") {
+    elAiWhite.value = chessBotSideToDifficulty(localStorage.getItem(CHESSBOT_LS_KEYS.white));
+    elAiBlack.value = chessBotSideToDifficulty(localStorage.getItem(CHESSBOT_LS_KEYS.black));
+  }
+
+  const delay = readDelayMs(initialVariant === "columns_chess" ? LS_KEYS.columnsBotDelayMs : LS_KEYS.aiDelayMs, 500);
   elAiDelay.value = String(delay);
   elAiDelayLabel.textContent = `${delay} ms`;
 
@@ -1440,33 +1490,69 @@ window.addEventListener("DOMContentLoaded", () => {
     const usesColumnsChessBoard = isColumnsChess || isClassicChess;
 
     // "Use checkered board for 8×8 games" does not apply to Columns Chess / Classic Chess (they have their own board SVG).
-    // Keep the option for other 8×8 variants.
+    // Only show it for other 8×8 variants.
     {
-      const show = !usesColumnsChessBoard;
+      const show = !usesColumnsChessBoard && v.boardSize === 8;
       if (elBoard8x8CheckeredRow) elBoard8x8CheckeredRow.style.display = show ? "" : "none";
       if (elBoard8x8CheckeredHint) elBoard8x8CheckeredHint.style.display = show ? "" : "none";
       elBoard8x8Checkered.disabled = !show;
     }
 
-    // Built-in AI does not apply to Columns Chess (different board/flow).
-    if (isColumnsChess) {
-      elAiWhite.value = "human";
-      elAiBlack.value = "human";
-    }
+    // Variant-specific bot dropdown options.
+    {
+      const setOptions = (el: HTMLSelectElement, sig: string, html: string) => {
+        if (el.dataset.optionsSig === sig) return;
+        el.innerHTML = html;
+        el.dataset.optionsSig = sig;
+      };
 
-    // Classic Chess bot settings are stored under chessbot.* keys; sync them into the Start Page UI.
-    if (isClassicChess) {
-      elAiWhite.value = chessBotSideToDifficulty(localStorage.getItem(CHESSBOT_LS_KEYS.white));
-      elAiBlack.value = chessBotSideToDifficulty(localStorage.getItem(CHESSBOT_LS_KEYS.black));
+      const classicAiOptions =
+        '<option value="human">Human</option>' +
+        '<option value="easy">Beginner</option>' +
+        '<option value="medium">Intermediate</option>' +
+        '<option value="advanced">Strong</option>';
+
+      const columnsBotOptions = '<option value="human">Human</option><option value="bot">Bot</option>';
+
+      if (isColumnsChess) {
+        setOptions(elAiWhite, "columns", columnsBotOptions);
+        setOptions(elAiBlack, "columns", columnsBotOptions);
+
+        elAiWhite.value = readColumnsBotSide(LS_KEYS.columnsBotWhite, "human");
+        elAiBlack.value = readColumnsBotSide(LS_KEYS.columnsBotBlack, "human");
+
+        const delayMs = readDelayMs(LS_KEYS.columnsBotDelayMs, 500);
+        elAiDelay.value = String(delayMs);
+        syncDelayLabel();
+      } else {
+        // Restore classic AI options for non-Columns variants.
+        setOptions(elAiWhite, "classic", classicAiOptions);
+        setOptions(elAiBlack, "classic", classicAiOptions);
+
+        // Sync stored difficulties.
+        elAiWhite.value = readDifficulty(LS_KEYS.aiWhite, "human");
+        elAiBlack.value = readDifficulty(LS_KEYS.aiBlack, "human");
+
+        // Classic Chess bot settings are stored under chessbot.* keys; sync them into the Start Page UI.
+        if (isClassicChess) {
+          elAiWhite.value = chessBotSideToDifficulty(localStorage.getItem(CHESSBOT_LS_KEYS.white));
+          elAiBlack.value = chessBotSideToDifficulty(localStorage.getItem(CHESSBOT_LS_KEYS.black));
+        }
+
+        const delayMs = readDelayMs(LS_KEYS.aiDelayMs, 500);
+        elAiDelay.value = String(delayMs);
+        syncDelayLabel();
+      }
     }
 
     const isAiGame = elAiWhite.value !== "human" || elAiBlack.value !== "human";
 
-    // Allow bot selection for Classic Chess, but keep AI disabled for Columns Chess.
-    elAiWhite.disabled = isColumnsChess;
-    elAiBlack.disabled = isColumnsChess;
+    // Allow bot selection for Columns Chess and Classic Chess.
+    elAiWhite.disabled = false;
+    elAiBlack.disabled = false;
     // Delay is a built-in AI throttle; Classic Chess bots use Stockfish movetime presets instead.
-    elAiDelay.disabled = isColumnsChess || isClassicChess;
+    // Columns Chess bot uses this delay setting.
+    elAiDelay.disabled = isClassicChess;
 
     // Online (2 players) requires both sides Human.
     const onlineOpt = Array.from(elPlayMode.options).find((o) => o.value === "online") ?? null;
@@ -1586,6 +1672,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   elBoard8x8Checkered.addEventListener("change", () => {
     writeBool(LS_KEYS.optBoard8x8Checkered, elBoard8x8Checkered.checked);
+    syncAvailability();
   });
 
   elToasts.addEventListener("change", () => {
@@ -1605,9 +1692,12 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   elAiWhite.addEventListener("change", () => {
-    localStorage.setItem(LS_KEYS.aiWhite, elAiWhite.value);
-
     const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
+    if (vId === "columns_chess") {
+      writeColumnsBotSide(LS_KEYS.columnsBotWhite, (elAiWhite.value === "bot" ? "bot" : "human") as ColumnsBotSide);
+    } else {
+      localStorage.setItem(LS_KEYS.aiWhite, elAiWhite.value);
+    }
     if (vId === "chess_classic") {
       localStorage.setItem(CHESSBOT_LS_KEYS.white, difficultyToChessBotSide(elAiWhite.value));
       localStorage.setItem(CHESSBOT_LS_KEYS.paused, "false");
@@ -1618,9 +1708,12 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   elAiBlack.addEventListener("change", () => {
-    localStorage.setItem(LS_KEYS.aiBlack, elAiBlack.value);
-
     const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
+    if (vId === "columns_chess") {
+      writeColumnsBotSide(LS_KEYS.columnsBotBlack, (elAiBlack.value === "bot" ? "bot" : "human") as ColumnsBotSide);
+    } else {
+      localStorage.setItem(LS_KEYS.aiBlack, elAiBlack.value);
+    }
     if (vId === "chess_classic") {
       localStorage.setItem(CHESSBOT_LS_KEYS.black, difficultyToChessBotSide(elAiBlack.value));
       localStorage.setItem(CHESSBOT_LS_KEYS.paused, "false");
