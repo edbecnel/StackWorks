@@ -42,6 +42,13 @@ function makeSvg8x8(): SVGSVGElement {
   n01.setAttribute("r", "40");
   nodes.appendChild(n01);
 
+  const n12 = document.createElementNS(SVG_NS, "circle") as SVGCircleElement;
+  n12.id = "r1c2";
+  n12.setAttribute("cx", "350");
+  n12.setAttribute("cy", "250");
+  n12.setAttribute("r", "40");
+  nodes.appendChild(n12);
+
   svg.appendChild(nodes);
 
   document.body.appendChild(svg);
@@ -87,5 +94,28 @@ describe("renderBoardAnnotations", () => {
 
     clearBoardAnnotations(svg);
     expect(ann?.childNodes.length).toBe(0);
+  });
+
+  it("renders knight-move arrows as 90-degree paths", () => {
+    const svg = makeSvg8x8();
+
+    const state: BoardAnnotationsState = {
+      squares: [],
+      arrows: [{ kind: "arrow", from: "r0c0", to: "r1c2", color: "orange" }],
+    };
+
+    renderBoardAnnotations(svg, state);
+
+    const overlays = svg.querySelector("#overlays") as SVGGElement | null;
+    const ann = overlays?.querySelector("#overlaysAnnotations") as SVGGElement | null;
+    expect(ann).not.toBeNull();
+
+    const path = ann?.querySelector("path.board-annotation-arrow-path") as SVGPathElement | null;
+    expect(path).not.toBeNull();
+    expect(path?.getAttribute("d") ?? "").toMatch(/^M\s/);
+
+    // Still ends with a normal arrow head.
+    const head = ann?.querySelector("polygon") as SVGPolygonElement | null;
+    expect(head).not.toBeNull();
   });
 });

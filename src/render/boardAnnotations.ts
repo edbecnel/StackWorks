@@ -156,52 +156,107 @@ function drawArrowMark(layer: SVGGElement, mark: BoardArrowMark): void {
   const b = getCircleCenter(mark.to);
   if (!a || !b) return;
 
-  const dx = b.cx - a.cx;
-  const dy = b.cy - a.cy;
-  const len = Math.hypot(dx, dy);
-  if (!Number.isFinite(len) || len < 1) return;
-
-  const ux = dx / len;
-  const uy = dy / len;
-
-  // Keep arrow ends slightly away from exact centers.
-  const startInset = 10;
-  const endInset = 22;
-  const x1 = a.cx + ux * startInset;
-  const y1 = a.cy + uy * startInset;
-  const x2 = b.cx - ux * endInset;
-  const y2 = b.cy - uy * endInset;
+  const fromRc = parseNodeIdFast(mark.from);
+  const toRc = parseNodeIdFast(mark.to);
+  const dr = fromRc && toRc ? toRc.r - fromRc.r : null;
+  const dc = fromRc && toRc ? toRc.c - fromRc.c : null;
+  const isKnightMove =
+    dr !== null && dc !== null &&
+    ((Math.abs(dr) === 1 && Math.abs(dc) === 2) || (Math.abs(dr) === 2 && Math.abs(dc) === 1));
 
   const { stroke, arrowFill } = colorToStrokeFill(mark.color);
 
   const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
   g.setAttribute("class", `board-annotation-arrow board-annotation-arrow--${mark.color}`);
 
-  const line = document.createElementNS(SVG_NS, "line") as SVGLineElement;
-  line.setAttribute("x1", String(x1));
-  line.setAttribute("y1", String(y1));
-  line.setAttribute("x2", String(x2));
-  line.setAttribute("y2", String(y2));
-  line.setAttribute("stroke", stroke);
-  line.setAttribute("stroke-width", "10");
-  line.setAttribute("opacity", "0.92");
-  applyStrokeDefaults(line);
-  g.appendChild(line);
+  // Keep arrow ends slightly away from exact centers.
+  const startInset = 10;
+  const endInset = 22;
 
-  // Arrow head triangle.
+  let headUx = 0;
+  let headUy = 0;
+
+  if (isKnightMove) {
+    // Draw a 90° path: long axis first (like chess.com).
+    const elbow =
+      dc !== null && Math.abs(dc) === 2
+        ? { x: b.cx, y: a.cy }
+        : { x: a.cx, y: b.cy };
+
+    const v1x = elbow.x - a.cx;
+    const v1y = elbow.y - a.cy;
+    const len1 = Math.hypot(v1x, v1y);
+    if (!Number.isFinite(len1) || len1 < 1) return;
+    const u1x = v1x / len1;
+    const u1y = v1y / len1;
+
+    const v2x = b.cx - elbow.x;
+    const v2y = b.cy - elbow.y;
+    const len2 = Math.hypot(v2x, v2y);
+    if (!Number.isFinite(len2) || len2 < 1) return;
+    const u2x = v2x / len2;
+    const u2y = v2y / len2;
+
+    const sx = a.cx + u1x * startInset;
+    const sy = a.cy + u1y * startInset;
+    const ex = b.cx - u2x * endInset;
+    const ey = b.cy - u2y * endInset;
+
+    const path = document.createElementNS(SVG_NS, "path") as SVGPathElement;
+    path.setAttribute("class", "board-annotation-arrow-path");
+    path.setAttribute("d", `M ${sx} ${sy} L ${elbow.x} ${elbow.y} L ${ex} ${ey}`);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", stroke);
+    path.setAttribute("stroke-width", "10");
+    path.setAttribute("opacity", "0.92");
+    applyStrokeDefaults(path);
+    g.appendChild(path);
+
+    headUx = u2x;
+    headUy = u2y;
+  } else {
+    const dx = b.cx - a.cx;
+    const dy = b.cy - a.cy;
+    const len = Math.hypot(dx, dy);
+    if (!Number.isFinite(len) || len < 1) return;
+    const ux = dx / len;
+    const uy = dy / len;
+
+    const x1 = a.cx + ux * startInset;
+    const y1 = a.cy + uy * startInset;
+    const x2 = b.cx - ux * endInset;
+    const y2 = b.cy - uy * endInset;
+
+    const line = document.createElementNS(SVG_NS, "line") as SVGLineElement;
+    line.setAttribute("class", "board-annotation-arrow-line");
+    line.setAttribute("x1", String(x1));
+    line.setAttribute("y1", String(y1));
+    line.setAttribute("x2", String(x2));
+    line.setAttribute("y2", String(y2));
+    line.setAttribute("stroke", stroke);
+    line.setAttribute("stroke-width", "10");
+    line.setAttribute("opacity", "0.92");
+    applyStrokeDefaults(line);
+    g.appendChild(line);
+
+    headUx = ux;
+    headUy = uy;
+  }
+
+  // Arrow head triangle (aligned to the final segment).
   const headLen = 22;
   const headW = 16;
-  const hx = b.cx - ux * 6;
-  const hy = b.cy - uy * 6;
-  const px = -uy;
-  const py = ux;
+  const hx = b.cx - headUx * 6;
+  const hy = b.cy - headUy * 6;
+  const px = -headUy;
+  const py = headUx;
 
   const p1x = hx;
   const p1y = hy;
-  const p2x = hx - ux * headLen + px * (headW / 2);
-  const p2y = hy - uy * headLen + py * (headW / 2);
-  const p3x = hx - ux * headLen - px * (headW / 2);
-  const p3y = hy - uy * headLen - py * (headW / 2);
+  const p2x = hx - headUx * headLen + px * (headW / 2);
+  const p2y = hy - headUy * headLen + py * (headW / 2);
+  const p3x = hx - headUx * headLen - px * (headW / 2);
+  const p3y = hy - headUy * headLen - py * (headW / 2);
 
   const head = document.createElementNS(SVG_NS, "polygon") as SVGPolygonElement;
   head.setAttribute("points", `${p1x},${p1y} ${p2x},${p2y} ${p3x},${p3y}`);
