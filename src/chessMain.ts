@@ -37,6 +37,7 @@ const ACTIVE_VARIANT_ID: VariantId = "chess_classic";
 const LS_OPT_KEYS = {
   showResizeIcon: "lasca.opt.showResizeIcon",
   boardCoords: "lasca.opt.boardCoords",
+  boardCoordsInSquares: "lasca.opt.boardCoordsInSquares",
   flipBoard: "lasca.opt.chess.flipBoard",
   highlightSquares: "lasca.opt.chess.highlightSquares",
   toasts: "lasca.opt.toasts",
@@ -127,8 +128,20 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (boardCoordsToggle && savedBoardCoords !== null) {
     boardCoordsToggle.checked = savedBoardCoords;
   }
+
+  const boardCoordsInSquaresToggle = document.getElementById(
+    "boardCoordsInSquaresToggle",
+  ) as HTMLInputElement | null;
+  const savedBoardCoordsInSquares = readOptionalBoolPref(LS_OPT_KEYS.boardCoordsInSquares);
+  if (boardCoordsInSquaresToggle && savedBoardCoordsInSquares !== null) {
+    boardCoordsInSquaresToggle.checked = savedBoardCoordsInSquares;
+  }
+
   const applyBoardCoords = () =>
-    renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), variant.boardSize, { flipped: isFlipped() });
+    renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), variant.boardSize, {
+      flipped: isFlipped(),
+      style: boardCoordsInSquaresToggle?.checked ? "inSquare" : "edge",
+    });
   applyBoardCoords();
 
   const themeManager = createThemeManager(svg);
@@ -290,6 +303,13 @@ window.addEventListener("DOMContentLoaded", async () => {
     boardCoordsToggle.addEventListener("change", () => {
       applyBoardCoords();
       writeBoolPref(LS_OPT_KEYS.boardCoords, boardCoordsToggle.checked);
+    });
+  }
+
+  if (boardCoordsInSquaresToggle) {
+    boardCoordsInSquaresToggle.addEventListener("change", () => {
+      applyBoardCoords();
+      writeBoolPref(LS_OPT_KEYS.boardCoordsInSquares, boardCoordsInSquaresToggle.checked);
     });
   }
 

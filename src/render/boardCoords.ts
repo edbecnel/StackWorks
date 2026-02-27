@@ -1,3 +1,5 @@
+import { CHECKERBOARD_THEMES, normalizeCheckerboardThemeId, type CheckerboardThemeId } from "./checkerboardTheme";
+
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 function ensureBoardCoordsLayer(svg: SVGSVGElement): SVGGElement {
@@ -49,11 +51,135 @@ function clearLayer(layer: SVGGElement): void {
   while (layer.firstChild) layer.removeChild(layer.firstChild);
 }
 
+export type BoardCoordsStyle = "edge" | "inSquare";
+
+type SquareRect = { x: number; y: number; w: number; h: number };
+
+function computeSquareGridFromRects(svg: SVGSVGElement): { startX: number; startY: number; step: number } | null {
+  const squares = svg.querySelector("#squares") as SVGGElement | null;
+  if (!squares) return null;
+  const rects = Array.from(squares.querySelectorAll("rect")) as SVGRectElement[];
+  if (rects.length === 0) return null;
+
+  const first = rects[0];
+  const w = Number.parseFloat(first.getAttribute("width") ?? "NaN");
+  const h = Number.parseFloat(first.getAttribute("height") ?? "NaN");
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return null;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  for (const r of rects) {
+    const x = Number.parseFloat(r.getAttribute("x") ?? "NaN");
+    const y = Number.parseFloat(r.getAttribute("y") ?? "NaN");
+    if (Number.isFinite(x)) minX = Math.min(minX, x);
+    if (Number.isFinite(y)) minY = Math.min(minY, y);
+  }
+  if (!Number.isFinite(minX) || !Number.isFinite(minY)) return null;
+
+  // Boards in this repo use square tiles.
+  return { startX: minX, startY: minY, step: Math.min(w, h) };
+}
+
+function squareRectFromGrid(grid: { startX: number; startY: number; step: number }, row: number, col: number): SquareRect {
+  return { x: grid.startX + col * grid.step, y: grid.startY + row * grid.step, w: grid.step, h: grid.step };
+}
+
+function getCheckerboardBaseColors(svg: SVGSVGElement): { light: string; dark: string } {
+  const raw = (svg as any).__checkerboardThemeId as CheckerboardThemeId | string | null | undefined;
+  const id = normalizeCheckerboardThemeId(typeof raw === "string" ? raw : (raw ?? null));
+  const theme = CHECKERBOARD_THEMES.find((t) => t.id === id) ?? CHECKERBOARD_THEMES[0];
+  return { light: theme.light, dark: theme.dark };
+}
+
+function renderBoardCoordsInSquares(layer: SVGGElement, svg: SVGSVGElement, boardSize: 7 | 8, flipped: boolean): void {
+  // Prefer exact square geometry.
+  const grid = computeSquareGridFromRects(svg);
+  if (!grid) {
+    // Safe fallback: if we can't infer square bounds, fall back to edge coords.
+    // (This keeps non-checkerboard boards working without extra work.)
+    renderBoardCoords(svg, true, boardSize, { flipped, style: "edge" });
+    return;
+  }
+
+  const { light, dark } = getCheckerboardBaseColors(svg);
+
+  const pad = grid.step * 0.08;
+  const fontSize = grid.step * 0.22;
+
+  // We compute placement in the unflipped coordinate system.
+  // When `flipped` is true, the entire board view is rotated 180°, so:
+  // - bottom row (screen) is row 0 (unflipped)
+  // - left column (screen) is last column (unflipped)
+  const bottomRow = flipped ? 0 : boardSize - 1;
+  const leftCol = flipped ? boardSize - 1 : 0;
+
+  // Corner selection: rotation swaps corners. To keep the label in the same
+  // *screen* corner, we choose the opposite corner in the unflipped system.
+  const fileCorner = flipped ? "upperLeft" : "lowerRight"; // want lower-right on screen
+  const rankCorner = flipped ? "lowerRight" : "upperLeft"; // want upper-left on screen
+
+  const placeText = (
+    text: string,
+    rect: SquareRect,
+    corner: "upperLeft" | "lowerRight",
+    fill: string,
+    opts?: { yOffset?: number },
+  ) => {
+    const yOffset = opts?.yOffset ?? 0;
+    const t = document.createElementNS(SVG_NS, "text") as SVGTextElement;
+    t.textContent = text;
+    t.setAttribute("font-size", String(fontSize));
+    t.setAttribute("font-weight", "650");
+    t.setAttribute("fill", fill);
+    t.setAttribute("opacity", "0.72");
+
+    if (corner === "upperLeft") {
+      const x = rect.x + pad;
+      const y = rect.y + pad + yOffset;
+      t.setAttribute("x", String(x));
+      t.setAttribute("y", String(y));
+      t.setAttribute("text-anchor", "start");
+      t.setAttribute("dominant-baseline", "hanging");
+      if (flipped) t.setAttribute("transform", `rotate(180 ${x} ${y})`);
+    } else {
+      const x = rect.x + rect.w - pad;
+      // Baseline quirks: nudge slightly upward so the glyph sits within the tile.
+      const y = rect.y + rect.h - pad * 0.25 + yOffset;
+      t.setAttribute("x", String(x));
+      t.setAttribute("y", String(y));
+      t.setAttribute("text-anchor", "end");
+      t.setAttribute("dominant-baseline", "alphabetic");
+      if (flipped) t.setAttribute("transform", `rotate(180 ${x} ${y})`);
+    }
+
+    layer.appendChild(t);
+  };
+
+  // Column labels (files): a.. (lowercase), only on the bottom row (screen).
+  const fileYOffset = (flipped ? 1 : -1) * (fontSize * 0.5) + (flipped ? -5 : 5);
+  for (let col = 0; col < boardSize; col++) {
+    const rect = squareRectFromGrid(grid, bottomRow, col);
+    const isLight = (bottomRow + col) % 2 === 0;
+    const fill = isLight ? dark : light;
+    const letter = String.fromCharCode("a".charCodeAt(0) + col);
+    placeText(letter, rect, fileCorner, fill, { yOffset: fileYOffset });
+  }
+
+  // Row labels (ranks): boardSize..1, only on the left column (screen).
+  for (let row = 0; row < boardSize; row++) {
+    const rect = squareRectFromGrid(grid, row, leftCol);
+    const isLight = (row + leftCol) % 2 === 0;
+    const fill = isLight ? dark : light;
+    const n = String(boardSize - row);
+    placeText(n, rect, rankCorner, fill);
+  }
+}
+
 export function renderBoardCoords(
   svg: SVGSVGElement,
   enabled: boolean,
   boardSize: 7 | 8 = 7,
-  opts?: { flipped?: boolean }
+  opts?: { flipped?: boolean; style?: BoardCoordsStyle }
 ): void {
   const layer = ensureBoardCoordsLayer(svg);
   if (!enabled) {
@@ -62,6 +188,13 @@ export function renderBoardCoords(
   }
 
   const flipped = Boolean(opts?.flipped);
+  const style: BoardCoordsStyle = opts?.style ?? "edge";
+
+  if (style === "inSquare") {
+    clearLayer(layer);
+    renderBoardCoordsInSquares(layer, svg, boardSize, flipped);
+    return;
+  }
 
   // Derive a reasonable step from the node grid.
   // Not all boards include a node at r0c0 (e.g. 8×8 playable parity).
