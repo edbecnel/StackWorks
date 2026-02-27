@@ -51,12 +51,16 @@ describe("renderBoardCoords (inSquare)", () => {
     // Bottom row (rank 1) file labels: 'a' is on a1 (dark square) so it uses light fill.
     const a = findText(svg, "a");
     expect(a.getAttribute("fill")).toBe("#f0d9b5");
+    expect(a.getAttribute("text-anchor")).toBe("end");
+    expect(a.getAttribute("dominant-baseline")).toBe("alphabetic");
     expect(Number(a.getAttribute("x"))).toBeCloseTo(192, 3);
     expect(Number(a.getAttribute("y"))).toBeCloseTo(892, 3);
 
     // Left column rank labels: '8' is on a8 (light square) so it uses dark fill.
     const eight = findText(svg, "8");
     expect(eight.getAttribute("fill")).toBe("#b58863");
+    expect(eight.getAttribute("text-anchor")).toBe("start");
+    expect(eight.getAttribute("dominant-baseline")).toBe("hanging");
     expect(Number(eight.getAttribute("x"))).toBeCloseTo(108, 3);
     expect(Number(eight.getAttribute("y"))).toBeCloseTo(108, 3);
   });
@@ -69,8 +73,10 @@ describe("renderBoardCoords (inSquare)", () => {
     // With flip, bottom row on screen corresponds to unflipped row 0, and the file
     // label corner swaps so it still lands in the lower-right on screen.
     const a = findText(svg, "a");
-    expect(Number(a.getAttribute("x"))).toBeCloseTo(108, 3);
-    expect(Number(a.getAttribute("y"))).toBeCloseTo(114, 3);
+    expect(Number(a.getAttribute("x"))).toBeCloseTo(107, 3);
+    expect(Number(a.getAttribute("y"))).toBeCloseTo(109, 3);
+    expect(a.getAttribute("text-anchor")).toBe("end");
+    expect(a.getAttribute("dominant-baseline")).toBe("alphabetic");
     expect(a.getAttribute("transform") ?? "").toMatch(/^rotate\(180\s/);
 
     // With flip, left column on screen corresponds to unflipped last column.
@@ -80,6 +86,8 @@ describe("renderBoardCoords (inSquare)", () => {
     expect(eight.getAttribute("fill")).toBe("#f0d9b5");
     expect(Number(eight.getAttribute("x"))).toBeCloseTo(892, 3);
     expect(Number(eight.getAttribute("y"))).toBeCloseTo(198, 3);
+    expect(eight.getAttribute("text-anchor")).toBe("start");
+    expect(eight.getAttribute("dominant-baseline")).toBe("hanging");
     expect(eight.getAttribute("transform") ?? "").toMatch(/^rotate\(180\s/);
   });
 });

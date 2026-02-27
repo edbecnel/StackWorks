@@ -113,18 +113,15 @@ function renderBoardCoordsInSquares(layer: SVGGElement, svg: SVGSVGElement, boar
   const bottomRow = flipped ? 0 : boardSize - 1;
   const leftCol = flipped ? boardSize - 1 : 0;
 
-  // Corner selection: rotation swaps corners. To keep the label in the same
-  // *screen* corner, we choose the opposite corner in the unflipped system.
-  const fileCorner = flipped ? "upperLeft" : "lowerRight"; // want lower-right on screen
-  const rankCorner = flipped ? "lowerRight" : "upperLeft"; // want upper-left on screen
-
   const placeText = (
     text: string,
     rect: SquareRect,
-    corner: "upperLeft" | "lowerRight",
+    pointCorner: "upperLeft" | "lowerRight",
+    screenCorner: "upperLeft" | "lowerRight",
     fill: string,
-    opts?: { yOffset?: number },
+    opts?: { xOffset?: number; yOffset?: number },
   ) => {
+    const xOffset = opts?.xOffset ?? 0;
     const yOffset = opts?.yOffset ?? 0;
     const t = document.createElementNS(SVG_NS, "text") as SVGTextElement;
     t.textContent = text;
@@ -133,22 +130,29 @@ function renderBoardCoordsInSquares(layer: SVGGElement, svg: SVGSVGElement, boar
     t.setAttribute("fill", fill);
     t.setAttribute("opacity", "0.72");
 
-    if (corner === "upperLeft") {
-      const x = rect.x + pad;
+    // Alignment should match the desired *screen* corner, not the pre-rotation
+    // point corner. When the board is flipped, we intentionally choose the
+    // opposite point so it rotates into the correct corner on screen.
+    if (screenCorner === "upperLeft") {
+      t.setAttribute("text-anchor", "start");
+      t.setAttribute("dominant-baseline", "hanging");
+    } else {
+      t.setAttribute("text-anchor", "end");
+      t.setAttribute("dominant-baseline", "alphabetic");
+    }
+
+    if (pointCorner === "upperLeft") {
+      const x = rect.x + pad + xOffset;
       const y = rect.y + pad + yOffset;
       t.setAttribute("x", String(x));
       t.setAttribute("y", String(y));
-      t.setAttribute("text-anchor", "start");
-      t.setAttribute("dominant-baseline", "hanging");
       if (flipped) t.setAttribute("transform", `rotate(180 ${x} ${y})`);
     } else {
-      const x = rect.x + rect.w - pad;
+      const x = rect.x + rect.w - pad + xOffset;
       // Baseline quirks: nudge slightly upward so the glyph sits within the tile.
       const y = rect.y + rect.h - pad * 0.25 + yOffset;
       t.setAttribute("x", String(x));
       t.setAttribute("y", String(y));
-      t.setAttribute("text-anchor", "end");
-      t.setAttribute("dominant-baseline", "alphabetic");
       if (flipped) t.setAttribute("transform", `rotate(180 ${x} ${y})`);
     }
 
@@ -156,22 +160,25 @@ function renderBoardCoordsInSquares(layer: SVGGElement, svg: SVGSVGElement, boar
   };
 
   // Column labels (files): a.. (lowercase), only on the bottom row (screen).
-  const fileYOffset = (flipped ? 1 : -1) * (fontSize * 0.5) + (flipped ? -5 : 5);
+  const fileYOffset = (flipped ? 1 : -1) * (fontSize * 0.5) + (flipped ? -10 : 5);
+  const fileXOffset = flipped ? -1 : 0;
+  const filePointCorner: "upperLeft" | "lowerRight" = flipped ? "upperLeft" : "lowerRight";
   for (let col = 0; col < boardSize; col++) {
     const rect = squareRectFromGrid(grid, bottomRow, col);
     const isLight = (bottomRow + col) % 2 === 0;
     const fill = isLight ? dark : light;
     const letter = String.fromCharCode("a".charCodeAt(0) + col);
-    placeText(letter, rect, fileCorner, fill, { yOffset: fileYOffset });
+    placeText(letter, rect, filePointCorner, "lowerRight", fill, { xOffset: fileXOffset, yOffset: fileYOffset });
   }
 
   // Row labels (ranks): boardSize..1, only on the left column (screen).
+  const rankPointCorner: "upperLeft" | "lowerRight" = flipped ? "lowerRight" : "upperLeft";
   for (let row = 0; row < boardSize; row++) {
     const rect = squareRectFromGrid(grid, row, leftCol);
     const isLight = (row + leftCol) % 2 === 0;
     const fill = isLight ? dark : light;
     const n = String(boardSize - row);
-    placeText(n, rect, rankCorner, fill);
+    placeText(n, rect, rankPointCorner, "upperLeft", fill);
   }
 }
 
