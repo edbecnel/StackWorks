@@ -26,6 +26,7 @@ import { bindPlaybackControls } from "./ui/playbackControls.ts";
 import { createBoardLoadingOverlay } from "./ui/boardLoadingOverlay";
 import { nextPaint } from "./ui/nextPaint";
 import { ColumnsChessBotManager } from "./bot/columnsChessBotManager.ts";
+import { installBoardVisualizationTools } from "./ui/boardVisualizationTools";
 
 const ACTIVE_VARIANT_ID: VariantId = "columns_chess";
 
@@ -190,6 +191,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   svg.addEventListener(THEME_DID_CHANGE_EVENT, () => boardLoading.hide());
 
   ensureOverlayLayer(svg);
+  installBoardVisualizationTools(svg);
   const driver = await createDriverAsync({
     state,
     history,

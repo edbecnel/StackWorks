@@ -30,6 +30,7 @@ import { nodeIdToA1 } from "./game/coordFormat.ts";
 import { createBoardLoadingOverlay } from "./ui/boardLoadingOverlay";
 import { nextPaint } from "./ui/nextPaint";
 import { bindChessEvaluationPanel } from "./ui/chessEvaluationPanel.ts";
+import { installBoardVisualizationTools } from "./ui/boardVisualizationTools";
 
 const ACTIVE_VARIANT_ID: VariantId = "chess_classic";
 
@@ -175,6 +176,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   svg.addEventListener(THEME_DID_CHANGE_EVENT, () => boardLoading.hide());
 
   ensureOverlayLayer(svg);
+  installBoardVisualizationTools(svg);
   const driver = await createDriverAsync({
     state,
     history,
