@@ -170,8 +170,15 @@ function drawArrowMark(layer: SVGGElement, mark: BoardArrowMark): void {
   g.setAttribute("class", `board-annotation-arrow board-annotation-arrow--${mark.color}`);
 
   // Keep arrow ends slightly away from exact centers.
-  const startInset = 10;
+  // Tail should start near the start-square edge (not under the piece).
+  // Board tiles are ~100px; 40px from center is close to the edge.
+  const startInset = 40;
   const endInset = 22;
+
+  // Sizing: match common analysis-arrow feel.
+  // - Stroke width +50% (10 -> 15)
+  // - Arrowhead base width +75% (16 -> 28)
+  const arrowStrokeW = 15;
 
   let headUx = 0;
   let headUy = 0;
@@ -207,7 +214,7 @@ function drawArrowMark(layer: SVGGElement, mark: BoardArrowMark): void {
     path.setAttribute("d", `M ${sx} ${sy} L ${elbow.x} ${elbow.y} L ${ex} ${ey}`);
     path.setAttribute("fill", "none");
     path.setAttribute("stroke", stroke);
-    path.setAttribute("stroke-width", "10");
+    path.setAttribute("stroke-width", String(arrowStrokeW));
     path.setAttribute("opacity", "0.92");
     applyStrokeDefaults(path);
     g.appendChild(path);
@@ -234,7 +241,7 @@ function drawArrowMark(layer: SVGGElement, mark: BoardArrowMark): void {
     line.setAttribute("x2", String(x2));
     line.setAttribute("y2", String(y2));
     line.setAttribute("stroke", stroke);
-    line.setAttribute("stroke-width", "10");
+    line.setAttribute("stroke-width", String(arrowStrokeW));
     line.setAttribute("opacity", "0.92");
     applyStrokeDefaults(line);
     g.appendChild(line);
@@ -245,7 +252,7 @@ function drawArrowMark(layer: SVGGElement, mark: BoardArrowMark): void {
 
   // Arrow head triangle (aligned to the final segment).
   const headLen = 22;
-  const headW = 16;
+  const headW = 35;
   const hx = b.cx - headUx * 6;
   const hy = b.cy - headUy * 6;
   const px = -headUy;
