@@ -66,7 +66,7 @@ describe("AIManager paused-turn sticky toast", () => {
     document.body.innerHTML = "";
   });
 
-  it("suppresses sticky tap-to-resume on fresh start for non-chess", () => {
+  it("shows sticky tap-to-resume on fresh start for non-chess when AI is to move", () => {
     localStorage.setItem("lasca.ai.white", "easy");
     localStorage.setItem("lasca.ai.black", "human");
     localStorage.setItem("lasca.ai.paused", "true");
@@ -81,11 +81,11 @@ describe("AIManager paused-turn sticky toast", () => {
 
     vi.runAllTimers();
 
-    expect(controller.sticky.key).toBe(null);
-    expect(controller.sticky.text).toBe(null);
+    expect(controller.sticky.key).toBe("aiPausedTapResume");
+    expect(controller.sticky.text).toBe("Light to Play. Tap here to resume bot");
   });
 
-  it("auto-resumes after the timed turn toast on fresh start for non-chess human-vs-AI", () => {
+  it("auto-resumes after the timed turn toast once the game is no longer fresh (human moved first)", () => {
     localStorage.setItem("lasca.ai.white", "easy");
     localStorage.setItem("lasca.ai.black", "human");
     localStorage.setItem("lasca.ai.paused", "true");
@@ -97,6 +97,16 @@ describe("AIManager paused-turn sticky toast", () => {
 
     const mgr = new AIManager(controller);
     mgr.bind();
+
+    // Simulate the human making a move first (history length > 1), returning to an AI turn.
+    controller.setHistory([
+      { index: 0, toMove: "W", isCurrent: false, notation: "" },
+      { index: 1, toMove: "W", isCurrent: true, notation: "" },
+    ]);
+    controller.fire("move");
+
+    // Allow the deferred toast-sync tick to run and arm the auto-resume timer.
+    vi.advanceTimersByTime(0);
 
     // Immediately: still paused.
     expect(localStorage.getItem("lasca.ai.paused")).toBe("true");
@@ -126,10 +136,10 @@ describe("AIManager paused-turn sticky toast", () => {
     vi.runAllTimers();
 
     expect(controller.sticky.key).toBe("aiPausedTapResume");
-    expect(controller.sticky.text).toContain("Tap here to resume bot");
+    expect(controller.sticky.text).toBe("Light to Play. Tap here to resume bot");
   });
 
-  it("suppresses sticky tap-to-resume after newGame for non-chess", () => {
+  it("shows sticky tap-to-resume after newGame for non-chess", () => {
     localStorage.setItem("lasca.ai.white", "easy");
     localStorage.setItem("lasca.ai.black", "human");
     localStorage.setItem("lasca.ai.paused", "true");
@@ -146,8 +156,8 @@ describe("AIManager paused-turn sticky toast", () => {
 
     vi.runAllTimers();
 
-    expect(controller.sticky.key).toBe(null);
-    expect(controller.sticky.text).toBe(null);
+    expect(controller.sticky.key).toBe("aiPausedTapResume");
+    expect(controller.sticky.text).toBe("Light to Play. Tap here to resume bot");
   });
 
   it("forces AI dropdowns to Human during analysis and restores after", () => {

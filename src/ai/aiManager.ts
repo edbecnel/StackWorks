@@ -241,13 +241,15 @@ export class AIManager {
       return p === "B" ? "Dark" : "Light";
     };
 
-    // For non-chess variants, don't show the sticky "Tap here to resume bot" hint
-    // when the AI is paused due to initial startup / New Game.
-    // BUT: after loading a saved game, we *do* want the sticky hint if it's the
-    // bot's turn, because the user may not realize the bot is paused.
+    // For non-chess variants, we want the sticky "Tap here to resume bot" hint
+    // to be visible when a fresh game starts and it's the bot's turn.
+    // However, after the human makes the first move (history length > 1) we keep
+    // the older behavior: avoid a persistent hint and auto-resume after a short
+    // turn toast delay.
     if (!isChessLike && this.settings.paused && isAiTurn) {
-      const suppressOnFreshStart = this.pauseOrigin === "startup" || this.pauseOrigin === "newGame";
-      if (suppressOnFreshStart) {
+      const suppressAfterHumanFirstMove =
+        (this.pauseOrigin === "startup" || this.pauseOrigin === "newGame") && !this.isFreshGame();
+      if (suppressAfterHumanFirstMove) {
         this.controller.clearStickyToast(AIManager.TAP_RESUME_TOAST_KEY);
         this.scheduleAutoResumeAfterTurnToast();
         return;
@@ -279,8 +281,8 @@ export class AIManager {
       this.controller.showStickyToast(
         AIManager.TAP_RESUME_TOAST_KEY,
         isPast && canRedo
-          ? `${sideLabel(toMove)}'s turn. Tap here to redo bot move`
-          : `${sideLabel(toMove)}'s turn. Tap here to resume bot`,
+          ? `${sideLabel(toMove)} to Play. Tap here to redo bot move`
+          : `${sideLabel(toMove)} to Play. Tap here to resume bot`,
         { force: true }
       );
     } else {
