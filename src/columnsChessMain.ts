@@ -705,6 +705,22 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  // Analysis mode (local-only sandbox; does not submit moves).
+  const analysisToggleBtn = document.getElementById("analysisToggleBtn") as HTMLButtonElement | null;
+  const syncAnalysisToggleBtn = () => {
+    if (!analysisToggleBtn) return;
+    const on = controller.isAnalysisMode();
+    analysisToggleBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    analysisToggleBtn.textContent = on ? "Analysis Mode: On" : "Analysis Mode: Off";
+  };
+  if (analysisToggleBtn) {
+    syncAnalysisToggleBtn();
+    analysisToggleBtn.addEventListener("click", () => {
+      controller.setAnalysisMode(!controller.isAnalysisMode());
+      syncAnalysisToggleBtn();
+    });
+  }
+
   controller.addHistoryChangeCallback(updateHistoryUI);
   updateHistoryUI();
 

@@ -35,6 +35,7 @@ export function renderTurnIndicator(
     tooltipText?: string;
     icon?: "stone" | "pawn";
     labels?: { W: string; B: string };
+    decorator?: "analysis";
   }
 ): void {
   while (layer.firstChild) layer.removeChild(layer.firstChild);
@@ -86,4 +87,54 @@ export function renderTurnIndicator(
   // intercepting pointer events in some browsers).
   use.setAttribute("pointer-events", "none");
   layer.appendChild(use);
+
+  if (opts?.decorator === "analysis") {
+    // Small "eye" badge (analysis mode) in the indicator corner.
+    const badgeR = 9;
+    const backingLeft = x - 6;
+    const backingTop = y - 6;
+    const backingSize = iconSize + 12;
+    const inset = 3;
+    const badgeCx = backingLeft + backingSize - inset - badgeR;
+    const badgeCy = backingTop + inset + badgeR;
+
+    const badge = document.createElementNS(SVG_NS, "circle") as SVGCircleElement;
+    badge.setAttribute("cx", String(badgeCx));
+    badge.setAttribute("cy", String(badgeCy));
+    badge.setAttribute("r", String(badgeR));
+    badge.setAttribute("fill", "rgba(0,0,0,0.28)");
+    badge.setAttribute("stroke", "rgba(255,255,255,0.22)");
+    badge.setAttribute("stroke-width", "2");
+    badge.setAttribute("vector-effect", "non-scaling-stroke");
+    badge.setAttribute("pointer-events", "none");
+    layer.appendChild(badge);
+
+    const eye = document.createElementNS(SVG_NS, "path") as SVGPathElement;
+    const eyeW = 11;
+    const eyeH = 6.5;
+    // Almond outline, centered.
+    const d = [
+      `M ${badgeCx - eyeW / 2} ${badgeCy}`,
+      `Q ${badgeCx} ${badgeCy - eyeH} ${badgeCx + eyeW / 2} ${badgeCy}`,
+      `Q ${badgeCx} ${badgeCy + eyeH} ${badgeCx - eyeW / 2} ${badgeCy}`,
+      "Z",
+    ].join(" ");
+    eye.setAttribute("d", d);
+    eye.setAttribute("fill", "none");
+    eye.setAttribute("stroke", "rgba(255,255,255,0.85)");
+    eye.setAttribute("stroke-width", "2");
+    eye.setAttribute("stroke-linecap", "round");
+    eye.setAttribute("stroke-linejoin", "round");
+    eye.setAttribute("vector-effect", "non-scaling-stroke");
+    eye.setAttribute("pointer-events", "none");
+    layer.appendChild(eye);
+
+    const pupil = document.createElementNS(SVG_NS, "circle") as SVGCircleElement;
+    pupil.setAttribute("cx", String(badgeCx));
+    pupil.setAttribute("cy", String(badgeCy));
+    pupil.setAttribute("r", "2.2");
+    pupil.setAttribute("fill", "rgba(255,255,255,0.85)");
+    pupil.setAttribute("pointer-events", "none");
+    layer.appendChild(pupil);
+  }
 }

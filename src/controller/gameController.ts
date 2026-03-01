@@ -89,6 +89,10 @@ export class GameController {
   private historyListeners: Array<(reason: HistoryChangeReason) => void> = [];
   private inputEnabled: boolean = true;
   private lastInputEnabled: boolean = true;
+
+  // Analysis mode: local-only sandbox moves on the current position.
+  // When enabled, moves are applied locally and never submitted to the server.
+  private analysisMode: boolean = false;
   private currentTurnNodes: string[] = []; // Track node IDs visited in current turn
   private currentTurnHasCapture: boolean = false; // Track if current turn includes captures
   private repetitionCounts: Map<string, number> = new Map();
@@ -123,6 +127,46 @@ export class GameController {
   private isChessLikeRuleset(): boolean {
     const r = this.state.meta?.rulesetId ?? "lasca";
     return r === "columns_chess" || r === "chess";
+  }
+
+  private isChessLikeRulesetId(rulesetId: string | null | undefined): boolean {
+    const r = rulesetId ?? "lasca";
+    return r === "columns_chess" || r === "chess";
+  }
+
+  isAnalysisMode(): boolean {
+    return this.analysisMode;
+  }
+
+  setAnalysisMode(enabled: boolean): void {
+    const nextEnabled = Boolean(enabled);
+    if (nextEnabled === this.analysisMode) return;
+
+    // Keep the first implementation scoped to chess-like rulesets.
+    // (Other rulesets can have capture-chain endpoints in online mode.)
+    if (nextEnabled && !this.isChessLikeRuleset()) return;
+
+    this.analysisMode = nextEnabled;
+
+    // Clear any in-progress interaction state; analysis should start clean.
+    this.lockedCaptureFrom = null;
+    this.lockedCaptureDir = null;
+    this.jumpedSquares.clear();
+    this.currentTurnNodes = [];
+    this.currentTurnHasCapture = false;
+    this.clearSelection();
+
+    if (!this.analysisMode) {
+      // Leaving analysis: snap back to authoritative driver state.
+      this.state = this.driver.getState();
+      this.renderAuthoritative();
+      this.recomputeMandatoryCapture();
+      this.recomputeRepetitionCounts();
+      this.checkAndHandleCurrentPlayerLost();
+    }
+
+    this.updatePanel();
+    this.refreshSelectableCursors();
   }
 
   private isKingInCheckForCurrentRuleset(side: GameState["toMove"]): boolean {
@@ -990,6 +1034,25 @@ export class GameController {
         this.showToast("Connected", 1100);
       }
 
+      // If the user is exploring a local analysis line, don't clobber the sandbox position.
+      // We'll resync when analysis is turned off.
+      if (this.analysisMode) {
+        const nextAuth = remote.getState();
+        const forcedMsg = (nextAuth as any)?.forcedGameOver?.message as string | undefined;
+        const terminal = checkCurrentPlayerLost(nextAuth);
+        const isTerminal =
+          Boolean(forcedMsg && String(forcedMsg).trim()) ||
+          Boolean(terminal.winner) ||
+          (this.isChessLikeRulesetId(nextAuth.meta?.rulesetId) && Boolean(terminal.reason));
+        if (isTerminal) {
+          this.setAnalysisMode(false);
+        } else {
+          this.updatePanel();
+          this.fireHistoryChange("move");
+        }
+        return;
+      }
+
       this.state = remote.getState();
       // Any opponent update invalidates local in-progress UI selection/chain.
       this.lockedCaptureFrom = null;
@@ -1022,6 +1085,23 @@ export class GameController {
       try {
         const updated = await remote.fetchLatest();
         if (!updated) return;
+
+        if (this.analysisMode) {
+          const nextAuth = remote.getState();
+          const forcedMsg = (nextAuth as any)?.forcedGameOver?.message as string | undefined;
+          const terminal = checkCurrentPlayerLost(nextAuth);
+          const isTerminal =
+            Boolean(forcedMsg && String(forcedMsg).trim()) ||
+            Boolean(terminal.winner) ||
+            (this.isChessLikeRulesetId(nextAuth.meta?.rulesetId) && Boolean(terminal.reason));
+          if (isTerminal) {
+            this.setAnalysisMode(false);
+          } else {
+            this.updatePanel();
+            this.fireHistoryChange("move");
+          }
+          return;
+        }
 
         this.state = remote.getState();
         // Any opponent update invalidates local in-progress UI selection/chain.
@@ -1702,8 +1782,8 @@ export class GameController {
     // Only show the pointer cursor when input is actually meaningful.
     if (this.isGameOver) return;
     if (!this.inputEnabled) return;
-    if (!this.isLocalPlayersTurn()) return;
-    if (this.isBlockedByDisconnectedOpponent()) return;
+    if (!this.analysisMode && !this.isLocalPlayersTurn()) return;
+    if (!this.analysisMode && this.isBlockedByDisconnectedOpponent()) return;
 
     const legal = this.getLegalMovesForTurn();
     const selectableFrom = new Set<string>(
@@ -2647,7 +2727,9 @@ export class GameController {
     if (elLoadGameInput) elLoadGameInput.disabled = isOnline;
 
     if (elTurn) elTurn.textContent = this.sideLabel(this.state.toMove);
-    if (elPhase) elPhase.textContent = this.isGameOver ? "Game Over" : (this.selected ? "Select" : "Idle");
+    if (elPhase) {
+      elPhase.textContent = this.isGameOver ? "Game Over" : (this.analysisMode ? "Analysis" : (this.selected ? "Select" : "Idle"));
+    }
 
     // Always reflect the terminal reason in the Status Message row.
     // (This matters for both live play and when replaying/stepping through history.)
@@ -2680,6 +2762,7 @@ export class GameController {
       tooltipText: turnTooltipText,
       icon: isChessLike ? "pawn" : "stone",
       labels: isChessLike ? { W: "White", B: "Black" } : { W: "Light", B: "Dark" },
+      ...(this.analysisMode ? { decorator: "analysis" as const } : {}),
     });
 
     // Board HUD: show opponent presence under the turn indicator.
@@ -3404,9 +3487,15 @@ export class GameController {
       this.currentTurnHasCapture = true;
     }
     
+    const inAnalysis = this.analysisMode;
+
     let next: GameState & { didPromote?: boolean };
     try {
-      next = await this.driver.submitMove(move);
+      if (inAnalysis) {
+        next = applyMove(this.state as any, move as any) as any;
+      } else {
+        next = await this.driver.submitMove(move);
+      }
     } catch (err) {
       this.playSfx("error");
       // eslint-disable-next-line no-console
@@ -3523,26 +3612,37 @@ export class GameController {
     // Dead-play / server-enforced game over can happen mid-capture-chain.
     const forcedMsg = (this.state as any).forcedGameOver?.message as string | undefined;
     if (typeof forcedMsg === "string" && forcedMsg.length > 0) {
-      this.isGameOver = true;
-      this.lockedCaptureFrom = null;
-      this.lockedCaptureDir = null;
-      this.jumpedSquares.clear();
-      this.clearSelection();
+      if (inAnalysis) {
+        // Ignore server-only end states while analyzing a hypothetical line.
+        // Keep the sandbox interactive by stripping the forced marker.
+        try {
+          (this.state as any) = { ...(this.state as any) };
+          delete (this.state as any).forcedGameOver;
+        } catch {
+          // ignore
+        }
+      } else {
+        this.isGameOver = true;
+        this.lockedCaptureFrom = null;
+        this.lockedCaptureDir = null;
+        this.jumpedSquares.clear();
+        this.clearSelection();
 
-      // In local mode, capture chains normally push history at turn boundary.
-      // If the game ends mid-turn, record the final authoritative state now.
-      if (this.driver.mode !== "online") {
-        const separator = this.currentTurnHasCapture ? " × " : " → ";
-        const boardSize = this.state.meta?.boardSize ?? 7;
-        const notation = this.currentTurnNodes.map((id) => this.nodeIdToA1ForView(id, boardSize)).join(separator);
-        this.driver.pushHistory(this.state, notation);
+        // In local mode, capture chains normally push history at turn boundary.
+        // If the game ends mid-turn, record the final authoritative state now.
+        if (this.driver.mode !== "online") {
+          const separator = this.currentTurnHasCapture ? " × " : " → ";
+          const boardSize = this.state.meta?.boardSize ?? 7;
+          const notation = this.currentTurnNodes.map((id) => this.nodeIdToA1ForView(id, boardSize)).join(separator);
+          this.driver.pushHistory(this.state, notation);
+        }
+        this.currentTurnNodes = [];
+        this.currentTurnHasCapture = false;
+        this.showBanner(forcedMsg, 0);
+        this.showGameOverToast(forcedMsg);
+        this.fireHistoryChange("gameOver");
+        return;
       }
-      this.currentTurnNodes = [];
-      this.currentTurnHasCapture = false;
-      this.showBanner(forcedMsg, 0);
-      this.showGameOverToast(forcedMsg);
-      this.fireHistoryChange("gameOver");
-      return;
     }
     
     // Clear overlays immediately after move is rendered
@@ -3562,7 +3662,7 @@ export class GameController {
         const separator = this.currentTurnHasCapture ? " × " : " → ";
         const boardSize = this.state.meta?.boardSize ?? 8;
         const notation = this.currentTurnNodes.map((id) => this.nodeIdToA1ForView(id, boardSize)).join(separator);
-        if (this.driver.mode !== "online") {
+        if (!inAnalysis && this.driver.mode !== "online") {
           this.driver.pushHistory(this.state, notation);
         }
         this.currentTurnNodes = [];
@@ -3575,15 +3675,17 @@ export class GameController {
         // No mandatory capture for chess-like rulesets.
         this.mandatoryCapture = false;
 
-        // Check for checkmate/stalemate.
-        const gameResult = checkCurrentPlayerLost(this.state);
-        if (gameResult.winner || gameResult.reason) {
-          this.isGameOver = true;
-          const msg = gameResult.reason || "Game Over";
-          this.showBanner(msg, 0);
-          this.showGameOverToast(msg);
-          this.fireHistoryChange("gameOver");
-          return;
+        if (!inAnalysis) {
+          // Check for checkmate/stalemate.
+          const gameResult = checkCurrentPlayerLost(this.state);
+          if (gameResult.winner || gameResult.reason) {
+            this.isGameOver = true;
+            const msg = gameResult.reason || "Game Over";
+            this.showBanner(msg, 0);
+            this.showGameOverToast(msg);
+            this.fireHistoryChange("gameOver");
+            return;
+          }
         }
 
         this.updatePanel();
@@ -3836,7 +3938,7 @@ export class GameController {
       const separator = this.currentTurnHasCapture ? " × " : " → ";
       const boardSize = this.state.meta?.boardSize ?? 7;
       const notation = this.currentTurnNodes.map((id) => this.nodeIdToA1ForView(id, boardSize)).join(separator);
-      if (this.driver.mode !== "online") {
+      if (!inAnalysis && this.driver.mode !== "online") {
         this.driver.pushHistory(this.state, notation);
       }
       this.currentTurnNodes = [];
@@ -3849,17 +3951,19 @@ export class GameController {
       // Update mandatory capture for new turn
       this.recomputeMandatoryCapture();
       
-      // Check for game over after quiet move - check if current player can play
-      const gameResult = checkCurrentPlayerLost(this.state);
-      if (gameResult.winner || (this.isColumnsChessRuleset() && gameResult.reason)) {
-        this.isGameOver = true;
-        {
-          const msg = gameResult.reason || "Game Over";
-          this.showBanner(msg, 0);
-          this.showGameOverToast(msg);
+      if (!inAnalysis) {
+        // Check for game over after quiet move - check if current player can play
+        const gameResult = checkCurrentPlayerLost(this.state);
+        if (gameResult.winner || (this.isColumnsChessRuleset() && gameResult.reason)) {
+          this.isGameOver = true;
+          {
+            const msg = gameResult.reason || "Game Over";
+            this.showBanner(msg, 0);
+            this.showGameOverToast(msg);
+          }
+          this.fireHistoryChange("gameOver");
+          return;
         }
-        this.fireHistoryChange("gameOver");
-        return;
       }
       
       // Update panel to show capture message if needed
