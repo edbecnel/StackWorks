@@ -23,6 +23,12 @@ import { saveGameToFile, loadGameFromFile } from "./game/saveLoad";
 import { createSfxManager } from "./ui/sfx";
 import type { Stack } from "./types";
 import { bindPlaybackControls } from "./ui/playbackControls.ts";
+import {
+  bindAnalysisToggleButton,
+  bindFullScreenButton,
+  bindGameHotkeys,
+  bindKeyboardShortcutsContextMenu,
+} from "./ui/gameShortcuts.ts";
 import { createBoardLoadingOverlay } from "./ui/boardLoadingOverlay";
 import { nextPaint } from "./ui/nextPaint";
 import { ColumnsChessBotManager } from "./bot/columnsChessBotManager.ts";
@@ -220,6 +226,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (driver.mode !== "online") {
     const bot = new ColumnsChessBotManager(controller);
     bot.bind();
+    controller.addAnalysisModeChangeCallback((enabled) => bot.setAnalysisModeActive(enabled));
   } else {
     // Hide bot panel in online mode.
     const botSection = document.querySelector('[data-section="bot"]') as HTMLElement | null;
@@ -705,21 +712,10 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // Analysis mode (local-only sandbox; does not submit moves).
-  const analysisToggleBtn = document.getElementById("analysisToggleBtn") as HTMLButtonElement | null;
-  const syncAnalysisToggleBtn = () => {
-    if (!analysisToggleBtn) return;
-    const on = controller.isAnalysisMode();
-    analysisToggleBtn.setAttribute("aria-pressed", on ? "true" : "false");
-    analysisToggleBtn.textContent = on ? "Analysis Mode: On" : "Analysis Mode: Off";
-  };
-  if (analysisToggleBtn) {
-    syncAnalysisToggleBtn();
-    analysisToggleBtn.addEventListener("click", () => {
-      controller.setAnalysisMode(!controller.isAnalysisMode());
-      syncAnalysisToggleBtn();
-    });
-  }
+  bindAnalysisToggleButton(controller);
+  bindFullScreenButton();
+  bindGameHotkeys(controller);
+  bindKeyboardShortcutsContextMenu(controller);
 
   controller.addHistoryChangeCallback(updateHistoryUI);
   updateHistoryUI();

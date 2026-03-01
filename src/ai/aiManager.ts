@@ -50,6 +50,7 @@ function formatMove(m: Move | null): string {
 export class AIManager {
   private controller: GameController;
   private settings: AISettings;
+  private analysisSavedSettings: AISettings | null = null;
   private worker: Worker | null = null;
   private requestId = 1;
   private busy = false;
@@ -93,6 +94,51 @@ export class AIManager {
 
     // Subscribe to turn boundaries (history changes).
     this.controller.addHistoryChangeCallback((reason) => this.onHistoryChanged(reason));
+
+    // If analysis mode was toggled very early, ensure AI is forced off.
+    if ((this.controller as any)?.isAnalysisMode?.()) {
+      this.setAnalysisModeActive(true);
+    }
+  }
+
+  setAnalysisModeActive(enabled: boolean): void {
+    if (enabled) {
+      if (this.analysisSavedSettings) return;
+
+      // If an AI computation is currently in flight, cancel it so analysis mode
+      // doesn't get a delayed bot move applied after the user starts sandboxing.
+      if (this.busy || this.activeRequestId !== null) {
+        this.onWorkerFailed();
+      }
+
+      this.analysisSavedSettings = { ...this.settings };
+
+      this.settings.white = "human";
+      this.settings.black = "human";
+      this.settings.paused = true;
+
+      localStorage.setItem(LS_KEYS.white, this.settings.white);
+      localStorage.setItem(LS_KEYS.black, this.settings.black);
+      localStorage.setItem(LS_KEYS.paused, "true");
+
+      this.controller.clearStickyToast(AIManager.TAP_RESUME_TOAST_KEY);
+      this.refreshUI();
+      return;
+    }
+
+    if (!this.analysisSavedSettings) return;
+
+    this.settings = { ...this.analysisSavedSettings };
+    this.analysisSavedSettings = null;
+
+    localStorage.setItem(LS_KEYS.white, this.settings.white);
+    localStorage.setItem(LS_KEYS.black, this.settings.black);
+    localStorage.setItem(LS_KEYS.delay, String(this.settings.delayMs));
+    localStorage.setItem(LS_KEYS.paused, this.settings.paused ? "true" : "false");
+
+    this.refreshUI();
+    this.syncPausedTurnToastNow();
+    this.kick();
   }
 
   private isViewingPastInHistory(): boolean {
@@ -416,6 +462,14 @@ export class AIManager {
     // If we're paused on an AI turn in human-vs-AI, show a persistent hint.
     this.schedulePausedTurnToastSync();
 
+    // If analysis mode is already active, force AI off and ensure the UI reflects it.
+    if ((this.controller as any)?.isAnalysisMode?.()) {
+      this.setAnalysisModeActive(true);
+    }
+
+    // Ensure initial UI state is accurate.
+    this.refreshUI();
+
     // Don't auto-kick on page load - wait for user to Resume.
   }
 
@@ -485,6 +539,12 @@ export class AIManager {
   }
 
   private refreshUI(): void {
+    // Keep inputs in sync with settings (analysis mode can change settings
+    // programmatically and the selects should reflect that immediately).
+    if (this.elWhite) this.elWhite.value = this.settings.white;
+    if (this.elBlack) this.elBlack.value = this.settings.black;
+    if (this.elDelay) this.elDelay.value = String(this.settings.delayMs);
+
     if (this.elDelayLabel) this.elDelayLabel.textContent = `${this.settings.delayMs} ms`;
     if (this.elDelayReset) this.elDelayReset.title = `Reset to default speed (${DEFAULT_DELAY_MS} ms)`;
 
@@ -575,6 +635,8 @@ export class AIManager {
   }
 
   private async maybeMove(force: boolean = false): Promise<void> {
+    // Never allow AI to act while analysis mode is active.
+    if (this.analysisSavedSettings) return;
     if (this.busy) return;
     if (this.controller.isOver()) return;
 
@@ -674,6 +736,9 @@ export class AIManager {
   private async applyPickedMove(requestId: number, move: Move | null, info?: { depth?: number; nodes?: number; ms?: number }): Promise<void> {
     try {
       if (!move) return;
+
+      // Analysis mode must be a strict sandbox: do not apply any AI moves.
+      if (this.analysisSavedSettings) return;
 
       const before = this.controller.getState();
       const side: Player = before.toMove;

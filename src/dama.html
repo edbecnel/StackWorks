@@ -1471,6 +1471,30 @@
                 </button>
               </div>
 
+              <div style="margin-top: 10px">
+                <button
+                  id="analysisToggleBtn"
+                  class="panelBtn"
+                  type="button"
+                  aria-pressed="false"
+                  style="width: 100%; padding: 6px 12px; font-size: 12px"
+                >
+                  Analysis Mode: Off
+                </button>
+              </div>
+
+              <div style="margin-top: 8px">
+                <button
+                  id="fullScreenBtn"
+                  class="panelBtn"
+                  type="button"
+                  aria-pressed="false"
+                  style="width: 100%; padding: 6px 12px; font-size: 12px"
+                >
+                  Full Screen: Off
+                </button>
+              </div>
+
               <div style="margin-top: 16px">
                 <button
                   id="resignBtn"
@@ -1931,7 +1955,7 @@
 
           <div class="panelSection" data-section="playback">
             <div class="sectionHeader" data-toggle="playback">
-              <h3>Playback</h3>
+              <h3 id="playbackTitle">Playback</h3>
               <span class="collapseBtn">▼</span>
             </div>
             <div class="sectionContent">
@@ -2014,7 +2038,7 @@
 
           <div class="panelSection" data-section="moveHistory">
             <div class="sectionHeader" data-toggle="moveHistory">
-              <h3>Move History</h3>
+              <h3 id="moveHistoryTitle">Move History</h3>
               <span class="collapseBtn">▼</span>
             </div>
             <div class="sectionContent">

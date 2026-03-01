@@ -102,6 +102,8 @@ export class ChessBotManager {
   private busy = false;
   private requestId = 1;
 
+  private analysisOverridePrev: { white: BotSideSetting; black: BotSideSetting; paused: boolean } | null = null;
+
   private prewarmStarted = false;
   private warmupToastStartMs: number | null = null;
   private readonly warmupToastEscalateMs = 5000;
@@ -156,6 +158,57 @@ export class ChessBotManager {
     this.settings = this.loadSettings();
 
     this.controller.addHistoryChangeCallback((reason) => this.onHistoryChanged(reason));
+  }
+
+  setAnalysisModeActive(enabled: boolean): void {
+    const next = Boolean(enabled);
+
+    if (next) {
+      if (this.analysisOverridePrev) return;
+      this.analysisOverridePrev = {
+        white: this.settings.white,
+        black: this.settings.black,
+        paused: this.settings.paused,
+      };
+
+      // Cancel any in-flight engine/bot work so we don't apply a stale bot move
+      // into the analysis sandbox.
+      if (this.busy) {
+        this.requestId++;
+        this.busy = false;
+      }
+
+      this.settings.white = "human";
+      this.settings.black = "human";
+      try {
+        localStorage.setItem(LS_KEYS.white, this.settings.white);
+        localStorage.setItem(LS_KEYS.black, this.settings.black);
+      } catch {
+        // ignore
+      }
+
+      this.refreshUI();
+      this.updateInputForCurrentTurn();
+      return;
+    }
+
+    if (!this.analysisOverridePrev) return;
+    const prev = this.analysisOverridePrev;
+    this.analysisOverridePrev = null;
+    this.settings.white = prev.white;
+    this.settings.black = prev.black;
+    this.settings.paused = prev.paused;
+    try {
+      localStorage.setItem(LS_KEYS.white, this.settings.white);
+      localStorage.setItem(LS_KEYS.black, this.settings.black);
+      localStorage.setItem(LS_KEYS.paused, String(this.settings.paused));
+    } catch {
+      // ignore
+    }
+
+    this.refreshUI();
+    this.updateInputForCurrentTurn();
+    this.kick();
   }
 
   bind(): void {
@@ -507,6 +560,19 @@ export class ChessBotManager {
     if (this.elDelay) this.elDelay.value = String(this.settings.delayMs);
     if (this.elDelayLabel) this.elDelayLabel.textContent = `${this.settings.delayMs} ms`;
     if (this.elDelayReset) this.elDelayReset.title = `Reset to default speed (${DEFAULT_DELAY_MS} ms)`;
+
+    const analysisDisabled = Boolean(this.analysisOverridePrev);
+    if (this.elWhite) this.elWhite.disabled = analysisDisabled;
+    if (this.elBlack) this.elBlack.disabled = analysisDisabled;
+    if (this.elDelay) this.elDelay.disabled = analysisDisabled;
+    if (this.elDelayReset) this.elDelayReset.disabled = analysisDisabled;
+    if (this.elReset) this.elReset.disabled = analysisDisabled;
+    if (analysisDisabled) {
+      if (this.elPause) this.elPause.disabled = true;
+      this.setStatus("Analysis mode (bot disabled)");
+      return;
+    }
+
     const anyBot = this.settings.white !== "human" || this.settings.black !== "human";
     if (this.elPause) {
       this.elPause.disabled = !anyBot || this.controller.isOver();

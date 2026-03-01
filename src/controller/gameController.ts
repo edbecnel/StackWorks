@@ -93,6 +93,8 @@ export class GameController {
   // Analysis mode: local-only sandbox moves on the current position.
   // When enabled, moves are applied locally and never submitted to the server.
   private analysisMode: boolean = false;
+  private analysisModeListeners: Array<(enabled: boolean) => void> = [];
+  private analysisHistory: HistoryManager | null = null;
   private currentTurnNodes: string[] = []; // Track node IDs visited in current turn
   private currentTurnHasCapture: boolean = false; // Track if current turn includes captures
   private repetitionCounts: Map<string, number> = new Map();
@@ -138,15 +140,46 @@ export class GameController {
     return this.analysisMode;
   }
 
+  addAnalysisModeChangeCallback(callback: (enabled: boolean) => void): void {
+    this.analysisModeListeners.push(callback);
+  }
+
+  private fireAnalysisModeChange(enabled: boolean): void {
+    for (const cb of this.analysisModeListeners) {
+      try {
+        cb(enabled);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[controller] analysis listener error", err);
+      }
+    }
+  }
+
   setAnalysisMode(enabled: boolean): void {
     const nextEnabled = Boolean(enabled);
     if (nextEnabled === this.analysisMode) return;
 
-    // Keep the first implementation scoped to chess-like rulesets.
-    // (Other rulesets can have capture-chain endpoints in online mode.)
-    if (nextEnabled && !this.isChessLikeRuleset()) return;
-
     this.analysisMode = nextEnabled;
+
+    // Analysis mode includes a sandboxed Move History timeline.
+    // Clone the current driver history so Undo/Redo/Playback are local-only.
+    if (this.analysisMode) {
+      try {
+        const snap = this.driver.exportHistorySnapshots();
+        if (snap.states.length > 0 && snap.currentIndex >= 0 && snap.currentIndex < snap.states.length) {
+          // Prefer the controller's current view for the current snapshot (it may
+          // have transient UI hint edits like cleared last-move highlights).
+          snap.states[snap.currentIndex] = this.state;
+        }
+        const hm = new HistoryManager();
+        hm.replaceAll(snap.states, snap.notation, snap.currentIndex);
+        this.analysisHistory = hm;
+      } catch {
+        this.analysisHistory = null;
+      }
+    } else {
+      this.analysisHistory = null;
+    }
 
     // Clear any in-progress interaction state; analysis should start clean.
     this.lockedCaptureFrom = null;
@@ -165,8 +198,16 @@ export class GameController {
       this.checkAndHandleCurrentPlayerLost();
     }
 
+    // Notify listeners after we've applied/cleared state so they can safely
+    // react (e.g. temporarily disable bots while analysis is active).
+    this.fireAnalysisModeChange(this.analysisMode);
+
     this.updatePanel();
     this.refreshSelectableCursors();
+
+    // Switching analysis mode swaps the visible Move History source; prompt
+    // listeners (move list UI, bots, etc) to refresh.
+    this.fireHistoryChange("jump");
   }
 
   private isKingInCheckForCurrentRuleset(side: GameState["toMove"]): boolean {
@@ -1973,7 +2014,8 @@ export class GameController {
   }
 
   undo(): void {
-    const prevState = this.driver.undo();
+    if (this.analysisMode && !this.analysisHistory) return;
+    const prevState = this.analysisMode ? this.analysisHistory!.undo() : this.driver.undo();
     if (prevState) {
       this.playSfx("undo");
       // Allow undoing out of terminal states.
@@ -2009,7 +2051,8 @@ export class GameController {
   }
 
   redo(): void {
-    const nextState = this.driver.redo();
+    if (this.analysisMode && !this.analysisHistory) return;
+    const nextState = this.analysisMode ? this.analysisHistory!.redo() : this.driver.redo();
     if (nextState) {
       this.playSfx("redo");
       // Allow redoing out of terminal states.
@@ -2045,7 +2088,8 @@ export class GameController {
   }
 
   jumpToHistory(index: number): void {
-    const target = this.driver.jumpToHistory(index);
+    if (this.analysisMode && !this.analysisHistory) return;
+    const target = this.analysisMode ? this.analysisHistory!.jumpTo(index) : this.driver.jumpToHistory(index);
     if (!target) return;
 
     // Allow jumping out of terminal states.
@@ -2227,7 +2271,8 @@ export class GameController {
 
   async jumpToHistoryAnimated(index: number, animMs: number = 450): Promise<void> {
     const prev = this.state;
-    const target = this.driver.jumpToHistory(index);
+    if (this.analysisMode && !this.analysisHistory) return;
+    const target = this.analysisMode ? this.analysisHistory!.jumpTo(index) : this.driver.jumpToHistory(index);
     if (!target) return;
 
     // Allow jumping out of terminal states.
@@ -2420,19 +2465,21 @@ export class GameController {
   }
 
   canUndo(): boolean {
+    if (this.analysisMode) return Boolean(this.analysisHistory?.canUndo() ?? false);
     return this.driver.canUndo();
   }
 
   canRedo(): boolean {
+    if (this.analysisMode) return Boolean(this.analysisHistory?.canRedo() ?? false);
     return this.driver.canRedo();
   }
 
   getHistory(): ReturnType<HistoryManager["getHistory"]> {
-    return this.driver.getHistory();
+    return this.analysisMode && this.analysisHistory ? this.analysisHistory.getHistory() : this.driver.getHistory();
   }
 
   exportMoveHistory(): string {
-    const historyData = this.driver.getHistory();
+    const historyData = this.getHistory();
     const rulesetId = this.state.meta?.rulesetId;
     const isChessLike = rulesetId === "columns_chess" || rulesetId === "chess";
     const moves = historyData
@@ -2689,6 +2736,8 @@ export class GameController {
     const elTurn = document.getElementById("statusTurn");
     const elPhase = document.getElementById("statusPhase");
     const elMsg = document.getElementById("statusMessage");
+    const elPlaybackTitle = document.getElementById("playbackTitle");
+    const elMoveHistoryTitle = document.getElementById("moveHistoryTitle");
     const elDeadPlayTimer =
       (document.getElementById("statusDeadPlayTimer") as HTMLElement | null) ??
       (document.getElementById("statusLoneKingTimer") as HTMLElement | null);
@@ -2728,8 +2777,13 @@ export class GameController {
 
     if (elTurn) elTurn.textContent = this.sideLabel(this.state.toMove);
     if (elPhase) {
-      elPhase.textContent = this.isGameOver ? "Game Over" : (this.analysisMode ? "Analysis" : (this.selected ? "Select" : "Idle"));
+      elPhase.textContent =
+        this.isGameOver ? "Game Over" : (this.analysisMode ? "Analysis (sandbox)" : (this.selected ? "Select" : "Idle"));
     }
+
+    if (elPlaybackTitle) elPlaybackTitle.textContent = this.analysisMode ? "Playback (Analysis)" : "Playback";
+    if (elMoveHistoryTitle)
+      elMoveHistoryTitle.textContent = this.analysisMode ? "Move History (Analysis)" : "Move History";
 
     // Always reflect the terminal reason in the Status Message row.
     // (This matters for both live play and when replaying/stepping through history.)
@@ -3662,7 +3716,9 @@ export class GameController {
         const separator = this.currentTurnHasCapture ? " × " : " → ";
         const boardSize = this.state.meta?.boardSize ?? 8;
         const notation = this.currentTurnNodes.map((id) => this.nodeIdToA1ForView(id, boardSize)).join(separator);
-        if (!inAnalysis && this.driver.mode !== "online") {
+        if (inAnalysis) {
+          this.analysisHistory?.push(this.state, notation);
+        } else if (this.driver.mode !== "online") {
           this.driver.pushHistory(this.state, notation);
         }
         this.currentTurnNodes = [];
@@ -3938,7 +3994,9 @@ export class GameController {
       const separator = this.currentTurnHasCapture ? " × " : " → ";
       const boardSize = this.state.meta?.boardSize ?? 7;
       const notation = this.currentTurnNodes.map((id) => this.nodeIdToA1ForView(id, boardSize)).join(separator);
-      if (!inAnalysis && this.driver.mode !== "online") {
+      if (inAnalysis) {
+        this.analysisHistory?.push(this.state, notation);
+      } else if (this.driver.mode !== "online") {
         this.driver.pushHistory(this.state, notation);
       }
       this.currentTurnNodes = [];

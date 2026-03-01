@@ -19,6 +19,12 @@ import { renderBoardCoords } from "./render/boardCoords";
 import { AIManager } from "./ai/aiManager.ts";
 import { bindEvaluationPanel } from "./ui/evaluationPanel";
 import { bindPlaybackControls } from "./ui/playbackControls.ts";
+import {
+  bindAnalysisToggleButton,
+  bindFullScreenButton,
+  bindGameHotkeys,
+  bindKeyboardShortcutsContextMenu,
+} from "./ui/gameShortcuts.ts";
 import { installHoldDrag } from "./ui/holdDrag";
 import { getVariantById, isVariantId, rulesBoardLine } from "./variants/variantRegistry";
 import type { VariantId } from "./variants/variantTypes";
@@ -284,6 +290,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   const controller = new GameController(svg, piecesLayer, inspector, state, history, driver);
   controller.bind();
 
+  bindAnalysisToggleButton(controller);
+  bindFullScreenButton();
+  bindGameHotkeys(controller);
+  bindKeyboardShortcutsContextMenu(controller);
+
   // Sound effects (optional)
   const sfx = createSfxManager();
   controller.setSfxManager(sfx);
@@ -393,6 +404,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     // AI (human vs AI / AI vs AI)
     const aiManager = new AIManager(controller);
     aiManager.bind();
+    controller.addAnalysisModeChangeCallback((enabled) => aiManager.setAnalysisModeActive(enabled));
   }
 
 

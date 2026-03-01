@@ -31,6 +31,12 @@ import { createBoardLoadingOverlay } from "./ui/boardLoadingOverlay";
 import { nextPaint } from "./ui/nextPaint";
 import { bindChessEvaluationPanel } from "./ui/chessEvaluationPanel.ts";
 import { installBoardVisualizationTools } from "./ui/boardVisualizationTools";
+import {
+  bindAnalysisToggleButton,
+  bindFullScreenButton,
+  bindGameHotkeys,
+  bindKeyboardShortcutsContextMenu,
+} from "./ui/gameShortcuts.ts";
 
 const ACTIVE_VARIANT_ID: VariantId = "chess_classic";
 
@@ -228,6 +234,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (driver.mode !== "online") {
     const bot = new ChessBotManager(controller);
     bot.bind();
+    controller.addAnalysisModeChangeCallback((enabled) => bot.setAnalysisModeActive(enabled));
   }
 
   // Left panel status (rules/board is static per variant)
@@ -1247,21 +1254,10 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // Analysis mode (local-only sandbox; does not submit moves).
-  const analysisToggleBtn = document.getElementById("analysisToggleBtn") as HTMLButtonElement | null;
-  const syncAnalysisToggleBtn = () => {
-    if (!analysisToggleBtn) return;
-    const on = controller.isAnalysisMode();
-    analysisToggleBtn.setAttribute("aria-pressed", on ? "true" : "false");
-    analysisToggleBtn.textContent = on ? "Analysis Mode: On" : "Analysis Mode: Off";
-  };
-  if (analysisToggleBtn) {
-    syncAnalysisToggleBtn();
-    analysisToggleBtn.addEventListener("click", () => {
-      controller.setAnalysisMode(!controller.isAnalysisMode());
-      syncAnalysisToggleBtn();
-    });
-  }
+  bindAnalysisToggleButton(controller);
+  bindFullScreenButton();
+  bindGameHotkeys(controller);
+  bindKeyboardShortcutsContextMenu(controller);
 
   controller.addHistoryChangeCallback(updateHistoryUI);
   updateHistoryUI();
