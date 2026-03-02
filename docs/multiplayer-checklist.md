@@ -2,7 +2,7 @@
 
 Last reviewed: 2026-02-06
 
-This document tracks the current multiplayer implementation status for Lasca / Dama / Damasca online 2‑player play.
+This document tracks the current multiplayer implementation status for StackWorks (Lasca / Dama / Damasca) online 2‑player play.
 
 ## Guiding principles
 

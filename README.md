@@ -1,10 +1,10 @@
-# Lasca
+# StackWorks
 
-A browser-based implementation of Lasca (also known as Laska), the strategic board game invented by World Chess Champion Emanuel Lasker in 1911.
+A browser-based suite of board games and variants, including Lasca (Laska), Dama, Damasca, Columns Chess, and Classic Chess.
 
 ## About
 
-This project implements three checkers variants:
+This project includes multiple variants (selected from the Start Page):
 
 ### Lasca (7×7 and 8×8)
 
