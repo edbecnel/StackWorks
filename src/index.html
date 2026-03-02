@@ -9,11 +9,36 @@
     <title>Lasca — Start</title>
     <link rel="preload" as="image" href="./splash.png" />
     <script>
-      // Show the splash screen only on the first Start Page visit.
+      // Show the splash screen on the first Start Page visit, and also on refresh.
       // Use a tiny inline script so we can decide before the page paints (avoids flicker).
       (function () {
         try {
-          if (!localStorage.getItem("lasca.start.splashSeen")) {
+          function isReloadNavigation() {
+            try {
+              var getEntriesByType =
+                performance && performance.getEntriesByType;
+              if (typeof getEntriesByType === "function") {
+                var nav = getEntriesByType.call(performance, "navigation");
+                if (nav && nav.length && nav[0] && nav[0].type) {
+                  return nav[0].type === "reload";
+                }
+              }
+              // Legacy fallback (deprecated but still present in some browsers):
+              // 1 = TYPE_RELOAD
+              var legacy =
+                performance &&
+                performance.navigation &&
+                performance.navigation.type;
+              return legacy === 1;
+            } catch (e) {
+              return false;
+            }
+          }
+
+          if (
+            isReloadNavigation() ||
+            !localStorage.getItem("lasca.start.splashSeen")
+          ) {
             document.documentElement.classList.add("showStartSplash");
           }
         } catch (e) {
