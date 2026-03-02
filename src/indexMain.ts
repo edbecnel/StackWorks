@@ -67,6 +67,23 @@ function initStartSplash(): void {
   }, START_SPLASH_MS);
 }
 
+function maybeResetCheckersThemePrefs(): void {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("resetCheckersTheme") !== "1") return;
+
+    localStorage.removeItem(LS_KEYS.checkersTheme);
+    localStorage.removeItem(LS_KEYS.checkersCheckerboardTheme);
+
+    params.delete("resetCheckersTheme");
+    const qs = params.toString();
+    const nextUrl = window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash;
+    window.history.replaceState(null, "", nextUrl);
+  } catch {
+    // ignore
+  }
+}
+
 type PreferredColor = "auto" | "W" | "B";
 
 type Difficulty = "human" | "easy" | "medium" | "advanced";
@@ -378,6 +395,7 @@ function isGlassPaletteId(v: unknown): v is GlassPaletteId {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
+  maybeResetCheckersThemePrefs();
   initStartSplash();
 
   const elGame = byId<HTMLSelectElement>("launchGame");
@@ -826,11 +844,7 @@ window.addEventListener("DOMContentLoaded", () => {
       const next = (elTheme.value === "raster3d" || elTheme.value === "raster2d" || elTheme.value === "neo") ? elTheme.value : "raster3d";
       localStorage.setItem(LS_KEYS.chessTheme, next);
     } else if (isCheckers) {
-      // Store a Checkers-specific preference so an existing global theme from other games
-      // does not prevent Checkers from defaulting to the classic Checkers look.
-      const next = elTheme.value || "checkers";
-      localStorage.setItem(LS_KEYS.checkersTheme, next);
-      localStorage.setItem(LS_KEYS.theme, next);
+      localStorage.setItem(LS_KEYS.checkersTheme, elTheme.value || "checkers");
     } else {
       localStorage.setItem(LS_KEYS.theme, elTheme.value);
     }
@@ -1333,7 +1347,16 @@ window.addEventListener("DOMContentLoaded", () => {
     if (elColumnsChessBoardThemeRow) elColumnsChessBoardThemeRow.style.display = shouldShowCheckerboardTheme ? "" : "none";
     if (elColumnsChessBoardTheme) {
       elColumnsChessBoardTheme.disabled = !canUseCheckerboardTheme;
-      elColumnsChessBoardTheme.value = normalizeCheckerboardThemeId(localStorage.getItem(LS_KEYS.optCheckerboardTheme));
+      const raw = isCheckers ? localStorage.getItem(LS_KEYS.checkersCheckerboardTheme) : localStorage.getItem(LS_KEYS.optCheckerboardTheme);
+      const next = normalizeCheckerboardThemeId(raw ?? (isCheckers ? "checkers" : null));
+      elColumnsChessBoardTheme.value = next;
+      if (isCheckers && !raw) {
+        try {
+          localStorage.setItem(LS_KEYS.checkersCheckerboardTheme, next);
+        } catch {
+          // ignore
+        }
+      }
     }
 
     if (isColumnsChess) {
@@ -1362,11 +1385,24 @@ window.addEventListener("DOMContentLoaded", () => {
         populateThemeSelect(visibleThemeIds());
       }
       elTheme.disabled = false;
-      const savedThemeNow = localStorage.getItem(LS_KEYS.theme);
-      const restore = (savedThemeNow && getThemeById(savedThemeNow) && !getThemeById(savedThemeNow)?.hidden)
-        ? savedThemeNow
-        : (savedThemeBeforeColumnsChess || savedThemeBeforeChess);
-      if (restore && getThemeById(restore) && !getThemeById(restore)?.hidden) elTheme.value = restore;
+      if (isCheckers) {
+        const raw = localStorage.getItem(LS_KEYS.checkersTheme);
+        const next = (raw && getThemeById(raw) && !getThemeById(raw)?.hidden) ? raw : "checkers";
+        elTheme.value = next;
+        if (!raw || raw !== next) {
+          try {
+            localStorage.setItem(LS_KEYS.checkersTheme, next);
+          } catch {
+            // ignore
+          }
+        }
+      } else {
+        const savedThemeNow = localStorage.getItem(LS_KEYS.theme);
+        const restore = (savedThemeNow && getThemeById(savedThemeNow) && !getThemeById(savedThemeNow)?.hidden)
+          ? savedThemeNow
+          : (savedThemeBeforeColumnsChess || savedThemeBeforeChess);
+        if (restore && getThemeById(restore) && !getThemeById(restore)?.hidden) elTheme.value = restore;
+      }
       syncGlassThemeOptions();
     }
   };
@@ -1496,25 +1532,6 @@ window.addEventListener("DOMContentLoaded", () => {
     const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
     const v = getVariantById(vId);
 
-    // Defaults: when Checkers is selected, use Checkers-specific prefs (fallback to classic).
-    // This avoids a previously-saved global theme (from other games) leaking into Checkers.
-    if (v.rulesetId === "checkers_us") {
-      try {
-        const pieces = localStorage.getItem(LS_KEYS.checkersTheme) || "checkers";
-        const board = localStorage.getItem(LS_KEYS.checkersCheckerboardTheme) || "checkers";
-
-        if (!localStorage.getItem(LS_KEYS.checkersTheme)) localStorage.setItem(LS_KEYS.checkersTheme, pieces);
-        if (!localStorage.getItem(LS_KEYS.checkersCheckerboardTheme)) {
-          localStorage.setItem(LS_KEYS.checkersCheckerboardTheme, board);
-        }
-
-        localStorage.setItem(LS_KEYS.theme, pieces);
-        localStorage.setItem(LS_KEYS.optCheckerboardTheme, normalizeCheckerboardThemeId(board));
-      } catch {
-        // ignore
-      }
-    }
-
     // Terminology:
     // - When using the Checkers (Red/Black) *pieces* (theme id: "checkers"): use Red/Black for disc games.
     // - Otherwise: Dama uses White/Black; other disc games use Light/Dark.
@@ -1535,17 +1552,6 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     syncThemeConstraintsForVariant(vId);
-
-    // If we just applied Checkers defaults above, reflect them in the Start UI too.
-    if (v.rulesetId === "checkers_us") {
-      const savedTheme = localStorage.getItem(LS_KEYS.theme);
-      if (savedTheme) elTheme.value = savedTheme;
-
-      if (elColumnsChessBoardTheme) {
-        const savedBoard = localStorage.getItem(LS_KEYS.optCheckerboardTheme);
-        if (savedBoard) elColumnsChessBoardTheme.value = normalizeCheckerboardThemeId(savedBoard);
-      }
-    }
 
     elGameNote.textContent = v.subtitle;
     localStorage.setItem(LS_KEYS.variantId, v.variantId);
@@ -1666,6 +1672,7 @@ window.addEventListener("DOMContentLoaded", () => {
         void fetchLobby();
       }
     }
+
   };
 
   // When navigating back to the Start Page from a game tab, browsers may restore
@@ -1694,7 +1701,14 @@ window.addEventListener("DOMContentLoaded", () => {
     const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
     const isColumnsChess = vId === "columns_chess";
     const isClassicChess = vId === "chess_classic";
-    if (!isColumnsChess && !isClassicChess) {
+    const isCheckers = getVariantById(vId).rulesetId === "checkers_us";
+    if (isCheckers) {
+      try {
+        localStorage.setItem(LS_KEYS.checkersTheme, elTheme.value || "checkers");
+      } catch {
+        // ignore
+      }
+    } else if (!isColumnsChess && !isClassicChess) {
       try {
         localStorage.setItem(LS_KEYS.theme, elTheme.value);
       } catch {
@@ -1748,8 +1762,11 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   elColumnsChessBoardTheme?.addEventListener("change", () => {
+    const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
+    const isCheckers = getVariantById(vId).rulesetId === "checkers_us";
     const next = normalizeCheckerboardThemeId(elColumnsChessBoardTheme.value);
     localStorage.setItem(LS_KEYS.optCheckerboardTheme, next);
+    if (isCheckers) localStorage.setItem(LS_KEYS.checkersCheckerboardTheme, next);
     elColumnsChessBoardTheme.value = next;
     syncAvailability();
   });

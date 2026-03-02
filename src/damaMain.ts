@@ -69,6 +69,11 @@ const LS_OPT_KEYS = {
   sfx: "lasca.opt.sfx",
 } as const;
 
+const LS_CHECKERS_KEYS = {
+  theme: "lasca.checkers.theme",
+  checkerboardTheme: "lasca.checkers.checkerboardTheme",
+} as const;
+
 function readOptionalBoolPref(key: string): boolean | null {
   const raw = localStorage.getItem(key);
   if (raw == null) return null;
@@ -130,6 +135,19 @@ function updatePlayerColorBadge(driver: unknown, rulesetId: string, boardSize: n
 window.addEventListener("DOMContentLoaded", async () => {
   const activeVariant = getVariantById(ACTIVE_VARIANT_ID);
   const isCheckers = activeVariant.rulesetId === "checkers_us";
+
+  // US Checkers: always source piece + board appearance from localStorage.
+  // Default only when missing (first run / storage cleared).
+  if (isCheckers) {
+    try {
+      if (!localStorage.getItem(LS_CHECKERS_KEYS.theme)) localStorage.setItem(LS_CHECKERS_KEYS.theme, "checkers");
+      if (!localStorage.getItem(LS_CHECKERS_KEYS.checkerboardTheme)) {
+        localStorage.setItem(LS_CHECKERS_KEYS.checkerboardTheme, "checkers");
+      }
+    } catch {
+      // ignore
+    }
+  }
   const getCurrentSideLabels = () =>
     getSideLabelsForRuleset(activeVariant.rulesetId, { boardSize: activeVariant.boardSize });
 
@@ -231,8 +249,19 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
   if (checkerboardThemeSelect) checkerboardThemeSelect.disabled = !canUseCheckerboardTheme;
 
-  const readCheckerboardTheme = (): CheckerboardThemeId =>
-    normalizeCheckerboardThemeId(readOptionalStringPref(LS_OPT_KEYS.checkerboardTheme));
+  const readCheckerboardTheme = (): CheckerboardThemeId => {
+    const key = isCheckers ? LS_CHECKERS_KEYS.checkerboardTheme : LS_OPT_KEYS.checkerboardTheme;
+    const raw = readOptionalStringPref(key);
+    const next = normalizeCheckerboardThemeId(raw ?? (isCheckers ? "checkers" : null));
+    if (isCheckers && raw == null) {
+      try {
+        writeStringPref(key, next);
+      } catch {
+        // ignore
+      }
+    }
+    return next;
+  };
   const applyCheckerboard = (id: CheckerboardThemeId) => {
     applyCheckerboardTheme(svg, id);
   };
@@ -245,7 +274,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (checkerboardThemeSelect) {
       checkerboardThemeSelect.addEventListener("change", () => {
         const picked = normalizeCheckerboardThemeId(checkerboardThemeSelect.value);
-        writeStringPref(LS_OPT_KEYS.checkerboardTheme, picked);
+        writeStringPref(isCheckers ? LS_CHECKERS_KEYS.checkerboardTheme : LS_OPT_KEYS.checkerboardTheme, picked);
         applyCheckerboard(picked);
         syncTerminologyUI();
       });
@@ -289,32 +318,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   initSplitLayout();
 
-  if (isCheckers) {
-    // Use Checkers-specific defaults so a previously-saved global theme from other games
-    // does not prevent Checkers from using the classic Checkers look.
-    const CHECKERS_KEYS = {
-      theme: "lasca.checkers.theme",
-      checkerboardTheme: "lasca.checkers.checkerboardTheme",
-    } as const;
-
-    try {
-      const pieces = localStorage.getItem(CHECKERS_KEYS.theme) || "checkers";
-      const board = localStorage.getItem(CHECKERS_KEYS.checkerboardTheme) || "checkers";
-
-      if (!localStorage.getItem(CHECKERS_KEYS.theme)) localStorage.setItem(CHECKERS_KEYS.theme, pieces);
-      if (!localStorage.getItem(CHECKERS_KEYS.checkerboardTheme)) {
-        localStorage.setItem(CHECKERS_KEYS.checkerboardTheme, board);
-      }
-
-      localStorage.setItem("lasca.theme", pieces);
-      localStorage.setItem(LS_OPT_KEYS.checkerboardTheme, board);
-    } catch {
-      // ignore
-    }
-  }
-
   const themeDropdown = document.getElementById("themeDropdown") as HTMLElement | null;
-  const themeManager = createThemeManager(svg);
+  const themeManager = createThemeManager(svg, isCheckers ? { themeStorageKey: LS_CHECKERS_KEYS.theme } : undefined);
   await themeManager.bindThemeDropdown(themeDropdown);
 
   const glassPieceColorsRow = document.getElementById("glassPieceColorsRow") as HTMLElement | null;

@@ -2,16 +2,6 @@ import type { Player } from "../types";
 
 export type SideLabels = { W: string; B: string };
 
-function isCheckersPiecesThemeActive(): boolean {
-  // "Checkers (Red/Black)" is a *piece theme* (Theme id: "checkers").
-  // Terminology is driven by piece set, not the board.
-  try {
-    return localStorage.getItem("lasca.theme") === "checkers";
-  } catch {
-    return false;
-  }
-}
-
 export function getSideLabelsForRuleset(
   rulesetId: string | null | undefined,
   opts: { boardSize?: number | null | undefined } = {}
@@ -21,7 +11,14 @@ export function getSideLabelsForRuleset(
   // - Otherwise: Dama uses White/Black; other disc games use Light/Dark.
   // Internal saved state remains W/B (treated as Light/Dark semantics).
   void opts; // boardSize is intentionally ignored (terminology depends on pieces, not board size)
-  const useRedBlack = isCheckersPiecesThemeActive();
+  const useRedBlack = (() => {
+    const key = rulesetId === "checkers_us" ? "lasca.checkers.theme" : "lasca.theme";
+    try {
+      return localStorage.getItem(key) === "checkers";
+    } catch {
+      return false;
+    }
+  })();
 
   // Chess-like games always use White/Black.
   if (rulesetId === "chess" || rulesetId === "columns_chess") {

@@ -238,8 +238,8 @@ function ensureThemeCssLink(): HTMLLinkElement {
   return link as HTMLLinkElement;
 }
 
-function readSavedThemeId(): string | null {
-  const raw = localStorage.getItem(LS_KEY);
+function readSavedThemeId(storageKey: string = LS_KEY): string | null {
+  const raw = localStorage.getItem(storageKey);
   if (!raw) return null;
   return raw;
 }
@@ -250,8 +250,8 @@ function isVisibleThemeId(id: string | null | undefined): boolean {
   return Boolean(t && !t.hidden);
 }
 
-function saveThemeId(id: string) {
-  localStorage.setItem(LS_KEY, id);
+function saveThemeId(id: string, storageKey: string = LS_KEY) {
+  localStorage.setItem(storageKey, id);
 }
 
 function ensureOverlayFxCss(): void {
@@ -332,8 +332,10 @@ function ensureOverlayFxCss(): void {
   document.head.appendChild(style);
 }
 
-export function createThemeManager(svgRoot: SVGSVGElement) {
+export function createThemeManager(svgRoot: SVGSVGElement, opts?: { themeStorageKey?: string }) {
   if (!svgRoot) throw new Error("createThemeManager: svgRoot is required");
+
+  const themeStorageKey = opts?.themeStorageKey ?? LS_KEY;
 
   ensureOverlayFxCss();
 
@@ -437,7 +439,7 @@ export function createThemeManager(svgRoot: SVGSVGElement) {
     svgRoot.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT, { detail: { themeId: theme.id } }));
 
     currentId = theme.id;
-    saveThemeId(currentId);
+    saveThemeId(currentId, themeStorageKey);
     svgRoot.style.visibility = prevVis || "visible";
     // Ensure the newly-applied theme has a chance to paint before consumers hide overlays.
     await nextPaint(1);
@@ -488,7 +490,7 @@ export function createThemeManager(svgRoot: SVGSVGElement) {
   async function bindThemeDropdown(dropdownRootEl: HTMLElement | null | undefined) {
     if (!dropdownRootEl) return;
     const items = THEMES.filter((t) => !t.hidden).map((t) => ({ id: t.id, label: t.label }));
-    const saved = readSavedThemeId();
+    const saved = readSavedThemeId(themeStorageKey);
     const initial = isVisibleThemeId(saved) ? (saved as string) : DEFAULT_THEME_ID;
     await setTheme(initial);
     const dropdown = createThemeDropdown({
@@ -509,7 +511,7 @@ export function createThemeManager(svgRoot: SVGSVGElement) {
       opt.textContent = t.label;
       selectEl.appendChild(opt);
     }
-    const saved = readSavedThemeId();
+    const saved = readSavedThemeId(themeStorageKey);
     const initial = isVisibleThemeId(saved) ? (saved as string) : DEFAULT_THEME_ID;
     selectEl.value = initial;
     await setTheme(initial);
