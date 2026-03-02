@@ -1,5 +1,9 @@
 import type { GameController } from "../controller/gameController.ts";
 
+function isChessLikeRulesetId(rulesetId: string | null | undefined): boolean {
+  return rulesetId === "chess" || rulesetId === "columns_chess";
+}
+
 function isEditableTarget(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   if (!el) return false;
@@ -60,6 +64,24 @@ function openKeyboardShortcutsPopup(controller?: GameController): void {
     return;
   }
 
+  const rulesetId = controller?.getState().meta?.rulesetId ?? null;
+  const showAnalysis = isChessLikeRulesetId(rulesetId);
+
+  const analysisShortcutRow = showAnalysis
+    ? "<li><b>Toggle analysis:</b> <code>Ctrl/Cmd+Shift+A</code></li>"
+    : "";
+
+  const analysisSection = showAnalysis
+    ? `
+
+    <h2>Analysis mode (private sandbox)</h2>
+    <ul>
+      <li>In online rooms, analysis moves are local-only and are not submitted to the server.</li>
+      <li>Your opponent does not see your Analysis mode or analysis moves.</li>
+      <li>AI/bots are paused while analysis is enabled, and restored when you exit.</li>
+    </ul>`
+    : "";
+
   const html = `<!doctype html>
 <html lang="en">
   <head>
@@ -108,7 +130,7 @@ function openKeyboardShortcutsPopup(controller?: GameController): void {
       <li><b>Undo:</b> <code>Ctrl/Cmd+Z</code></li>
       <li><b>Redo:</b> <code>Ctrl/Cmd+Y</code> or <code>Ctrl/Cmd+Shift+Z</code></li>
       <li><b>Save:</b> <code>Ctrl/Cmd+S</code></li>
-      <li><b>Toggle analysis:</b> <code>Ctrl/Cmd+Shift+A</code></li>
+      ${analysisShortcutRow}
       <li><b>Resign:</b> <code>Ctrl/Cmd+Shift+X</code></li>
       <li><b>Full Screen:</b> <code>Ctrl/Cmd+Shift+F</code></li>
     </ul>
@@ -122,15 +144,10 @@ function openKeyboardShortcutsPopup(controller?: GameController): void {
     <h2>Help</h2>
     <ul>
       <li><b>Show this window:</b> <code>Ctrl/Cmd+Shift+?</code> (also works as <code>Ctrl/Cmd+Shift+/</code>)</li>
-      <li><b>Right-click menu:</b> Right-click outside the board → <b>Show Keyboard Shortcuts</b></li>
+      <li><b>Right-click menu:</b> Right-click outside the board border for chess or anywhere in the game board for other games → <b>Show Keyboard Shortcuts</b></li>
     </ul>
 
-    <h2>Analysis mode (private sandbox)</h2>
-    <ul>
-      <li>In online rooms, analysis moves are local-only and are not submitted to the server.</li>
-      <li>Your opponent does not see your Analysis mode or analysis moves.</li>
-      <li>AI/bots are paused while analysis is enabled, and restored when you exit.</li>
-    </ul>
+    ${analysisSection}
   </body>
 </html>`;
 
@@ -206,35 +223,103 @@ export function bindKeyboardShortcutsContextMenu(controller: GameController): vo
     return menu;
   };
 
-  document.addEventListener("contextmenu", (ev) => {
-    // If another handler has already claimed this context menu (e.g. board tools, history menu), leave it alone.
-    if (ev.defaultPrevented) return;
-    if (isEditableTarget(ev.target)) return;
+  const getBoardSvg = (): SVGSVGElement | null => {
+    // All game pages use #boardWrap to host the board SVG.
+    return (document.querySelector("#boardWrap svg") as SVGSVGElement | null) ?? null;
+  };
 
-    // Do not hijack right-clicks over side panels.
-    // Those areas often have their own interactions (scrolling, selection, etc.).
-    const el = ev.target instanceof Element ? ev.target : null;
-    if (el?.closest?.("#leftSidebar, #rightSidebar")) return;
+  const getPlayingArea = (): HTMLElement | null => {
+    // "Playing area" is the board canvas region in the center column.
+    // This includes the blank margin around the SVG board (which may be outside #boardWrap).
+    return (
+      (document.getElementById("centerArea") as HTMLElement | null) ??
+      (document.getElementById("boardWrap") as HTMLElement | null) ??
+      null
+    );
+  };
 
-    const menu = ensureMenu();
-    const hide = (menu as any).__hide as (() => void) | undefined;
-    hide?.();
+  const isInPlayingArea = (target: EventTarget | null): boolean => {
+    const area = getPlayingArea();
+    if (!area) return false;
+    const node = target instanceof Node ? target : null;
+    if (!node) return false;
+    return area.contains(node);
+  };
 
-    ev.preventDefault();
+  const isOverBoardSvg = (target: EventTarget | null): boolean => {
+    const svg = getBoardSvg();
+    if (!svg) return false;
+    const node = target instanceof Node ? target : null;
+    if (!node) return false;
+    return svg.contains(node);
+  };
 
-    const pad = 8;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+  const isOverCheckerboardSquares = (ev: MouseEvent): boolean => {
+    const svg = getBoardSvg();
+    if (!svg) return false;
 
-    menu.style.display = "block";
+    // Boards use a #squares group for the checkerboard/grid tiles.
+    // For chess, we reserve right-clicks over the checkerboard for analysis graphics,
+    // but allow the shortcuts menu in the SVG margin surrounding the grid.
+    const squares = svg.querySelector("#squares") as SVGGElement | null;
+    if (!squares) {
+      // Fallback: if we can't identify the grid, treat the whole SVG as "on-board".
+      return isOverBoardSvg(ev.target);
+    }
 
-    // Measure after display to keep the menu on-screen.
-    const rect = menu.getBoundingClientRect();
-    const left = clampInt(ev.clientX, pad, Math.max(pad, vw - rect.width - pad));
-    const top = clampInt(ev.clientY, pad, Math.max(pad, vh - rect.height - pad));
-    menu.style.left = `${left}px`;
-    menu.style.top = `${top}px`;
-  });
+    const r = squares.getBoundingClientRect();
+    if (!(r.width > 0 && r.height > 0)) return false;
+    return ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
+  };
+
+  // Capture phase so we can decide before board tools (e.g. chess right-drag annotations)
+  // suppress the context menu inside the SVG.
+  document.addEventListener(
+    "contextmenu",
+    (ev) => {
+      if (isEditableTarget(ev.target)) return;
+
+      // Do not hijack right-clicks over side panels.
+      // Those areas often have their own interactions (scrolling, selection, etc.).
+      const el = ev.target instanceof Element ? ev.target : null;
+      if (el?.closest?.("#leftSidebar, #rightSidebar")) return;
+
+      const rulesetId = controller.getState().meta?.rulesetId ?? "lasca";
+      const chessLike = isChessLikeRulesetId(rulesetId);
+      const inPlayingArea = isInPlayingArea(ev.target);
+
+      // Only show within the playing area (#boardWrap).
+      if (!inPlayingArea) return;
+
+      // UX:
+      // - Chess variants: show only off-checkerboard (inside the playing area, but outside the
+      //   checkerboard grid) so right-click on the checkerboard can be reserved for analysis graphics.
+      // - Other games: show anywhere within #boardWrap (on-board and off-board).
+      if (chessLike) {
+        if (isOverCheckerboardSquares(ev)) return;
+      }
+
+      const menu = ensureMenu();
+      const hide = (menu as any).__hide as (() => void) | undefined;
+      hide?.();
+
+      ev.preventDefault();
+
+      const pad = 8;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      menu.style.display = "block";
+
+      // Measure after display to keep the menu on-screen.
+      const rect = menu.getBoundingClientRect();
+      const left = clampInt(ev.clientX, pad, Math.max(pad, vw - rect.width - pad));
+      const top = clampInt(ev.clientY, pad, Math.max(pad, vh - rect.height - pad));
+      menu.style.left = `${left}px`;
+      menu.style.top = `${top}px`;
+    },
+    { capture: true }
+  );
 }
 
 export function bindAnalysisToggleButton(controller: GameController): void {
