@@ -33,7 +33,7 @@ function createStockfishWorker(): {
   // If omitted, it guesses by swapping `.js` -> `.wasm`, but Vite fingerprints assets,
   // so the guessed name will not match in production builds.
 
-  // IMPORTANT: Make URLs absolute. Also make them base-aware (prod uses /Lasca/).
+  // IMPORTANT: Make URLs absolute. Also make them base-aware (prod uses a repo-scoped BASE_URL on GitHub Pages).
   const base = import.meta.env?.BASE_URL ?? "/";
   const workerRel = `${base}${STOCKFISH_PUBLIC_DIR}/${STOCKFISH_WORKER_FILE}`;
   const wasmRel = `${base}${STOCKFISH_PUBLIC_DIR}/${STOCKFISH_WASM_FILE}`;

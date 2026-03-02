@@ -43,9 +43,9 @@ export default defineConfig(({ mode }) => ({
   // To include it in production builds, set VITE_EMIT_ADMIN=1 at build time.
   // (Useful for self-hosted deployments where operators need online admin tools.)
   // Example: cross-env VITE_EMIT_ADMIN=1 vite build
-  // GitHub Pages deployment at https://edbecnel.github.io/Lasca/
-  // Only use /Lasca/ base in production, use / for local development
-  base: mode === "production" ? "/Lasca/" : "/",
+  // GitHub Pages deployment uses a repo-scoped base like `/<repo>/`.
+  // Only use that base in production; use `/` for local development.
+  base: mode === "production" ? "/StackWorks/" : "/",
   root: "src",
   // Static assets live at repo-root /public, but Vite's `root` is `src`,
   // so we must point `publicDir` at the correct folder.

@@ -1,4 +1,4 @@
-name: Deploy Lasca (Vite) to GitHub Pages
+name: Deploy (Vite) to GitHub Pages
 
 on:
   push:
