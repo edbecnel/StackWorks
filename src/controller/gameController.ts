@@ -160,6 +160,10 @@ export class GameController {
     const nextEnabled = Boolean(enabled);
     if (nextEnabled === this.analysisMode) return;
 
+    // Analysis mode is only supported for chess variants.
+    // Disabling is always allowed.
+    if (nextEnabled && !this.isChessLikeRuleset()) return;
+
     this.analysisMode = nextEnabled;
 
     // Analysis mode includes a sandboxed Move History timeline.

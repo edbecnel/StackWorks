@@ -7,10 +7,10 @@ import { createInitialGameStateForVariant } from "../game/state.ts";
 import { LocalDriver } from "../driver/localDriver.ts";
 
 describe("GameController analysis mode", () => {
-  it("can enable analysis mode for non-chess rulesets", () => {
+  it("does not enable analysis mode for non-chess rulesets", () => {
     const { controller } = makeControllerForTest("lasca_7_classic");
     controller.setAnalysisMode(true);
-    expect(controller.isAnalysisMode()).toBe(true);
+    expect(controller.isAnalysisMode()).toBe(false);
   });
 
   it("applies moves locally and never calls driver.submitMove", async () => {

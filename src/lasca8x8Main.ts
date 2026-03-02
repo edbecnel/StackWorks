@@ -20,7 +20,6 @@ import { AIManager } from "./ai/aiManager.ts";
 import { bindEvaluationPanel } from "./ui/evaluationPanel";
 import { bindPlaybackControls } from "./ui/playbackControls.ts";
 import {
-  bindAnalysisToggleButton,
   bindFullScreenButton,
   bindGameHotkeys,
   bindKeyboardShortcutsContextMenu,
@@ -342,8 +341,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   bindStartPageConfirm(controller, ACTIVE_VARIANT_ID);
 
   controllerForSync = controller;
-
-  bindAnalysisToggleButton(controller);
   bindFullScreenButton();
   bindGameHotkeys(controller);
   bindKeyboardShortcutsContextMenu(controller);

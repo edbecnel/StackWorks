@@ -413,6 +413,9 @@ export function bindGameHotkeys(controller: GameController): void {
 
     // Toggle analysis
     if (mod && !ev.altKey && key === "a" && ev.shiftKey) {
+      const rulesetId = controller.getState().meta?.rulesetId ?? null;
+      if (!isChessLikeRulesetId(rulesetId)) return;
+
       ev.preventDefault();
       controller.setAnalysisMode(!controller.isAnalysisMode());
       return;
