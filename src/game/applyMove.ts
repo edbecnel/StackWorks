@@ -3,6 +3,7 @@ import type { Move } from "./moveTypes.ts";
 import { applyMoveLasca } from "./applyMoveLasca.ts";
 import { applyMoveDama } from "./applyMoveDama.ts";
 import { applyMoveDamasca } from "./applyMoveDamasca.ts";
+import { applyMoveCheckersUs } from "./applyMoveCheckersUs.ts";
 import { applyMoveColumnsChess } from "./applyMoveColumnsChess.ts";
 import { applyMoveChess } from "./applyMoveChess.ts";
 
@@ -19,6 +20,7 @@ export function applyMove(
   let next: (GameState & { didPromote?: boolean }) | null = null;
   if (rulesetId === "columns_chess") next = applyMoveColumnsChess(state, move);
   else if (rulesetId === "chess") next = applyMoveChess(state, move);
+  else if (rulesetId === "checkers_us") next = applyMoveCheckersUs(state, move);
   else if (rulesetId === "dama") next = applyMoveDama(state, move);
   else if (rulesetId === "damasca" || rulesetId === "damasca_classic") next = applyMoveDamasca(state, move);
   else next = applyMoveLasca(state, move);

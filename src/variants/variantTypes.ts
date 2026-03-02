@@ -1,4 +1,11 @@
-export type RulesetId = "lasca" | "dama" | "damasca" | "damasca_classic" | "columns_chess" | "chess";
+export type RulesetId =
+  | "lasca"
+  | "dama"
+  | "damasca"
+  | "damasca_classic"
+  | "checkers_us"
+  | "columns_chess"
+  | "chess";
 
 export type DamaCaptureRemoval = "immediate" | "end_of_sequence";
 
@@ -7,6 +14,7 @@ export type VariantId =
   | "lasca_8_dama_board"
   | "columns_chess"
   | "chess_classic"
+  | "checkers_8_us"
   | "dama_8_classic"
   | "dama_8_classic_standard"
   | "dama_8_classic_international"
@@ -28,6 +36,8 @@ export interface VariantSpec {
   rulesetId: RulesetId;
   boardSize: 7 | 8;
   piecesPerSide: 11 | 12 | 16;
+  /** Which side starts the game. Defaults to "W" when omitted. */
+  startingPlayer?: "W" | "B";
   svgAsset?: string;
   entryUrl?: string;
   defaultSaveName: string;

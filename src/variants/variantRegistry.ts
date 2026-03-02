@@ -3,12 +3,14 @@ import type { RulesetId, VariantId, VariantSpec } from "./variantTypes";
 import lascaBoardSvgUrl from "../assets/lasca_board.svg?url";
 import graphBoard8x8SvgUrl from "../assets/graph_board_8x8.svg?url";
 import columnsChessBoardSvgUrl from "../assets/columns_chess_board.svg?url";
+import checkersBoard8x8SvgUrl from "../assets/checkers_board_8x8.svg?url";
 
 const RULESET_LABEL: Record<RulesetId, string> = {
   lasca: "Lasca",
   dama: "Dama Classic",
   damasca: "Damasca International",
   damasca_classic: "Damasca Classic",
+  checkers_us: "US Checkers",
   columns_chess: "Columns Chess",
   chess: "Classic Chess",
 };
@@ -48,6 +50,19 @@ export const VARIANTS: readonly VariantSpec[] = [
     svgAsset: columnsChessBoardSvgUrl,
     entryUrl: "./chess.html",
     defaultSaveName: "chess_classic-save.json",
+    available: true,
+  },
+  {
+    variantId: "checkers_8_us",
+    displayName: "Checkers (US)",
+    subtitle: "American checkers/draughts. Mandatory capture. Men capture forward only. Kings move 1 (non-flying).",
+    rulesetId: "checkers_us",
+    boardSize: 8,
+    piecesPerSide: 12,
+    startingPlayer: "B",
+    svgAsset: checkersBoard8x8SvgUrl,
+    entryUrl: "./dama.html",
+    defaultSaveName: "checkers_8_us-save.json",
     available: true,
   },
   {

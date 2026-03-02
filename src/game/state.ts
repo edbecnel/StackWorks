@@ -129,7 +129,7 @@ export function createInitialGameStateForVariant(variantId: VariantId): GameStat
 
   return {
     board,
-    toMove: "W",
+    toMove: variant.startingPlayer ?? "W",
     phase: "select",
     meta: {
       variantId,
