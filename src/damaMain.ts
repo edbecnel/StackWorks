@@ -289,17 +289,25 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   initSplitLayout();
 
-  if (isCheckers && !localStorage.getItem("lasca.theme")) {
-    try {
-      localStorage.setItem("lasca.theme", "checkers");
-    } catch {
-      // ignore
-    }
-  }
+  if (isCheckers) {
+    // Use Checkers-specific defaults so a previously-saved global theme from other games
+    // does not prevent Checkers from using the classic Checkers look.
+    const CHECKERS_KEYS = {
+      theme: "lasca.checkers.theme",
+      checkerboardTheme: "lasca.checkers.checkerboardTheme",
+    } as const;
 
-  if (isCheckers && !localStorage.getItem(LS_OPT_KEYS.checkerboardTheme)) {
     try {
-      localStorage.setItem(LS_OPT_KEYS.checkerboardTheme, "checkers");
+      const pieces = localStorage.getItem(CHECKERS_KEYS.theme) || "checkers";
+      const board = localStorage.getItem(CHECKERS_KEYS.checkerboardTheme) || "checkers";
+
+      if (!localStorage.getItem(CHECKERS_KEYS.theme)) localStorage.setItem(CHECKERS_KEYS.theme, pieces);
+      if (!localStorage.getItem(CHECKERS_KEYS.checkerboardTheme)) {
+        localStorage.setItem(CHECKERS_KEYS.checkerboardTheme, board);
+      }
+
+      localStorage.setItem("lasca.theme", pieces);
+      localStorage.setItem(LS_OPT_KEYS.checkerboardTheme, board);
     } catch {
       // ignore
     }

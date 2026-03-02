@@ -12,6 +12,8 @@ const LS_KEYS = {
   theme: "lasca.theme",
   chessTheme: "lasca.chess.theme",
   columnsChessTheme: "lasca.columnsChess.theme",
+  checkersTheme: "lasca.checkers.theme",
+  checkersCheckerboardTheme: "lasca.checkers.checkerboardTheme",
   glassBg: "lasca.theme.glassBg",
   glassPalette: "lasca.theme.glassPalette",
   startSplashSeen: "lasca.start.splashSeen",
@@ -815,6 +817,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
     const isColumnsChess = vId === "columns_chess";
     const isClassicChess = vId === "chess_classic";
+    const isCheckers = getVariantById(vId).rulesetId === "checkers_us";
 
     if (isColumnsChess) {
       const next = (elTheme.value === "raster3d" || elTheme.value === "raster2d" || elTheme.value === "neo") ? elTheme.value : "columns_classic";
@@ -822,6 +825,12 @@ window.addEventListener("DOMContentLoaded", () => {
     } else if (isClassicChess) {
       const next = (elTheme.value === "raster3d" || elTheme.value === "raster2d" || elTheme.value === "neo") ? elTheme.value : "raster3d";
       localStorage.setItem(LS_KEYS.chessTheme, next);
+    } else if (isCheckers) {
+      // Store a Checkers-specific preference so an existing global theme from other games
+      // does not prevent Checkers from defaulting to the classic Checkers look.
+      const next = elTheme.value || "checkers";
+      localStorage.setItem(LS_KEYS.checkersTheme, next);
+      localStorage.setItem(LS_KEYS.theme, next);
     } else {
       localStorage.setItem(LS_KEYS.theme, elTheme.value);
     }
@@ -844,9 +853,10 @@ window.addEventListener("DOMContentLoaded", () => {
     writeBool(LS_KEYS.optShowResizeIcon, elShowResizeIcon.checked);
     writeBool(LS_KEYS.optBoardCoords, elBoardCoords.checked);
     writeBool(LS_KEYS.optLastMoveHighlights, elLastMoveHighlights.checked);
-    if (isColumnsChess && elColumnsChessBoardTheme) {
+    if ((isColumnsChess || isClassicChess || isCheckers) && elColumnsChessBoardTheme) {
       const next = normalizeCheckerboardThemeId(elColumnsChessBoardTheme.value);
       localStorage.setItem(LS_KEYS.optCheckerboardTheme, next);
+      if (isCheckers) localStorage.setItem(LS_KEYS.checkersCheckerboardTheme, next);
       // Keep the control sanitized in case the DOM was modified.
       elColumnsChessBoardTheme.value = next;
     }
@@ -1306,15 +1316,18 @@ window.addEventListener("DOMContentLoaded", () => {
     const variant = getVariantById(variantId);
     const isColumnsChess = variantId === "columns_chess";
     const isClassicChess = variantId === "chess_classic";
+    const isCheckers = variant.rulesetId === "checkers_us";
 
     // Checkerboard theme:
     // - Always applicable to Columns Chess / Classic Chess.
+    // - Always applicable to US Checkers (it is always played on a checkerboard).
     // - For other 8×8 variants, it applies only when the optional checkered 8×8 board is enabled.
     //   Still show the control (disabled) so the option is discoverable.
     const shouldShowCheckerboardTheme = isColumnsChess || isClassicChess || variant.boardSize === 8;
     const canUseCheckerboardTheme =
       isColumnsChess ||
       isClassicChess ||
+      isCheckers ||
       (variant.boardSize === 8 && Boolean(elBoard8x8Checkered?.checked));
 
     if (elColumnsChessBoardThemeRow) elColumnsChessBoardThemeRow.style.display = shouldShowCheckerboardTheme ? "" : "none";
@@ -1483,6 +1496,25 @@ window.addEventListener("DOMContentLoaded", () => {
     const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
     const v = getVariantById(vId);
 
+    // Defaults: when Checkers is selected, use Checkers-specific prefs (fallback to classic).
+    // This avoids a previously-saved global theme (from other games) leaking into Checkers.
+    if (v.rulesetId === "checkers_us") {
+      try {
+        const pieces = localStorage.getItem(LS_KEYS.checkersTheme) || "checkers";
+        const board = localStorage.getItem(LS_KEYS.checkersCheckerboardTheme) || "checkers";
+
+        if (!localStorage.getItem(LS_KEYS.checkersTheme)) localStorage.setItem(LS_KEYS.checkersTheme, pieces);
+        if (!localStorage.getItem(LS_KEYS.checkersCheckerboardTheme)) {
+          localStorage.setItem(LS_KEYS.checkersCheckerboardTheme, board);
+        }
+
+        localStorage.setItem(LS_KEYS.theme, pieces);
+        localStorage.setItem(LS_KEYS.optCheckerboardTheme, normalizeCheckerboardThemeId(board));
+      } catch {
+        // ignore
+      }
+    }
+
     // Terminology:
     // - When using the Checkers (Red/Black) *pieces* (theme id: "checkers"): use Red/Black for disc games.
     // - Otherwise: Dama uses White/Black; other disc games use Light/Dark.
@@ -1503,6 +1535,17 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     syncThemeConstraintsForVariant(vId);
+
+    // If we just applied Checkers defaults above, reflect them in the Start UI too.
+    if (v.rulesetId === "checkers_us") {
+      const savedTheme = localStorage.getItem(LS_KEYS.theme);
+      if (savedTheme) elTheme.value = savedTheme;
+
+      if (elColumnsChessBoardTheme) {
+        const savedBoard = localStorage.getItem(LS_KEYS.optCheckerboardTheme);
+        if (savedBoard) elColumnsChessBoardTheme.value = normalizeCheckerboardThemeId(savedBoard);
+      }
+    }
 
     elGameNote.textContent = v.subtitle;
     localStorage.setItem(LS_KEYS.variantId, v.variantId);
