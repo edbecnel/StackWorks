@@ -47,7 +47,7 @@ const LS_KEYS = {
   lobbyMineOnly: "lasca.lobby.mineOnly",
 } as const;
 
-const START_SPLASH_MS = 2500;
+const START_SPLASH_MS = 3500;
 
 function initStartSplash(): void {
   const root = document.documentElement;
