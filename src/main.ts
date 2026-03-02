@@ -37,6 +37,7 @@ import { nextPaint } from "./ui/nextPaint";
 import { setBoardFlipped } from "./render/boardFlip";
 import { setStackWorksGameTitle } from "./ui/gameTitle";
 import { getSideLabelsForRuleset } from "./shared/sideTerminology";
+import { bindStartPageConfirm } from "./ui/startPageConfirm";
 
 const LS_OPT_KEYS = {
   moveHints: "lasca.opt.moveHints",
@@ -222,6 +223,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const controller = new GameController(svg, piecesLayer, inspector, state, history, driver);
   controller.bind();
+
+  bindStartPageConfirm(controller, activeVariant.variantId);
 
   bindAnalysisToggleButton(controller);
   bindFullScreenButton();

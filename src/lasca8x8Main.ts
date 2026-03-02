@@ -42,6 +42,7 @@ import { nextPaint } from "./ui/nextPaint";
 import { setBoardFlipped } from "./render/boardFlip";
 import { setStackWorksGameTitle } from "./ui/gameTitle";
 import { getSideLabelsForRuleset } from "./shared/sideTerminology";
+import { bindStartPageConfirm } from "./ui/startPageConfirm";
 
 const ACTIVE_VARIANT_ID: VariantId = "lasca_8_dama_board";
 
@@ -337,6 +338,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const controller = new GameController(svg, piecesLayer, inspector, state, history, driver);
   controller.bind();
+
+  bindStartPageConfirm(controller, ACTIVE_VARIANT_ID);
 
   controllerForSync = controller;
 

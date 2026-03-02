@@ -38,6 +38,7 @@ import {
   bindGameHotkeys,
   bindKeyboardShortcutsContextMenu,
 } from "./ui/gameShortcuts.ts";
+import { bindStartPageConfirm } from "./ui/startPageConfirm";
 
 const ACTIVE_VARIANT_ID: VariantId = "chess_classic";
 
@@ -213,6 +214,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const controller = new GameController(svg, piecesLayer, inspector as any, state, history, driver);
   controller.bind();
+
+  bindStartPageConfirm(controller, ACTIVE_VARIANT_ID);
 
   bindChessEvaluationPanel(controller);
 

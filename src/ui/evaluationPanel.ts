@@ -75,10 +75,11 @@ function formatAdvantage(state: GameState): string {
 }
 
 function formatControl(state: GameState): string {
-  const isDama = state.meta?.rulesetId === "dama";
-  const w = isDama ? countTopPieces(state, "W") : countControlledStacks(state, "W");
-  const b = isDama ? countTopPieces(state, "B") : countControlledStacks(state, "B");
-  const label = isDama ? "Pieces" : "Controlled stacks";
+  const rulesetId = state.meta?.rulesetId;
+  const isPieceCountRuleset = rulesetId === "dama" || rulesetId === "checkers_us";
+  const w = isPieceCountRuleset ? countTopPieces(state, "W") : countControlledStacks(state, "W");
+  const b = isPieceCountRuleset ? countTopPieces(state, "B") : countControlledStacks(state, "B");
+  const label = isPieceCountRuleset ? "Pieces" : "Controlled stacks";
   const wLabel = sideLabel(state, "W");
   const bLabel = sideLabel(state, "B");
   if (w === b) return `${label}: ${wLabel} ${w} / ${bLabel} ${b} (even)`;

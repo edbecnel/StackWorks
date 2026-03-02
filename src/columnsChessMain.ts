@@ -34,6 +34,7 @@ import { nextPaint } from "./ui/nextPaint";
 import { ColumnsChessBotManager } from "./bot/columnsChessBotManager.ts";
 import { installBoardVisualizationTools } from "./ui/boardVisualizationTools";
 import { setStackWorksGameTitle } from "./ui/gameTitle";
+import { bindStartPageConfirm } from "./ui/startPageConfirm";
 
 const ACTIVE_VARIANT_ID: VariantId = "columns_chess";
 
@@ -228,6 +229,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const controller = new GameController(svg, piecesLayer, orientedInspector as any, state, history, driver);
   controller.bind();
+
+  bindStartPageConfirm(controller, ACTIVE_VARIANT_ID);
 
   // Offline-only: Bot controls (Columns Chess fallback bot).
   if (driver.mode !== "online") {

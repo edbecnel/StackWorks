@@ -33,6 +33,7 @@ const LS_KEYS = {
   optAnimations: "lasca.opt.animations",
   optShowResizeIcon: "lasca.opt.showResizeIcon",
   optBoardCoords: "lasca.opt.boardCoords",
+  optFlipBoard: "lasca.opt.flipBoard",
   optBoard8x8Checkered: "lasca.opt.board8x8Checkered",
   optCheckerboardTheme: "lasca.opt.checkerboardTheme",
   optLastMoveHighlights: "lasca.opt.lastMoveHighlights",
@@ -454,6 +455,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const elShowResizeIcon = byId<HTMLInputElement>("launchShowResizeIcon");
   const elBoardCoords = byId<HTMLInputElement>("launchBoardCoords");
+  const elFlipBoard = byId<HTMLInputElement>("launchFlipBoard");
   const elLastMoveHighlights = byId<HTMLInputElement>("launchLastMoveHighlights");
   const elMoveHints = byId<HTMLInputElement>("launchMoveHints");
   const elBoard8x8Checkered = byId<HTMLInputElement>("launchBoard8x8Checkered");
@@ -866,6 +868,7 @@ window.addEventListener("DOMContentLoaded", () => {
     writeBool(LS_KEYS.optAnimations, true);
     writeBool(LS_KEYS.optShowResizeIcon, elShowResizeIcon.checked);
     writeBool(LS_KEYS.optBoardCoords, elBoardCoords.checked);
+    writeBool(LS_KEYS.optFlipBoard, elFlipBoard.checked);
     writeBool(LS_KEYS.optLastMoveHighlights, elLastMoveHighlights.checked);
     if ((isColumnsChess || isClassicChess || isCheckers) && elColumnsChessBoardTheme) {
       const next = normalizeCheckerboardThemeId(elColumnsChessBoardTheme.value);
@@ -1488,6 +1491,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   elShowResizeIcon.checked = readBool(LS_KEYS.optShowResizeIcon, false);
   elBoardCoords.checked = readBool(LS_KEYS.optBoardCoords, false);
+  elFlipBoard.checked = readBool(LS_KEYS.optFlipBoard, false);
   elLastMoveHighlights.checked = readBool(LS_KEYS.optLastMoveHighlights, true);
   elMoveHints.checked = readBool(LS_KEYS.optMoveHints, true);
   elBoard8x8Checkered.checked = readBool(LS_KEYS.optBoard8x8Checkered, false);
@@ -1751,6 +1755,10 @@ window.addEventListener("DOMContentLoaded", () => {
 
   elShowResizeIcon.addEventListener("change", () => {
     writeBool(LS_KEYS.optShowResizeIcon, elShowResizeIcon.checked);
+  });
+
+  elFlipBoard.addEventListener("change", () => {
+    writeBool(LS_KEYS.optFlipBoard, elFlipBoard.checked);
   });
 
   elLastMoveHighlights.addEventListener("change", () => {
