@@ -7,6 +7,20 @@
       content="width=device-width,initial-scale=1,viewport-fit=cover"
     />
     <title>Lasca — Start</title>
+    <link rel="preload" as="image" href="./splash.png" />
+    <script>
+      // Show the splash screen only on the first Start Page visit.
+      // Use a tiny inline script so we can decide before the page paints (avoids flicker).
+      (function () {
+        try {
+          if (!localStorage.getItem("lasca.start.splashSeen")) {
+            document.documentElement.classList.add("showStartSplash");
+          }
+        } catch (e) {
+          // If storage is unavailable, skip the splash to avoid trapping the user.
+        }
+      })();
+    </script>
     <style>
       :root {
         --page-bg: #1b1b1b;
@@ -46,6 +60,36 @@
           Arial,
           sans-serif;
         color: var(--panel-text);
+      }
+
+      html.showStartSplash body {
+        overflow: hidden;
+      }
+
+      html.showStartSplash .wrap {
+        visibility: hidden;
+      }
+
+      .startSplash {
+        position: fixed;
+        inset: 0;
+        background: var(--page-bg);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+
+      html.showStartSplash .startSplash {
+        display: flex;
+      }
+
+      .startSplash img {
+        max-width: 84vw;
+        max-height: 84vh;
+        width: auto;
+        height: auto;
+        display: block;
       }
 
       .wrap {
@@ -376,6 +420,9 @@
     <script type="module" src="./indexMain.ts"></script>
   </head>
   <body>
+    <div class="startSplash" id="startSplash" aria-hidden="true">
+      <img src="./splash.png" alt="" />
+    </div>
     <div class="wrap">
       <header>
         <div>

@@ -13,6 +13,7 @@ const LS_KEYS = {
   columnsChessTheme: "lasca.columnsChess.theme",
   glassBg: "lasca.theme.glassBg",
   glassPalette: "lasca.theme.glassPalette",
+  startSplashSeen: "lasca.start.splashSeen",
   aiWhite: "lasca.ai.white",
   aiBlack: "lasca.ai.black",
   aiDelayMs: "lasca.ai.delayMs",
@@ -45,6 +46,23 @@ const LS_KEYS = {
 
   lobbyMineOnly: "lasca.lobby.mineOnly",
 } as const;
+
+const START_SPLASH_MS = 2500;
+
+function initStartSplash(): void {
+  const root = document.documentElement;
+  if (!root.classList.contains("showStartSplash")) return;
+
+  try {
+    localStorage.setItem(LS_KEYS.startSplashSeen, "1");
+  } catch {
+    // ignore
+  }
+
+  window.setTimeout(() => {
+    root.classList.remove("showStartSplash");
+  }, START_SPLASH_MS);
+}
 
 type PreferredColor = "auto" | "W" | "B";
 
@@ -357,6 +375,8 @@ function isGlassPaletteId(v: unknown): v is GlassPaletteId {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
+  initStartSplash();
+
   const elGame = byId<HTMLSelectElement>("launchGame");
   const elGameNote = byId<HTMLElement>("launchGameNote");
   const elTheme = byId<HTMLSelectElement>("launchTheme");
