@@ -6,6 +6,7 @@ import { getGuestDisplayName, setGuestDisplayName } from "./shared/guestIdentity
 import { createSfxManager } from "./ui/sfx";
 import type { AuthMeResponse, AuthOkResponse, AuthErrorResponse } from "./shared/authProtocol.ts";
 import { normalizeCheckerboardThemeId } from "./render/checkerboardTheme";
+import { getSideLabelsForRuleset } from "./shared/sideTerminology";
 
 const LS_KEYS = {
   theme: "lasca.theme",
@@ -1019,9 +1020,9 @@ window.addEventListener("DOMContentLoaded", () => {
     for (const r of sorted) {
       const v = getVariantById(r.variantId);
 
-      const isChessVariant = v.variantId === "columns_chess" || v.variantId === "chess_classic";
-      const wLabel = isChessVariant ? "White" : "Light";
-      const bLabel = isChessVariant ? "Black" : "Dark";
+      const labels = getSideLabelsForRuleset(v.rulesetId, { boardSize: v.boardSize });
+      const wLabel = labels.W;
+      const bLabel = labels.B;
 
       const item = document.createElement("div");
       item.className = "lobbyItem";
@@ -1482,11 +1483,14 @@ window.addEventListener("DOMContentLoaded", () => {
     const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
     const v = getVariantById(vId);
 
-    // Terminology: chess variants use White/Black; others use Light/Dark.
+    // Terminology:
+    // - When using the Checkers (Red/Black) *pieces* (theme id: "checkers"): use Red/Black for disc games.
+    // - Otherwise: Dama uses White/Black; other disc games use Light/Dark.
+    // - Chess-like games always use White/Black.
     {
-      const isChessVariant = vId === "columns_chess" || vId === "chess_classic";
-      const wLabel = isChessVariant ? "White" : "Light";
-      const bLabel = isChessVariant ? "Black" : "Dark";
+      const labels = getSideLabelsForRuleset(v.rulesetId, { boardSize: v.boardSize });
+      const wLabel = labels.W;
+      const bLabel = labels.B;
 
       if (elAiWhiteLabel) elAiWhiteLabel.textContent = wLabel;
       if (elAiBlackLabel) elAiBlackLabel.textContent = bLabel;
@@ -1507,12 +1511,14 @@ window.addEventListener("DOMContentLoaded", () => {
 
     const isColumnsChess = vId === "columns_chess";
     const isClassicChess = vId === "chess_classic";
+    const isCheckers = v.rulesetId === "checkers_us";
     const usesColumnsChessBoard = isColumnsChess || isClassicChess;
 
-    // "Use checkered board for 8×8 games" does not apply to Columns Chess / Classic Chess (they have their own board SVG).
-    // Only show it for other 8×8 variants.
+    // "Use checkered board for 8×8 games" does not apply to:
+    // - Columns Chess / Classic Chess (they have their own board SVG)
+    // - US Checkers (it is always played on a checkerboard)
     {
-      const show = !usesColumnsChessBoard && v.boardSize === 8;
+      const show = !usesColumnsChessBoard && !isCheckers && v.boardSize === 8;
       if (elBoard8x8CheckeredRow) elBoard8x8CheckeredRow.style.display = show ? "" : "none";
       if (elBoard8x8CheckeredHint) elBoard8x8CheckeredHint.style.display = show ? "" : "none";
       elBoard8x8Checkered.disabled = !show;
@@ -1639,6 +1645,21 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   elGame.addEventListener("change", syncAvailability);
+
+  // Persist disc-game piece theme immediately so terminology can update live on the Start Page.
+  elTheme.addEventListener("change", () => {
+    const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
+    const isColumnsChess = vId === "columns_chess";
+    const isClassicChess = vId === "chess_classic";
+    if (!isColumnsChess && !isClassicChess) {
+      try {
+        localStorage.setItem(LS_KEYS.theme, elTheme.value);
+      } catch {
+        // ignore
+      }
+    }
+    syncAvailability();
+  });
   elPlayMode.addEventListener("change", () => {
     localStorage.setItem(LS_KEYS.playMode, elPlayMode.value);
     syncOnlineVisibility();

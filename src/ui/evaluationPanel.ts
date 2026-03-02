@@ -2,10 +2,18 @@ import type { GameController } from "../controller/gameController";
 import type { GameState } from "../game/state";
 import { evaluateState } from "../ai/evaluate";
 import type { Player, Piece } from "../types";
+import { getSideLabelsForRuleset } from "../shared/sideTerminology";
 
 type EvaluationMode = "advantage" | "control" | "material";
 
 const LS_KEY_MODE = "lasca.evaluation.mode";
+
+function sideLabel(state: GameState, color: Player): string {
+  const rulesetId = state.meta?.rulesetId ?? "lasca";
+  const boardSize = (state.meta as any)?.boardSize as number | undefined;
+  const labels = getSideLabelsForRuleset(rulesetId, { boardSize });
+  return color === "W" ? labels.W : labels.B;
+}
 
 function clampMode(v: string | null): EvaluationMode {
   if (v === "advantage" || v === "control" || v === "material") return v;
@@ -61,7 +69,9 @@ function formatAdvantage(state: GameState): string {
 
   if (Math.abs(units) < 0.05) return "Even";
   const magnitude = Math.abs(units);
-  return units > 0 ? `Light ${formatSigned(magnitude)}` : `Dark ${formatSigned(magnitude)}`;
+  return units > 0
+    ? `${sideLabel(state, "W")} ${formatSigned(magnitude)}`
+    : `${sideLabel(state, "B")} ${formatSigned(magnitude)}`;
 }
 
 function formatControl(state: GameState): string {
@@ -69,19 +79,23 @@ function formatControl(state: GameState): string {
   const w = isDama ? countTopPieces(state, "W") : countControlledStacks(state, "W");
   const b = isDama ? countTopPieces(state, "B") : countControlledStacks(state, "B");
   const label = isDama ? "Pieces" : "Controlled stacks";
-  if (w === b) return `${label}: Light ${w} / Dark ${b} (even)`;
-  const leader = w > b ? "Light" : "Dark";
+  const wLabel = sideLabel(state, "W");
+  const bLabel = sideLabel(state, "B");
+  if (w === b) return `${label}: ${wLabel} ${w} / ${bLabel} ${b} (even)`;
+  const leader = w > b ? wLabel : bLabel;
   const diff = Math.abs(w - b);
-  return `${label}: Light ${w} / Dark ${b} (${leader} +${diff})`;
+  return `${label}: ${wLabel} ${w} / ${bLabel} ${b} (${leader} +${diff})`;
 }
 
 function formatMaterial(state: GameState): string {
   const w = sumMaterial(state, "W");
   const b = sumMaterial(state, "B");
-  if (Math.abs(w - b) < 0.05) return `Material: Light ${w.toFixed(1)} / Dark ${b.toFixed(1)} (even)`;
-  const leader = w > b ? "Light" : "Dark";
+  const wLabel = sideLabel(state, "W");
+  const bLabel = sideLabel(state, "B");
+  if (Math.abs(w - b) < 0.05) return `Material: ${wLabel} ${w.toFixed(1)} / ${bLabel} ${b.toFixed(1)} (even)`;
+  const leader = w > b ? wLabel : bLabel;
   const diff = Math.abs(w - b);
-  return `Material: Light ${w.toFixed(1)} / Dark ${b.toFixed(1)} (${leader} +${diff.toFixed(1)})`;
+  return `Material: ${wLabel} ${w.toFixed(1)} / ${bLabel} ${b.toFixed(1)} (${leader} +${diff.toFixed(1)})`;
 }
 
 export function bindEvaluationPanel(controller: GameController): void {

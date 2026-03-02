@@ -38,6 +38,9 @@ import {
 } from "./render/checkerboardTheme";
 import { createBoardLoadingOverlay } from "./ui/boardLoadingOverlay";
 import { nextPaint } from "./ui/nextPaint";
+import { setBoardFlipped } from "./render/boardFlip";
+import { setStackWorksGameTitle } from "./ui/gameTitle";
+import { getSideLabelsForRuleset } from "./shared/sideTerminology";
 
 const FALLBACK_VARIANT_ID: VariantId = "dama_8_classic_standard";
 
@@ -45,7 +48,7 @@ function getActiveDamaVariantId(): VariantId {
   const raw = window.localStorage.getItem("lasca.variantId");
   if (raw && isVariantId(raw)) {
     const v = getVariantById(raw);
-    if (v.rulesetId === "dama") return v.variantId;
+    if (v.rulesetId === "dama" || v.rulesetId === "checkers_us") return v.variantId;
   }
   return FALLBACK_VARIANT_ID;
 }
@@ -58,6 +61,7 @@ const LS_OPT_KEYS = {
   lastMoveHighlights: "lasca.opt.lastMoveHighlights",
   showResizeIcon: "lasca.opt.showResizeIcon",
   boardCoords: "lasca.opt.boardCoords",
+  flipBoard: "lasca.opt.flipBoard",
   board8x8Checkered: "lasca.opt.board8x8Checkered",
   checkerboardTheme: "lasca.opt.checkerboardTheme",
   threefold: "lasca.opt.threefold",
@@ -88,7 +92,24 @@ function writeStringPref(key: string, value: string): void {
   localStorage.setItem(key, value);
 }
 
-function updatePlayerColorBadge(driver: unknown): void {
+function setSvgFavicon(svgMarkup: string): void {
+  try {
+    const link =
+      (document.querySelector('link[rel="icon"]') as HTMLLinkElement | null) ??
+      (document.querySelector('link[rel="shortcut icon"]') as HTMLLinkElement | null);
+
+    const next = link ?? document.createElement("link");
+    next.rel = "icon";
+    next.type = "image/svg+xml";
+    next.sizes = "any";
+    next.href = `data:image/svg+xml,${encodeURIComponent(svgMarkup)}`;
+    if (!link) document.head.appendChild(next);
+  } catch {
+    // ignore
+  }
+}
+
+function updatePlayerColorBadge(driver: unknown, rulesetId: string, boardSize: number): void {
   const el = document.getElementById("playerColorBadge") as HTMLElement | null;
   if (!el) return;
   const anyDriver = driver as any;
@@ -97,18 +118,78 @@ function updatePlayerColorBadge(driver: unknown): void {
   const color = (anyDriver as OnlineGameDriver).getPlayerColor();
   if (color !== "W" && color !== "B") return;
 
-  el.textContent = color === "W" ? "⚪" : "⚫";
+  const labels = getSideLabelsForRuleset(rulesetId, { boardSize });
+  const wIcon = labels.W === "Red" ? "🔴" : "⚪";
+  el.textContent = color === "W" ? wIcon : "⚫";
   el.style.display = "inline-flex";
-  const label = color === "W" ? "Playing as Light" : "Playing as Dark";
+  const label = `Playing as ${color === "W" ? labels.W : labels.B}`;
   el.title = label;
   el.setAttribute("aria-label", label);
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
   const activeVariant = getVariantById(ACTIVE_VARIANT_ID);
+  const isCheckers = activeVariant.rulesetId === "checkers_us";
+  const getCurrentSideLabels = () =>
+    getSideLabelsForRuleset(activeVariant.rulesetId, { boardSize: activeVariant.boardSize });
+
+  // dama.html is also used as the entry page for US Checkers.
+  // Ensure the browser tab title matches the actual game.
+  document.title = activeVariant.displayName;
+
+  const elHelpLink = (document.getElementById("helpLink") as HTMLAnchorElement | null) ?? null;
+  if (elHelpLink && isCheckers) {
+    elHelpLink.href = "./checkers-help.html";
+  }
+
+  if (isCheckers) {
+    setSvgFavicon(
+      "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'>" +
+        "<rect width='16' height='16' rx='3' ry='3' fill='#1b1b1b'/>" +
+        "<circle cx='6.1' cy='9.9' r='5.1' fill='#111111' stroke='#f5f5f5' stroke-width='0.9'/>" +
+        "<circle cx='9.9' cy='6.1' r='5.1' fill='#d21f1f' stroke='#250404' stroke-width='0.9'/>" +
+        "</svg>"
+    );
+  }
+
+  const sideLabel = (player: Player): string => {
+    const labels = getCurrentSideLabels();
+    return player === "W" ? labels.W : labels.B;
+  };
+
+  const sideIcon = (player: Player): string => {
+    if (player === "B") return "⚫";
+    const labels = getCurrentSideLabels();
+    return labels.W === "Red" ? "🔴" : "⚪";
+  };
+
+  let driverForBadge: unknown | null = null;
+  let controllerForSync: GameController | null = null;
+
+  const syncBotSideLabels = () => {
+    const elAiWhiteLabel = (document.querySelector('label[for="aiWhiteSelect"]') as HTMLElement | null) ?? null;
+    const elAiBlackLabel = (document.querySelector('label[for="aiBlackSelect"]') as HTMLElement | null) ?? null;
+    if (elAiWhiteLabel) elAiWhiteLabel.textContent = sideLabel("W");
+    if (elAiBlackLabel) elAiBlackLabel.textContent = sideLabel("B");
+  };
+
+  const syncTerminologyUI = () => {
+    syncBotSideLabels();
+    if (controllerForSync) {
+      const elTurn = document.getElementById("statusTurn");
+      if (elTurn) elTurn.textContent = sideLabel(controllerForSync.getState().toMove);
+    }
+    if (driverForBadge) {
+      updatePlayerColorBadge(driverForBadge, activeVariant.rulesetId, activeVariant.boardSize);
+    }
+  };
+
+  // In-game Bot panel: replace the generic Light/Dark labels with the
+  // variant's terminology (may be Red/Black when Classic Checkers board is used).
+  syncBotSideLabels();
 
   const gameTitleEl = document.getElementById("gameTitle");
-  if (gameTitleEl) gameTitleEl.textContent = activeVariant.displayName;
+  if (gameTitleEl) setStackWorksGameTitle(gameTitleEl, activeVariant.displayName);
 
   const boardWrap = document.getElementById("boardWrap") as HTMLElement | null;
   if (!boardWrap) throw new Error("Missing board container: #boardWrap");
@@ -116,12 +197,23 @@ window.addEventListener("DOMContentLoaded", async () => {
   const boardLoading = createBoardLoadingOverlay(boardWrap);
   boardLoading.show();
 
-  const useCheckered8x8 = readOptionalBoolPref(LS_OPT_KEYS.board8x8Checkered) ?? false;
-  const svgAsset =
-    activeVariant.boardSize === 8 && useCheckered8x8
-      ? chessBoardSvgUrl
-      : (activeVariant.svgAsset ?? graphBoard8x8SvgUrl);
+  const useCheckered8x8 = !isCheckers && (readOptionalBoolPref(LS_OPT_KEYS.board8x8Checkered) ?? false);
+  const svgAsset = (() => {
+    if (isCheckers) return activeVariant.svgAsset ?? graphBoard8x8SvgUrl;
+    if (activeVariant.boardSize === 8 && useCheckered8x8) return chessBoardSvgUrl;
+    return activeVariant.svgAsset ?? graphBoard8x8SvgUrl;
+  })();
   const svg = await loadSvgFileInto(boardWrap, svgAsset);
+
+  const flipBoardToggle = document.getElementById("flipBoardToggle") as HTMLInputElement | null;
+  const savedFlip = readOptionalBoolPref(LS_OPT_KEYS.flipBoard);
+  if (flipBoardToggle && savedFlip !== null) {
+    flipBoardToggle.checked = savedFlip;
+  }
+  const isFlipped = () => Boolean(flipBoardToggle?.checked);
+
+  // Apply flip early so any subsequently-created layers end up in the rotated view.
+  setBoardFlipped(svg, isFlipped());
 
   // Checkerboard theme (only relevant when using the chess-style 8x8 board)
   const checkerboardThemeRow = document.getElementById("checkerboardThemeRow") as HTMLElement | null;
@@ -129,7 +221,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   const checkerboardThemeSelect = document.getElementById("checkerboardThemeSelect") as HTMLSelectElement | null;
 
   const shouldShowCheckerboardTheme = activeVariant.boardSize === 8;
-  const canUseCheckerboardTheme = shouldShowCheckerboardTheme && useCheckered8x8;
+  const canUseCheckerboardTheme = shouldShowCheckerboardTheme && (useCheckered8x8 || isCheckers);
   if (checkerboardThemeRow) checkerboardThemeRow.style.display = shouldShowCheckerboardTheme ? "flex" : "none";
   if (checkerboardThemeHelp) {
     checkerboardThemeHelp.style.display = shouldShowCheckerboardTheme ? "block" : "none";
@@ -155,6 +247,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         const picked = normalizeCheckerboardThemeId(checkerboardThemeSelect.value);
         writeStringPref(LS_OPT_KEYS.checkerboardTheme, picked);
         applyCheckerboard(picked);
+        syncTerminologyUI();
       });
     }
 
@@ -163,11 +256,20 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const board8x8CheckeredToggle = document.getElementById("board8x8CheckeredToggle") as HTMLInputElement | null;
   if (board8x8CheckeredToggle) {
-    board8x8CheckeredToggle.checked = useCheckered8x8;
-    board8x8CheckeredToggle.addEventListener("change", () => {
-      writeBoolPref(LS_OPT_KEYS.board8x8Checkered, board8x8CheckeredToggle.checked);
-      window.location.reload();
-    });
+    const row = (board8x8CheckeredToggle.parentElement as HTMLElement | null) ?? null;
+    const hint = (row?.nextElementSibling as HTMLElement | null) ?? null;
+
+    if (isCheckers) {
+      if (row) row.style.display = "none";
+      if (hint) hint.style.display = "none";
+      board8x8CheckeredToggle.disabled = true;
+    } else {
+      board8x8CheckeredToggle.checked = useCheckered8x8;
+      board8x8CheckeredToggle.addEventListener("change", () => {
+        writeBoolPref(LS_OPT_KEYS.board8x8Checkered, board8x8CheckeredToggle.checked);
+        window.location.reload();
+      });
+    }
   }
 
   const boardCoordsToggle = document.getElementById("boardCoordsToggle") as HTMLInputElement | null;
@@ -176,7 +278,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     boardCoordsToggle.checked = savedBoardCoords;
   }
   const applyBoardCoords = () =>
-    renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), activeVariant.boardSize);
+    renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), activeVariant.boardSize, { flipped: isFlipped() });
   applyBoardCoords();
 
   const showResizeIconToggle = document.getElementById("showResizeIconToggle") as HTMLInputElement | null;
@@ -186,6 +288,22 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   initSplitLayout();
+
+  if (isCheckers && !localStorage.getItem("lasca.theme")) {
+    try {
+      localStorage.setItem("lasca.theme", "checkers");
+    } catch {
+      // ignore
+    }
+  }
+
+  if (isCheckers && !localStorage.getItem(LS_OPT_KEYS.checkerboardTheme)) {
+    try {
+      localStorage.setItem(LS_OPT_KEYS.checkerboardTheme, "checkers");
+    } catch {
+      // ignore
+    }
+  }
 
   const themeDropdown = document.getElementById("themeDropdown") as HTMLElement | null;
   const themeManager = createThemeManager(svg);
@@ -217,7 +335,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   const elRulesBoard = document.getElementById("statusRulesBoard");
   const elPhase = document.getElementById("statusPhase");
   const elMsg = document.getElementById("statusMessage");
-  if (elTurn) elTurn.textContent = state.toMove === "B" ? "Dark" : "Light";
+  if (elTurn) {
+    elTurn.textContent = sideLabel(state.toMove);
+  }
   if (elRulesBoard) elRulesBoard.textContent = `${activeVariant.displayName} Rules • ${activeVariant.boardSize}×${activeVariant.boardSize} Board`;
   if (elPhase) elPhase.textContent = state.phase.charAt(0).toUpperCase() + state.phase.slice(1);
   if (elMsg) elMsg.textContent = "—";
@@ -230,7 +350,10 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Theme switching can involve slow raster PNG loads; show spinner while themes apply.
   svg.addEventListener(THEME_WILL_CHANGE_EVENT, () => boardLoading.show());
-  svg.addEventListener(THEME_DID_CHANGE_EVENT, () => boardLoading.hide());
+  svg.addEventListener(THEME_DID_CHANGE_EVENT, () => {
+    boardLoading.hide();
+    syncTerminologyUI();
+  });
 
   // In dev, force a full reload when modules (like state) change
   if (import.meta.hot) {
@@ -247,7 +370,9 @@ window.addEventListener("DOMContentLoaded", async () => {
     envServerUrl: import.meta.env.VITE_SERVER_URL,
   });
 
-  updatePlayerColorBadge(driver);
+  driverForBadge = driver;
+
+  updatePlayerColorBadge(driver, activeVariant.rulesetId, activeVariant.boardSize);
 
   // Threefold repetition: local toggle for offline; creator-locked for online.
   const savedThreefold = readOptionalBoolPref(LS_OPT_KEYS.threefold);
@@ -275,6 +400,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const controller = new GameController(svg, piecesLayer, inspector, state, history, driver);
   controller.bind();
+
+  controllerForSync = controller;
 
   bindAnalysisToggleButton(controller);
   bindFullScreenButton();
@@ -397,6 +524,14 @@ window.addEventListener("DOMContentLoaded", async () => {
     boardCoordsToggle.addEventListener("change", () => {
       applyBoardCoords();
       writeBoolPref(LS_OPT_KEYS.boardCoords, boardCoordsToggle.checked);
+    });
+  }
+
+  if (flipBoardToggle) {
+    flipBoardToggle.addEventListener("change", () => {
+      writeBoolPref(LS_OPT_KEYS.flipBoard, flipBoardToggle.checked);
+      setBoardFlipped(svg, flipBoardToggle.checked);
+      applyBoardCoords();
     });
   }
 
@@ -535,7 +670,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
       const renderMoveCell = (entry: (typeof historyData)[number]) => {
         const whoMoved = entry.toMove === "B" ? "W" : "B";
-        const playerIcon = whoMoved === "B" ? "⚫" : "⚪";
+        const playerIcon = sideIcon(whoMoved);
         let label = `${playerIcon}`;
         if (entry.notation) label += ` ${entry.notation}`;
         const cls = `cell clickable${entry.isCurrent ? " current" : ""}`;
@@ -544,27 +679,29 @@ window.addEventListener("DOMContentLoaded", async () => {
       };
 
       if (moveHistoryLayout === "two") {
+        const firstMover = historyData[0]!.toMove;
+        const secondMover = firstMover === "W" ? "B" : "W";
         const totalMoves = Math.ceil((historyData.length - 1) / 2);
         const parts: string[] = [];
         parts.push('<div class="historyGrid">');
         parts.push('<div class="cell hdr">#</div>');
-        parts.push('<div class="cell hdr">⚪ Light</div>');
-        parts.push('<div class="cell hdr">⚫ Dark</div>');
+        parts.push(`<div class="cell hdr">${sideIcon(firstMover)} ${sideLabel(firstMover)}</div>`);
+        parts.push(`<div class="cell hdr">${sideIcon(secondMover)} ${sideLabel(secondMover)}</div>`);
 
         parts.push(renderStartCell(historyData[0]!));
 
         for (let m = 1; m <= totalMoves; m++) {
-          const lightIdx = 2 * m - 1;
-          const darkIdx = 2 * m;
+          const firstIdx = 2 * m - 1;
+          const secondIdx = 2 * m;
           parts.push(`<div class="cell num">${m}.</div>`);
 
-          const lightEntry = historyData[lightIdx];
-          const darkEntry = historyData[darkIdx];
+          const firstEntry = historyData[firstIdx];
+          const secondEntry = historyData[secondIdx];
 
-          if (lightEntry) parts.push(renderMoveCell(lightEntry));
+          if (firstEntry) parts.push(renderMoveCell(firstEntry));
           else parts.push('<div class="cell"></div>');
 
-          if (darkEntry) parts.push(renderMoveCell(darkEntry));
+          if (secondEntry) parts.push(renderMoveCell(secondEntry));
           else parts.push('<div class="cell"></div>');
         }
 
@@ -584,14 +721,13 @@ window.addEventListener("DOMContentLoaded", async () => {
 
             // For moves: toMove indicates who's about to move, so invert to get who just moved
             // If toMove is "B", White just moved. If toMove is "W", Black just moved.
-            const playerWhoMoved = entry.toMove === "B" ? "Light" : "Dark";
-            const playerIcon = playerWhoMoved === "Dark" ? "⚫" : "⚪";
-            const whoMoved = playerWhoMoved === "Light" ? "W" : "B";
+            const whoMoved = entry.toMove === "B" ? "W" : "B";
+            const playerIcon = sideIcon(whoMoved);
 
             // Calculate move number: each player's move increments the counter
-            const moveNum = playerWhoMoved === "Dark"
+            const moveNum = whoMoved === "B"
               ? Math.ceil(idx / 2) // Black: moves 1, 3, 5... → move# 1, 2, 3...
-              : Math.floor((idx + 1) / 2); // White: moves 2, 4, 6... → move# 1, 2, 3...
+              : Math.floor((idx + 1) / 2); // Red/Light: moves 2, 4, 6... → move# 1, 2, 3...
 
             let label = `${moveNum}. ${playerIcon}`;
             if (entry.notation) {
@@ -651,7 +787,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         driver.mode === "online"
           ? (driver as OnlineGameDriver).getPlayerColor()
           : controller.getState().toMove;
-      const currentPlayer = localColor === "B" ? "Dark" : localColor === "W" ? "Light" : "—";
+      const currentPlayer = localColor === "B" ? sideLabel("B") : localColor === "W" ? sideLabel("W") : "—";
       const confirmed = confirm(`Are you sure you want to resign as ${currentPlayer}?`);
       if (confirmed) {
         void controller.resign();
@@ -676,7 +812,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
 
       const localColor = online.getPlayerColor();
-      const currentPlayer = localColor === "B" ? "Dark" : localColor === "W" ? "Light" : "your";
+      const currentPlayer = localColor === "B" ? sideLabel("B") : localColor === "W" ? sideLabel("W") : "your";
       const confirmed = confirm(
         `Leave room? This forfeits the game (counts as resign). ${currentPlayer} will lose. Continue?`
       );
@@ -827,7 +963,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       const elRulesBoard = document.getElementById("statusRulesBoard");
       const elPhase = document.getElementById("statusPhase");
       const elMsg = document.getElementById("statusMessage");
-      if (elTurn) elTurn.textContent = next.toMove === "B" ? "Dark" : "Light";
+      if (elTurn) elTurn.textContent = sideLabel(next.toMove);
       if (elRulesBoard) elRulesBoard.textContent = `${activeVariant.displayName} Rules • ${activeVariant.boardSize}×${activeVariant.boardSize} Board`;
       if (elPhase) elPhase.textContent = next.phase.charAt(0).toUpperCase() + next.phase.slice(1);
       if (elMsg) elMsg.textContent = "—";

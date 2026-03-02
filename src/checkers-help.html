@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StackWorks — Checkers (US) Help &amp; Rules</title>
+    <!-- Match Checkers (US) game page favicon (inline, base-safe). -->
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      sizes="any"
+      href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Crect%20width='16'%20height='16'%20rx='3'%20ry='3'%20fill='%231b1b1b'/%3E%3Ccircle%20cx='6.1'%20cy='9.9'%20r='5.1'%20fill='%23111111'%20stroke='%23f5f5f5'%20stroke-width='0.9'/%3E%3Ccircle%20cx='9.9'%20cy='6.1'%20r='5.1'%20fill='%23d21f1f'%20stroke='%23250404'%20stroke-width='0.9'/%3E%3C/svg%3E"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        color: #e8e6e3;
+        background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+        padding: 20px;
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: rgba(42, 42, 42, 0.95);
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      }
+
+      h1 {
+        color: #fff;
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        border-bottom: 3px solid #4a9eff;
+        padding-bottom: 10px;
+      }
+
+      h2 {
+        color: #4a9eff;
+        font-size: 1.8em;
+        margin-top: 30px;
+        margin-bottom: 15px;
+      }
+
+      h3 {
+        color: #7db3ff;
+        font-size: 1.3em;
+        margin-top: 20px;
+        margin-bottom: 10px;
+      }
+
+      p {
+        margin-bottom: 15px;
+        color: #d4d4d4;
+      }
+
+      ul,
+      ol {
+        margin-left: 25px;
+        margin-bottom: 15px;
+      }
+
+      li {
+        margin-bottom: 8px;
+        color: #d4d4d4;
+      }
+
+      .highlight {
+        background: rgba(74, 158, 255, 0.2);
+        border-left: 4px solid #4a9eff;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 0 8px 8px 0;
+      }
+
+      .highlight p {
+        margin-bottom: 0;
+      }
+
+      .note {
+        background: rgba(255, 193, 7, 0.15);
+        border-left: 4px solid #ffc107;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 0 8px 8px 0;
+      }
+
+      .note p {
+        margin-bottom: 0;
+      }
+
+      .mono {
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        font-size: 0.95em;
+      }
+
+      a {
+        color: #7db3ff;
+      }
+
+      a:hover {
+        color: #9fc7ff;
+      }
+
+      @media (max-width: 768px) {
+        .container {
+          padding: 20px;
+        }
+
+        h1 {
+          font-size: 2em;
+        }
+
+        h2 {
+          font-size: 1.5em;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1>StackWorks — Checkers (US) Help &amp; Rules</h1>
+      <p>
+        This page covers <b>US Checkers</b> (American checkers / American
+        draughts) as implemented in StackWorks.
+      </p>
+
+      <div class="highlight">
+        <p>
+          <b>Mandatory capture:</b> if you have a capture, you must take it. If
+          multiple captures are available in sequence, you must continue
+          capturing as long as captures remain.
+        </p>
+      </div>
+
+      <h2>Setup</h2>
+      <ul>
+        <li><b>Board:</b> 8×8 (dark squares are used)</li>
+        <li><b>Pieces:</b> 12 per side</li>
+        <li><b>First move:</b> Black moves first</li>
+      </ul>
+
+      <h2>How pieces move</h2>
+
+      <h3>Men</h3>
+      <ul>
+        <li>
+          Move diagonally forward by 1 square (to an adjacent empty dark
+          square).
+        </li>
+        <li>
+          Capture by jumping diagonally forward over an adjacent enemy man/king
+          to an empty square immediately beyond it.
+        </li>
+        <li><b>In US Checkers, men do not capture backwards.</b></li>
+      </ul>
+
+      <h3>Kings</h3>
+      <ul>
+        <li>
+          A man becomes a king when it reaches the farthest rank on the
+          opponent’s side.
+        </li>
+        <li>Kings move diagonally by 1 square (not flying).</li>
+        <li>
+          Kings capture by jumping diagonally over an adjacent enemy piece to an
+          empty square beyond it.
+        </li>
+      </ul>
+
+      <div class="note">
+        <p>
+          <b>Promotion during a capture chain:</b> promotion happens immediately
+          when you land on the back rank, and the capture chain ends at that
+          point (you do not continue as a king in the same turn).
+        </p>
+      </div>
+
+      <h2>Winning &amp; ending the game</h2>
+      <ul>
+        <li>
+          You win by capturing all of your opponent’s pieces, or leaving them
+          with no legal moves.
+        </li>
+        <li>Resign is always available from the game UI.</li>
+      </ul>
+
+      <h2>Piece color labels</h2>
+      <p>
+        StackWorks internally stores sides as
+        <span class="mono">Light</span>/<span class="mono">Dark</span>. In the
+        UI, the labels depend on the selected <b>piece theme</b>:
+      </p>
+      <ul>
+        <li>
+          If you select <b>Checkers (Red/Black)</b> pieces, sides are shown as
+          <b>Red</b> and <b>Black</b>.
+        </li>
+        <li>Otherwise, sides are shown as <b>Light</b> and <b>Dark</b>.</li>
+      </ul>
+
+      <h2>Tips</h2>
+      <ul>
+        <li>
+          If you’re not sure why a move is illegal, look for available captures
+          first (captures are mandatory).
+        </li>
+        <li>
+          The <b>Flip board</b> setting only changes the viewing orientation; it
+          does not change which side you control.
+        </li>
+      </ul>
+    </div>
+  </body>
+</html>

@@ -54,6 +54,7 @@ import { maybeVariantWoodenPieceHref } from "../render/woodenPieceVariant.ts";
 import { drawMiniStackSpine } from "../render/miniSpine.ts";
 import { isBoardFlipped } from "../render/boardFlip.ts";
 import { getVariantById } from "../variants/variantRegistry.ts";
+import { getSideLabelsForRuleset } from "../shared/sideTerminology.ts";
 
 export type HistoryChangeReason = "move" | "undo" | "redo" | "jump" | "newGame" | "loadGame" | "gameOver";
 
@@ -1429,9 +1430,10 @@ export class GameController {
   }
 
   private sideLabel(color: "W" | "B"): string {
-    // Chess nomenclature is White/Black; other variants use Light/Dark.
-    if (this.isChessLikeRuleset()) return color === "W" ? "White" : "Black";
-    return color === "W" ? "Light" : "Dark";
+    const rulesetId = this.state.meta?.rulesetId ?? "lasca";
+    const boardSize = (this.state.meta as any)?.boardSize as number | undefined;
+    const labels = getSideLabelsForRuleset(rulesetId, { boardSize });
+    return color === "W" ? labels.W : labels.B;
   }
 
   private maybeToastTurnChange(): void {
@@ -1490,7 +1492,7 @@ export class GameController {
       this.showToast(
         isChessLike
           ? `${checkPrefix}${this.sideLabel(toMove)} to Play`
-          : `${toMove === "B" ? "Dark" : "Light"} to ${hasCapture ? "capture" : "move"}`,
+          : `${this.sideLabel(toMove)} to ${hasCapture ? "capture" : "move"}`,
         1500
       );
       return;
@@ -1520,7 +1522,7 @@ export class GameController {
       } else {
         const legal = this.getLegalMovesForTurn();
         const hasCapture = legal.some((m) => m.kind === "capture");
-        this.showToast(`${toMove === "B" ? "Dark" : "Light"} to ${hasCapture ? "capture" : "move"}`, 1500);
+        this.showToast(`${this.sideLabel(toMove)} to ${hasCapture ? "capture" : "move"}`, 1500);
       }
     }
   }
@@ -2815,7 +2817,7 @@ export class GameController {
       hidden: this.isGameOver,
       tooltipText: turnTooltipText,
       icon: isChessLike ? "pawn" : "stone",
-      labels: isChessLike ? { W: "White", B: "Black" } : { W: "Light", B: "Dark" },
+      labels: isChessLike ? { W: "White", B: "Black" } : { W: this.sideLabel("W"), B: this.sideLabel("B") },
       ...(this.analysisMode ? { decorator: "analysis" as const } : {}),
     });
 

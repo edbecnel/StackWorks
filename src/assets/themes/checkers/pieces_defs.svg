@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" aria-hidden="true">
+  <defs>
+    <!-- ======== CHECKERS DISCS (W_S, B_S, W_O, B_O) ======== -->
+
+    <radialGradient id="gradRed" cx="35%" cy="30%" r="70%">
+      <stop offset="0%"  stop-color="#ff9a9a"/>
+      <stop offset="55%" stop-color="#d21f1f"/>
+      <stop offset="100%" stop-color="#7a0d0d"/>
+    </radialGradient>
+
+    <radialGradient id="gradBlack" cx="35%" cy="30%" r="70%">
+      <stop offset="0%"  stop-color="#5a5a5a"/>
+      <stop offset="55%" stop-color="#1a1a1a"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </radialGradient>
+
+    <path id="crown" d="
+      M 26 64
+      L 26 40
+      L 38 52
+      L 50 36
+      L 62 52
+      L 74 40
+      L 74 64
+      Z
+      M 28 66
+      H 72
+      V 72
+      H 28
+      Z" />
+
+    <!-- Red Man (White side in engine) -->
+    <symbol id="W_S" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradRed)" stroke="#250404" stroke-width="6"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#000" stroke-opacity="0.20" stroke-width="3"/>
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.16"/>
+    </symbol>
+
+    <!-- Black Man (Black side in engine) -->
+    <symbol id="B_S" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradBlack)" stroke="#f5f5f5" stroke-width="6"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#fff" stroke-opacity="0.14" stroke-width="3"/>
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.10"/>
+    </symbol>
+
+    <!-- Red King -->
+    <symbol id="W_O" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradRed)" stroke="#250404" stroke-width="6"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#000" stroke-opacity="0.20" stroke-width="3"/>
+      <use href="#crown" fill="#ffffff" opacity="0.95" transform="translate(0 -2)"/>
+      <circle cx="50" cy="50" r="18" fill="none" stroke="#fff" stroke-opacity="0.50" stroke-width="3"/>
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.14"/>
+    </symbol>
+
+    <!-- Black King -->
+    <symbol id="B_O" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradBlack)" stroke="#f5f5f5" stroke-width="6"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#fff" stroke-opacity="0.14" stroke-width="3"/>
+      <use href="#crown" fill="#ffffff" opacity="0.95" transform="translate(0 -2)"/>
+      <circle cx="50" cy="50" r="18" fill="none" stroke="#fff" stroke-opacity="0.50" stroke-width="3"/>
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.10"/>
+    </symbol>
+
+    <!-- Optional compatibility symbols (used by some rule variants) -->
+    <symbol id="W_K" viewBox="0 0 100 100">
+      <use href="#W_O" />
+    </symbol>
+    <symbol id="B_K" viewBox="0 0 100 100">
+      <use href="#B_O" />
+    </symbol>
+  </defs>
+</svg>

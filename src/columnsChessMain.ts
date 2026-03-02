@@ -33,6 +33,7 @@ import { createBoardLoadingOverlay } from "./ui/boardLoadingOverlay";
 import { nextPaint } from "./ui/nextPaint";
 import { ColumnsChessBotManager } from "./bot/columnsChessBotManager.ts";
 import { installBoardVisualizationTools } from "./ui/boardVisualizationTools";
+import { setStackWorksGameTitle } from "./ui/gameTitle";
 
 const ACTIVE_VARIANT_ID: VariantId = "columns_chess";
 
@@ -40,7 +41,7 @@ const LS_OPT_KEYS = {
   showResizeIcon: "lasca.opt.showResizeIcon",
   boardCoords: "lasca.opt.boardCoords",
   boardCoordsInSquares: "lasca.opt.boardCoordsInSquares",
-  flipBoard: "lasca.opt.columnsChess.flipBoard",
+  flipBoard: "lasca.opt.flipBoard",
   toasts: "lasca.opt.toasts",
   sfx: "lasca.opt.sfx",
   checkerboardTheme: "lasca.opt.checkerboardTheme",
@@ -79,7 +80,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const gameTitleEl = document.getElementById("gameTitle");
   if (gameTitleEl) {
-    gameTitleEl.textContent = `${variant.displayName}`;
+    setStackWorksGameTitle(gameTitleEl, variant.displayName);
     gameTitleEl.title = rulesBoardLine(variant.rulesetId, variant.boardSize);
   }
 
@@ -115,7 +116,13 @@ window.addEventListener("DOMContentLoaded", async () => {
   applyCheckerboard(readCheckerboardTheme());
 
   const flipBoardToggle = document.getElementById("flipBoardToggle") as HTMLInputElement | null;
-  const savedFlip = readOptionalBoolPref(LS_OPT_KEYS.flipBoard);
+  const savedFlip = (() => {
+    const v = readOptionalBoolPref(LS_OPT_KEYS.flipBoard);
+    if (v !== null) return v;
+    const legacy = readOptionalBoolPref("lasca.opt.columnsChess.flipBoard");
+    if (legacy !== null) writeBoolPref(LS_OPT_KEYS.flipBoard, legacy);
+    return legacy;
+  })();
   if (flipBoardToggle && savedFlip !== null) {
     flipBoardToggle.checked = savedFlip;
   }

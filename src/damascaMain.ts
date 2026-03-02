@@ -39,6 +39,9 @@ import {
 } from "./render/checkerboardTheme";
 import { createBoardLoadingOverlay } from "./ui/boardLoadingOverlay";
 import { nextPaint } from "./ui/nextPaint";
+import { setBoardFlipped } from "./render/boardFlip";
+import { setStackWorksGameTitle } from "./ui/gameTitle";
+import { getSideLabelsForRuleset } from "./shared/sideTerminology";
 
 const FALLBACK_VARIANT_ID: VariantId = "damasca_8";
 
@@ -59,6 +62,7 @@ const LS_OPT_KEYS = {
   lastMoveHighlights: "lasca.opt.lastMoveHighlights",
   showResizeIcon: "lasca.opt.showResizeIcon",
   boardCoords: "lasca.opt.boardCoords",
+  flipBoard: "lasca.opt.flipBoard",
   board8x8Checkered: "lasca.opt.board8x8Checkered",
   checkerboardTheme: "lasca.opt.checkerboardTheme",
   threefold: "lasca.opt.threefold",
@@ -89,7 +93,7 @@ function writeStringPref(key: string, value: string): void {
   localStorage.setItem(key, value);
 }
 
-function updatePlayerColorBadge(driver: unknown): void {
+function updatePlayerColorBadge(driver: unknown, rulesetId: string, boardSize: number): void {
   const el = document.getElementById("playerColorBadge") as HTMLElement | null;
   if (!el) return;
   const anyDriver = driver as any;
@@ -98,9 +102,11 @@ function updatePlayerColorBadge(driver: unknown): void {
   const color = (anyDriver as OnlineGameDriver).getPlayerColor();
   if (color !== "W" && color !== "B") return;
 
-  el.textContent = color === "W" ? "⚪" : "⚫";
+  const labels = getSideLabelsForRuleset(rulesetId, { boardSize });
+  const wIcon = labels.W === "Red" ? "🔴" : "⚪";
+  el.textContent = color === "W" ? wIcon : "⚫";
   el.style.display = "inline-flex";
-  const label = color === "W" ? "Playing as Light" : "Playing as Dark";
+  const label = `Playing as ${color === "W" ? labels.W : labels.B}`;
   el.title = label;
   el.setAttribute("aria-label", label);
 }
@@ -108,8 +114,45 @@ function updatePlayerColorBadge(driver: unknown): void {
 window.addEventListener("DOMContentLoaded", async () => {
   const activeVariant = getVariantById(ACTIVE_VARIANT_ID);
 
+  const getCurrentSideLabels = () =>
+    getSideLabelsForRuleset(activeVariant.rulesetId, { boardSize: activeVariant.boardSize });
+  const sideLabel = (player: Player): string => {
+    const labels = getCurrentSideLabels();
+    return player === "W" ? labels.W : labels.B;
+  };
+  const sideIcon = (player: Player): string => {
+    if (player === "B") return "⚫";
+    const labels = getCurrentSideLabels();
+    return labels.W === "Red" ? "🔴" : "⚪";
+  };
+
+  let driverForBadge: unknown | null = null;
+  let controllerForSync: GameController | null = null;
+  let updateHistoryUIForSync: (() => void) | null = null;
+
+  const syncBotSideLabels = () => {
+    const elAiWhiteLabel = (document.querySelector('label[for="aiWhiteSelect"]') as HTMLElement | null) ?? null;
+    const elAiBlackLabel = (document.querySelector('label[for="aiBlackSelect"]') as HTMLElement | null) ?? null;
+    if (elAiWhiteLabel) elAiWhiteLabel.textContent = sideLabel("W");
+    if (elAiBlackLabel) elAiBlackLabel.textContent = sideLabel("B");
+  };
+
+  const syncTerminologyUI = () => {
+    syncBotSideLabels();
+    if (controllerForSync) {
+      const elTurn = document.getElementById("statusTurn");
+      if (elTurn) elTurn.textContent = sideLabel(controllerForSync.getState().toMove);
+    }
+    if (driverForBadge) {
+      updatePlayerColorBadge(driverForBadge, activeVariant.rulesetId, activeVariant.boardSize);
+    }
+    if (updateHistoryUIForSync) updateHistoryUIForSync();
+  };
+
+  syncBotSideLabels();
+
   const gameTitleEl = document.getElementById("gameTitle");
-  if (gameTitleEl) gameTitleEl.textContent = activeVariant.displayName;
+  if (gameTitleEl) setStackWorksGameTitle(gameTitleEl, activeVariant.displayName);
 
   const boardWrap = document.getElementById("boardWrap") as HTMLElement | null;
   if (!boardWrap) throw new Error("Missing board container: #boardWrap");
@@ -123,6 +166,16 @@ window.addEventListener("DOMContentLoaded", async () => {
       ? chessBoardSvgUrl
       : (activeVariant.svgAsset ?? graphBoard8x8SvgUrl);
   const svg = await loadSvgFileInto(boardWrap, svgAsset);
+
+  const flipBoardToggle = document.getElementById("flipBoardToggle") as HTMLInputElement | null;
+  const savedFlip = readOptionalBoolPref(LS_OPT_KEYS.flipBoard);
+  if (flipBoardToggle && savedFlip !== null) {
+    flipBoardToggle.checked = savedFlip;
+  }
+  const isFlipped = () => Boolean(flipBoardToggle?.checked);
+
+  // Apply flip early so any subsequently-created layers end up in the rotated view.
+  setBoardFlipped(svg, isFlipped());
 
   // Checkerboard theme (only relevant when using the chess-style 8x8 board)
   const checkerboardThemeRow = document.getElementById("checkerboardThemeRow") as HTMLElement | null;
@@ -156,6 +209,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         const picked = normalizeCheckerboardThemeId(checkerboardThemeSelect.value);
         writeStringPref(LS_OPT_KEYS.checkerboardTheme, picked);
         applyCheckerboard(picked);
+        syncTerminologyUI();
       });
     }
 
@@ -177,7 +231,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     boardCoordsToggle.checked = savedBoardCoords;
   }
   const applyBoardCoords = () =>
-    renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), activeVariant.boardSize);
+    renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), activeVariant.boardSize, { flipped: isFlipped() });
   applyBoardCoords();
 
   const showResizeIconToggle = document.getElementById("showResizeIconToggle") as HTMLInputElement | null;
@@ -231,7 +285,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   const elRulesBoard = document.getElementById("statusRulesBoard");
   const elPhase = document.getElementById("statusPhase");
   const elMsg = document.getElementById("statusMessage");
-  if (elTurn) elTurn.textContent = state.toMove === "B" ? "Dark" : "Light";
+  if (elTurn) elTurn.textContent = sideLabel(state.toMove);
   if (elRulesBoard) elRulesBoard.textContent = rulesBoardLine(activeVariant.rulesetId, activeVariant.boardSize);
   if (elPhase) elPhase.textContent = state.phase.charAt(0).toUpperCase() + state.phase.slice(1);
   if (elMsg) elMsg.textContent = "—";
@@ -244,7 +298,10 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Theme switching can involve slow raster PNG loads; show spinner while themes apply.
   svg.addEventListener(THEME_WILL_CHANGE_EVENT, () => boardLoading.show());
-  svg.addEventListener(THEME_DID_CHANGE_EVENT, () => boardLoading.hide());
+  svg.addEventListener(THEME_DID_CHANGE_EVENT, () => {
+    boardLoading.hide();
+    syncTerminologyUI();
+  });
 
   // In dev, force a full reload when modules (like state) change
   if (import.meta.hot) {
@@ -261,7 +318,9 @@ window.addEventListener("DOMContentLoaded", async () => {
     envServerUrl: import.meta.env.VITE_SERVER_URL,
   });
 
-  updatePlayerColorBadge(driver);
+  driverForBadge = driver;
+
+  updatePlayerColorBadge(driver, activeVariant.rulesetId, activeVariant.boardSize);
 
   // Threefold repetition: local toggle for offline; creator-locked for online.
   const savedThreefold = readOptionalBoolPref(LS_OPT_KEYS.threefold);
@@ -289,6 +348,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const controller = new GameController(svg, piecesLayer, inspector, state, history, driver);
   controller.bind();
+
+  controllerForSync = controller;
 
   bindAnalysisToggleButton(controller);
   bindFullScreenButton();
@@ -412,6 +473,14 @@ window.addEventListener("DOMContentLoaded", async () => {
     boardCoordsToggle.addEventListener("change", () => {
       applyBoardCoords();
       writeBoolPref(LS_OPT_KEYS.boardCoords, boardCoordsToggle.checked);
+    });
+  }
+
+  if (flipBoardToggle) {
+    flipBoardToggle.addEventListener("change", () => {
+      writeBoolPref(LS_OPT_KEYS.flipBoard, flipBoardToggle.checked);
+      setBoardFlipped(svg, flipBoardToggle.checked);
+      applyBoardCoords();
     });
   }
 
@@ -549,8 +618,8 @@ window.addEventListener("DOMContentLoaded", async () => {
       };
 
       const renderMoveCell = (entry: (typeof historyData)[number]) => {
-        const whoMoved = entry.toMove === "B" ? "W" : "B";
-        const playerIcon = whoMoved === "B" ? "⚫" : "⚪";
+        const whoMoved: Player = entry.toMove === "B" ? "W" : "B";
+        const playerIcon = sideIcon(whoMoved);
         let label = `${playerIcon}`;
         if (entry.notation) label += ` ${entry.notation}`;
         const cls = `cell clickable${entry.isCurrent ? " current" : ""}`;
@@ -563,8 +632,8 @@ window.addEventListener("DOMContentLoaded", async () => {
         const parts: string[] = [];
         parts.push('<div class="historyGrid">');
         parts.push('<div class="cell hdr">#</div>');
-        parts.push('<div class="cell hdr">⚪ Light</div>');
-        parts.push('<div class="cell hdr">⚫ Dark</div>');
+        parts.push(`<div class="cell hdr">${sideIcon("W")} ${sideLabel("W")}</div>`);
+        parts.push(`<div class="cell hdr">${sideIcon("B")} ${sideLabel("B")}</div>`);
 
         parts.push(renderStartCell(historyData[0]!));
 
@@ -599,12 +668,11 @@ window.addEventListener("DOMContentLoaded", async () => {
 
             // For moves: toMove indicates who's about to move, so invert to get who just moved
             // If toMove is "B", White just moved. If toMove is "W", Black just moved.
-            const playerWhoMoved = entry.toMove === "B" ? "Light" : "Dark";
-            const playerIcon = playerWhoMoved === "Dark" ? "⚫" : "⚪";
-            const whoMoved = playerWhoMoved === "Light" ? "W" : "B";
+            const whoMoved: Player = entry.toMove === "B" ? "W" : "B";
+            const playerIcon = sideIcon(whoMoved);
 
             // Calculate move number: each player's move increments the counter
-            const moveNum = playerWhoMoved === "Dark"
+            const moveNum = whoMoved === "B"
               ? Math.ceil(idx / 2)  // Black: moves 1, 3, 5... → move# 1, 2, 3...
               : Math.floor((idx + 1) / 2); // White: moves 2, 4, 6... → move# 1, 2, 3...
 
@@ -666,7 +734,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         driver.mode === "online"
           ? (driver as OnlineGameDriver).getPlayerColor()
           : controller.getState().toMove;
-      const currentPlayer = localColor === "B" ? "Dark" : localColor === "W" ? "Light" : "—";
+      const currentPlayer = localColor === "B" ? sideLabel("B") : localColor === "W" ? sideLabel("W") : "—";
       const confirmed = confirm(`Are you sure you want to resign as ${currentPlayer}?`);
       if (confirmed) {
         void controller.resign();
@@ -691,7 +759,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
 
       const localColor = online.getPlayerColor();
-      const currentPlayer = localColor === "B" ? "Dark" : localColor === "W" ? "Light" : "your";
+      const currentPlayer = localColor === "B" ? sideLabel("B") : localColor === "W" ? sideLabel("W") : "your";
       const confirmed = confirm(
         `Leave room? This forfeits the game (counts as resign). ${currentPlayer} will lose. Continue?`
       );
@@ -711,6 +779,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   controller.addHistoryChangeCallback(updateHistoryUI);
   updateHistoryUI(); // Initial update
+
+  updateHistoryUIForSync = () => updateHistoryUI("jump");
 
   bindPlaybackControls(controller);
 
@@ -842,7 +912,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       const elRulesBoard = document.getElementById("statusRulesBoard");
       const elPhase = document.getElementById("statusPhase");
       const elMsg = document.getElementById("statusMessage");
-      if (elTurn) elTurn.textContent = next.toMove === "B" ? "Dark" : "Light";
+      if (elTurn) elTurn.textContent = sideLabel(next.toMove);
       if (elRulesBoard) elRulesBoard.textContent = rulesBoardLine(activeVariant.rulesetId, activeVariant.boardSize);
       if (elPhase) elPhase.textContent = next.phase.charAt(0).toUpperCase() + next.phase.slice(1);
       if (elMsg) elMsg.textContent = "—";

@@ -2,10 +2,7 @@ import type { GameState } from "./state.ts";
 import type { Player } from "../types.ts";
 import { generateLegalMoves } from "./movegen.ts";
 import { isKingInCheckChess } from "./movegenChess.ts";
-
-function sideLabelChess(color: Player): string {
-  return color === "W" ? "White" : "Black";
-}
+import { sideLabelForRuleset } from "../shared/sideTerminology.ts";
 
 /**
  * Check if the current player (state.toMove) has lost the game.
@@ -19,6 +16,7 @@ export function checkCurrentPlayerLost(state: GameState): { winner: Player | nul
   }
 
   const rulesetId = state.meta?.rulesetId ?? "lasca";
+  const boardSize = (state.meta as any)?.boardSize as number | undefined;
   if (rulesetId === "columns_chess" || rulesetId === "chess") {
     const currentPlayer = state.toMove;
     const opponent: Player = currentPlayer === "B" ? "W" : "B";
@@ -27,7 +25,7 @@ export function checkCurrentPlayerLost(state: GameState): { winner: Player | nul
     if (moves.length === 0) {
       const inCheck = isKingInCheckChess(state, currentPlayer);
       if (inCheck) {
-        return { winner: opponent, reason: `Checkmate! ${sideLabelChess(opponent)} Wins` };
+        return { winner: opponent, reason: `Checkmate! ${sideLabelForRuleset(rulesetId, opponent, { boardSize })} Wins` };
       }
       return { winner: null, reason: "Stalemate — draw" };
     }
@@ -51,8 +49,8 @@ export function checkCurrentPlayerLost(state: GameState): { winner: Player | nul
   }
 
   if (!currentPlayerHasStacks) {
-    const winnerName = opponent === "B" ? "Dark" : "Light";
-    const loserName = currentPlayer === "B" ? "Dark" : "Light";
+    const winnerName = sideLabelForRuleset(rulesetId, opponent, { boardSize });
+    const loserName = sideLabelForRuleset(rulesetId, currentPlayer, { boardSize });
     return {
       winner: opponent,
       reason: `${winnerName} wins — ${loserName} has no pieces`,
@@ -62,8 +60,8 @@ export function checkCurrentPlayerLost(state: GameState): { winner: Player | nul
   // Check if current player has no legal moves
   const currentPlayerMoves = generateLegalMoves(state);
   if (currentPlayerMoves.length === 0) {
-    const winnerName = opponent === "B" ? "Dark" : "Light";
-    const loserName = currentPlayer === "B" ? "Dark" : "Light";
+    const winnerName = sideLabelForRuleset(rulesetId, opponent, { boardSize });
+    const loserName = sideLabelForRuleset(rulesetId, currentPlayer, { boardSize });
     return {
       winner: opponent,
       reason: `${winnerName} wins — ${loserName} has no moves`,
@@ -85,6 +83,7 @@ export function getWinner(state: GameState): { winner: Player | null; reason: st
   }
 
   const rulesetId = state.meta?.rulesetId ?? "lasca";
+  const boardSize = (state.meta as any)?.boardSize as number | undefined;
   if (rulesetId === "columns_chess" || rulesetId === "chess") {
     const currentPlayer = state.toMove;
     const opponent: Player = currentPlayer === "B" ? "W" : "B";
@@ -94,7 +93,7 @@ export function getWinner(state: GameState): { winner: Player | null; reason: st
     if (oppMoves.length === 0) {
       const inCheck = isKingInCheckChess(opponentState, opponent);
       if (inCheck) {
-        return { winner: currentPlayer, reason: `Checkmate! ${sideLabelChess(currentPlayer)} Wins` };
+        return { winner: currentPlayer, reason: `Checkmate! ${sideLabelForRuleset(rulesetId, currentPlayer, { boardSize })} Wins` };
       }
       return { winner: null, reason: "Stalemate — draw" };
     }
@@ -118,8 +117,8 @@ export function getWinner(state: GameState): { winner: Player | null; reason: st
   }
 
   if (!opponentHasStacks) {
-    const winnerName = currentPlayer === "B" ? "Dark" : "Light";
-    const opponentName = opponent === "B" ? "Dark" : "Light";
+    const winnerName = sideLabelForRuleset(rulesetId, currentPlayer, { boardSize });
+    const opponentName = sideLabelForRuleset(rulesetId, opponent, { boardSize });
     return {
       winner: currentPlayer,
       reason: `${winnerName} wins — ${opponentName} has no pieces`,
@@ -134,8 +133,8 @@ export function getWinner(state: GameState): { winner: Player | null; reason: st
   };
   const opponentLegalMoves = generateLegalMoves(opponentState);
   if (opponentLegalMoves.length === 0) {
-    const winnerName = currentPlayer === "B" ? "Dark" : "Light";
-    const opponentName = opponent === "B" ? "Dark" : "Light";
+    const winnerName = sideLabelForRuleset(rulesetId, currentPlayer, { boardSize });
+    const opponentName = sideLabelForRuleset(rulesetId, opponent, { boardSize });
     return {
       winner: currentPlayer,
       reason: `${winnerName} wins — ${opponentName} has no moves`,

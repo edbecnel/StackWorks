@@ -19,6 +19,13 @@ export const THEMES: ThemeDef[] = [
     css: new URL("../assets/themes/classic/theme.css", import.meta.url),
   },
   {
+    id: "checkers",
+    label: "Checkers (Red/Black)",
+    piecesDefs: new URL("../assets/themes/checkers/pieces_defs.svg", import.meta.url),
+    boardDefs: new URL("../assets/themes/classic/board_defs.svg", import.meta.url),
+    css: new URL("../assets/themes/classic/theme.css", import.meta.url),
+  },
+  {
     id: "neo",
     label: "Neo",
     piecesDefs: new URL("../assets/themes/neo/pieces_defs.svg", import.meta.url),

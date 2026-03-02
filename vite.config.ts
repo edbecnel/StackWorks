@@ -93,6 +93,7 @@ export default defineConfig(({ mode }) => ({
         columnsChessHelp: path.resolve(__dirname, "src/columnsChess-help.html"),
         chessHelp: path.resolve(__dirname, "src/chess-help.html"),
         damaHelp: path.resolve(__dirname, "src/dama-help.html"),
+        checkersHelp: path.resolve(__dirname, "src/checkers-help.html"),
         damascaHelp: path.resolve(__dirname, "src/damasca-help.html"),
         startHelp: path.resolve(__dirname, "src/start-help.html"),
       },

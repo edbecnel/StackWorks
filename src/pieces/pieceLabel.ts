@@ -1,11 +1,10 @@
 import type { Piece } from "../types";
+import { sideLabelForRuleset } from "../shared/sideTerminology";
 
 type RulesetIdLike = string | null | undefined;
 
 function ownerLabel(owner: Piece["owner"], rulesetId?: RulesetIdLike): string {
-  // Columns Chess uses chess nomenclature.
-  if (rulesetId === "columns_chess" || rulesetId === "chess") return owner === "W" ? "White" : "Black";
-  return owner === "W" ? "Light" : "Dark";
+  return sideLabelForRuleset(rulesetId, owner);
 }
 
 function rankLabel(rank: Piece["rank"], rulesetId?: RulesetIdLike): string {
@@ -16,8 +15,11 @@ function rankLabel(rank: Piece["rank"], rulesetId?: RulesetIdLike): string {
     case "R": return "Rook";
     case "Q": return "Queen";
     case "K": return "King";
-    case "S": return "Soldier";
-    case "O": return (rulesetId === "dama") ? "King" : "Officer";
+    case "S": return rulesetId === "checkers_us" ? "Man" : "Soldier";
+    case "O": {
+      if (rulesetId === "checkers_us") return "King";
+      return (rulesetId === "dama") ? "King" : "Officer";
+    }
     default: return "Piece";
   }
 }

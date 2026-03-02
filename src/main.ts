@@ -34,6 +34,9 @@ import { createSfxManager } from "./ui/sfx";
 import { createPrng } from "./shared/prng.ts";
 import { createBoardLoadingOverlay } from "./ui/boardLoadingOverlay";
 import { nextPaint } from "./ui/nextPaint";
+import { setBoardFlipped } from "./render/boardFlip";
+import { setStackWorksGameTitle } from "./ui/gameTitle";
+import { getSideLabelsForRuleset } from "./shared/sideTerminology";
 
 const LS_OPT_KEYS = {
   moveHints: "lasca.opt.moveHints",
@@ -41,6 +44,7 @@ const LS_OPT_KEYS = {
   lastMoveHighlights: "lasca.opt.lastMoveHighlights",
   showResizeIcon: "lasca.opt.showResizeIcon",
   boardCoords: "lasca.opt.boardCoords",
+  flipBoard: "lasca.opt.flipBoard",
   threefold: "lasca.opt.threefold",
   toasts: "lasca.opt.toasts",
   sfx: "lasca.opt.sfx",
@@ -58,7 +62,7 @@ function writeBoolPref(key: string, value: boolean): void {
   localStorage.setItem(key, value ? "1" : "0");
 }
 
-function updatePlayerColorBadge(driver: unknown): void {
+function updatePlayerColorBadge(driver: unknown, rulesetId: string, boardSize: number): void {
   const el = document.getElementById("playerColorBadge") as HTMLElement | null;
   if (!el) return;
   const anyDriver = driver as any;
@@ -67,9 +71,11 @@ function updatePlayerColorBadge(driver: unknown): void {
   const color = (anyDriver as OnlineGameDriver).getPlayerColor();
   if (color !== "W" && color !== "B") return;
 
-  el.textContent = color === "W" ? "⚪" : "⚫";
+  const labels = getSideLabelsForRuleset(rulesetId, { boardSize });
+  const wIcon = labels.W === "Red" ? "🔴" : "⚪";
+  el.textContent = color === "W" ? wIcon : "⚫";
   el.style.display = "inline-flex";
-  const label = color === "W" ? "Playing as Light" : "Playing as Dark";
+  const label = `Playing as ${color === "W" ? labels.W : labels.B}`;
   el.title = label;
   el.setAttribute("aria-label", label);
 }
@@ -78,7 +84,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   const activeVariant = getVariantById(ACTIVE_VARIANT_ID);
 
   const gameTitleEl = document.getElementById("gameTitle");
-  if (gameTitleEl) gameTitleEl.textContent = activeVariant.displayName;
+  if (gameTitleEl) setStackWorksGameTitle(gameTitleEl, activeVariant.displayName);
 
   const boardWrap = document.getElementById("boardWrap") as HTMLElement | null;
   if (!boardWrap) throw new Error("Missing board container: #boardWrap");
@@ -88,13 +94,23 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const svg = await loadSvgFileInto(boardWrap, lascaBoardSvgUrl);
 
+  const flipBoardToggle = document.getElementById("flipBoardToggle") as HTMLInputElement | null;
+  const savedFlip = readOptionalBoolPref(LS_OPT_KEYS.flipBoard);
+  if (flipBoardToggle && savedFlip !== null) {
+    flipBoardToggle.checked = savedFlip;
+  }
+  const isFlipped = () => Boolean(flipBoardToggle?.checked);
+
+  // Apply flip early so any subsequently-created layers end up in the rotated view.
+  setBoardFlipped(svg, isFlipped());
+
   const boardCoordsToggle = document.getElementById("boardCoordsToggle") as HTMLInputElement | null;
   const savedBoardCoords = readOptionalBoolPref(LS_OPT_KEYS.boardCoords);
   if (boardCoordsToggle && savedBoardCoords !== null) {
     boardCoordsToggle.checked = savedBoardCoords;
   }
   const applyBoardCoords = () =>
-    renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), activeVariant.boardSize);
+    renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), activeVariant.boardSize, { flipped: isFlipped() });
   applyBoardCoords();
 
   const showResizeIconToggle = document.getElementById("showResizeIconToggle") as HTMLInputElement | null;
@@ -178,7 +194,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     envServerUrl: import.meta.env.VITE_SERVER_URL,
   });
 
-  updatePlayerColorBadge(driver);
+  updatePlayerColorBadge(driver, activeVariant.rulesetId, activeVariant.boardSize);
 
   // Threefold repetition: local toggle for offline; creator-locked for online.
   const savedThreefold = readOptionalBoolPref(LS_OPT_KEYS.threefold);
@@ -329,6 +345,14 @@ window.addEventListener("DOMContentLoaded", async () => {
     boardCoordsToggle.addEventListener("change", () => {
       applyBoardCoords();
       writeBoolPref(LS_OPT_KEYS.boardCoords, boardCoordsToggle.checked);
+    });
+  }
+
+  if (flipBoardToggle) {
+    flipBoardToggle.addEventListener("change", () => {
+      writeBoolPref(LS_OPT_KEYS.flipBoard, flipBoardToggle.checked);
+      setBoardFlipped(svg, flipBoardToggle.checked);
+      applyBoardCoords();
     });
   }
 

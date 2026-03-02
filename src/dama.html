@@ -1125,6 +1125,7 @@
               Start Page
             </a>
             <a
+              id="helpLink"
               href="dama-help.html"
               target="_blank"
               rel="noopener noreferrer"
@@ -1236,6 +1237,37 @@
                 "
               >
                 Column letters (A–G) and row numbers (1–7)
+              </div>
+
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-top: 12px;
+                "
+              >
+                <input
+                  type="checkbox"
+                  id="flipBoardToggle"
+                  style="width: 16px; height: 16px; cursor: pointer"
+                />
+                <label
+                  for="flipBoardToggle"
+                  style="font-size: 13px; cursor: pointer; user-select: none"
+                >
+                  Flip Board
+                </label>
+              </div>
+              <div
+                style="
+                  font-size: 11px;
+                  color: rgba(255, 255, 255, 0.6);
+                  margin-top: 6px;
+                  margin-left: 24px;
+                "
+              >
+                Reverses displayed coordinates
               </div>
 
               <div
@@ -1855,6 +1887,7 @@
                   <option value="blue">Blue</option>
                   <option value="stone">Stone</option>
                   <option value="burled">Burled Wood</option>
+                  <option value="checkers">Classic Checkers</option>
                 </select>
               </div>
               <div

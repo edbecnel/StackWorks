@@ -211,6 +211,11 @@ export function bindKeyboardShortcutsContextMenu(controller: GameController): vo
     if (ev.defaultPrevented) return;
     if (isEditableTarget(ev.target)) return;
 
+    // Do not hijack right-clicks over side panels.
+    // Those areas often have their own interactions (scrolling, selection, etc.).
+    const el = ev.target instanceof Element ? ev.target : null;
+    if (el?.closest?.("#leftSidebar, #rightSidebar")) return;
+
     const menu = ensureMenu();
     const hide = (menu as any).__hide as (() => void) | undefined;
     hide?.();

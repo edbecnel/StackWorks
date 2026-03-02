@@ -7,6 +7,7 @@ import type { HistoryChangeReason } from "../controller/gameController.ts";
 import type { AISettings, AIDifficulty, AIWorkerResponse } from "./aiTypes.ts";
 import { difficultyForPlayer } from "./aiTypes.ts";
 import { createPrng } from "../shared/prng.ts";
+import { sideLabelForRuleset } from "../shared/sideTerminology.ts";
 
 const LS_KEYS = {
   white: "lasca.ai.white",
@@ -235,11 +236,8 @@ export class AIManager {
 
     const rulesetId = this.controller.getState().meta?.rulesetId ?? "lasca";
     const isChessLike = rulesetId === "chess" || rulesetId === "columns_chess";
-    const sideLabel = (p: Player): string => {
-      // Chess nomenclature is White/Black; other variants use Light/Dark.
-      if (isChessLike) return p === "B" ? "Black" : "White";
-      return p === "B" ? "Dark" : "Light";
-    };
+    const boardSize = (this.controller.getState().meta as any)?.boardSize as number | undefined;
+    const sideLabel = (p: Player): string => sideLabelForRuleset(rulesetId, p, { boardSize });
 
     // For non-chess variants, we want the sticky "Tap here to resume bot" hint
     // to be visible when a fresh game starts and it's the bot's turn.
