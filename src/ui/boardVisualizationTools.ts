@@ -193,6 +193,20 @@ export function installBoardVisualizationTools(
   document.addEventListener(
     "pointerup",
     (ev: PointerEvent) => {
+      // If the hold-to-clear fired while pressing outside the SVG (e.g. on coordinate labels),
+      // consume the release so it doesn't select a square/file label.
+      if (
+        holdClearedPointerId != null &&
+        ev.pointerType === "touch" &&
+        ev.pointerId === holdClearedPointerId &&
+        !(ev.target instanceof Node && svg.contains(ev.target))
+      ) {
+        holdClearedPointerId = null;
+        cancelHoldClear(ev.pointerId);
+        ev.preventDefault();
+        ev.stopPropagation();
+        return;
+      }
       cancelHoldClear(ev.pointerId);
     },
     { capture: true }
@@ -201,7 +215,28 @@ export function installBoardVisualizationTools(
   document.addEventListener(
     "pointercancel",
     (ev: PointerEvent) => {
+      if (holdClearedPointerId != null && ev.pointerType === "touch" && ev.pointerId === holdClearedPointerId) {
+        holdClearedPointerId = null;
+      }
       cancelHoldClear(ev.pointerId);
+    },
+    { capture: true }
+  );
+
+  // Also suppress any synthetic click that may be dispatched after a long-press clear.
+  document.addEventListener(
+    "click",
+    (ev: MouseEvent) => {
+      if (Date.now() >= suppressClickUntilMs) return;
+      if (!(ev.target instanceof Element)) return;
+      if (ev.target.closest("#touchAnnotationPalette")) return;
+
+      // Only suppress clicks that occur in/around the board area.
+      const inBoardArea = (ev.target instanceof Node && svg.contains(ev.target)) || Boolean(ev.target.closest("#boardWrap"));
+      if (!inBoardArea) return;
+
+      ev.preventDefault();
+      ev.stopPropagation();
     },
     { capture: true }
   );
@@ -339,10 +374,9 @@ export function installBoardVisualizationTools(
           lastTouchTapX = ev.clientX;
           lastTouchTapY = ev.clientY;
 
-          // Consume the tap so it doesn't act as game input.
-          suppressClickUntilMs = now + 600;
-          ev.preventDefault();
-          ev.stopPropagation();
+          // Do not consume the first tap: allow normal tap-to-move gameplay in analysis mode.
+          // If the user double-taps the same square, the second tap will be consumed when the
+          // highlight toggle happens.
         }
       }
       return;
