@@ -80,6 +80,12 @@ body[data-panel-layout="menu"] #boardWrap svg {
   width: min(100%, 1280px) !important;
 }
 
+/* Board fit (all layout modes): never require scrolling to see the bottom of the board.
+   JS sets --board-fit-max-h on #boardWrap based on the available space in #centerArea. */
+#boardWrap svg {
+  max-height: var(--board-fit-max-h, 100%) !important;
+}
+
 /* Top header (menu mode) */
 #panelLayoutHeader {
   position: fixed;
@@ -317,6 +323,90 @@ body[data-panel-layout="menu"] #panelLayoutDialogOverlay[data-variant="playback"
 }
 `;
   document.head.appendChild(style);
+}
+
+function parsePx(raw: string | null | undefined): number {
+  if (!raw) return 0;
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function syncBoardViewportFit(): void {
+  if (typeof document === "undefined" || typeof window === "undefined") return;
+
+  const centerArea = document.getElementById("centerArea") as HTMLElement | null;
+  const boardWrap = document.getElementById("boardWrap") as HTMLElement | null;
+  const svg = document.querySelector("#boardWrap svg") as SVGSVGElement | null;
+  if (!centerArea || !boardWrap || !svg) return;
+
+  // Compute available content-box height for the board, accounting for padding.
+  let padTop = 0;
+  let padBottom = 0;
+  let padLeft = 0;
+  let padRight = 0;
+
+  try {
+    const cs = window.getComputedStyle(centerArea);
+    padTop = parsePx(cs.paddingTop);
+    padBottom = parsePx(cs.paddingBottom);
+    padLeft = parsePx(cs.paddingLeft);
+    padRight = parsePx(cs.paddingRight);
+  } catch {
+    // ignore
+  }
+
+  // Prefer visual viewport sizing (handles mobile browser chrome / on-screen keyboard).
+  const vv = window.visualViewport;
+  const viewportW = (vv?.width ?? window.innerWidth) + (vv?.offsetLeft ?? 0);
+  const viewportH = (vv?.height ?? window.innerHeight) + (vv?.offsetTop ?? 0);
+
+  let rectTop = 0;
+  let rectLeft = 0;
+  try {
+    const r = centerArea.getBoundingClientRect();
+    rectTop = r.top;
+    rectLeft = r.left;
+  } catch {
+    // ignore
+  }
+
+  const maxFromClientH = centerArea.clientHeight - padTop - padBottom;
+  const maxFromClientW = centerArea.clientWidth - padLeft - padRight;
+  const maxFromViewportH = viewportH - rectTop - padTop - padBottom;
+  const maxFromViewportW = viewportW - rectLeft - padLeft - padRight;
+
+  const availableH = Math.min(maxFromClientH > 0 ? maxFromClientH : Number.POSITIVE_INFINITY, maxFromViewportH);
+  const availableW = Math.min(maxFromClientW > 0 ? maxFromClientW : Number.POSITIVE_INFINITY, maxFromViewportW);
+
+  // If the layout isn't ready yet, skip.
+  if (!Number.isFinite(availableH) || !Number.isFinite(availableW) || availableH <= 0 || availableW <= 0) return;
+
+  // Keep a tiny buffer to avoid 1px rounding overflow creating a scroll bar.
+  const maxH = Math.max(120, Math.floor(availableH - 2));
+
+  // Only update when the value changes to avoid needless style recalcs.
+  const prev = boardWrap.style.getPropertyValue("--board-fit-max-h");
+  const next = `${maxH}px`;
+  if (prev !== next) {
+    boardWrap.style.setProperty("--board-fit-max-h", next);
+  }
+}
+
+function scheduleBoardViewportFitSync(): void {
+  if (typeof window === "undefined") return;
+  const anyWin = window as any;
+  if (anyWin.__boardViewportFitSyncQueued) return;
+  anyWin.__boardViewportFitSyncQueued = 1;
+
+  try {
+    window.requestAnimationFrame(() => {
+      anyWin.__boardViewportFitSyncQueued = 0;
+      syncBoardViewportFit();
+    });
+  } catch {
+    anyWin.__boardViewportFitSyncQueued = 0;
+    syncBoardViewportFit();
+  }
 }
 
 function createButton(text: string): HTMLButtonElement {
@@ -653,14 +743,28 @@ export function bindPanelLayoutMenuMode(): void {
 
   // Keep the board zoom in sync with layout mode.
   try {
-    window.addEventListener("panelLayoutModeChanged", () => scheduleBoardPlayAreaZoomSync());
+    window.addEventListener("panelLayoutModeChanged", () => {
+      scheduleBoardPlayAreaZoomSync();
+      scheduleBoardViewportFitSync();
+    });
   } catch {
     // ignore
   }
 
   // Handle rotation / resizes that can change the mobile-like heuristic.
   try {
-    window.addEventListener("resize", () => scheduleBoardPlayAreaZoomSync());
+    window.addEventListener("resize", () => {
+      scheduleBoardPlayAreaZoomSync();
+      scheduleBoardViewportFitSync();
+    });
+  } catch {
+    // ignore
+  }
+
+  // visualViewport can change when mobile browser chrome expands/collapses.
+  try {
+    window.visualViewport?.addEventListener("resize", () => scheduleBoardViewportFitSync());
+    window.visualViewport?.addEventListener("scroll", () => scheduleBoardViewportFitSync());
   } catch {
     // ignore
   }
@@ -674,6 +778,7 @@ export function bindPanelLayoutMenuMode(): void {
     if (boardWrap && typeof MutationObserver !== "undefined" && !anyWrap.__panelLayoutBoardWrapObserver) {
       const obs = new MutationObserver(() => {
         scheduleBoardPlayAreaZoomSync();
+        scheduleBoardViewportFitSync();
       });
       // IMPORTANT: do NOT observe attributes. Our zoom implementation updates
       // `transform` attributes, which would create an observer feedback loop and
@@ -687,6 +792,7 @@ export function bindPanelLayoutMenuMode(): void {
 
   // Apply immediately (covers initial page load).
   scheduleBoardPlayAreaZoomSync();
+  scheduleBoardViewportFitSync();
 
   const resolveGameName = (): string => {
     const rawExplicit = (document.getElementById("gameTitle") as HTMLElement | null)?.textContent?.trim();

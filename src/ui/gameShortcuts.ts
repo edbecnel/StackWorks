@@ -24,6 +24,29 @@ function clampInt(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.trunc(n)));
 }
 
+function tryClientPointToSvgViewBoxPoint(
+  svg: SVGSVGElement,
+  clientX: number,
+  clientY: number
+): { x: number; y: number } | null {
+  // Convert a screen-space point to the SVG's internal coordinate space (viewBox).
+  // This is the most reliable way to hit-test "board squares" even when themes add
+  // overlays or transforms (e.g. play-area zoom).
+  try {
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    const inv = ctm.inverse();
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const p = pt.matrixTransform(inv);
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return null;
+    return { x: p.x, y: p.y };
+  } catch {
+    return null;
+  }
+}
+
 function adjustRangeInput(id: string, deltaSteps: number): boolean {
   const el = document.getElementById(id) as HTMLInputElement | null;
   if (!el) return false;
@@ -144,7 +167,7 @@ function openKeyboardShortcutsPopup(controller?: GameController): void {
     <h2>Help</h2>
     <ul>
       <li><b>Show this window:</b> <code>Ctrl/Cmd+Shift+?</code> (also works as <code>Ctrl/Cmd+Shift+/</code>)</li>
-      <li><b>Right-click menu:</b> Right-click outside the board border for chess or anywhere in the game board for other games → <b>Show Keyboard Shortcuts</b></li>
+      <li><b>Right-click menu:</b> Right-click outside the board for chess variants, or anywhere in the playing area for other games → <b>Show Keyboard Shortcuts</b></li>
     </ul>
 
     ${analysisSection}
@@ -238,38 +261,76 @@ export function bindKeyboardShortcutsContextMenu(controller: GameController): vo
     );
   };
 
-  const isInPlayingArea = (target: EventTarget | null): boolean => {
+  const resolveEventElement = (ev: MouseEvent): Element | null => {
+    if (ev.target instanceof Element) return ev.target;
+    try {
+      return document.elementFromPoint(ev.clientX, ev.clientY);
+    } catch {
+      return null;
+    }
+  };
+
+  const isInPlayingArea = (target: EventTarget | null, clientX?: number, clientY?: number): boolean => {
     const area = getPlayingArea();
     if (!area) return false;
+
     const node = target instanceof Node ? target : null;
-    if (!node) return false;
-    return area.contains(node);
+    if (node) return area.contains(node);
+
+    if (typeof clientX === "number" && typeof clientY === "number") {
+      try {
+        const el = document.elementFromPoint(clientX, clientY);
+        if (el) return area.contains(el);
+      } catch {
+        // ignore
+      }
+    }
+    return false;
   };
 
-  const isOverBoardSvg = (target: EventTarget | null): boolean => {
-    const svg = getBoardSvg();
-    if (!svg) return false;
-    const node = target instanceof Node ? target : null;
-    if (!node) return false;
-    return svg.contains(node);
-  };
-
-  const isOverCheckerboardSquares = (ev: MouseEvent): boolean => {
+  const isOverChessBoardSquaresAtPoint = (clientX: number, clientY: number): boolean => {
     const svg = getBoardSvg();
     if (!svg) return false;
 
-    // Boards use a #squares group for the checkerboard/grid tiles.
-    // For chess, we reserve right-clicks over the checkerboard for analysis graphics,
-    // but allow the shortcuts menu in the SVG margin surrounding the grid.
-    const squares = svg.querySelector("#squares") as SVGGElement | null;
-    if (!squares) {
-      // Fallback: if we can't identify the grid, treat the whole SVG as "on-board".
-      return isOverBoardSvg(ev.target);
+    // Chess boards use viewBox 0..1000 with the 8x8 squares occupying 100..900.
+    // Use coordinate hit-testing so we don't depend on DOM target/bboxes.
+    const p = tryClientPointToSvgViewBoxPoint(svg, clientX, clientY);
+    if (p) {
+      const inSquares = p.x >= 100 && p.x <= 900 && p.y >= 100 && p.y <= 900;
+      return inSquares;
     }
 
-    const r = squares.getBoundingClientRect();
-    if (!(r.width > 0 && r.height > 0)) return false;
-    return ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
+    // Prefer the actual playable squares region (not the SVG's outer margin).
+    // Both `chess_board.svg` and `columns_chess_board.svg` have <g id="squares">.
+    try {
+      const squares = svg.querySelector("#squares") as SVGGElement | null;
+      if (squares) {
+        const r = squares.getBoundingClientRect();
+        return clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom;
+      }
+    } catch {
+      // ignore
+    }
+
+    // Fallback: if we can't find the squares group, treat any hit inside the SVG as board.
+    try {
+      const el = document.elementFromPoint(clientX, clientY);
+      if (!el) return false;
+      return svg.contains(el);
+    } catch {
+      return false;
+    }
+  };
+
+  const isInPanelChrome = (el: Element | null): boolean => {
+    if (!el?.closest) return false;
+
+    // Never show over panels/gutters/tabs or menu-mode overlays.
+    return Boolean(
+      el.closest(
+        "#leftSidebar, #rightSidebar, .sidebar, .gutter, .sidebarTab, #panelLayoutHeader, #panelLayoutDropdown, #panelLayoutDialogOverlay"
+      )
+    );
   };
 
   // Capture phase so we can decide before board tools (e.g. chess right-drag annotations)
@@ -279,24 +340,27 @@ export function bindKeyboardShortcutsContextMenu(controller: GameController): vo
     (ev) => {
       if (isEditableTarget(ev.target)) return;
 
-      // Do not hijack right-clicks over side panels.
+      // Do not hijack right-clicks over side panels or other UI chrome.
       // Those areas often have their own interactions (scrolling, selection, etc.).
-      const el = ev.target instanceof Element ? ev.target : null;
-      if (el?.closest?.("#leftSidebar, #rightSidebar")) return;
+      const el = resolveEventElement(ev);
+      if (isInPanelChrome(el)) return;
 
       const rulesetId = controller.getState().meta?.rulesetId ?? "lasca";
       const chessLike = isChessLikeRulesetId(rulesetId);
-      const inPlayingArea = isInPlayingArea(ev.target);
+      const inPlayingArea = isInPlayingArea(ev.target, ev.clientX, ev.clientY);
 
       // Only show within the playing area (#boardWrap).
       if (!inPlayingArea) return;
 
       // UX:
-      // - Chess variants: show only off-checkerboard (inside the playing area, but outside the
-      //   checkerboard grid) so right-click on the checkerboard can be reserved for analysis graphics.
+      // - Chess variants: NEVER show over the board SVG. Right-click there is reserved for analysis drawings.
       // - Other games: show anywhere within #boardWrap (on-board and off-board).
       if (chessLike) {
-        if (isOverCheckerboardSquares(ev)) return;
+        if (isOverChessBoardSquaresAtPoint(ev.clientX, ev.clientY)) {
+          // Also suppress the browser's native context menu; right-click is reserved.
+          ev.preventDefault();
+          return;
+        }
       }
 
       const menu = ensureMenu();
@@ -306,8 +370,11 @@ export function bindKeyboardShortcutsContextMenu(controller: GameController): vo
       ev.preventDefault();
 
       const pad = 8;
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
+      const vv = window.visualViewport;
+      const vw = vv?.width ?? window.innerWidth;
+      const vh = vv?.height ?? window.innerHeight;
+      const offL = vv?.offsetLeft ?? 0;
+      const offT = vv?.offsetTop ?? 0;
 
       menu.style.display = "block";
 
@@ -315,8 +382,8 @@ export function bindKeyboardShortcutsContextMenu(controller: GameController): vo
       const rect = menu.getBoundingClientRect();
       const left = clampInt(ev.clientX, pad, Math.max(pad, vw - rect.width - pad));
       const top = clampInt(ev.clientY, pad, Math.max(pad, vh - rect.height - pad));
-      menu.style.left = `${left}px`;
-      menu.style.top = `${top}px`;
+      menu.style.left = `${Math.round(offL + left)}px`;
+      menu.style.top = `${Math.round(offT + top)}px`;
     },
     { capture: true }
   );
