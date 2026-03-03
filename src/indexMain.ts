@@ -1577,12 +1577,16 @@ window.addEventListener("DOMContentLoaded", () => {
     const isCheckers = v.rulesetId === "checkers_us";
     const usesColumnsChessBoard = isColumnsChess || isClassicChess;
 
-    // Board coordinate style (Inside squares) only applies to Classic Chess / Columns Chess.
+    // Board coordinate style (Inside squares) applies to 8x8 checkerboard boards:
+    // - Chess / Columns Chess always use a checkerboard board.
+    // - US Checkers always uses a checkerboard board.
+    // - Other 8x8 disc games only when "Use checkered board (8×8)" is enabled.
     {
-      const show = usesColumnsChessBoard;
-      if (elBoardCoordsInSquaresRow) elBoardCoordsInSquaresRow.style.display = show ? "" : "none";
-      if (elBoardCoordsInSquaresHint) elBoardCoordsInSquaresHint.style.display = show ? "" : "none";
-      if (elBoardCoordsInSquares) elBoardCoordsInSquares.disabled = !show || !elBoardCoords.checked;
+      const usesCheckerboard =
+        v.boardSize === 8 && (usesColumnsChessBoard || isCheckers || Boolean(elBoard8x8Checkered?.checked));
+      if (elBoardCoordsInSquaresRow) elBoardCoordsInSquaresRow.style.display = usesCheckerboard ? "" : "none";
+      if (elBoardCoordsInSquaresHint) elBoardCoordsInSquaresHint.style.display = usesCheckerboard ? "" : "none";
+      if (elBoardCoordsInSquares) elBoardCoordsInSquares.disabled = !usesCheckerboard || !elBoardCoords.checked;
     }
 
     // "Use checkered board for 8×8 games" does not apply to:

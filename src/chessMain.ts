@@ -41,6 +41,7 @@ import {
 } from "./ui/gameShortcuts.ts";
 import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
+import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 
 const ACTIVE_VARIANT_ID: VariantId = "chess_classic";
 
@@ -219,6 +220,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const controller = new GameController(svg, piecesLayer, inspector as any, state, history, driver);
   controller.bind();
+
+  bindOfflineNavGuard(controller, ACTIVE_VARIANT_ID);
 
   // Analysis graphics: right-drag (desktop) and touch gestures (analysis mode only).
   const boardVizTools = installBoardVisualizationTools(svg, { isTouchInputEnabled: () => controller.isAnalysisMode() });

@@ -36,6 +36,7 @@ import { installBoardVisualizationTools } from "./ui/boardVisualizationTools";
 import { setStackWorksGameTitle } from "./ui/gameTitle";
 import { bindTouchAnnotationPalette } from "./ui/touchAnnotationPalette";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
+import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
 
 const ACTIVE_VARIANT_ID: VariantId = "columns_chess";
@@ -234,6 +235,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const controller = new GameController(svg, piecesLayer, orientedInspector as any, state, history, driver);
   controller.bind();
+
+  bindOfflineNavGuard(controller, ACTIVE_VARIANT_ID);
 
   // Analysis graphics: right-drag (desktop) and touch gestures (analysis mode only).
   const boardVizTools = installBoardVisualizationTools(svg, { isTouchInputEnabled: () => controller.isAnalysisMode() });

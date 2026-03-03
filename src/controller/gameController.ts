@@ -118,6 +118,14 @@ export class GameController {
   private lastCheckToastSig: string | null = null;
   private toastTimer: number | null = null;
   private toastEl: HTMLDivElement | null = null;
+
+  /**
+   * Page-level UI helpers sometimes need to know whether this game is online
+   * (state persists server-side) vs local/offline (refresh/back loses state).
+   */
+  public getDriverMode(): GameDriver["mode"] {
+    return this.driver.mode;
+  }
   private stickyToastKey: string | null = null;
   private stickyToastText: string | null = null;
   private stickyToastActions: Map<string, () => void> = new Map();

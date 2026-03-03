@@ -37,6 +37,7 @@ import { setBoardFlipped } from "./render/boardFlip";
 import { setStackWorksGameTitle } from "./ui/gameTitle";
 import { getSideLabelsForRuleset } from "./shared/sideTerminology";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
+import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
 
 const LS_OPT_KEYS = {
@@ -223,6 +224,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const controller = new GameController(svg, piecesLayer, inspector, state, history, driver);
   controller.bind();
+
+  bindOfflineNavGuard(controller, activeVariant.variantId);
 
   bindStartPageConfirm(controller, activeVariant.variantId);
   bindFullScreenButton();

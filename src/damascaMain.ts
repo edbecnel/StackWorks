@@ -42,7 +42,9 @@ import { setBoardFlipped } from "./render/boardFlip";
 import { setStackWorksGameTitle } from "./ui/gameTitle";
 import { getSideLabelsForRuleset } from "./shared/sideTerminology";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
+import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
+import { ensureBoardCoordsInSquaresOption } from "./ui/boardCoordsInSquaresOption";
 
 const FALLBACK_VARIANT_ID: VariantId = "damasca_8";
 
@@ -63,6 +65,7 @@ const LS_OPT_KEYS = {
   lastMoveHighlights: "lasca.opt.lastMoveHighlights",
   showResizeIcon: "lasca.opt.showResizeIcon",
   boardCoords: "lasca.opt.boardCoords",
+  boardCoordsInSquares: "lasca.opt.boardCoordsInSquares",
   flipBoard: "lasca.opt.flipBoard",
   board8x8Checkered: "lasca.opt.board8x8Checkered",
   checkerboardTheme: "lasca.opt.checkerboardTheme",
@@ -231,9 +234,26 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (boardCoordsToggle && savedBoardCoords !== null) {
     boardCoordsToggle.checked = savedBoardCoords;
   }
+
+  const canUseInSquareCoords = activeVariant.boardSize === 8 && useCheckered8x8;
+  const inSquaresUI = ensureBoardCoordsInSquaresOption(boardCoordsToggle);
+  const savedBoardCoordsInSquares = readOptionalBoolPref(LS_OPT_KEYS.boardCoordsInSquares);
+  if (inSquaresUI.toggle && savedBoardCoordsInSquares !== null) {
+    inSquaresUI.toggle.checked = savedBoardCoordsInSquares;
+  }
+  const syncInSquaresUI = () => {
+    if (inSquaresUI.row) inSquaresUI.row.style.display = canUseInSquareCoords ? "flex" : "none";
+    if (inSquaresUI.hint) inSquaresUI.hint.style.display = canUseInSquareCoords ? "block" : "none";
+    if (inSquaresUI.toggle) inSquaresUI.toggle.disabled = !canUseInSquareCoords || !Boolean(boardCoordsToggle?.checked);
+  };
+
   const applyBoardCoords = () =>
-    renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), activeVariant.boardSize, { flipped: isFlipped() });
+    renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), activeVariant.boardSize, {
+      flipped: isFlipped(),
+      style: canUseInSquareCoords && inSquaresUI.toggle?.checked ? "inSquare" : "edge",
+    });
   applyBoardCoords();
+  syncInSquaresUI();
 
   const showResizeIconToggle = document.getElementById("showResizeIconToggle") as HTMLInputElement | null;
   const savedShowResizeIcon = readOptionalBoolPref(LS_OPT_KEYS.showResizeIcon);
@@ -349,6 +369,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const controller = new GameController(svg, piecesLayer, inspector, state, history, driver);
   controller.bind();
+
+  bindOfflineNavGuard(controller, ACTIVE_VARIANT_ID);
 
   bindStartPageConfirm(controller, ACTIVE_VARIANT_ID);
 
@@ -474,6 +496,14 @@ window.addEventListener("DOMContentLoaded", async () => {
     boardCoordsToggle.addEventListener("change", () => {
       applyBoardCoords();
       writeBoolPref(LS_OPT_KEYS.boardCoords, boardCoordsToggle.checked);
+      syncInSquaresUI();
+    });
+  }
+
+  if (inSquaresUI.toggle) {
+    inSquaresUI.toggle.addEventListener("change", () => {
+      writeBoolPref(LS_OPT_KEYS.boardCoordsInSquares, inSquaresUI.toggle!.checked);
+      applyBoardCoords();
     });
   }
 

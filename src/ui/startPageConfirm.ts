@@ -37,7 +37,11 @@ export function bindStartPageConfirm(controller: GameController, variantId: Vari
       if (!a) return;
       if (!hasBegun) return;
       if (!(e instanceof MouseEvent) || !isPlainLeftClick(e)) return;
-      const ok = window.confirm("Leaving this page will lose the current game. Continue to the Start Page?");
+      const msg =
+        controller.getDriverMode() === "online"
+          ? "The current game will be suspended. You may return to this game to continue before the game pause/wait period expires. Continue to the Start Page?"
+          : "Leaving this page will lose the current game. Continue to the Start Page?";
+      const ok = window.confirm(msg);
       if (ok) return;
       e.preventDefault();
       e.stopPropagation();
