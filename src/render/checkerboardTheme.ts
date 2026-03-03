@@ -301,6 +301,11 @@ function genTextureDataUrl(opts: {
   }
 }
 
+type IosTextureCache = {
+  stone?: { light: { url: string; size: number }; dark: { url: string; size: number } };
+  burled?: { light: { url: string; size: number }; dark: { url: string; size: number } };
+};
+
 function parseViewBox(svg: SVGSVGElement): { x: number; y: number; w: number; h: number } {
   const raw = svg.getAttribute("viewBox") ?? "";
   const parts = raw
@@ -854,22 +859,26 @@ export function applyCheckerboardTheme(svgRoot: SVGSVGElement, themeId: Checkerb
 
   if (useIOSImagePatternFallback) {
     const anyRoot = svgRoot as any;
-    if (!anyRoot.__checkerboardIOSPatternReady) {
-      anyRoot.__checkerboardIOSPatternReady = 1;
+    const cache: IosTextureCache = (anyRoot.__checkerboardIOSTextureCache ??= {});
 
-      if (themeId === "stone") {
-        const light = genTextureDataUrl({ themeId: "stone", variant: "light", baseHex: theme.light, seed: 11011, size: 256 });
-        const dark = genTextureDataUrl({ themeId: "stone", variant: "dark", baseHex: theme.dark, seed: 22023, size: 256 });
-        ensureImagePattern(svgRoot, { id: "stoneIOSLightImg", dataUrl: light.url, size: light.size });
-        ensureImagePattern(svgRoot, { id: "stoneIOSDarkImg", dataUrl: dark.url, size: dark.size });
-      }
+    // IMPORTANT: cache is per-theme. On iOS, users can switch Stone <-> Burled;
+    // we must ensure both sets of pattern IDs exist when needed.
+    if (themeId === "stone") {
+      const stone = (cache.stone ??= {
+        light: genTextureDataUrl({ themeId: "stone", variant: "light", baseHex: theme.light, seed: 11011, size: 256 }),
+        dark: genTextureDataUrl({ themeId: "stone", variant: "dark", baseHex: theme.dark, seed: 22023, size: 256 }),
+      });
+      ensureImagePattern(svgRoot, { id: "stoneIOSLightImg", dataUrl: stone.light.url, size: stone.light.size });
+      ensureImagePattern(svgRoot, { id: "stoneIOSDarkImg", dataUrl: stone.dark.url, size: stone.dark.size });
+    }
 
-      if (themeId === "burled") {
-        const light = genTextureDataUrl({ themeId: "burled", variant: "light", baseHex: theme.light, seed: 33031, size: 256 });
-        const dark = genTextureDataUrl({ themeId: "burled", variant: "dark", baseHex: theme.dark, seed: 44041, size: 256 });
-        ensureImagePattern(svgRoot, { id: "burledIOSLightImg", dataUrl: light.url, size: light.size });
-        ensureImagePattern(svgRoot, { id: "burledIOSDarkImg", dataUrl: dark.url, size: dark.size });
-      }
+    if (themeId === "burled") {
+      const burled = (cache.burled ??= {
+        light: genTextureDataUrl({ themeId: "burled", variant: "light", baseHex: theme.light, seed: 33031, size: 256 }),
+        dark: genTextureDataUrl({ themeId: "burled", variant: "dark", baseHex: theme.dark, seed: 44041, size: 256 }),
+      });
+      ensureImagePattern(svgRoot, { id: "burledIOSLightImg", dataUrl: burled.light.url, size: burled.light.size });
+      ensureImagePattern(svgRoot, { id: "burledIOSDarkImg", dataUrl: burled.dark.url, size: burled.dark.size });
     }
   }
 
