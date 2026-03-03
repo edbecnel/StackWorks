@@ -629,6 +629,12 @@ export function bindPanelLayoutMenuMode(): void {
     for (const moved of rec.sections) {
       const ph = moved.placeholderEl;
       if (ph && ph.parentElement) {
+        // Restore prior collapsed state (if we forced it open for the dialog).
+        if (moved.sectionEl.dataset.panelWasCollapsed === "1") {
+          moved.sectionEl.classList.add("collapsed");
+        }
+        delete moved.sectionEl.dataset.panelWasCollapsed;
+
         moved.sectionEl.removeAttribute("data-force-open");
         ph.parentElement.insertBefore(moved.sectionEl, ph);
         ph.remove();
@@ -670,6 +676,12 @@ export function bindPanelLayoutMenuMode(): void {
 
       // Force content visible in dialog.
       moved.sectionEl.setAttribute("data-force-open", "1");
+
+      // Some panels collapse via max-height/opacity (not display:none). Since we hide the
+      // section header inside the dialog, ensure the content is actually visible.
+      const wasCollapsed = moved.sectionEl.classList.contains("collapsed");
+      moved.sectionEl.dataset.panelWasCollapsed = wasCollapsed ? "1" : "0";
+      if (wasCollapsed) moved.sectionEl.classList.remove("collapsed");
 
       bodyEl.appendChild(moved.sectionEl);
     }
