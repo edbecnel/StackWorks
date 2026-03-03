@@ -34,6 +34,7 @@ import { nextPaint } from "./ui/nextPaint";
 import { ColumnsChessBotManager } from "./bot/columnsChessBotManager.ts";
 import { installBoardVisualizationTools } from "./ui/boardVisualizationTools";
 import { setStackWorksGameTitle } from "./ui/gameTitle";
+import { bindTouchAnnotationPalette } from "./ui/touchAnnotationPalette";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
 
@@ -235,7 +236,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   controller.bind();
 
   // Analysis graphics: right-drag (desktop) and touch gestures (analysis mode only).
-  installBoardVisualizationTools(svg, { isTouchInputEnabled: () => controller.isAnalysisMode() });
+  const boardVizTools = installBoardVisualizationTools(svg, { isTouchInputEnabled: () => controller.isAnalysisMode() });
+  bindTouchAnnotationPalette(controller, boardVizTools);
 
   bindStartPageConfirm(controller, ACTIVE_VARIANT_ID);
 

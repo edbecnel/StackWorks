@@ -106,6 +106,44 @@ function mulberry32(seed: number): () => number {
   };
 }
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const s = String(hex || "").trim();
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(s);
+  if (!m) return null;
+  const raw = m[1];
+  if (raw.length === 3) {
+    const r = Number.parseInt(raw[0] + raw[0], 16);
+    const g = Number.parseInt(raw[1] + raw[1], 16);
+    const b = Number.parseInt(raw[2] + raw[2], 16);
+    return { r, g, b };
+  }
+  const r = Number.parseInt(raw.slice(0, 2), 16);
+  const g = Number.parseInt(raw.slice(2, 4), 16);
+  const b = Number.parseInt(raw.slice(4, 6), 16);
+  return { r, g, b };
+}
+
+function mixRgb(
+  a: { r: number; g: number; b: number },
+  b: { r: number; g: number; b: number },
+  t: number
+): { r: number; g: number; b: number } {
+  const tt = Math.max(0, Math.min(1, t));
+  return {
+    r: Math.round(a.r + (b.r - a.r) * tt),
+    g: Math.round(a.g + (b.g - a.g) * tt),
+    b: Math.round(a.b + (b.b - a.b) * tt),
+  };
+}
+
+function rgbCss(rgb: { r: number; g: number; b: number }, a?: number): string {
+  if (typeof a === "number") {
+    const aa = Math.max(0, Math.min(1, a));
+    return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${aa})`;
+  }
+  return `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+}
+
 function ensureImagePattern(svgRoot: SVGSVGElement, opts: { id: string; dataUrl: string; size: number }): void {
   if (!opts.dataUrl) return;
   const defs = ensureSvgDefs(svgRoot);
@@ -148,39 +186,93 @@ function genTextureDataUrl(opts: {
     ctx.fillStyle = opts.baseHex;
     ctx.fillRect(0, 0, size, size);
 
+    const baseRgb = hexToRgb(opts.baseHex) ?? { r: 128, g: 128, b: 128 };
+    const white = { r: 255, g: 255, b: 255 };
+    const black = { r: 0, g: 0, b: 0 };
+
     const rnd = mulberry32(opts.seed);
 
     // Fine noise
-    const dots = opts.themeId === "burled" ? 9000 : 6000;
+    const dots = opts.themeId === "burled" ? 9000 : 6500;
     for (let i = 0; i < dots; i++) {
       const x = Math.floor(rnd() * size);
       const y = Math.floor(rnd() * size);
-      const a = opts.themeId === "burled" ? 0.035 + rnd() * 0.045 : 0.02 + rnd() * 0.035;
-      const v = rnd() < 0.5 ? 0 : 255;
-      ctx.fillStyle = `rgba(${v}, ${v}, ${v}, ${a})`;
+      const a = opts.themeId === "burled" ? 0.035 + rnd() * 0.045 : 0.02 + rnd() * 0.03;
+
+      // Stone: bias speck colors by variant so dark tiles don't wash out.
+      if (opts.themeId === "stone") {
+        const speck = opts.variant === "dark" ? mixRgb(baseRgb, white, 0.55) : mixRgb(baseRgb, black, 0.55);
+        ctx.fillStyle = rgbCss(speck, a);
+      } else {
+        const v = rnd() < 0.5 ? 0 : 255;
+        ctx.fillStyle = `rgba(${v}, ${v}, ${v}, ${a})`;
+      }
       ctx.fillRect(x, y, 1, 1);
     }
 
     // Broad swirls / figure
     ctx.save();
-    ctx.globalCompositeOperation = opts.themeId === "burled" ? "multiply" : "overlay";
-    const blobs = opts.themeId === "burled" ? 140 : 80;
+    // Stone: use multiply on light tiles (dark veins) and screen on dark tiles (light veins)
+    // to preserve clear checker contrast.
+    if (opts.themeId === "stone") {
+      ctx.globalCompositeOperation = opts.variant === "dark" ? "screen" : "multiply";
+    } else {
+      ctx.globalCompositeOperation = "multiply";
+    }
+    const blobs = opts.themeId === "burled" ? 150 : 95;
     for (let i = 0; i < blobs; i++) {
       const cx = rnd() * size;
       const cy = rnd() * size;
       const r = (0.08 + rnd() * 0.22) * size;
-      const alpha = opts.themeId === "burled" ? 0.06 + rnd() * 0.10 : 0.04 + rnd() * 0.07;
-      const isDark = rnd() < 0.55;
-      const c = isDark ? 0 : 255;
+      const alpha = opts.themeId === "burled" ? 0.06 + rnd() * 0.10 : 0.05 + rnd() * 0.07;
+
+      // Choose a vein color that is relative to the base so it reads as texture.
+      const veinRgb = opts.themeId === "stone"
+        ? (opts.variant === "dark" ? mixRgb(baseRgb, white, 0.55) : mixRgb(baseRgb, black, 0.55))
+        : (opts.variant === "dark" ? mixRgb(baseRgb, black, 0.45) : mixRgb(baseRgb, black, 0.35));
       const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-      g.addColorStop(0, `rgba(${c}, ${c}, ${c}, ${alpha})`);
-      g.addColorStop(1, `rgba(${c}, ${c}, ${c}, 0)`);
+      g.addColorStop(0, rgbCss(veinRgb, alpha));
+      g.addColorStop(1, rgbCss(veinRgb, 0));
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
+
+    // Burled: add subtle directional grain so it reads more like wood.
+    if (opts.themeId === "burled") {
+      ctx.save();
+      ctx.globalCompositeOperation = "overlay";
+      const angle = (rnd() - 0.5) * 0.35;
+      ctx.translate(size / 2, size / 2);
+      ctx.rotate(angle);
+      ctx.translate(-size / 2, -size / 2);
+
+      const lines = 420;
+      for (let i = 0; i < lines; i++) {
+        const y = rnd() * size;
+        const w = (0.4 + rnd() * 1.6);
+        const a = 0.02 + rnd() * 0.04;
+        const c = opts.variant === "dark" ? mixRgb(baseRgb, black, 0.35) : mixRgb(baseRgb, black, 0.25);
+        ctx.strokeStyle = rgbCss(c, a);
+        ctx.lineWidth = w;
+        ctx.beginPath();
+        ctx.moveTo(-size * 0.1, y);
+        ctx.lineTo(size * 1.1, y + (rnd() - 0.5) * size * 0.04);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // Final bias for Stone dark tiles to keep them distinctly dark.
+    if (opts.themeId === "stone" && opts.variant === "dark") {
+      ctx.save();
+      ctx.globalCompositeOperation = "multiply";
+      ctx.fillStyle = rgbCss(mixRgb(white, black, 0.35), 0.55);
+      ctx.fillRect(0, 0, size, size);
+      ctx.restore();
+    }
 
     // Light blur pass if supported (some older WebKit builds can ignore ctx.filter).
     try {

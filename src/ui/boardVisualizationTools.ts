@@ -2,6 +2,9 @@ import { clearBoardAnnotations, renderBoardAnnotations, type AnnotationColor, ty
 
 export type BoardVisualizationToolsController = {
   clear: () => void;
+  /** Active color used for touch annotations (drag arrows / double-tap highlights). */
+  setActiveColor: (color: AnnotationColor) => void;
+  getActiveColor: () => AnnotationColor;
 };
 
 export type BoardVisualizationToolsOptions = {
@@ -116,6 +119,7 @@ export function installBoardVisualizationTools(
   let startClientX = 0;
   let startClientY = 0;
   let dragged = false;
+  let gestureColor: AnnotationColor = "orange";
   let activeColor: AnnotationColor = "orange";
   let activePointerId: number | null = null;
 
@@ -130,7 +134,7 @@ export function installBoardVisualizationTools(
     startClientX = ev.clientX;
     startClientY = ev.clientY;
     dragged = false;
-    activeColor = color;
+    gestureColor = color;
     activePointerId = ev.pointerId;
 
     try {
@@ -171,7 +175,7 @@ export function installBoardVisualizationTools(
       if (!node) return;
 
       // Touch in analysis mode: drag draws arrows; double-tap toggles square highlight.
-      startGesture(ev, node, "touch", "orange");
+      startGesture(ev, node, "touch", activeColor);
     },
     { capture: true }
   );
@@ -198,7 +202,7 @@ export function installBoardVisualizationTools(
     if (activePointerId !== null && ev.pointerId !== activePointerId) return;
 
     const from = startNode;
-    const color = activeColor;
+    const color = gestureColor;
 
     const kind = gestureKind;
 
@@ -265,5 +269,11 @@ export function installBoardVisualizationTools(
   // Ensure initial layer exists (no-op if unused).
   rerender();
 
-  return { clear };
+  return {
+    clear,
+    setActiveColor: (color: AnnotationColor) => {
+      activeColor = color;
+    },
+    getActiveColor: () => activeColor,
+  };
 }

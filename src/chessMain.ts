@@ -32,6 +32,7 @@ import { nextPaint } from "./ui/nextPaint";
 import { bindChessEvaluationPanel } from "./ui/chessEvaluationPanel.ts";
 import { installBoardVisualizationTools } from "./ui/boardVisualizationTools";
 import { setStackWorksGameTitle } from "./ui/gameTitle";
+import { bindTouchAnnotationPalette } from "./ui/touchAnnotationPalette";
 import {
   bindAnalysisToggleButton,
   bindFullScreenButton,
@@ -220,7 +221,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   controller.bind();
 
   // Analysis graphics: right-drag (desktop) and touch gestures (analysis mode only).
-  installBoardVisualizationTools(svg, { isTouchInputEnabled: () => controller.isAnalysisMode() });
+  const boardVizTools = installBoardVisualizationTools(svg, { isTouchInputEnabled: () => controller.isAnalysisMode() });
+  bindTouchAnnotationPalette(controller, boardVizTools);
 
   bindStartPageConfirm(controller, ACTIVE_VARIANT_ID);
 
