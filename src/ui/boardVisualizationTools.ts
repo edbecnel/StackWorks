@@ -201,7 +201,7 @@ export function installBoardVisualizationTools(
       // Touch in analysis mode: drag draws arrows; double-tap toggles square highlight.
       startGesture(ev, node, "touch", activeColor);
     },
-    { capture: true }
+    { capture: true, passive: false }
   );
 
   svg.addEventListener(
@@ -218,7 +218,7 @@ export function installBoardVisualizationTools(
       // This avoids breaking normal tap-to-move gameplay.
       if (dragged) ev.preventDefault();
     },
-    { capture: true }
+    { capture: true, passive: false }
   );
 
   const finish = (ev: PointerEvent) => {
@@ -295,7 +295,7 @@ export function installBoardVisualizationTools(
     ev.stopPropagation();
   };
 
-  svg.addEventListener("pointerup", finish, { capture: true });
+  svg.addEventListener("pointerup", finish, { capture: true, passive: false });
   svg.addEventListener("pointercancel", () => {
     gestureActive = false;
     startNode = null;

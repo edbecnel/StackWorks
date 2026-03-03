@@ -527,7 +527,7 @@
 
       #boardColumn {
         width: 100%;
-        height: 100%;
+        height: auto;
         min-height: 0;
         display: flex;
         flex-direction: column;
@@ -536,11 +536,11 @@
 
       #boardWrap {
         width: 100%;
-        height: 100%;
+        height: auto;
         display: flex;
         align-items: flex-start;
         justify-content: center;
-        flex: 1 1 auto;
+        flex: 0 0 auto;
         min-height: 0;
       }
 
@@ -552,6 +552,7 @@
         display: block;
         color: var(--panel-text);
         transition: transform 0.3s ease;
+        touch-action: none;
       }
 
       #centerArea.reduced-height #boardWrap svg {
