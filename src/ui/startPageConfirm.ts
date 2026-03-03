@@ -1,5 +1,6 @@
 import { hashGameState } from "../game/hashState";
 import { createInitialGameStateForVariant } from "../game/state";
+import { checkCurrentPlayerLost } from "../game/gameOver";
 import type { GameController, HistoryChangeReason } from "../controller/gameController";
 import type { VariantId } from "../variants/variantTypes";
 
@@ -16,6 +17,23 @@ export function bindStartPageConfirm(controller: GameController, variantId: Vari
 
   const initialHash = hashGameState(createInitialGameStateForVariant(variantId));
   let hasBegun = hashGameState(controller.getState()) !== initialHash;
+
+  const isTerminalNow = (): boolean => {
+    try {
+      const state = controller.getState();
+      const forcedMsg = (state as any)?.forcedGameOver?.message;
+      if (typeof forcedMsg === "string" && forcedMsg.trim()) return true;
+      const r = checkCurrentPlayerLost(state);
+      return Boolean(r.winner) || Boolean(r.reason);
+    } catch {
+      return false;
+    }
+  };
+
+  const shouldConfirmLeave = (): boolean => {
+    // After a terminal result, leaving is expected; avoid extra warnings.
+    return hasBegun && !controller.isOver() && !isTerminalNow();
+  };
 
   controller.addHistoryChangeCallback((reason: HistoryChangeReason) => {
     if (reason === "newGame") {
@@ -35,7 +53,7 @@ export function bindStartPageConfirm(controller: GameController, variantId: Vari
       const target = e.target as Element | null;
       const a = (target?.closest?.('a[href="./index.html"]') as HTMLAnchorElement | null) ?? null;
       if (!a) return;
-      if (!hasBegun) return;
+      if (!shouldConfirmLeave()) return;
       if (!(e instanceof MouseEvent) || !isPlainLeftClick(e)) return;
       const msg =
         controller.getDriverMode() === "online"

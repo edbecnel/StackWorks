@@ -2,6 +2,7 @@ import type { GameState } from "./state.ts";
 import type { Player, Rank } from "../types.ts";
 import type { Move } from "./moveTypes.ts";
 import { parseNodeId } from "./coords.ts";
+import { generateLegalMoves } from "./movegen.ts";
 
 const FORTY_MOVE_LIMIT_PLIES = 80;
 const THIRTEEN_MOVE_LIMIT = 13;
@@ -111,6 +112,9 @@ function detectThreeKingsVsOne(state: GameState): { stronger: Player } | null {
 
 function isInsufficientMaterial(state: GameState): boolean {
   const counts = countPieces(state);
+  // If either side has no pieces, it's a win for the other side, not a draw.
+  if (counts.W.total === 0) return false;
+  if (counts.B.total === 0) return false;
   if (counts.W.total > 2) return false;
   if (counts.B.total > 2) return false;
 
@@ -155,6 +159,22 @@ export function finalizeCheckersUsTurnAtBoundary(stateAfterTurn: GameState, move
   draw.turnDidManAdvance = false;
 
   let next: GameState = { ...(stateAfterTurn as any), checkersUsDraw: draw };
+
+  // Never force a draw if the position is already a terminal win/loss.
+  // Example: after capturing the last piece, the next side has 0 pieces.
+  try {
+    const counts = countPieces(next);
+    if (counts.W.total === 0 || counts.B.total === 0) return next;
+  } catch {
+    // ignore
+  }
+
+  try {
+    // If the player to move has no legal moves, they have lost.
+    if (generateLegalMoves(next).length === 0) return next;
+  } catch {
+    // ignore movegen errors and continue with draw bookkeeping
+  }
 
   // Automatic draw: 40-move rule.
   if (draw.noProgressPlies >= FORTY_MOVE_LIMIT_PLIES) {

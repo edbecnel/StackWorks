@@ -407,8 +407,10 @@ window.addEventListener("DOMContentLoaded", async () => {
   const newGameBtn = document.getElementById("newGameBtn") as HTMLButtonElement | null;
   if (newGameBtn) {
     newGameBtn.addEventListener("click", () => {
-      const ok = confirm("Start a new Chess game? Current game will be lost.");
-      if (!ok) return;
+      if (!controller.isOver()) {
+        const ok = confirm("Start a new Chess game? Current game will be lost.");
+        if (!ok) return;
+      }
       controller.newGame(createInitialGameStateForVariant(ACTIVE_VARIANT_ID));
     });
   }

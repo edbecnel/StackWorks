@@ -1,5 +1,6 @@
 import { hashGameState } from "../game/hashState";
 import { createInitialGameStateForVariant } from "../game/state";
+import { checkCurrentPlayerLost } from "../game/gameOver";
 import type { GameController, HistoryChangeReason } from "../controller/gameController";
 import type { VariantId } from "../variants/variantTypes";
 
@@ -16,6 +17,23 @@ export function bindOfflineNavGuard(controller: GameController, variantId: Varia
 
   const initialHash = hashGameState(createInitialGameStateForVariant(variantId));
   let hasBegun = hashGameState(controller.getState()) !== initialHash;
+
+  const isTerminalNow = (): boolean => {
+    try {
+      const state = controller.getState();
+      const forcedMsg = (state as any)?.forcedGameOver?.message;
+      if (typeof forcedMsg === "string" && forcedMsg.trim()) return true;
+      const r = checkCurrentPlayerLost(state);
+      return Boolean(r.winner) || Boolean(r.reason);
+    } catch {
+      return false;
+    }
+  };
+
+  const shouldWarnLoss = (): boolean => {
+    // Once the game is terminal, losing the page state is no longer a surprise.
+    return hasBegun && !controller.isOver() && !isTerminalNow();
+  };
 
   controller.addHistoryChangeCallback((reason: HistoryChangeReason) => {
     if (reason === "newGame") {
@@ -42,7 +60,7 @@ export function bindOfflineNavGuard(controller: GameController, variantId: Varia
 
   // Refresh / close-tab / navigation-away: browsers only allow a native prompt.
   const onBeforeUnload = (e: BeforeUnloadEvent) => {
-    if (!hasBegun) return;
+    if (!shouldWarnLoss()) return;
     e.preventDefault();
     // Most browsers ignore custom strings, but setting returnValue triggers the confirm.
     e.returnValue = "";
@@ -68,7 +86,7 @@ export function bindOfflineNavGuard(controller: GameController, variantId: Varia
     if (allowRealBack) return;
 
     // If there's nothing to lose, immediately perform the real back.
-    if (!hasBegun) {
+    if (!shouldWarnLoss()) {
       allowRealBack = true;
       window.setTimeout(() => window.history.back(), 0);
       return;

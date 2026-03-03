@@ -199,6 +199,67 @@ describe("GameController input lock preserves capture chain", () => {
   });
 });
 
+describe("GameController game-over detection", () => {
+  let mockSvg: SVGSVGElement;
+  let mockPiecesLayer: SVGGElement;
+
+  beforeEach(() => {
+    // Keep these tests isolated from earlier suites that may have created toast UI,
+    // modified toast preferences, or left DOM nodes around.
+    document.body.innerHTML = "";
+    document.head.innerHTML = "";
+    try {
+      localStorage.removeItem("lasca.opt.toasts");
+      localStorage.removeItem("lasca.ai.white");
+      localStorage.removeItem("lasca.ai.black");
+    } catch {
+      // ignore
+    }
+
+    mockSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg") as SVGSVGElement;
+    mockPiecesLayer = document.createElementNS("http://www.w3.org/2000/svg", "g") as SVGGElement;
+    (mockSvg as any).addEventListener = () => {};
+    (mockSvg as any).querySelector = () => null;
+  });
+
+  afterEach(() => {
+    // Clean up any toast UI between tests.
+    document.querySelectorAll(".lascaToastWrap").forEach((el) => el.remove());
+  });
+
+  it("shows game-over sticky toast when no legal moves (e.g. AI-vs-AI)", () => {
+    // Minimal status panel nodes used by updatePanel() to compute/render terminal messaging.
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      '<div id="statusTurn"></div><div id="statusPhase"></div><div id="statusMessage"></div>'
+    );
+
+    const history = new HistoryManager();
+
+    // Black man stuck on last row with no legal quiet moves/captures.
+    const terminalByNoMoves: GameState = {
+      board: new Map([["r7c0", [{ owner: "B", rank: "S" }]]]),
+      toMove: "B",
+      phase: "idle",
+      meta: { variantId: "checkers_8_us" as any, rulesetId: "checkers_us" as any, boardSize: 8 as any },
+    };
+
+    history.push(terminalByNoMoves);
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, terminalByNoMoves, history);
+    expect(controller.isOver()).toBe(false);
+
+    const legal = controller.getLegalMovesForTurn();
+    expect(Array.isArray(legal)).toBe(true);
+    expect(legal.length).toBe(0);
+    expect(controller.isOver()).toBe(true);
+
+    const toast = document.querySelector(".lascaToastWrap.isVisible .lascaToast") as HTMLElement | null;
+    expect(toast).not.toBeNull();
+    expect((toast?.textContent ?? "").toLowerCase()).toContain("wins");
+  });
+});
+
 describe("GameController turn toast indicates capture", () => {
   let mockSvg: SVGSVGElement;
   let mockPiecesLayer: SVGGElement;

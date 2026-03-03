@@ -106,7 +106,12 @@ export function renderTurnIndicator(
     badge.setAttribute("stroke", "rgba(255,255,255,0.22)");
     badge.setAttribute("stroke-width", "2");
     badge.setAttribute("vector-effect", "non-scaling-stroke");
-    badge.setAttribute("pointer-events", "none");
+  // Allow hover so the badge can show an SVG tooltip (<title>).
+  badge.setAttribute("pointer-events", "all");
+
+  const badgeTitle = document.createElementNS(SVG_NS, "title");
+  badgeTitle.textContent = "Analysis mode";
+  badge.appendChild(badgeTitle);
     layer.appendChild(badge);
 
     const eye = document.createElementNS(SVG_NS, "path") as SVGPathElement;

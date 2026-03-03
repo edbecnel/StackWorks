@@ -2008,6 +2008,13 @@ export class GameController {
       : undefined;
     const allLegal = generateLegalMoves(this.state, constraints);
 
+    // Safety: if no legal moves exist, the position is terminal. This can occur
+    // without a user action (e.g. AI-vs-AI), so ensure game-over messaging shows.
+    // Avoid doing this mid-capture-chain (forcedFrom) or in analysis sandbox.
+    if (!this.analysisMode && !this.isGameOver && !this.lockedCaptureFrom && allLegal.length === 0) {
+      this.checkAndHandleCurrentPlayerLost();
+    }
+
     if (this.lockedCaptureFrom) {
       return allLegal.filter((m) => m.kind === "capture");
     }
@@ -3997,6 +4004,7 @@ export class GameController {
         this.currentTurnHasCapture = false;
         this.showBanner(forcedMsg, 0);
         this.showGameOverToast(forcedMsg);
+        this.updatePanel();
         this.fireHistoryChange("gameOver");
         return;
       }
@@ -4042,6 +4050,7 @@ export class GameController {
             const msg = gameResult.reason || "Game Over";
             this.showBanner(msg, 0);
             this.showGameOverToast(msg);
+            this.updatePanel();
             this.fireHistoryChange("gameOver");
             return;
           }
@@ -4169,6 +4178,7 @@ export class GameController {
             this.showBanner(msg, 0);
             this.showGameOverToast(msg);
           }
+          this.updatePanel();
           this.fireHistoryChange("gameOver");
           return;
         }
@@ -4281,6 +4291,7 @@ export class GameController {
           this.showBanner(msg, 0);
           this.showGameOverToast(msg);
         }
+        this.updatePanel();
         this.fireHistoryChange("gameOver");
         return;
       }
@@ -4322,6 +4333,7 @@ export class GameController {
             this.showBanner(msg, 0);
             this.showGameOverToast(msg);
           }
+          this.updatePanel();
           this.fireHistoryChange("gameOver");
           return;
         }
