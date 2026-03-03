@@ -107,11 +107,44 @@ export function installBoardVisualizationTools(
   const DRAG_THRESHOLD_PX = 6;
   const DOUBLE_TAP_MS = 350;
   const DOUBLE_TAP_RADIUS_PX = 24;
+  const HOLD_CLEAR_MS = 480;
 
   let lastTouchTapAtMs = 0;
   let lastTouchTapNode: string | null = null;
   let lastTouchTapX = 0;
   let lastTouchTapY = 0;
+
+  let holdClearTimer: number | null = null;
+  let holdClearPointerId: number | null = null;
+  let holdClearStartX = 0;
+  let holdClearStartY = 0;
+  let holdClearedPointerId: number | null = null;
+
+  const cancelHoldClear = (pointerId?: number) => {
+    if (pointerId != null && holdClearPointerId != null && pointerId !== holdClearPointerId) return;
+    if (holdClearTimer != null) {
+      window.clearTimeout(holdClearTimer);
+      holdClearTimer = null;
+    }
+    holdClearPointerId = null;
+  };
+
+  const startHoldClear = (ev: PointerEvent) => {
+    cancelHoldClear();
+    holdClearedPointerId = null;
+    holdClearPointerId = ev.pointerId;
+    holdClearStartX = ev.clientX;
+    holdClearStartY = ev.clientY;
+    const pid = ev.pointerId;
+    holdClearTimer = window.setTimeout(() => {
+      holdClearTimer = null;
+      holdClearedPointerId = pid;
+      lastTouchTapAtMs = 0;
+      lastTouchTapNode = null;
+      clear();
+      suppressClickUntilMs = Date.now() + 700;
+    }, HOLD_CLEAR_MS);
+  };
 
   let gestureActive = false;
   let gestureKind: "right" | "touch" = "right";
@@ -130,8 +163,7 @@ export function installBoardVisualizationTools(
     return Boolean(target.closest("button,a,input,select,textarea,label,[role='button'],[role='link']"));
   };
 
-  // Touch behavior parity with desktop: in analysis mode, a tap clears annotations.
-  // But we keep double-tap square highlights, so single-tap clear is delayed.
+  // Touch behavior: in analysis mode, long-press clears annotations.
   document.addEventListener(
     "pointerdown",
     (ev: PointerEvent) => {
@@ -142,9 +174,34 @@ export function installBoardVisualizationTools(
       if (ev.target instanceof Element && ev.target.closest("#touchAnnotationPalette")) return;
       if (ev.target instanceof Node && svg.contains(ev.target)) return;
 
-      lastTouchTapAtMs = 0;
-      lastTouchTapNode = null;
-      clear();
+      startHoldClear(ev);
+    },
+    { capture: true }
+  );
+
+  document.addEventListener(
+    "pointermove",
+    (ev: PointerEvent) => {
+      if (holdClearPointerId == null || ev.pointerId !== holdClearPointerId) return;
+      const dx = ev.clientX - holdClearStartX;
+      const dy = ev.clientY - holdClearStartY;
+      if (Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) cancelHoldClear(ev.pointerId);
+    },
+    { capture: true }
+  );
+
+  document.addEventListener(
+    "pointerup",
+    (ev: PointerEvent) => {
+      cancelHoldClear(ev.pointerId);
+    },
+    { capture: true }
+  );
+
+  document.addEventListener(
+    "pointercancel",
+    (ev: PointerEvent) => {
+      cancelHoldClear(ev.pointerId);
     },
     { capture: true }
   );
@@ -200,6 +257,9 @@ export function installBoardVisualizationTools(
 
       // Touch in analysis mode: drag draws arrows; double-tap toggles square highlight.
       startGesture(ev, node, "touch", activeColor);
+
+      // Long-press clears.
+      startHoldClear(ev);
     },
     { capture: true }
   );
@@ -214,6 +274,8 @@ export function installBoardVisualizationTools(
       const dy = ev.clientY - startClientY;
       if (Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) dragged = true;
 
+      if (dragged) cancelHoldClear(ev.pointerId);
+
       // Only prevent default after the user has actually started dragging.
       // This avoids breaking normal tap-to-move gameplay.
       if (dragged) ev.preventDefault();
@@ -224,6 +286,17 @@ export function installBoardVisualizationTools(
   const finish = (ev: PointerEvent) => {
     if (!gestureActive) return;
     if (activePointerId !== null && ev.pointerId !== activePointerId) return;
+
+    cancelHoldClear(ev.pointerId);
+    if (holdClearedPointerId != null && ev.pointerId === holdClearedPointerId) {
+      holdClearedPointerId = null;
+      gestureActive = false;
+      startNode = null;
+      activePointerId = null;
+      ev.preventDefault();
+      ev.stopPropagation();
+      return;
+    }
 
     const from = startNode;
     const color = gestureColor;
@@ -242,8 +315,7 @@ export function installBoardVisualizationTools(
         rerender();
         suppressClickUntilMs = Date.now() + 600;
       } else {
-        // Touch: single tap clears immediately; double-tap toggles square highlight
-        // (on the second tap).
+        // Touch: single taps do nothing; double-tap toggles square highlight.
         const now = Date.now();
         const dt = now - lastTouchTapAtMs;
         const dx = ev.clientX - lastTouchTapX;
@@ -262,16 +334,13 @@ export function installBoardVisualizationTools(
           lastTouchTapAtMs = 0;
           lastTouchTapNode = null;
         } else {
-          // Immediate clear parity with desktop.
-          clear();
-          suppressClickUntilMs = now + 600;
-
           lastTouchTapAtMs = now;
           lastTouchTapNode = from;
           lastTouchTapX = ev.clientX;
           lastTouchTapY = ev.clientY;
 
           // Consume the tap so it doesn't act as game input.
+          suppressClickUntilMs = now + 600;
           ev.preventDefault();
           ev.stopPropagation();
         }
@@ -297,6 +366,8 @@ export function installBoardVisualizationTools(
     gestureActive = false;
     startNode = null;
     activePointerId = null;
+    cancelHoldClear();
+    holdClearedPointerId = null;
   });
 
   // Ensure initial layer exists (no-op if unused).
