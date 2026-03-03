@@ -231,8 +231,20 @@ body[data-panel-layout="menu"] #panelLayoutDropdown[data-open="1"] {
   display: none;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
   padding: 12px;
+  /* Keep the dialog clear of notches / OS UI on mobile browsers. */
+  padding-top: calc(12px + env(safe-area-inset-top));
+  padding-right: calc(12px + env(safe-area-inset-right));
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  padding-left: calc(12px + env(safe-area-inset-left));
   background: rgba(0, 0, 0, 0.78);
+}
+
+/* In menu mode (typically phones), anchor the dialog to the top so the header/Close
+   isn't hidden behind dynamic browser chrome. */
+body[data-panel-layout="menu"] #panelLayoutDialogOverlay {
+  align-items: flex-start;
 }
 
 /* Keep playback dialog more see-through so the board is visible while scrubbing */
@@ -245,14 +257,23 @@ body[data-panel-layout="menu"] #panelLayoutDialogOverlay[data-open="1"] {
 }
 
 #panelLayoutDialog {
-  width: min(560px, calc(100vw - 24px));
-  max-height: calc(100vh - 24px);
-  overflow: auto;
+  width: min(560px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   /* Darken the themed panel surface to reduce transparency */
   background: linear-gradient(rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.82)), var(--panel-bg);
   border: 1px solid var(--panel-border);
   border-radius: var(--panel-radius);
   color: var(--panel-text);
+}
+
+/* Prefer the visual viewport height on mobile browsers (fixes 100vh issues). */
+@supports (height: 100dvh) {
+  #panelLayoutDialog {
+    max-height: 100%;
+  }
 }
 
 body[data-panel-layout="menu"] #panelLayoutDialogOverlay[data-variant="playback"] #panelLayoutDialog {
@@ -279,6 +300,9 @@ body[data-panel-layout="menu"] #panelLayoutDialogOverlay[data-variant="playback"
 
 #panelLayoutDialogBody {
   padding: 10px;
+  flex: 1 1 auto;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Force-open moved sections inside the dialog */
