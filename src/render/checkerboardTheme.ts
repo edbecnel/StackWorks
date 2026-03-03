@@ -417,6 +417,66 @@ function getSquaresViewBox(svgRoot: SVGSVGElement): { x: number; y: number; w: n
   return parseViewBox(svgRoot);
 }
 
+function hideVectorSquaresForRaster(svgRoot: SVGSVGElement): void {
+  // Hide vector background layers to avoid triggering expensive repaints.
+  // NOTE: do NOT hide the frame; it should remain crisp and unscaled.
+  for (const id of ["squares"]) {
+    const g = svgRoot.querySelector(`#${id}`) as SVGGElement | null;
+    if (!g) continue;
+    try {
+      (g as any).dataset.rasterHidden = "1";
+      g.style.display = "none";
+    } catch {
+      // ignore
+    }
+  }
+}
+
+function waitForImageUrlDecode(url: string, timeoutMs: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (!url) {
+      resolve(false);
+      return;
+    }
+
+    let settled = false;
+    const settle = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      try {
+        clearTimeout(timer);
+      } catch {
+        // ignore
+      }
+      resolve(ok);
+    };
+
+    const timer = window.setTimeout(() => settle(false), Math.max(1, timeoutMs | 0));
+
+    try {
+      const img = new Image();
+      (img as any).decoding = "async";
+      img.onload = () => settle(true);
+      img.onerror = () => settle(false);
+
+      // Some browsers support decode(), which resolves after decoding.
+      const decode = (img as any).decode as (() => Promise<void>) | undefined;
+      if (typeof decode === "function") {
+        void decode.call(img).then(
+          () => settle(true),
+          () => {
+            // Fall back to onload/onerror.
+          }
+        );
+      }
+
+      img.src = url;
+    } catch {
+      settle(false);
+    }
+  });
+}
+
 async function rasterizeBoardBackgroundOnce(svgRoot: SVGSVGElement): Promise<{ url: string; w: number; h: number } | null> {
   if (typeof document === "undefined") return null;
 
@@ -951,6 +1011,24 @@ export function applyCheckerboardTheme(svgRoot: SVGSVGElement, themeId: Checkerb
 
       const vb = getSquaresViewBox(svgRoot);
       const img = document.createElementNS(SVG_NS, "image") as SVGImageElement;
+
+      const hideIfCurrent = () => {
+        // Only hide if this raster job is still current.
+        if ((svgRoot as any).__checkerboardRasterJobId !== jobId) return;
+        if (!img.isConnected) return;
+        hideVectorSquaresForRaster(svgRoot);
+      };
+
+      // Prefer hiding after the SVG <image> load event.
+      try {
+        img.addEventListener("load", hideIfCurrent, { once: true } as any);
+        img.addEventListener("error", () => {
+          // Keep vector squares visible on failure.
+        }, { once: true } as any);
+      } catch {
+        // ignore
+      }
+
       img.setAttribute("x", String(vb.x));
       img.setAttribute("y", String(vb.y));
       img.setAttribute("width", String(vb.w));
@@ -961,18 +1039,10 @@ export function applyCheckerboardTheme(svgRoot: SVGSVGElement, themeId: Checkerb
       img.setAttribute("data-raster-url", raster.url);
       layer.appendChild(img);
 
-      // Hide vector background layers to avoid triggering expensive repaints.
-      // NOTE: do NOT hide the frame; it should remain crisp and unscaled.
-      for (const id of ["squares"]) {
-        const g = svgRoot.querySelector(`#${id}`) as SVGGElement | null;
-        if (!g) continue;
-        try {
-          (g as any).dataset.rasterHidden = "1";
-          g.style.display = "none";
-        } catch {
-          // ignore
-        }
-      }
+      // Some mobile browsers can delay SVG <image> rendering; as a backup, also
+      // preload+decode the blob URL before hiding vector squares.
+      const decoded = await waitForImageUrlDecode(raster.url, 2000);
+      if (decoded) hideIfCurrent();
     })();
   }
 }
