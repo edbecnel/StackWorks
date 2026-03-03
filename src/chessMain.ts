@@ -208,7 +208,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   svg.addEventListener(THEME_DID_CHANGE_EVENT, () => boardLoading.hide());
 
   ensureOverlayLayer(svg);
-  installBoardVisualizationTools(svg);
   const driver = await createDriverAsync({
     state,
     history,
@@ -219,6 +218,9 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const controller = new GameController(svg, piecesLayer, inspector as any, state, history, driver);
   controller.bind();
+
+  // Analysis graphics: right-drag (desktop) and touch gestures (analysis mode only).
+  installBoardVisualizationTools(svg, { isTouchInputEnabled: () => controller.isAnalysisMode() });
 
   bindStartPageConfirm(controller, ACTIVE_VARIANT_ID);
 

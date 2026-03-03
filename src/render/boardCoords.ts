@@ -91,6 +91,11 @@ function getCheckerboardBaseColors(svg: SVGSVGElement): { light: string; dark: s
   return { light: theme.light, dark: theme.dark };
 }
 
+function getCheckerboardThemeId(svg: SVGSVGElement): CheckerboardThemeId {
+  const raw = (svg as any).__checkerboardThemeId as CheckerboardThemeId | string | null | undefined;
+  return normalizeCheckerboardThemeId(typeof raw === "string" ? raw : (raw ?? null));
+}
+
 function renderBoardCoordsInSquares(layer: SVGGElement, svg: SVGSVGElement, boardSize: 7 | 8, flipped: boolean): void {
   // Prefer exact square geometry.
   const grid = computeSquareGridFromRects(svg);
@@ -248,6 +253,12 @@ export function renderBoardCoords(
     ? maxX + step * 0.65
     : minX - step * 0.65; // left of column A, in the board's margin
 
+  // Default: dark charcoal (not pure black) to match the board's built-in linework.
+  // For the Classic Checkers theme, the outer margin is dark, so use a lighter label.
+  const themeId = getCheckerboardThemeId(svg);
+  const edgeFill = themeId === "checkers" ? "#bdbdbd" : "#404040";
+  const edgeOpacity = themeId === "checkers" ? "0.78" : "0.75";
+
   clearLayer(layer);
 
   // Column labels: A..(A+boardSize-1)
@@ -263,10 +274,8 @@ export function renderBoardCoords(
     t.setAttribute("dominant-baseline", "middle");
     t.setAttribute("font-size", String(fontSize));
     t.setAttribute("font-weight", "650");
-    // Dark charcoal (not pure black) to match the board's built-in linework.
-    // Uses an existing board SVG color family (connectors default to #404040).
-    t.setAttribute("fill", "#404040");
-    t.setAttribute("opacity", "0.75");
+    t.setAttribute("fill", edgeFill);
+    t.setAttribute("opacity", edgeOpacity);
 
     // If the board is flipped (rotated 180°), counter-rotate the text around
     // its anchor point so it stays upright.
@@ -287,8 +296,8 @@ export function renderBoardCoords(
     t.setAttribute("dominant-baseline", "middle");
     t.setAttribute("font-size", String(fontSize));
     t.setAttribute("font-weight", "650");
-    t.setAttribute("fill", "#404040");
-    t.setAttribute("opacity", "0.75");
+    t.setAttribute("fill", edgeFill);
+    t.setAttribute("opacity", edgeOpacity);
 
     if (flipped) t.setAttribute("transform", `rotate(180 ${rowLabelX} ${y})`);
     layer.appendChild(t);

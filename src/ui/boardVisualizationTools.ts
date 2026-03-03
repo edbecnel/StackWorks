@@ -4,6 +4,11 @@ export type BoardVisualizationToolsController = {
   clear: () => void;
 };
 
+export type BoardVisualizationToolsOptions = {
+  /** When true, touch gestures (drag/double-tap) are enabled for annotations. */
+  isTouchInputEnabled?: () => boolean;
+};
+
 function colorFromModifiers(ev: Pick<PointerEvent, "shiftKey" | "ctrlKey" | "altKey">): AnnotationColor {
   if (ev.shiftKey) return "green";
   if (ev.ctrlKey) return "red";
@@ -64,7 +69,10 @@ function toggleArrow(state: BoardAnnotationsState, from: string, to: string, col
   state.arrows.push({ kind: "arrow", from, to, color });
 }
 
-export function installBoardVisualizationTools(svg: SVGSVGElement): BoardVisualizationToolsController {
+export function installBoardVisualizationTools(
+  svg: SVGSVGElement,
+  opts?: BoardVisualizationToolsOptions
+): BoardVisualizationToolsController {
   const state: BoardAnnotationsState = { arrows: [], squares: [] };
 
   const rerender = () => renderBoardAnnotations(svg, state);
@@ -79,9 +87,31 @@ export function installBoardVisualizationTools(svg: SVGSVGElement): BoardVisuali
     e.preventDefault();
   });
 
-  const DRAG_THRESHOLD_PX = 6;
+  // Pointer interactions may still generate a click event even if we render annotations.
+  // Suppress those clicks so gameplay input is not affected.
+  let suppressClickUntilMs = 0;
+  svg.addEventListener(
+    "click",
+    (ev) => {
+      if (Date.now() < suppressClickUntilMs) {
+        ev.preventDefault();
+        ev.stopPropagation();
+      }
+    },
+    { capture: true }
+  );
 
-  let rightActive = false;
+  const DRAG_THRESHOLD_PX = 6;
+  const DOUBLE_TAP_MS = 350;
+  const DOUBLE_TAP_RADIUS_PX = 24;
+
+  let lastTouchTapAtMs = 0;
+  let lastTouchTapNode: string | null = null;
+  let lastTouchTapX = 0;
+  let lastTouchTapY = 0;
+
+  let gestureActive = false;
+  let gestureKind: "right" | "touch" = "right";
   let startNode: string | null = null;
   let startClientX = 0;
   let startClientY = 0;
@@ -89,38 +119,59 @@ export function installBoardVisualizationTools(svg: SVGSVGElement): BoardVisuali
   let activeColor: AnnotationColor = "orange";
   let activePointerId: number | null = null;
 
+  const isTouchInputEnabled = typeof opts?.isTouchInputEnabled === "function" ? opts.isTouchInputEnabled : null;
+
+  const startGesture = (ev: PointerEvent, node: string, kind: "right" | "touch", color: AnnotationColor): void => {
+    // Start a gesture. For right-click, arrow vs highlight is decided on pointerup.
+    // For touch, we only draw arrows on drag; highlights are toggled on double-tap.
+    gestureActive = true;
+    gestureKind = kind;
+    startNode = node;
+    startClientX = ev.clientX;
+    startClientY = ev.clientY;
+    dragged = false;
+    activeColor = color;
+    activePointerId = ev.pointerId;
+
+    try {
+      svg.setPointerCapture(ev.pointerId);
+    } catch {
+      // ignore
+    }
+  };
+
   svg.addEventListener(
     "pointerdown",
     (ev: PointerEvent) => {
-      if (ev.button === 0) {
-        // Chess.com behavior: any left click clears markings.
+      const isTouch = ev.pointerType === "touch";
+      const touchEnabled = isTouch && Boolean(isTouchInputEnabled?.());
+
+      // Chess.com behavior: any *mouse* left click clears markings.
+      // On touch devices, clearing on tap makes double-tap highlights unusable.
+      if (ev.button === 0 && !isTouch) {
         clear();
         return;
       }
 
-      if (ev.button !== 2) return;
+      if (ev.button === 2) {
+        const node = resolveNodeIdFromTarget(ev.target);
+        if (!node) return;
+
+        startGesture(ev, node, "right", colorFromModifiers(ev));
+
+        // Stop other handlers from interpreting this as input.
+        ev.preventDefault();
+        ev.stopPropagation();
+        return;
+      }
+
+      if (!touchEnabled) return;
 
       const node = resolveNodeIdFromTarget(ev.target);
       if (!node) return;
 
-      // Start a right-click gesture. We decide arrow vs highlight on pointerup.
-      rightActive = true;
-      startNode = node;
-      startClientX = ev.clientX;
-      startClientY = ev.clientY;
-      dragged = false;
-      activeColor = colorFromModifiers(ev);
-      activePointerId = ev.pointerId;
-
-      // Stop other handlers from interpreting this as input.
-      ev.preventDefault();
-      ev.stopPropagation();
-
-      try {
-        svg.setPointerCapture(ev.pointerId);
-      } catch {
-        // ignore
-      }
+      // Touch in analysis mode: drag draws arrows; double-tap toggles square highlight.
+      startGesture(ev, node, "touch", "orange");
     },
     { capture: true }
   );
@@ -128,34 +179,66 @@ export function installBoardVisualizationTools(svg: SVGSVGElement): BoardVisuali
   svg.addEventListener(
     "pointermove",
     (ev: PointerEvent) => {
-      if (!rightActive) return;
+      if (!gestureActive) return;
       if (activePointerId !== null && ev.pointerId !== activePointerId) return;
 
       const dx = ev.clientX - startClientX;
       const dy = ev.clientY - startClientY;
       if (Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) dragged = true;
 
-      ev.preventDefault();
+      // Only prevent default after the user has actually started dragging.
+      // This avoids breaking normal tap-to-move gameplay.
+      if (dragged) ev.preventDefault();
     },
     { capture: true }
   );
 
   const finish = (ev: PointerEvent) => {
-    if (!rightActive) return;
+    if (!gestureActive) return;
     if (activePointerId !== null && ev.pointerId !== activePointerId) return;
 
     const from = startNode;
     const color = activeColor;
 
-    rightActive = false;
+    const kind = gestureKind;
+
+    gestureActive = false;
     startNode = null;
     activePointerId = null;
 
     if (!from) return;
 
     if (!dragged) {
-      toggleSquare(state, from, color);
-      rerender();
+      if (kind === "right") {
+        toggleSquare(state, from, color);
+        rerender();
+        suppressClickUntilMs = Date.now() + 600;
+      } else {
+        // Touch: single taps do nothing; double-tap toggles square highlight.
+        const now = Date.now();
+        const dt = now - lastTouchTapAtMs;
+        const dx = ev.clientX - lastTouchTapX;
+        const dy = ev.clientY - lastTouchTapY;
+        const closeEnough = Math.hypot(dx, dy) <= DOUBLE_TAP_RADIUS_PX;
+
+        if (lastTouchTapNode === from && dt > 0 && dt <= DOUBLE_TAP_MS && closeEnough) {
+          toggleSquare(state, from, color);
+          rerender();
+          suppressClickUntilMs = now + 600;
+
+          // Consume the second tap so it doesn't act as game input.
+          ev.preventDefault();
+          ev.stopPropagation();
+
+          lastTouchTapAtMs = 0;
+          lastTouchTapNode = null;
+        } else {
+          lastTouchTapAtMs = now;
+          lastTouchTapNode = from;
+          lastTouchTapX = ev.clientX;
+          lastTouchTapY = ev.clientY;
+        }
+      }
       return;
     }
 
@@ -165,11 +248,16 @@ export function installBoardVisualizationTools(svg: SVGSVGElement): BoardVisuali
 
     toggleArrow(state, from, to, color);
     rerender();
+    suppressClickUntilMs = Date.now() + 600;
+
+    // Prevent a drag-gesture arrow from becoming a click.
+    ev.preventDefault();
+    ev.stopPropagation();
   };
 
   svg.addEventListener("pointerup", finish, { capture: true });
   svg.addEventListener("pointercancel", () => {
-    rightActive = false;
+    gestureActive = false;
     startNode = null;
     activePointerId = null;
   });

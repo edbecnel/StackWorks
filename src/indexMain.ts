@@ -34,6 +34,7 @@ const LS_KEYS = {
   optAnimations: "lasca.opt.animations",
   optShowResizeIcon: "lasca.opt.showResizeIcon",
   optBoardCoords: "lasca.opt.boardCoords",
+  optBoardCoordsInSquares: "lasca.opt.boardCoordsInSquares",
   optFlipBoard: "lasca.opt.flipBoard",
   optBoard8x8Checkered: "lasca.opt.board8x8Checkered",
   optCheckerboardTheme: "lasca.opt.checkerboardTheme",
@@ -459,6 +460,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const elShowResizeIcon = byId<HTMLInputElement>("launchShowResizeIcon");
   const elBoardCoords = byId<HTMLInputElement>("launchBoardCoords");
+  const elBoardCoordsInSquares = (document.getElementById("launchBoardCoordsInSquares") as HTMLInputElement | null) ?? null;
+  const elBoardCoordsInSquaresRow = (elBoardCoordsInSquares?.closest(".checkRow") as HTMLElement | null) ?? null;
+  const elBoardCoordsInSquaresHint = (elBoardCoordsInSquaresRow?.nextElementSibling as HTMLElement | null) ?? null;
   const elFlipBoard = byId<HTMLInputElement>("launchFlipBoard");
   const elLastMoveHighlights = byId<HTMLInputElement>("launchLastMoveHighlights");
   const elMoveHints = byId<HTMLInputElement>("launchMoveHints");
@@ -872,6 +876,7 @@ window.addEventListener("DOMContentLoaded", () => {
     writeBool(LS_KEYS.optAnimations, true);
     writeBool(LS_KEYS.optShowResizeIcon, elShowResizeIcon.checked);
     writeBool(LS_KEYS.optBoardCoords, elBoardCoords.checked);
+    if (elBoardCoordsInSquares) writeBool(LS_KEYS.optBoardCoordsInSquares, elBoardCoordsInSquares.checked);
     writeBool(LS_KEYS.optFlipBoard, elFlipBoard.checked);
     writeBool(LS_KEYS.optLastMoveHighlights, elLastMoveHighlights.checked);
     if ((isColumnsChess || isClassicChess || isCheckers) && elColumnsChessBoardTheme) {
@@ -1495,6 +1500,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   elShowResizeIcon.checked = readBool(LS_KEYS.optShowResizeIcon, false);
   elBoardCoords.checked = readBool(LS_KEYS.optBoardCoords, false);
+  if (elBoardCoordsInSquares) elBoardCoordsInSquares.checked = readBool(LS_KEYS.optBoardCoordsInSquares, false);
   elFlipBoard.checked = readBool(LS_KEYS.optFlipBoard, false);
   elLastMoveHighlights.checked = readBool(LS_KEYS.optLastMoveHighlights, true);
   elMoveHints.checked = readBool(LS_KEYS.optMoveHints, true);
@@ -1570,6 +1576,14 @@ window.addEventListener("DOMContentLoaded", () => {
     const isClassicChess = vId === "chess_classic";
     const isCheckers = v.rulesetId === "checkers_us";
     const usesColumnsChessBoard = isColumnsChess || isClassicChess;
+
+    // Board coordinate style (Inside squares) only applies to Classic Chess / Columns Chess.
+    {
+      const show = usesColumnsChessBoard;
+      if (elBoardCoordsInSquaresRow) elBoardCoordsInSquaresRow.style.display = show ? "" : "none";
+      if (elBoardCoordsInSquaresHint) elBoardCoordsInSquaresHint.style.display = show ? "" : "none";
+      if (elBoardCoordsInSquares) elBoardCoordsInSquares.disabled = !show || !elBoardCoords.checked;
+    }
 
     // "Use checkered board for 8×8 games" does not apply to:
     // - Columns Chess / Classic Chess (they have their own board SVG)
@@ -1759,6 +1773,12 @@ window.addEventListener("DOMContentLoaded", () => {
 
   elShowResizeIcon.addEventListener("change", () => {
     writeBool(LS_KEYS.optShowResizeIcon, elShowResizeIcon.checked);
+  });
+
+  // This setting controls whether the “Inside squares” sub-option is enabled.
+  // (We persist the actual prefs when launching.)
+  elBoardCoords.addEventListener("change", () => {
+    syncAvailability();
   });
 
   elFlipBoard.addEventListener("change", () => {
