@@ -146,7 +146,7 @@ function drawSquareMark(svg: SVGSVGElement, layer: SVGGElement, mark: BoardSquar
   el.setAttribute("height", String(h));
   el.setAttribute("fill", fill);
   el.setAttribute("stroke", stroke);
-  el.setAttribute("stroke-width", "4");
+  el.setAttribute("stroke-width", "3");
   applyRectDefaults(el);
   layer.appendChild(el);
 }
@@ -172,13 +172,13 @@ function drawArrowMark(layer: SVGGElement, mark: BoardArrowMark): void {
   // Keep arrow ends slightly away from exact centers.
   // Tail should start near the start-square edge (not under the piece).
   // Board tiles are ~100px; 40px from center is close to the edge.
-  const startInset = 40;
-  const endInset = 22;
+  const startInset = 32;
+  const endInset = 18;
 
   // Sizing: match common analysis-arrow feel.
   // - Stroke width +50% (10 -> 15)
   // - Arrowhead base width +75% (16 -> 28)
-  const arrowStrokeW = 15;
+  const arrowStrokeW = 10;
 
   let headUx = 0;
   let headUy = 0;
@@ -251,10 +251,10 @@ function drawArrowMark(layer: SVGGElement, mark: BoardArrowMark): void {
   }
 
   // Arrow head triangle (aligned to the final segment).
-  const headLen = 22;
-  const headW = 35;
-  const hx = b.cx - headUx * 6;
-  const hy = b.cy - headUy * 6;
+  const headLen = 18;
+  const headW = 28;
+  const hx = b.cx - headUx * 5;
+  const hy = b.cy - headUy * 5;
   const px = -headUy;
   const py = headUx;
 

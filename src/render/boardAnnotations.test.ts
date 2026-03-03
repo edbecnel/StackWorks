@@ -81,13 +81,13 @@ describe("renderBoardAnnotations", () => {
     expect(line).not.toBeNull();
     expect(head).not.toBeNull();
     expect(line?.getAttribute("vector-effect")).toBe("non-scaling-stroke");
-    expect(line?.getAttribute("stroke-width")).toBe("15");
+    expect(line?.getAttribute("stroke-width")).toBe("10");
 
     // Tail should start near the start-square edge.
-    expect(Number(line?.getAttribute("x1"))).toBeCloseTo(190, 3);
+    expect(Number(line?.getAttribute("x1"))).toBeCloseTo(182, 3);
     expect(Number(line?.getAttribute("y1"))).toBeCloseTo(150, 3);
     // End remains inset near the destination.
-    expect(Number(line?.getAttribute("x2"))).toBeCloseTo(228, 3);
+    expect(Number(line?.getAttribute("x2"))).toBeCloseTo(232, 3);
     expect(Number(line?.getAttribute("y2"))).toBeCloseTo(150, 3);
 
     // Ensure overlaysFx is still on top of annotations.
@@ -121,10 +121,10 @@ describe("renderBoardAnnotations", () => {
     const path = ann?.querySelector("path.board-annotation-arrow-path") as SVGPathElement | null;
     expect(path).not.toBeNull();
     expect(path?.getAttribute("d") ?? "").toMatch(/^M\s/);
-    expect(path?.getAttribute("stroke-width")).toBe("15");
+    expect(path?.getAttribute("stroke-width")).toBe("10");
 
     // Starts near the start-square edge (from r0c0 at 150,150).
-    expect(path?.getAttribute("d") ?? "").toContain("M 190 150");
+    expect(path?.getAttribute("d") ?? "").toContain("M 182 150");
 
     // Still ends with a normal arrow head.
     const head = ann?.querySelector("polygon") as SVGPolygonElement | null;

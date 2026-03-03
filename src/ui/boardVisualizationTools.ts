@@ -125,6 +125,30 @@ export function installBoardVisualizationTools(
 
   const isTouchInputEnabled = typeof opts?.isTouchInputEnabled === "function" ? opts.isTouchInputEnabled : null;
 
+  const isInteractiveEl = (target: EventTarget | null): boolean => {
+    if (!target || !(target instanceof Element)) return false;
+    return Boolean(target.closest("button,a,input,select,textarea,label,[role='button'],[role='link']"));
+  };
+
+  // Touch behavior parity with desktop: in analysis mode, a tap clears annotations.
+  // But we keep double-tap square highlights, so single-tap clear is delayed.
+  document.addEventListener(
+    "pointerdown",
+    (ev: PointerEvent) => {
+      const touchEnabled = ev.pointerType === "touch" && Boolean(isTouchInputEnabled?.());
+      if (!touchEnabled) return;
+
+      if (isInteractiveEl(ev.target)) return;
+      if (ev.target instanceof Element && ev.target.closest("#touchAnnotationPalette")) return;
+      if (ev.target instanceof Node && svg.contains(ev.target)) return;
+
+      lastTouchTapAtMs = 0;
+      lastTouchTapNode = null;
+      clear();
+    },
+    { capture: true }
+  );
+
   const startGesture = (ev: PointerEvent, node: string, kind: "right" | "touch", color: AnnotationColor): void => {
     // Start a gesture. For right-click, arrow vs highlight is decided on pointerup.
     // For touch, we only draw arrows on drag; highlights are toggled on double-tap.
@@ -218,7 +242,8 @@ export function installBoardVisualizationTools(
         rerender();
         suppressClickUntilMs = Date.now() + 600;
       } else {
-        // Touch: single taps do nothing; double-tap toggles square highlight.
+        // Touch: single tap clears immediately; double-tap toggles square highlight
+        // (on the second tap).
         const now = Date.now();
         const dt = now - lastTouchTapAtMs;
         const dx = ev.clientX - lastTouchTapX;
@@ -237,10 +262,18 @@ export function installBoardVisualizationTools(
           lastTouchTapAtMs = 0;
           lastTouchTapNode = null;
         } else {
+          // Immediate clear parity with desktop.
+          clear();
+          suppressClickUntilMs = now + 600;
+
           lastTouchTapAtMs = now;
           lastTouchTapNode = from;
           lastTouchTapX = ev.clientX;
           lastTouchTapY = ev.clientY;
+
+          // Consume the tap so it doesn't act as game input.
+          ev.preventDefault();
+          ev.stopPropagation();
         }
       }
       return;
