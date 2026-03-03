@@ -79,12 +79,129 @@ function isLikelyIOSBrowser(): boolean {
     const platform = String(nav?.platform ?? "");
     const maxTouchPoints = Number(nav?.maxTouchPoints ?? 0);
 
-    // iPadOS often reports as "MacIntel" but has touch points.
+    // iOS UA tokens (Safari + embedded webviews).
     const isIOSUA = /iPad|iPhone|iPod/i.test(ua);
+    const isIOSWebKitShell = /\b(CriOS|FxiOS|EdgiOS|OPiOS)\b/i.test(ua);
+    const isAppleVendor = /Apple/i.test(String(nav?.vendor ?? ""));
+
+    // iPadOS often reports as "MacIntel" but has touch points.
     const isIPadOS = platform === "MacIntel" && maxTouchPoints > 1;
-    return isIOSUA || isIPadOS;
+
+    // Some iPadOS Safari builds report as Macintosh in the UA.
+    const isTouchMacLike = /Macintosh/i.test(ua) && maxTouchPoints > 1;
+
+    return isIOSUA || isIPadOS || isTouchMacLike || (isAppleVendor && isIOSWebKitShell);
   } catch {
     return false;
+  }
+}
+
+function mulberry32(seed: number): () => number {
+  let t = seed >>> 0;
+  return () => {
+    t += 0x6d2b79f5;
+    let x = Math.imul(t ^ (t >>> 15), 1 | t);
+    x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function ensureImagePattern(svgRoot: SVGSVGElement, opts: { id: string; dataUrl: string; size: number }): void {
+  if (!opts.dataUrl) return;
+  const defs = ensureSvgDefs(svgRoot);
+  if (defs.querySelector(`#${opts.id}`)) return;
+
+  const pattern = document.createElementNS(SVG_NS, "pattern") as SVGPatternElement;
+  pattern.setAttribute("id", opts.id);
+  pattern.setAttribute("patternUnits", "userSpaceOnUse");
+  pattern.setAttribute("width", String(opts.size));
+  pattern.setAttribute("height", String(opts.size));
+
+  const img = document.createElementNS(SVG_NS, "image") as SVGImageElement;
+  img.setAttribute("x", "0");
+  img.setAttribute("y", "0");
+  img.setAttribute("width", String(opts.size));
+  img.setAttribute("height", String(opts.size));
+  img.setAttribute("preserveAspectRatio", "none");
+  img.setAttribute("href", opts.dataUrl);
+  img.setAttributeNS(XLINK_NS, "xlink:href", opts.dataUrl);
+  pattern.appendChild(img);
+
+  defs.appendChild(pattern);
+}
+
+function genTextureDataUrl(opts: {
+  themeId: "stone" | "burled";
+  variant: "light" | "dark";
+  baseHex: string;
+  seed: number;
+  size?: number;
+}): { url: string; size: number } {
+  const size = Math.max(64, Math.min(512, opts.size ?? 256));
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return { url: "", size };
+
+    ctx.fillStyle = opts.baseHex;
+    ctx.fillRect(0, 0, size, size);
+
+    const rnd = mulberry32(opts.seed);
+
+    // Fine noise
+    const dots = opts.themeId === "burled" ? 9000 : 6000;
+    for (let i = 0; i < dots; i++) {
+      const x = Math.floor(rnd() * size);
+      const y = Math.floor(rnd() * size);
+      const a = opts.themeId === "burled" ? 0.035 + rnd() * 0.045 : 0.02 + rnd() * 0.035;
+      const v = rnd() < 0.5 ? 0 : 255;
+      ctx.fillStyle = `rgba(${v}, ${v}, ${v}, ${a})`;
+      ctx.fillRect(x, y, 1, 1);
+    }
+
+    // Broad swirls / figure
+    ctx.save();
+    ctx.globalCompositeOperation = opts.themeId === "burled" ? "multiply" : "overlay";
+    const blobs = opts.themeId === "burled" ? 140 : 80;
+    for (let i = 0; i < blobs; i++) {
+      const cx = rnd() * size;
+      const cy = rnd() * size;
+      const r = (0.08 + rnd() * 0.22) * size;
+      const alpha = opts.themeId === "burled" ? 0.06 + rnd() * 0.10 : 0.04 + rnd() * 0.07;
+      const isDark = rnd() < 0.55;
+      const c = isDark ? 0 : 255;
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0, `rgba(${c}, ${c}, ${c}, ${alpha})`);
+      g.addColorStop(1, `rgba(${c}, ${c}, ${c}, 0)`);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // Light blur pass if supported (some older WebKit builds can ignore ctx.filter).
+    try {
+      const tmp = document.createElement("canvas");
+      tmp.width = size;
+      tmp.height = size;
+      const tctx = tmp.getContext("2d");
+      if (tctx) {
+        (tctx as any).filter = "blur(1.1px)";
+        tctx.drawImage(canvas, 0, 0);
+        ctx.clearRect(0, 0, size, size);
+        ctx.globalAlpha = 1;
+        ctx.drawImage(tmp, 0, 0);
+      }
+    } catch {
+      // ignore
+    }
+
+    return { url: canvas.toDataURL("image/png"), size };
+  } catch {
+    return { url: "", size };
   }
 }
 
@@ -136,17 +253,17 @@ function ensureRasterLayer(svgRoot: SVGSVGElement): SVGGElement {
   g.id = "checkerboardRasterLayer";
   g.setAttribute("pointer-events", "none");
 
+  // If a play-area zoom group exists, attach the raster layer inside it so the
+  // background scales together with squares/coords/pieces.
+  const playArea = svgRoot.querySelector("#boardPlayArea") as SVGGElement | null;
+  const parent = playArea?.parentNode ? playArea : view;
+
   // Insert as early as possible inside the view group so it stays behind
   // nodes/pieces/overlays.
   try {
-    const bgFill = svgRoot.querySelector("#bgFill");
-    if (bgFill && bgFill.parentNode) {
-      bgFill.parentNode.insertBefore(g, bgFill);
-    } else {
-      view.insertBefore(g, view.firstChild);
-    }
+    parent.insertBefore(g, parent.firstChild);
   } catch {
-    view.appendChild(g);
+    parent.appendChild(g);
   }
 
   return g;
@@ -172,7 +289,8 @@ function removeRasterizedBackground(svgRoot: SVGSVGElement): void {
   }
 
   // Restore hidden groups (if we hid them after rasterization).
-  for (const id of ["bgFill", "squares", "frame"]) {
+  // NOTE: we intentionally keep `#bgFill` + `#frame` vector (never hidden).
+  for (const id of ["squares"]) {
     const g = svgRoot.querySelector(`#${id}`) as SVGGElement | null;
     if (!g) continue;
     if ((g as any).dataset?.rasterHidden === "1") {
@@ -186,10 +304,30 @@ function removeRasterizedBackground(svgRoot: SVGSVGElement): void {
   }
 }
 
+function getSquaresViewBox(svgRoot: SVGSVGElement): { x: number; y: number; w: number; h: number } {
+  try {
+    const squares = svgRoot.querySelector("#squares") as SVGGElement | null;
+    if (squares) {
+      const bb = squares.getBBox();
+      if (Number.isFinite(bb.x) && Number.isFinite(bb.y) && Number.isFinite(bb.width) && Number.isFinite(bb.height)) {
+        if (bb.width > 0 && bb.height > 0) return { x: bb.x, y: bb.y, w: bb.width, h: bb.height };
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  // Fallback for unexpected SVGs.
+  return parseViewBox(svgRoot);
+}
+
 async function rasterizeBoardBackgroundOnce(svgRoot: SVGSVGElement): Promise<{ url: string; w: number; h: number } | null> {
   if (typeof document === "undefined") return null;
 
-  const vb = parseViewBox(svgRoot);
+  // Rasterize only the checkerboard squares area. This prevents the Stone/Burled
+  // texture from bleeding into the SVG's outer margin when the play-area is zoomed.
+  const rootVb = parseViewBox(svgRoot);
+  const vb = getSquaresViewBox(svgRoot);
 
   // Determine raster target size based on the on-screen size.
   let targetW = Math.max(1, Math.round(vb.w));
@@ -198,14 +336,16 @@ async function rasterizeBoardBackgroundOnce(svgRoot: SVGSVGElement): Promise<{ u
     const rect = svgRoot.getBoundingClientRect();
     const dpr = Math.max(1, Math.min(4, window.devicePixelRatio || 1));
     if (rect.width > 10 && rect.height > 10) {
-      targetW = Math.max(1, Math.round(rect.width * dpr));
-      targetH = Math.max(1, Math.round(rect.height * dpr));
+      const sx = rootVb.w > 0 ? vb.w / rootVb.w : 1;
+      const sy = rootVb.h > 0 ? vb.h / rootVb.h : 1;
+      targetW = Math.max(1, Math.round(rect.width * dpr * sx));
+      targetH = Math.max(1, Math.round(rect.height * dpr * sy));
     }
   } catch {
     // ignore; fall back to viewBox size
   }
 
-  // Build a minimal SVG that contains only the background layers and defs.
+  // Build a minimal SVG that contains only the squares + defs.
   const tempSvg = document.createElementNS(SVG_NS, "svg") as SVGSVGElement;
   tempSvg.setAttribute("xmlns", SVG_NS);
   tempSvg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
@@ -219,10 +359,9 @@ async function rasterizeBoardBackgroundOnce(svgRoot: SVGSVGElement): Promise<{ u
     tempSvg.appendChild(defsClone);
   }
 
-  for (const id of ["bgFill", "squares", "frame"]) {
-    const g = svgRoot.querySelector(`#${id}`) as SVGGElement | null;
-    if (!g) continue;
-    const clone = g.cloneNode(true) as SVGGElement;
+  const squares = svgRoot.querySelector("#squares") as SVGGElement | null;
+  if (squares) {
+    const clone = squares.cloneNode(true) as SVGGElement;
     stripHiddenPresentation(clone);
     tempSvg.appendChild(clone);
   }
@@ -546,10 +685,37 @@ export function applyCheckerboardTheme(svgRoot: SVGSVGElement, themeId: Checkerb
   if (themeId === "stone") ensureStoneCheckerboardDefs(svgRoot);
   if (themeId === "burled") ensureBurledWoodCheckerboardDefs(svgRoot);
 
-  // iOS Safari is known to have incomplete SVG support for filters inside <pattern>
-  // fills (often rendering them as solid white/blank). For iOS, fall back to applying
-  // the filter directly to each tile (no pattern), which tends to be more reliable.
-  const useDirectFilterFallback = (themeId === "stone" || themeId === "burled") && isLikelyIOSBrowser();
+  const isIOS = (themeId === "stone" || themeId === "burled") && isLikelyIOSBrowser();
+
+  // iOS WebKit is notorious for flaky rendering of SVG filters inside <pattern> fills.
+  // Our most reliable option is an image-based pattern (generated via canvas) with no
+  // SVG filters involved.
+  const useIOSImagePatternFallback = isIOS;
+
+  // Secondary iOS fallback: apply the filter directly to each tile (no pattern).
+  // Keep this as a backup if the image fallback can't be generated.
+  const useDirectFilterFallback = isIOS && !useIOSImagePatternFallback;
+
+  if (useIOSImagePatternFallback) {
+    const anyRoot = svgRoot as any;
+    if (!anyRoot.__checkerboardIOSPatternReady) {
+      anyRoot.__checkerboardIOSPatternReady = 1;
+
+      if (themeId === "stone") {
+        const light = genTextureDataUrl({ themeId: "stone", variant: "light", baseHex: theme.light, seed: 11011, size: 256 });
+        const dark = genTextureDataUrl({ themeId: "stone", variant: "dark", baseHex: theme.dark, seed: 22023, size: 256 });
+        ensureImagePattern(svgRoot, { id: "stoneIOSLightImg", dataUrl: light.url, size: light.size });
+        ensureImagePattern(svgRoot, { id: "stoneIOSDarkImg", dataUrl: dark.url, size: dark.size });
+      }
+
+      if (themeId === "burled") {
+        const light = genTextureDataUrl({ themeId: "burled", variant: "light", baseHex: theme.light, seed: 33031, size: 256 });
+        const dark = genTextureDataUrl({ themeId: "burled", variant: "dark", baseHex: theme.dark, seed: 44041, size: 256 });
+        ensureImagePattern(svgRoot, { id: "burledIOSLightImg", dataUrl: light.url, size: light.size });
+        ensureImagePattern(svgRoot, { id: "burledIOSDarkImg", dataUrl: dark.url, size: dark.size });
+      }
+    }
+  }
 
   for (const rect of rects) {
     const x = parseNum(rect.getAttribute("x"));
@@ -562,7 +728,18 @@ export function applyCheckerboardTheme(svgRoot: SVGSVGElement, themeId: Checkerb
 
     const isLight = (row + col) % 2 === 0;
     if (themeId === "stone") {
-      if (useDirectFilterFallback) {
+      if (useIOSImagePatternFallback) {
+        const pid = isLight ? "stoneIOSLightImg" : "stoneIOSDarkImg";
+        const fill = `url(#${pid})`;
+        rect.setAttribute("fill", fill);
+        rect.style.setProperty("fill", fill, "important");
+        try {
+          rect.removeAttribute("filter");
+          rect.style.removeProperty("filter");
+        } catch {
+          // ignore
+        }
+      } else if (useDirectFilterFallback) {
         const fill = isLight ? theme.light : theme.dark;
         rect.setAttribute("fill", fill);
         rect.style.setProperty("fill", fill, "important");
@@ -595,7 +772,18 @@ export function applyCheckerboardTheme(svgRoot: SVGSVGElement, themeId: Checkerb
         }
       }
     } else if (themeId === "burled") {
-      if (useDirectFilterFallback) {
+      if (useIOSImagePatternFallback) {
+        const pid = isLight ? "burledIOSLightImg" : "burledIOSDarkImg";
+        const fill = `url(#${pid})`;
+        rect.setAttribute("fill", fill);
+        rect.style.setProperty("fill", fill, "important");
+        try {
+          rect.removeAttribute("filter");
+          rect.style.removeProperty("filter");
+        } catch {
+          // ignore
+        }
+      } else if (useDirectFilterFallback) {
         const fill = isLight ? theme.light : theme.dark;
         rect.setAttribute("fill", fill);
         rect.style.setProperty("fill", fill, "important");
@@ -665,7 +853,7 @@ export function applyCheckerboardTheme(svgRoot: SVGSVGElement, themeId: Checkerb
       // Replace any prior image.
       while (layer.firstChild) layer.removeChild(layer.firstChild);
 
-      const vb = parseViewBox(svgRoot);
+      const vb = getSquaresViewBox(svgRoot);
       const img = document.createElementNS(SVG_NS, "image") as SVGImageElement;
       img.setAttribute("x", String(vb.x));
       img.setAttribute("y", String(vb.y));
@@ -678,7 +866,8 @@ export function applyCheckerboardTheme(svgRoot: SVGSVGElement, themeId: Checkerb
       layer.appendChild(img);
 
       // Hide vector background layers to avoid triggering expensive repaints.
-      for (const id of ["bgFill", "squares", "frame"]) {
+      // NOTE: do NOT hide the frame; it should remain crisp and unscaled.
+      for (const id of ["squares"]) {
         const g = svgRoot.querySelector(`#${id}`) as SVGGElement | null;
         if (!g) continue;
         try {

@@ -429,20 +429,33 @@ type SectionRecord = {
   sections: Array<{ sectionEl: HTMLElement; placeholderEl: HTMLElement | null }>;
 };
 
-function syncMenuModeBoardZoom(): void {
+function syncBoardPlayAreaZoom(): void {
   if (typeof document === "undefined") return;
   const svg = document.querySelector("#boardWrap svg") as SVGSVGElement | null;
   if (!svg) return;
 
-  // Scale up the *play area* (squares + coords + pieces) in menu mode.
+  // Scale up the *play area* (squares + coords + pieces) in BOTH layout modes.
   // This reduces the SVG's built-in margin between the checkerboard and the frame.
-  const mode = (document.body.dataset.panelLayout as PanelLayoutMode | undefined) ?? "panels";
   try {
-    const mobileLike = detectDefaultPanelLayoutMode() === "menu";
-    const wantZoom = mode === "menu" || mobileLike;
-    setBoardPlayAreaZoom(svg, wantZoom ? 1.10 : 1);
+    setBoardPlayAreaZoom(svg, 1.10);
   } catch {
     // ignore
+  }
+}
+
+function scheduleBoardPlayAreaZoomSync(): void {
+  if (typeof window === "undefined") return;
+  const anyWin = window as any;
+  if (anyWin.__boardPlayAreaZoomSyncQueued) return;
+  anyWin.__boardPlayAreaZoomSyncQueued = 1;
+  try {
+    window.requestAnimationFrame(() => {
+      anyWin.__boardPlayAreaZoomSyncQueued = 0;
+      syncBoardPlayAreaZoom();
+    });
+  } catch {
+    anyWin.__boardPlayAreaZoomSyncQueued = 0;
+    syncBoardPlayAreaZoom();
   }
 }
 
@@ -616,28 +629,32 @@ export function bindPanelLayoutMenuMode(): void {
 
   // Keep the board zoom in sync with layout mode.
   try {
-    window.addEventListener("panelLayoutModeChanged", () => syncMenuModeBoardZoom());
+    window.addEventListener("panelLayoutModeChanged", () => scheduleBoardPlayAreaZoomSync());
   } catch {
     // ignore
   }
 
   // Handle rotation / resizes that can change the mobile-like heuristic.
   try {
-    window.addEventListener("resize", () => syncMenuModeBoardZoom());
+    window.addEventListener("resize", () => scheduleBoardPlayAreaZoomSync());
   } catch {
     // ignore
   }
 
   // Some pages bind menu mode before the board SVG is loaded.
-  // Observe the board container so we apply zoom as soon as the SVG arrives.
+  // Observe the board container so we apply zoom as soon as the SVG arrives,
+  // and also when themes mutate the SVG (e.g. Stone/Burled raster layer).
   try {
     const boardWrap = document.getElementById("boardWrap") as HTMLElement | null;
     const anyWrap = boardWrap as any;
     if (boardWrap && typeof MutationObserver !== "undefined" && !anyWrap.__panelLayoutBoardWrapObserver) {
       const obs = new MutationObserver(() => {
-        syncMenuModeBoardZoom();
+        scheduleBoardPlayAreaZoomSync();
       });
-      obs.observe(boardWrap, { childList: true, subtree: false });
+      // IMPORTANT: do NOT observe attributes. Our zoom implementation updates
+      // `transform` attributes, which would create an observer feedback loop and
+      // can freeze page load.
+      obs.observe(boardWrap, { childList: true, subtree: true });
       anyWrap.__panelLayoutBoardWrapObserver = obs;
     }
   } catch {
@@ -645,7 +662,7 @@ export function bindPanelLayoutMenuMode(): void {
   }
 
   // Apply immediately (covers initial page load).
-  syncMenuModeBoardZoom();
+  scheduleBoardPlayAreaZoomSync();
 
   const resolveGameName = (): string => {
     const rawExplicit = (document.getElementById("gameTitle") as HTMLElement | null)?.textContent?.trim();
@@ -886,6 +903,10 @@ export function bindPanelLayoutMenuMode(): void {
   const applyVisibility = (): void => {
     const mode = getMode();
     applyPanelLayoutMode(mode);
+
+    // Some layouts mutate DOM / order; ensure board zoom is re-applied after the
+    // dataset change so it doesn't get lost across mode toggles.
+    scheduleBoardPlayAreaZoomSync();
 
     // Default: header stays hidden until first hamburger tap.
     if (mode === "menu" && document.body.dataset.panelLayoutHeader !== "1") {

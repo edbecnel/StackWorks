@@ -59,8 +59,14 @@ function ensurePlayAreaGroup(svg: SVGSVGElement): SVGGElement {
   const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
   g.id = "boardPlayArea";
 
-  // Append first so insert/move operations have a stable destination.
-  boardView.appendChild(g);
+  // Insert so the outer frame stays on top.
+  // Desired order: bgFill (bottom) -> playArea (zoomed) -> frame (top).
+  const frameEl = boardView.querySelector("#frame");
+  if (frameEl && frameEl.parentNode === boardView) {
+    boardView.insertBefore(g, frameEl);
+  } else {
+    boardView.appendChild(g);
+  }
 
   // Move visual children under the play-area group, preserving order.
   const toMove = Array.from(boardView.childNodes).filter((n) => n !== g);
@@ -142,8 +148,60 @@ export function setBoardPlayAreaZoom(svg: SVGSVGElement, scale: number): void {
     if (safe) {
       // Ensure bbox is measured without our zoom transform.
       restoreTransform(playArea, "origTransform");
+
+      // The Stone/Burled themes may inject a full-board raster <image> layer
+      // (x/y = viewBox origin; width/height = viewBox size). That background
+      // is intentionally scaled with the play area, but it must NOT participate
+      // in clamping; otherwise `getBBox()` becomes the entire viewBox and the
+      // computed max scale collapses back to ~1.
+      const rasterLayer = svg.querySelector("#checkerboardRasterLayer") as SVGGElement | null;
+      const prevRasterDisplay = rasterLayer?.getAttribute("display") ?? null;
+      try {
+        if (rasterLayer) rasterLayer.setAttribute("display", "none");
+      } catch {
+        // ignore
+      }
+
       const baseBBox = playArea.getBBox();
+
+      try {
+        if (rasterLayer) {
+          if (prevRasterDisplay == null) rasterLayer.removeAttribute("display");
+          else rasterLayer.setAttribute("display", prevRasterDisplay);
+        }
+      } catch {
+        // ignore
+      }
+
       stashTransform(playArea, "origTransform");
+
+      // Defensive: during theme swaps or early paint, some browsers can report a
+      // degenerate bbox (0×0 at origin) for a group that is in flux. If we clamp
+      // using that, we can erroneously force the scale down to ~1.
+      if (
+        !Number.isFinite(baseBBox.x) ||
+        !Number.isFinite(baseBBox.y) ||
+        !Number.isFinite(baseBBox.width) ||
+        !Number.isFinite(baseBBox.height) ||
+        baseBBox.width < 2 ||
+        baseBBox.height < 2
+      ) {
+        // Skip clamping; apply requested scale.
+        playArea.setAttribute(
+          "transform",
+          `translate(${cx} ${cy}) scale(${clampedScale}) translate(${-cx} ${-cy})`
+        );
+        return;
+      }
+
+      // Also avoid clamping against obviously wrong boxes.
+      if (baseBBox.x < vb.x - vb.w || baseBBox.y < vb.y - vb.h || baseBBox.x > vb.x + vb.w || baseBBox.y > vb.y + vb.h) {
+        playArea.setAttribute(
+          "transform",
+          `translate(${cx} ${cy}) scale(${clampedScale}) translate(${-cx} ${-cy})`
+        );
+        return;
+      }
 
       const leftD0 = cx - baseBBox.x;
       const rightD0 = baseBBox.x + baseBBox.width - cx;
