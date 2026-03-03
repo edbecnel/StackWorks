@@ -216,6 +216,10 @@ function genTextureDataUrl(opts: {
     // to preserve clear checker contrast.
     if (opts.themeId === "stone") {
       ctx.globalCompositeOperation = opts.variant === "dark" ? "screen" : "multiply";
+    } else if (opts.themeId === "burled") {
+      // Burled: keep light tiles darker-veined, but give dark tiles lighter highlights.
+      // Using multiply for the dark variant tends to crush texture into a flat field.
+      ctx.globalCompositeOperation = opts.variant === "dark" ? "screen" : "multiply";
     } else {
       ctx.globalCompositeOperation = "multiply";
     }
@@ -229,7 +233,7 @@ function genTextureDataUrl(opts: {
       // Choose a vein color that is relative to the base so it reads as texture.
       const veinRgb = opts.themeId === "stone"
         ? (opts.variant === "dark" ? mixRgb(baseRgb, white, 0.55) : mixRgb(baseRgb, black, 0.55))
-        : (opts.variant === "dark" ? mixRgb(baseRgb, black, 0.45) : mixRgb(baseRgb, black, 0.35));
+        : (opts.variant === "dark" ? mixRgb(baseRgb, white, 0.34) : mixRgb(baseRgb, black, 0.35));
       const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
       g.addColorStop(0, rgbCss(veinRgb, alpha));
       g.addColorStop(1, rgbCss(veinRgb, 0));
@@ -254,7 +258,7 @@ function genTextureDataUrl(opts: {
         const y = rnd() * size;
         const w = (0.4 + rnd() * 1.6);
         const a = 0.02 + rnd() * 0.04;
-        const c = opts.variant === "dark" ? mixRgb(baseRgb, black, 0.35) : mixRgb(baseRgb, black, 0.25);
+        const c = opts.variant === "dark" ? mixRgb(baseRgb, white, 0.18) : mixRgb(baseRgb, black, 0.25);
         ctx.strokeStyle = rgbCss(c, a);
         ctx.lineWidth = w;
         ctx.beginPath();
