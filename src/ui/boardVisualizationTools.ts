@@ -5,6 +5,9 @@ export type BoardVisualizationToolsController = {
   /** Active color used for touch annotations (drag arrows / double-tap highlights). */
   setActiveColor: (color: AnnotationColor) => void;
   getActiveColor: () => AnnotationColor;
+  /** When true, touch gestures erase existing annotations instead of adding/toggling. */
+  setEraseMode: (enabled: boolean) => void;
+  getEraseMode: () => boolean;
 };
 
 export type BoardVisualizationToolsOptions = {
@@ -72,6 +75,20 @@ function toggleArrow(state: BoardAnnotationsState, from: string, to: string, col
   state.arrows.push({ kind: "arrow", from, to, color });
 }
 
+function eraseSquare(state: BoardAnnotationsState, at: string): boolean {
+  const idx = state.squares.findIndex((s) => s.at === at);
+  if (idx < 0) return false;
+  state.squares.splice(idx, 1);
+  return true;
+}
+
+function eraseArrow(state: BoardAnnotationsState, from: string, to: string): boolean {
+  const idx = state.arrows.findIndex((a) => a.from === from && a.to === to);
+  if (idx < 0) return false;
+  state.arrows.splice(idx, 1);
+  return true;
+}
+
 export function installBoardVisualizationTools(
   svg: SVGSVGElement,
   opts?: BoardVisualizationToolsOptions
@@ -107,44 +124,12 @@ export function installBoardVisualizationTools(
   const DRAG_THRESHOLD_PX = 6;
   const DOUBLE_TAP_MS = 350;
   const DOUBLE_TAP_RADIUS_PX = 24;
-  const HOLD_CLEAR_MS = 480;
 
   let lastTouchTapAtMs = 0;
   let lastTouchTapNode: string | null = null;
   let lastTouchTapX = 0;
   let lastTouchTapY = 0;
 
-  let holdClearTimer: number | null = null;
-  let holdClearPointerId: number | null = null;
-  let holdClearStartX = 0;
-  let holdClearStartY = 0;
-  let holdClearedPointerId: number | null = null;
-
-  const cancelHoldClear = (pointerId?: number) => {
-    if (pointerId != null && holdClearPointerId != null && pointerId !== holdClearPointerId) return;
-    if (holdClearTimer != null) {
-      window.clearTimeout(holdClearTimer);
-      holdClearTimer = null;
-    }
-    holdClearPointerId = null;
-  };
-
-  const startHoldClear = (ev: PointerEvent) => {
-    cancelHoldClear();
-    holdClearedPointerId = null;
-    holdClearPointerId = ev.pointerId;
-    holdClearStartX = ev.clientX;
-    holdClearStartY = ev.clientY;
-    const pid = ev.pointerId;
-    holdClearTimer = window.setTimeout(() => {
-      holdClearTimer = null;
-      holdClearedPointerId = pid;
-      lastTouchTapAtMs = 0;
-      lastTouchTapNode = null;
-      clear();
-      suppressClickUntilMs = Date.now() + 700;
-    }, HOLD_CLEAR_MS);
-  };
 
   let gestureActive = false;
   let gestureKind: "right" | "touch" = "right";
@@ -154,6 +139,7 @@ export function installBoardVisualizationTools(
   let dragged = false;
   let gestureColor: AnnotationColor = "orange";
   let activeColor: AnnotationColor = "orange";
+  let eraseMode = false;
   let activePointerId: number | null = null;
 
   const isTouchInputEnabled = typeof opts?.isTouchInputEnabled === "function" ? opts.isTouchInputEnabled : null;
@@ -162,84 +148,6 @@ export function installBoardVisualizationTools(
     if (!target || !(target instanceof Element)) return false;
     return Boolean(target.closest("button,a,input,select,textarea,label,[role='button'],[role='link']"));
   };
-
-  // Touch behavior: in analysis mode, long-press clears annotations.
-  document.addEventListener(
-    "pointerdown",
-    (ev: PointerEvent) => {
-      const touchEnabled = ev.pointerType === "touch" && Boolean(isTouchInputEnabled?.());
-      if (!touchEnabled) return;
-
-      if (isInteractiveEl(ev.target)) return;
-      if (ev.target instanceof Element && ev.target.closest("#touchAnnotationPalette")) return;
-      if (ev.target instanceof Node && svg.contains(ev.target)) return;
-
-      startHoldClear(ev);
-    },
-    { capture: true }
-  );
-
-  document.addEventListener(
-    "pointermove",
-    (ev: PointerEvent) => {
-      if (holdClearPointerId == null || ev.pointerId !== holdClearPointerId) return;
-      const dx = ev.clientX - holdClearStartX;
-      const dy = ev.clientY - holdClearStartY;
-      if (Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) cancelHoldClear(ev.pointerId);
-    },
-    { capture: true }
-  );
-
-  document.addEventListener(
-    "pointerup",
-    (ev: PointerEvent) => {
-      // If the hold-to-clear fired while pressing outside the SVG (e.g. on coordinate labels),
-      // consume the release so it doesn't select a square/file label.
-      if (
-        holdClearedPointerId != null &&
-        ev.pointerType === "touch" &&
-        ev.pointerId === holdClearedPointerId &&
-        !(ev.target instanceof Node && svg.contains(ev.target))
-      ) {
-        holdClearedPointerId = null;
-        cancelHoldClear(ev.pointerId);
-        ev.preventDefault();
-        ev.stopPropagation();
-        return;
-      }
-      cancelHoldClear(ev.pointerId);
-    },
-    { capture: true }
-  );
-
-  document.addEventListener(
-    "pointercancel",
-    (ev: PointerEvent) => {
-      if (holdClearedPointerId != null && ev.pointerType === "touch" && ev.pointerId === holdClearedPointerId) {
-        holdClearedPointerId = null;
-      }
-      cancelHoldClear(ev.pointerId);
-    },
-    { capture: true }
-  );
-
-  // Also suppress any synthetic click that may be dispatched after a long-press clear.
-  document.addEventListener(
-    "click",
-    (ev: MouseEvent) => {
-      if (Date.now() >= suppressClickUntilMs) return;
-      if (!(ev.target instanceof Element)) return;
-      if (ev.target.closest("#touchAnnotationPalette")) return;
-
-      // Only suppress clicks that occur in/around the board area.
-      const inBoardArea = (ev.target instanceof Node && svg.contains(ev.target)) || Boolean(ev.target.closest("#boardWrap"));
-      if (!inBoardArea) return;
-
-      ev.preventDefault();
-      ev.stopPropagation();
-    },
-    { capture: true }
-  );
 
   const startGesture = (ev: PointerEvent, node: string, kind: "right" | "touch", color: AnnotationColor): void => {
     // Start a gesture. For right-click, arrow vs highlight is decided on pointerup.
@@ -292,9 +200,6 @@ export function installBoardVisualizationTools(
 
       // Touch in analysis mode: drag draws arrows; double-tap toggles square highlight.
       startGesture(ev, node, "touch", activeColor);
-
-      // Long-press clears.
-      startHoldClear(ev);
     },
     { capture: true }
   );
@@ -309,8 +214,6 @@ export function installBoardVisualizationTools(
       const dy = ev.clientY - startClientY;
       if (Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) dragged = true;
 
-      if (dragged) cancelHoldClear(ev.pointerId);
-
       // Only prevent default after the user has actually started dragging.
       // This avoids breaking normal tap-to-move gameplay.
       if (dragged) ev.preventDefault();
@@ -321,17 +224,6 @@ export function installBoardVisualizationTools(
   const finish = (ev: PointerEvent) => {
     if (!gestureActive) return;
     if (activePointerId !== null && ev.pointerId !== activePointerId) return;
-
-    cancelHoldClear(ev.pointerId);
-    if (holdClearedPointerId != null && ev.pointerId === holdClearedPointerId) {
-      holdClearedPointerId = null;
-      gestureActive = false;
-      startNode = null;
-      activePointerId = null;
-      ev.preventDefault();
-      ev.stopPropagation();
-      return;
-    }
 
     const from = startNode;
     const color = gestureColor;
@@ -358,7 +250,11 @@ export function installBoardVisualizationTools(
         const closeEnough = Math.hypot(dx, dy) <= DOUBLE_TAP_RADIUS_PX;
 
         if (lastTouchTapNode === from && dt > 0 && dt <= DOUBLE_TAP_MS && closeEnough) {
-          toggleSquare(state, from, color);
+          if (eraseMode) {
+            eraseSquare(state, from);
+          } else {
+            toggleSquare(state, from, color);
+          }
           rerender();
           suppressClickUntilMs = now + 600;
 
@@ -386,7 +282,11 @@ export function installBoardVisualizationTools(
     if (!to) return;
     if (to === from) return;
 
-    toggleArrow(state, from, to, color);
+    if (kind === "touch" && eraseMode) {
+      eraseArrow(state, from, to);
+    } else {
+      toggleArrow(state, from, to, color);
+    }
     rerender();
     suppressClickUntilMs = Date.now() + 600;
 
@@ -400,8 +300,6 @@ export function installBoardVisualizationTools(
     gestureActive = false;
     startNode = null;
     activePointerId = null;
-    cancelHoldClear();
-    holdClearedPointerId = null;
   });
 
   // Ensure initial layer exists (no-op if unused).
@@ -413,5 +311,9 @@ export function installBoardVisualizationTools(
       activeColor = color;
     },
     getActiveColor: () => activeColor,
+    setEraseMode: (enabled: boolean) => {
+      eraseMode = Boolean(enabled);
+    },
+    getEraseMode: () => eraseMode,
   };
 }

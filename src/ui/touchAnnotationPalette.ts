@@ -24,8 +24,10 @@ export function bindTouchAnnotationPalette(controller: GameController, tools: Bo
   const root = document.getElementById("touchAnnotationPalette") as HTMLElement | null;
   if (!root) return;
 
-  const btns = Array.from(root.querySelectorAll<HTMLButtonElement>("button[data-color]"));
-  if (btns.length === 0) return;
+  const colorBtns = Array.from(root.querySelectorAll<HTMLButtonElement>("button[data-color]"));
+  const clearBtn = root.querySelector<HTMLButtonElement>("button[data-action='clear']");
+  const eraseBtn = root.querySelector<HTMLButtonElement>("button[data-action='erase']");
+  if (colorBtns.length === 0 && !clearBtn && !eraseBtn) return;
 
   const clampColor = (raw: string | null): AnnotationColor => {
     if (raw === "orange" || raw === "green" || raw === "red" || raw === "blue") return raw;
@@ -33,10 +35,15 @@ export function bindTouchAnnotationPalette(controller: GameController, tools: Bo
   };
 
   const syncPressed = (selected: AnnotationColor) => {
-    for (const b of btns) {
+    for (const b of colorBtns) {
       const c = clampColor(b.getAttribute("data-color"));
       b.setAttribute("aria-pressed", c === selected ? "true" : "false");
     }
+  };
+
+  const syncErasePressed = (enabled: boolean) => {
+    if (!eraseBtn) return;
+    eraseBtn.setAttribute("aria-pressed", enabled ? "true" : "false");
   };
 
   const setSelected = (color: AnnotationColor) => {
@@ -44,7 +51,7 @@ export function bindTouchAnnotationPalette(controller: GameController, tools: Bo
     syncPressed(color);
   };
 
-  for (const b of btns) {
+  for (const b of colorBtns) {
     b.addEventListener(
       "click",
       (ev) => {
@@ -56,12 +63,35 @@ export function bindTouchAnnotationPalette(controller: GameController, tools: Bo
     );
   }
 
+  clearBtn?.addEventListener(
+    "click",
+    (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      tools.clear();
+    },
+    { capture: true }
+  );
+
+  eraseBtn?.addEventListener(
+    "click",
+    (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const next = !tools.getEraseMode();
+      tools.setEraseMode(next);
+      syncErasePressed(next);
+    },
+    { capture: true }
+  );
+
   const syncVisibility = () => {
     const show = isTouchLikeEnvironment() && controller.isAnalysisMode();
     root.style.display = show ? "flex" : "none";
   };
 
   setSelected(tools.getActiveColor());
+  syncErasePressed(tools.getEraseMode());
   syncVisibility();
 
   controller.addAnalysisModeChangeCallback(() => syncVisibility());
