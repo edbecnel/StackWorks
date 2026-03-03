@@ -241,6 +241,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Analysis graphics: right-drag (desktop) and touch gestures (analysis mode only).
   const boardVizTools = installBoardVisualizationTools(svg, { isTouchInputEnabled: () => controller.isAnalysisMode() });
   bindTouchAnnotationPalette(controller, boardVizTools);
+  controller.addAnalysisModeChangeCallback((enabled) => {
+    if (!enabled) boardVizTools.clear();
+  });
 
   bindStartPageConfirm(controller, ACTIVE_VARIANT_ID);
 
