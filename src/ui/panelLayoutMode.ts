@@ -57,6 +57,11 @@ body[data-panel-layout="menu"] .sidebar {
   display: none !important;
 }
 
+/* Menu layout mode: reserve top space so hamburger/header never overlaps the board area. */
+body[data-panel-layout="menu"] #centerArea {
+  padding-top: 70px;
+}
+
 /* Top header (menu mode) */
 #panelLayoutHeader {
   position: fixed;
