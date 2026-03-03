@@ -72,6 +72,22 @@ export function normalizeCheckerboardThemeId(raw: string | null | undefined): Ch
 const SVG_NS = "http://www.w3.org/2000/svg";
 const XLINK_NS = "http://www.w3.org/1999/xlink";
 
+function isLikelyIOSBrowser(): boolean {
+  try {
+    const nav = navigator as any;
+    const ua = String(nav?.userAgent ?? "");
+    const platform = String(nav?.platform ?? "");
+    const maxTouchPoints = Number(nav?.maxTouchPoints ?? 0);
+
+    // iPadOS often reports as "MacIntel" but has touch points.
+    const isIOSUA = /iPad|iPhone|iPod/i.test(ua);
+    const isIPadOS = platform === "MacIntel" && maxTouchPoints > 1;
+    return isIOSUA || isIPadOS;
+  } catch {
+    return false;
+  }
+}
+
 function parseViewBox(svg: SVGSVGElement): { x: number; y: number; w: number; h: number } {
   const raw = svg.getAttribute("viewBox") ?? "";
   const parts = raw
@@ -530,6 +546,11 @@ export function applyCheckerboardTheme(svgRoot: SVGSVGElement, themeId: Checkerb
   if (themeId === "stone") ensureStoneCheckerboardDefs(svgRoot);
   if (themeId === "burled") ensureBurledWoodCheckerboardDefs(svgRoot);
 
+  // iOS Safari is known to have incomplete SVG support for filters inside <pattern>
+  // fills (often rendering them as solid white/blank). For iOS, fall back to applying
+  // the filter directly to each tile (no pattern), which tends to be more reliable.
+  const useDirectFilterFallback = (themeId === "stone" || themeId === "burled") && isLikelyIOSBrowser();
+
   for (const rect of rects) {
     const x = parseNum(rect.getAttribute("x"));
     const y = parseNum(rect.getAttribute("y"));
@@ -541,47 +562,88 @@ export function applyCheckerboardTheme(svgRoot: SVGSVGElement, themeId: Checkerb
 
     const isLight = (row + col) % 2 === 0;
     if (themeId === "stone") {
-      const size = 820;
-      const dx = col * 137 + row * 29;
-      const dy = row * 131 + col * 31;
-      const pid = isLight ? `stoneLight_r${row}c${col}` : `stoneDark_r${row}c${col}`;
-      ensurePattern(svgRoot, {
-        id: pid,
-        filterId: isLight ? "stoneLightTex" : "stoneDarkTex",
-        size,
-        dx,
-        dy,
-        angleDeg: ((row * 7 + col * 11) % 7 - 3) * 1.5,
-      });
-      const fill = `url(#${pid})`;
-      rect.setAttribute("fill", fill);
-      rect.style.setProperty("fill", fill, "important");
+      if (useDirectFilterFallback) {
+        const fill = isLight ? theme.light : theme.dark;
+        rect.setAttribute("fill", fill);
+        rect.style.setProperty("fill", fill, "important");
+
+        const filter = `url(#${isLight ? "stoneLightTex" : "stoneDarkTex"})`;
+        rect.setAttribute("filter", filter);
+        rect.style.setProperty("filter", filter, "important");
+      } else {
+        // Use per-tile patterns for variation (best-looking path on most browsers).
+        const size = 820;
+        const dx = col * 137 + row * 29;
+        const dy = row * 131 + col * 31;
+        const pid = isLight ? `stoneLight_r${row}c${col}` : `stoneDark_r${row}c${col}`;
+        ensurePattern(svgRoot, {
+          id: pid,
+          filterId: isLight ? "stoneLightTex" : "stoneDarkTex",
+          size,
+          dx,
+          dy,
+          angleDeg: ((row * 7 + col * 11) % 7 - 3) * 1.5,
+        });
+        const fill = `url(#${pid})`;
+        rect.setAttribute("fill", fill);
+        rect.style.setProperty("fill", fill, "important");
+        try {
+          rect.removeAttribute("filter");
+          rect.style.removeProperty("filter");
+        } catch {
+          // ignore
+        }
+      }
     } else if (themeId === "burled") {
-      const size = 900;
-      const dx = col * 149 + row * 23;
-      const dy = row * 157 + col * 19;
-      const pid = isLight ? `burledLight_r${row}c${col}` : `burledDark_r${row}c${col}`;
-      ensurePattern(svgRoot, {
-        id: pid,
-        filterId: isLight ? "burledLightTex" : "burledDarkTex",
-        size,
-        dx,
-        dy,
-        angleDeg: ((row * 5 + col * 13) % 9 - 4) * 2,
-      });
-      const fill = `url(#${pid})`;
-      rect.setAttribute("fill", fill);
-      rect.style.setProperty("fill", fill, "important");
+      if (useDirectFilterFallback) {
+        const fill = isLight ? theme.light : theme.dark;
+        rect.setAttribute("fill", fill);
+        rect.style.setProperty("fill", fill, "important");
+
+        const filter = `url(#${isLight ? "burledLightTex" : "burledDarkTex"})`;
+        rect.setAttribute("filter", filter);
+        rect.style.setProperty("filter", filter, "important");
+      } else {
+        // Use per-tile patterns for variation (best-looking path on most browsers).
+        const size = 900;
+        const dx = col * 149 + row * 23;
+        const dy = row * 157 + col * 19;
+        const pid = isLight ? `burledLight_r${row}c${col}` : `burledDark_r${row}c${col}`;
+        ensurePattern(svgRoot, {
+          id: pid,
+          filterId: isLight ? "burledLightTex" : "burledDarkTex",
+          size,
+          dx,
+          dy,
+          angleDeg: ((row * 5 + col * 13) % 9 - 4) * 2,
+        });
+        const fill = `url(#${pid})`;
+        rect.setAttribute("fill", fill);
+        rect.style.setProperty("fill", fill, "important");
+        try {
+          rect.removeAttribute("filter");
+          rect.style.removeProperty("filter");
+        } catch {
+          // ignore
+        }
+      }
     } else {
       const fill = isLight ? theme.light : theme.dark;
       rect.setAttribute("fill", fill);
       rect.style.setProperty("fill", fill, "important");
+
+      try {
+        rect.removeAttribute("filter");
+        rect.style.removeProperty("filter");
+      } catch {
+        // ignore
+      }
     }
   }
 
   // Patterned boards are expensive to repaint every animation frame. Rasterize the
   // static background once, then animate pieces on top of an <image>.
-  if (themeId === "stone" || themeId === "burled") {
+  if ((themeId === "stone" || themeId === "burled") && !isLikelyIOSBrowser()) {
     ensureRasterResizeObserver(svgRoot);
     const jobId = (((svgRoot as any).__checkerboardRasterJobId as number | undefined) ?? 0) + 1;
     (svgRoot as any).__checkerboardRasterJobId = jobId;

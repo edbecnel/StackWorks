@@ -1,3 +1,5 @@
+import { setBoardPlayAreaZoom } from "../render/boardPlayAreaZoom";
+
 export type PanelLayoutMode = "panels" | "menu";
 
 const LS_KEY = "lasca.ui.panelLayout";
@@ -57,9 +59,25 @@ body[data-panel-layout="menu"] .sidebar {
   display: none !important;
 }
 
+/* Menu layout mode: remove desktop-only chrome that steals horizontal space. */
+body[data-panel-layout="menu"] .gutter,
+body[data-panel-layout="menu"] .sidebarTab {
+  display: none !important;
+}
+
 /* Menu layout mode: reserve top space so hamburger/header never overlaps the board area. */
 body[data-panel-layout="menu"] #centerArea {
-  padding-top: 70px;
+  /* Keep a small edge margin so out-of-border coordinates don't touch the viewport edge. */
+  padding-top: 56px;
+  padding-right: max(4px, env(safe-area-inset-right));
+  padding-bottom: max(4px, env(safe-area-inset-bottom));
+  padding-left: max(4px, env(safe-area-inset-left));
+}
+
+/* Menu layout mode: allow the SVG board to grow beyond the default 980px cap
+   (sidebars are hidden, so we can use that space). */
+body[data-panel-layout="menu"] #boardWrap svg {
+  width: min(100%, 1280px) !important;
 }
 
 /* Top header (menu mode) */
@@ -411,6 +429,23 @@ type SectionRecord = {
   sections: Array<{ sectionEl: HTMLElement; placeholderEl: HTMLElement | null }>;
 };
 
+function syncMenuModeBoardZoom(): void {
+  if (typeof document === "undefined") return;
+  const svg = document.querySelector("#boardWrap svg") as SVGSVGElement | null;
+  if (!svg) return;
+
+  // Scale up the *play area* (squares + coords + pieces) in menu mode.
+  // This reduces the SVG's built-in margin between the checkerboard and the frame.
+  const mode = (document.body.dataset.panelLayout as PanelLayoutMode | undefined) ?? "panels";
+  try {
+    const mobileLike = detectDefaultPanelLayoutMode() === "menu";
+    const wantZoom = mode === "menu" || mobileLike;
+    setBoardPlayAreaZoom(svg, wantZoom ? 1.10 : 1);
+  } catch {
+    // ignore
+  }
+}
+
 export function bindPanelLayoutMenuMode(): void {
   if (typeof document === "undefined") return;
 
@@ -578,6 +613,39 @@ export function bindPanelLayoutMenuMode(): void {
 
   const getMode = () => readPanelLayoutMode();
   applyPanelLayoutMode(getMode());
+
+  // Keep the board zoom in sync with layout mode.
+  try {
+    window.addEventListener("panelLayoutModeChanged", () => syncMenuModeBoardZoom());
+  } catch {
+    // ignore
+  }
+
+  // Handle rotation / resizes that can change the mobile-like heuristic.
+  try {
+    window.addEventListener("resize", () => syncMenuModeBoardZoom());
+  } catch {
+    // ignore
+  }
+
+  // Some pages bind menu mode before the board SVG is loaded.
+  // Observe the board container so we apply zoom as soon as the SVG arrives.
+  try {
+    const boardWrap = document.getElementById("boardWrap") as HTMLElement | null;
+    const anyWrap = boardWrap as any;
+    if (boardWrap && typeof MutationObserver !== "undefined" && !anyWrap.__panelLayoutBoardWrapObserver) {
+      const obs = new MutationObserver(() => {
+        syncMenuModeBoardZoom();
+      });
+      obs.observe(boardWrap, { childList: true, subtree: false });
+      anyWrap.__panelLayoutBoardWrapObserver = obs;
+    }
+  } catch {
+    // ignore
+  }
+
+  // Apply immediately (covers initial page load).
+  syncMenuModeBoardZoom();
 
   const resolveGameName = (): string => {
     const rawExplicit = (document.getElementById("gameTitle") as HTMLElement | null)?.textContent?.trim();
