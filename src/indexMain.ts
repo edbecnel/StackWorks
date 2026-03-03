@@ -18,6 +18,7 @@ const LS_KEYS = {
   glassBg: "lasca.theme.glassBg",
   glassPalette: "lasca.theme.glassPalette",
   startSplashSeen: "lasca.start.splashSeen",
+  startSectionsOpen: "lasca.start.sectionsOpen",
   aiWhite: "lasca.ai.white",
   aiBlack: "lasca.ai.black",
   aiDelayMs: "lasca.ai.delayMs",
@@ -54,6 +55,54 @@ const LS_KEYS = {
 } as const;
 
 const START_SPLASH_MS = 3500;
+
+type StartSectionOpenMap = Record<string, boolean>;
+
+function initStartPageCollapsibleSections(): void {
+  const els = Array.from(document.querySelectorAll('details[data-start-section]')) as HTMLDetailsElement[];
+  if (!els.length) return;
+
+  let saved: StartSectionOpenMap | null = null;
+  try {
+    const raw = localStorage.getItem(LS_KEYS.startSectionsOpen);
+    if (raw) {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === "object") saved = parsed as StartSectionOpenMap;
+    }
+  } catch {
+    saved = null;
+  }
+
+  if (saved) {
+    for (const el of els) {
+      const key = (el.dataset.startSection || "").trim();
+      if (!key) continue;
+      const v = saved[key];
+      if (typeof v === "boolean") el.open = v;
+    }
+  } else {
+    // First time (or storage cleared): default all expanded.
+    for (const el of els) el.open = true;
+  }
+
+  const persist = (): void => {
+    const next: StartSectionOpenMap = {};
+    for (const el of els) {
+      const key = (el.dataset.startSection || "").trim();
+      if (!key) continue;
+      next[key] = Boolean(el.open);
+    }
+    try {
+      localStorage.setItem(LS_KEYS.startSectionsOpen, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  };
+
+  for (const el of els) {
+    el.addEventListener("toggle", persist);
+  }
+}
 
 function initStartSplash(): void {
   const root = document.documentElement;
@@ -400,6 +449,7 @@ function isGlassPaletteId(v: unknown): v is GlassPaletteId {
 window.addEventListener("DOMContentLoaded", () => {
   maybeResetCheckersThemePrefs();
   initStartSplash();
+  initStartPageCollapsibleSections();
 
   installPanelLayoutStartPageOptionUI();
   applyPanelLayoutMode(readPanelLayoutMode());

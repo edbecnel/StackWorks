@@ -174,6 +174,28 @@
         letter-spacing: 0.3px;
       }
 
+      .panelSectionSummary {
+        cursor: pointer;
+        user-select: none;
+        margin: 0 0 10px 0;
+        font-size: 12px;
+        font-weight: 800;
+        color: rgba(255, 255, 255, 0.86);
+        letter-spacing: 0.3px;
+      }
+
+      .panelSection:not([open]) .panelSectionSummary {
+        margin-bottom: 0;
+      }
+
+      .panelSectionSummary::marker {
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .panelSectionSummary::-webkit-details-marker {
+        color: rgba(255, 255, 255, 0.7);
+      }
+
       .row {
         display: grid;
         grid-template-columns: 120px minmax(0, 1fr);
@@ -466,8 +488,13 @@
       </header>
 
       <div class="grid">
-        <section class="panelSection" aria-label="Game">
-          <h2>Game</h2>
+        <details
+          class="panelSection"
+          aria-label="Game"
+          open
+          data-start-section="game"
+        >
+          <summary class="panelSectionSummary">Game</summary>
           <div class="row">
             <label for="launchGame">Variant</label>
             <select id="launchGame" class="panelSelect"></select>
@@ -479,10 +506,15 @@
           >
             —
           </p>
-        </section>
+        </details>
 
-        <section class="panelSection" aria-label="Board & Pieces">
-          <h2>Board & Pieces</h2>
+        <details
+          class="panelSection"
+          aria-label="Board & Pieces"
+          open
+          data-start-section="boardPieces"
+        >
+          <summary class="panelSectionSummary">Board &amp; Pieces</summary>
 
           <div
             class="row"
@@ -525,10 +557,15 @@
               <option value="walnut">Walnut</option>
             </select>
           </div>
-        </section>
+        </details>
 
-        <section class="panelSection" aria-label="Startup options">
-          <h2>Startup options</h2>
+        <details
+          class="panelSection"
+          aria-label="Startup options"
+          open
+          data-start-section="startup"
+        >
+          <summary class="panelSectionSummary">Startup options</summary>
 
           <div class="checkRow">
             <input type="checkbox" id="launchShowResizeIcon" />
@@ -595,10 +632,15 @@
             <label for="launchSfx">Sound effects</label>
           </div>
           <div class="hint">Plays subtle sounds for moves/captures</div>
-        </section>
+        </details>
 
-        <section class="panelSection" aria-label="Play mode">
-          <h2>Play mode</h2>
+        <details
+          class="panelSection"
+          aria-label="Play mode"
+          open
+          data-start-section="playMode"
+        >
+          <summary class="panelSectionSummary">Play mode</summary>
           <div class="row">
             <label for="launchPlayMode">Mode</label>
             <select id="launchPlayMode" class="panelSelect">
@@ -677,14 +719,16 @@
             Online Create logs a join link in the browser console (F12). To
             Join/Spectate/Rejoin, use the Lobby list.
           </div>
-        </section>
+        </details>
 
-        <section
+        <details
           class="panelSection"
           aria-label="Lobby"
           id="launchLobbySection"
+          open
+          data-start-section="lobby"
         >
-          <h2>Lobby</h2>
+          <summary class="panelSectionSummary">Lobby</summary>
           <div class="row" style="grid-template-columns: 1fr auto auto">
             <div id="launchLobbyStatus" class="hint" style="margin: 0">—</div>
             <div class="lobbyTools">
@@ -696,14 +740,16 @@
             </button>
           </div>
           <div id="launchLobbyList" class="lobbyList"></div>
-        </section>
+        </details>
 
-        <section
+        <details
           class="panelSection"
           aria-label="Account"
           id="launchAccountSection"
+          open
+          data-start-section="account"
         >
-          <h2>Account (optional)</h2>
+          <summary class="panelSectionSummary">Account (optional)</summary>
 
           <div id="launchAccountStatus" class="accountStatus">—</div>
 
@@ -831,10 +877,15 @@
             panel is for testing MP4C auth; it does not change seat tokens or
             online authority rules yet.
           </div>
-        </section>
+        </details>
 
-        <section class="panelSection" aria-label="Bot">
-          <h2>Bot</h2>
+        <details
+          class="panelSection"
+          aria-label="Bot"
+          open
+          data-start-section="bot"
+        >
+          <summary class="panelSectionSummary">Bot</summary>
           <div class="row" style="grid-template-columns: 64px minmax(0, 1fr)">
             <label for="launchAiWhite">Light</label>
             <select id="launchAiWhite" class="panelSelect">
@@ -881,7 +932,7 @@
           <div class="hint" style="margin-left: 0">
             Set a side to a bot to auto-play that color.
           </div>
-        </section>
+        </details>
       </div>
 
       <div class="footer">
