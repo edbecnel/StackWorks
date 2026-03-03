@@ -7,6 +7,7 @@ import { createSfxManager } from "./ui/sfx";
 import type { AuthMeResponse, AuthOkResponse, AuthErrorResponse } from "./shared/authProtocol.ts";
 import { normalizeCheckerboardThemeId } from "./render/checkerboardTheme";
 import { getSideLabelsForRuleset } from "./shared/sideTerminology";
+import { applyPanelLayoutMode, installPanelLayoutStartPageOptionUI, readPanelLayoutMode } from "./ui/panelLayoutMode";
 
 const LS_KEYS = {
   theme: "lasca.theme",
@@ -398,6 +399,9 @@ function isGlassPaletteId(v: unknown): v is GlassPaletteId {
 window.addEventListener("DOMContentLoaded", () => {
   maybeResetCheckersThemePrefs();
   initStartSplash();
+
+  installPanelLayoutStartPageOptionUI();
+  applyPanelLayoutMode(readPanelLayoutMode());
 
   const elGame = byId<HTMLSelectElement>("launchGame");
   const elGameNote = byId<HTMLElement>("launchGameNote");

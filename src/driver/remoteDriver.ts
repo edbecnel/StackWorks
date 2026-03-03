@@ -21,6 +21,7 @@ import type {
   SubmitMoveRequest,
   SubmitMoveResponse,
 } from "../shared/onlineProtocol.ts";
+import type { OfferDrawRequest, OfferDrawResponse, RespondDrawOfferRequest, RespondDrawOfferResponse } from "../shared/onlineProtocol.ts";
 import { hashGameState } from "../game/hashState.ts";
 import {
   deserializeWireGameState,
@@ -721,6 +722,57 @@ export class RemoteDriver implements GameDriver {
     let res: ClaimDrawResponse;
     try {
       res = await this.postJson<ClaimDrawRequest, ClaimDrawResponse>("/api/claimDraw", req);
+    } catch (e) {
+      if (this.isStaleCasErrorMessage((e as any)?.message)) {
+        try {
+          await this.fetchLatest();
+        } catch {
+          // ignore
+        }
+      }
+      throw e;
+    }
+    if ((res as any).presence) this.lastPresence = (res as any).presence as PresenceByPlayerId;
+    if ((res as any).identity && typeof (res as any).identity === "object") this.lastIdentity = (res as any).identity as IdentityByPlayerId;
+    return this.applySnapshot((res as any).snapshot).next;
+  }
+
+  async offerDrawRemote(): Promise<GameState> {
+    const ids = this.requireIds();
+    const req: OfferDrawRequest = {
+      roomId: ids.roomId,
+      playerId: ids.playerId,
+      expectedStateVersion: this.lastStateVersion >= 0 ? this.lastStateVersion : undefined,
+    };
+    let res: OfferDrawResponse;
+    try {
+      res = await this.postJson<OfferDrawRequest, OfferDrawResponse>("/api/offerDraw", req);
+    } catch (e) {
+      if (this.isStaleCasErrorMessage((e as any)?.message)) {
+        try {
+          await this.fetchLatest();
+        } catch {
+          // ignore
+        }
+      }
+      throw e;
+    }
+    if ((res as any).presence) this.lastPresence = (res as any).presence as PresenceByPlayerId;
+    if ((res as any).identity && typeof (res as any).identity === "object") this.lastIdentity = (res as any).identity as IdentityByPlayerId;
+    return this.applySnapshot((res as any).snapshot).next;
+  }
+
+  async respondDrawOfferRemote(args: { accept: boolean }): Promise<GameState> {
+    const ids = this.requireIds();
+    const req: RespondDrawOfferRequest = {
+      roomId: ids.roomId,
+      playerId: ids.playerId,
+      accept: Boolean(args.accept),
+      expectedStateVersion: this.lastStateVersion >= 0 ? this.lastStateVersion : undefined,
+    };
+    let res: RespondDrawOfferResponse;
+    try {
+      res = await this.postJson<RespondDrawOfferRequest, RespondDrawOfferResponse>("/api/respondDrawOffer", req);
     } catch (e) {
       if (this.isStaleCasErrorMessage((e as any)?.message)) {
         try {

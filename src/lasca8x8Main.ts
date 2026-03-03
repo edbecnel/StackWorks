@@ -42,6 +42,7 @@ import { setBoardFlipped } from "./render/boardFlip";
 import { setStackWorksGameTitle } from "./ui/gameTitle";
 import { getSideLabelsForRuleset } from "./shared/sideTerminology";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
+import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
 
 const ACTIVE_VARIANT_ID: VariantId = "lasca_8_dama_board";
 
@@ -779,6 +780,10 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   initCollapsibleSections();
+
+  // Panel layout: Panels vs Menu (small-screen friendly).
+  installPanelLayoutOptionUI();
+  bindPanelLayoutMenuMode();
 
   // Board height adjustment toggle (for Android tablets with bottom nav bar)
   const boardHeightToggle = document.getElementById('boardHeightToggle') as HTMLButtonElement | null;

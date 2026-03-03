@@ -41,6 +41,7 @@ import { setBoardFlipped } from "./render/boardFlip";
 import { setStackWorksGameTitle } from "./ui/gameTitle";
 import { getSideLabelsForRuleset } from "./shared/sideTerminology";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
+import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
 
 const FALLBACK_VARIANT_ID: VariantId = "dama_8_classic_standard";
 
@@ -808,6 +809,26 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  // Wire up mutual-agreement draw offer (US Checkers only; controller will hide/disable as needed).
+  const offerDrawBtn = document.getElementById("offerDrawBtn") as HTMLButtonElement | null;
+  if (offerDrawBtn) {
+    offerDrawBtn.addEventListener("click", () => {
+      // Local mode can include bots; restrict draw offers to two-human games.
+      if (driver.mode !== "online") {
+        const elW = document.getElementById("aiWhiteSelect") as HTMLSelectElement | null;
+        const elB = document.getElementById("aiBlackSelect") as HTMLSelectElement | null;
+        const w = (elW?.value ?? "human").toLowerCase();
+        const b = (elB?.value ?? "human").toLowerCase();
+        if (w !== "human" || b !== "human") {
+          alert("Draw offers are only available in Human vs Human games.");
+          return;
+        }
+      }
+
+      void controller.offerDraw();
+    });
+  }
+
   // Wire up leave-room button (online only: forfeits; local/spectator: just return).
   const leaveRoomBtn = document.getElementById("leaveRoomBtn") as HTMLButtonElement | null;
   if (leaveRoomBtn) {
@@ -854,6 +875,10 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   initCollapsibleSections();
+
+  // Panel layout: Panels vs Menu (small-screen friendly).
+  installPanelLayoutOptionUI();
+  bindPanelLayoutMenuMode();
 
   // Board height adjustment toggle (for Android tablets with bottom nav bar)
   const boardHeightToggle = document.getElementById("boardHeightToggle") as HTMLButtonElement | null;

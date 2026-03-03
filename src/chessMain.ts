@@ -38,6 +38,7 @@ import {
   bindGameHotkeys,
   bindKeyboardShortcutsContextMenu,
 } from "./ui/gameShortcuts.ts";
+import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
 
 const ACTIVE_VARIANT_ID: VariantId = "chess_classic";
@@ -83,6 +84,10 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   initSplitLayout();
   initCollapsibleSections();
+
+  // Panel layout: Panels vs Menu (small-screen friendly).
+  installPanelLayoutOptionUI();
+  bindPanelLayoutMenuMode();
 
   const gameTitleEl = document.getElementById("gameTitle");
   if (gameTitleEl) {

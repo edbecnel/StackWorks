@@ -35,6 +35,7 @@ import { ColumnsChessBotManager } from "./bot/columnsChessBotManager.ts";
 import { installBoardVisualizationTools } from "./ui/boardVisualizationTools";
 import { setStackWorksGameTitle } from "./ui/gameTitle";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
+import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
 
 const ACTIVE_VARIANT_ID: VariantId = "columns_chess";
 
@@ -78,6 +79,10 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   initSplitLayout();
   initCollapsibleSections();
+
+  // Panel layout: Panels vs Menu (small-screen friendly).
+  installPanelLayoutOptionUI();
+  bindPanelLayoutMenuMode();
 
   const gameTitleEl = document.getElementById("gameTitle");
   if (gameTitleEl) {

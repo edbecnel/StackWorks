@@ -8,15 +8,20 @@ function isPlainLeftClick(e: MouseEvent): boolean {
 }
 
 export function bindStartPageConfirm(controller: GameController, variantId: VariantId): void {
-  const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href="./index.html"]'));
-  if (links.length === 0) return;
+  // Use event delegation so it also covers dynamically injected links (e.g. menu-mode flyouts).
+  const BIND_KEY = "__lascaStartPageConfirmBound";
+  const anyDoc = document as unknown as Record<string, unknown>;
+  if (anyDoc[BIND_KEY]) return;
+  anyDoc[BIND_KEY] = true;
 
   const initialHash = hashGameState(createInitialGameStateForVariant(variantId));
   let hasBegun = hashGameState(controller.getState()) !== initialHash;
 
   controller.addHistoryChangeCallback((reason: HistoryChangeReason) => {
     if (reason === "newGame") {
-      hasBegun = hashGameState(controller.getState()) !== initialHash;
+      // A new game counts as "begun" even if the position matches the initial hash
+      // (e.g. starting setup leads to the same initial board state).
+      hasBegun = true;
       return;
     }
     if (reason === "move" || reason === "loadGame" || reason === "undo" || reason === "redo" || reason === "jump" || reason === "gameOver") {
@@ -24,14 +29,19 @@ export function bindStartPageConfirm(controller: GameController, variantId: Vari
     }
   });
 
-  for (const a of links) {
-    a.addEventListener("click", (e) => {
+  document.addEventListener(
+    "click",
+    (e) => {
+      const target = e.target as Element | null;
+      const a = (target?.closest?.('a[href="./index.html"]') as HTMLAnchorElement | null) ?? null;
+      if (!a) return;
       if (!hasBegun) return;
       if (!(e instanceof MouseEvent) || !isPlainLeftClick(e)) return;
       const ok = window.confirm("Leaving this page will lose the current game. Continue to the Start Page?");
       if (ok) return;
       e.preventDefault();
       e.stopPropagation();
-    });
-  }
+    },
+    true,
+  );
 }

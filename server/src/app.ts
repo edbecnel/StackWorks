@@ -10,6 +10,7 @@ import WebSocket, { WebSocketServer, type RawData } from "ws";
 import { applyMove } from "../../src/game/applyMove.ts";
 import { finalizeDamaCaptureChain } from "../../src/game/damaCaptureChain.ts";
 import { finalizeDamascaCaptureChain } from "../../src/game/damascaCaptureChain.ts";
+import { ensureCheckersUsDraw } from "../../src/game/checkersUsDraw.ts";
 import { endTurn } from "../../src/game/endTurn.ts";
 import { nodeIdToA1 } from "../../src/game/coordFormat.ts";
 import { HistoryManager } from "../../src/game/historyManager.ts";
@@ -22,6 +23,10 @@ import type { VariantId } from "../../src/variants/variantTypes.ts";
 import type {
   ClaimDrawRequest,
   ClaimDrawResponse,
+  OfferDrawRequest,
+  OfferDrawResponse,
+  RespondDrawOfferRequest,
+  RespondDrawOfferResponse,
   CreateRoomRequest,
   CreateRoomResponse,
   GetLobbyResponse,
@@ -1086,8 +1091,9 @@ export function createLascaApp(opts: ServerOpts = {}): {
 
     // If any grace is active, clocks should start paused.
     if (room.clock) {
-      room.clock.paused = room.disconnectGrace.size > 0;
       room.clock.lastTickMs = Date.now();
+      // Restore pause state (disconnect grace OR pending draw offer).
+      updateClockPause(room);
     }
 
     return room;
@@ -1107,12 +1113,23 @@ export function createLascaApp(opts: ServerOpts = {}): {
 
   function updateClockPause(room: Room): void {
     if (!room.clock) return;
-    const shouldPause = room.disconnectGrace.size > 0;
+    const rulesetId = (room.state as any)?.meta?.rulesetId ?? "lasca";
+    const hasPendingDrawOffer =
+      rulesetId === "checkers_us" && Boolean((room.state as any)?.checkersUsDraw?.pendingOffer);
+    const shouldPause = room.disconnectGrace.size > 0 || hasPendingDrawOffer;
     if (room.clock.paused === shouldPause) return;
     // Settle time up to the transition point.
     touchClock(room);
     room.clock.paused = shouldPause;
     room.clock.lastTickMs = Date.now();
+  }
+
+  function requireNoPendingDrawOffer(room: Room): void {
+    const rulesetId = (room.state as any)?.meta?.rulesetId ?? "lasca";
+    if (rulesetId !== "checkers_us") return;
+    if (Boolean((room.state as any)?.checkersUsDraw?.pendingOffer)) {
+      throw new Error("Draw offer pending");
+    }
   }
 
   function onTurnSwitch(room: Room, prevToMove: PlayerColor, nextToMove: PlayerColor): void {
@@ -1148,6 +1165,31 @@ export function createLascaApp(opts: ServerOpts = {}): {
     if (count < 3) return;
 
     room.state = adjudicateDamascaDeadPlay(room.state as any, "DAMASCA_THREEFOLD_REPETITION", "threefold repetition");
+
+    // Ensure history's current entry reflects the adjudicated state.
+    const snap2 = room.history.exportSnapshots();
+    if (snap2.states.length > 0 && snap2.currentIndex >= 0 && snap2.currentIndex < snap2.states.length) {
+      snap2.states[snap2.currentIndex] = room.state as any;
+      room.history.replaceAll(snap2.states as any, snap2.notation, snap2.currentIndex);
+    }
+  }
+
+  function maybeApplyCheckersUsThreefold(room: Room): void {
+    if (isRoomOver(room)) return;
+    const rulesetId = (room.state as any)?.meta?.rulesetId ?? "lasca";
+    if (rulesetId !== "checkers_us") return;
+
+    const count = repetitionCountForCurrentPosition(room);
+    if (count < 3) return;
+
+    room.state = {
+      ...(room.state as any),
+      forcedGameOver: {
+        winner: null,
+        reasonCode: "THREEFOLD_REPETITION",
+        message: "Draw by threefold repetition",
+      },
+    };
 
     // Ensure history's current entry reflects the adjudicated state.
     const snap2 = room.history.exportSnapshots();
@@ -2346,6 +2388,8 @@ export function createLascaApp(opts: ServerOpts = {}): {
   // Freeze play while opponent is disconnected (until reconnect or disconnect-forfeit).
   await requireOpponentConnected(room, body.playerId);
 
+          requireNoPendingDrawOffer(room);
+
         if (isRoomOver(room)) throw new Error("Game over");
 
         if (room.state.toMove !== color) throw new Error(`Not your turn (toMove=${room.state.toMove}, you=${color})`);
@@ -2373,6 +2417,9 @@ export function createLascaApp(opts: ServerOpts = {}): {
 
         // Fivefold repetition is an automatic draw.
         maybeApplyFivefoldRepetition(room);
+
+        // US Checkers: threefold repetition is an automatic draw.
+        maybeApplyCheckersUsThreefold(room);
 
         const nextToMove = (room.state as any).toMove as PlayerColor;
         onTurnSwitch(room, prevToMove, nextToMove);
@@ -2423,6 +2470,8 @@ export function createLascaApp(opts: ServerOpts = {}): {
 
   // Freeze play while opponent is disconnected (until reconnect or disconnect-forfeit).
   await requireOpponentConnected(room, body.playerId);
+
+          requireNoPendingDrawOffer(room);
 
         if (isRoomOver(room)) throw new Error("Game over");
 
@@ -2489,6 +2538,8 @@ export function createLascaApp(opts: ServerOpts = {}): {
   // Freeze play while opponent is disconnected (until reconnect or disconnect-forfeit).
   await requireOpponentConnected(room, body.playerId);
 
+          requireNoPendingDrawOffer(room);
+
         if (isRoomOver(room)) throw new Error("Game over");
 
         if (room.state.toMove !== color) throw new Error(`Not your turn (toMove=${room.state.toMove}, you=${color})`);
@@ -2519,6 +2570,9 @@ export function createLascaApp(opts: ServerOpts = {}): {
 
         // Fivefold repetition is an automatic draw.
         maybeApplyFivefoldRepetition(room);
+
+        // US Checkers: threefold repetition is an automatic draw.
+        maybeApplyCheckersUsThreefold(room);
 
         room.stateVersion += 1;
         await persistMoveApplied({ gamesDir, room, action: "END_TURN", snapshotEvery });
@@ -2611,6 +2665,155 @@ export function createLascaApp(opts: ServerOpts = {}): {
       // eslint-disable-next-line no-console
       console.error("[lasca-server] claimDraw error", msg);
       const response: ClaimDrawResponse = { error: msg };
+      res.status(400).json(response);
+    }
+  });
+
+  app.post("/api/offerDraw", async (req, res) => {
+    try {
+      const body = req.body as OfferDrawRequest;
+      const room = await requireRoom(body.roomId);
+      const response = await queueRoomAction(room, async () => {
+        touchClock(room);
+        await maybeForceClockTimeout(room);
+
+        const expected = parseExpectedVersion((body as any).expectedStateVersion);
+        if (expected != null && expected !== room.stateVersion) {
+          throw new Error(`Stale request (expected v${expected}, current v${room.stateVersion})`);
+        }
+
+        const color = requirePlayer(room, body.playerId);
+        setPresence(room, body.playerId, { connected: true, lastSeenAt: nowIso() });
+
+        requireRoomReady(room);
+        // Freeze play while opponent is disconnected (until reconnect or disconnect-forfeit).
+        await requireOpponentConnected(room, body.playerId);
+
+        if (isRoomOver(room)) throw new Error("Game over");
+
+        const rulesetId = (room.state as any)?.meta?.rulesetId ?? "lasca";
+        if (rulesetId !== "checkers_us") throw new Error("Draw offers are only supported for US Checkers");
+        if (room.state.toMove !== color) throw new Error(`Not your turn (toMove=${room.state.toMove}, you=${color})`);
+
+        requireNoPendingDrawOffer(room);
+
+        const prev = room.state as any;
+        const draw = ensureCheckersUsDraw(prev.checkersUsDraw);
+
+        const currentTurns = Math.max(0, Math.floor(draw.turnCount?.[color] ?? 0));
+        const lastTurn = Math.floor(draw.lastOfferTurn?.[color] ?? -999);
+        if (currentTurns - lastTurn < 3) {
+          throw new Error("You can only offer a draw once every 3 moves");
+        }
+
+        const nonce = Number.parseInt(secureRandomHex(8), 16);
+        draw.lastOfferTurn[color] = currentTurns;
+        draw.pendingOffer = { offeredBy: color as any, nonce };
+
+        room.state = { ...prev, checkersUsDraw: draw };
+        updateClockPause(room);
+
+        room.stateVersion += 1;
+        await queuePersist(room);
+
+        const resp: OfferDrawResponse = {
+          snapshot: snapshotForRoom(room),
+          presence: presenceForRoom(room),
+          identity: publicIdentityForRoom(room),
+          timeControl: room.timeControl,
+          clock: room.clock ?? undefined,
+        };
+        broadcastRoomSnapshot(room);
+        return resp;
+      });
+
+      res.json(response);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Offer draw failed";
+      // eslint-disable-next-line no-console
+      console.error("[lasca-server] offerDraw error", msg);
+      const response: OfferDrawResponse = { error: msg };
+      res.status(400).json(response);
+    }
+  });
+
+  app.post("/api/respondDrawOffer", async (req, res) => {
+    try {
+      const body = req.body as RespondDrawOfferRequest;
+      const room = await requireRoom(body.roomId);
+      const response = await queueRoomAction(room, async () => {
+        touchClock(room);
+        await maybeForceClockTimeout(room);
+
+        const expected = parseExpectedVersion((body as any).expectedStateVersion);
+        if (expected != null && expected !== room.stateVersion) {
+          throw new Error(`Stale request (expected v${expected}, current v${room.stateVersion})`);
+        }
+
+        const color = requirePlayer(room, body.playerId);
+        setPresence(room, body.playerId, { connected: true, lastSeenAt: nowIso() });
+
+        requireRoomReady(room);
+        if (isRoomOver(room)) throw new Error("Game over");
+
+        const rulesetId = (room.state as any)?.meta?.rulesetId ?? "lasca";
+        if (rulesetId !== "checkers_us") throw new Error("Draw offers are only supported for US Checkers");
+
+        const prev = room.state as any;
+        const draw = ensureCheckersUsDraw(prev.checkersUsDraw);
+        const pending = draw.pendingOffer;
+        if (!pending) throw new Error("No draw offer pending");
+        if (pending.offeredBy === (color as any)) throw new Error("You cannot respond to your own draw offer");
+
+        draw.pendingOffer = undefined;
+
+        if (Boolean((body as any).accept)) {
+          room.state = {
+            ...prev,
+            checkersUsDraw: draw,
+            forcedGameOver: {
+              winner: null,
+              reasonCode: "DRAW_BY_AGREEMENT",
+              message: "Draw by mutual agreement",
+            },
+          };
+
+          // Ensure history's current entry reflects the adjudicated state.
+          const snap2 = room.history.exportSnapshots();
+          if (snap2.states.length > 0 && snap2.currentIndex >= 0 && snap2.currentIndex < snap2.states.length) {
+            snap2.states[snap2.currentIndex] = room.state as any;
+            room.history.replaceAll(snap2.states as any, snap2.notation, snap2.currentIndex);
+          }
+        } else {
+          room.state = { ...prev, checkersUsDraw: draw };
+        }
+
+        updateClockPause(room);
+
+        room.stateVersion += 1;
+        if (Boolean((body as any).accept)) {
+          await maybePersistGameOver(gamesDir, room);
+        } else {
+          await queuePersist(room);
+        }
+
+        const resp: RespondDrawOfferResponse = {
+          snapshot: snapshotForRoom(room),
+          presence: presenceForRoom(room),
+          identity: publicIdentityForRoom(room),
+          timeControl: room.timeControl,
+          clock: room.clock ?? undefined,
+        };
+        broadcastRoomSnapshot(room);
+        return resp;
+      });
+
+      res.json(response);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Respond draw offer failed";
+      // eslint-disable-next-line no-console
+      console.error("[lasca-server] respondDrawOffer error", msg);
+      const response: RespondDrawOfferResponse = { error: msg };
       res.status(400).json(response);
     }
   });

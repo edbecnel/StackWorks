@@ -63,6 +63,27 @@ export interface GameState {
   };
 
   /**
+   * US Checkers draw / endgame tracking (serialized).
+   *
+   * - `noProgressPlies`: counts plies since last capture OR soldier-advance.
+   *   When it reaches 80, the game is drawn by the 40-move rule.
+   * - `turnDidCapture` / `turnDidManAdvance`: per-turn accumulation while a capture
+   *   chain is in progress (toMove does not flip until endTurn()).
+   * - `turnCount`: completed turns by each player (used for draw-offer cooldown
+   *   and 13-move endgame accounting).
+   * - `thirteen`: tracks activation of the 3-kings vs 1-king 13-move rule.
+   */
+  checkersUsDraw?: {
+    noProgressPlies: number;
+    turnDidCapture?: boolean;
+    turnDidManAdvance?: boolean;
+    turnCount?: { W: number; B: number };
+    lastOfferTurn?: { W: number; B: number };
+    pendingOffer?: { offeredBy: Player; nonce: number };
+    thirteen?: { stronger: Player; activatedAtStrongTurnCount: number };
+  };
+
+  /**
    * Ephemeral (not serialized): used by some rulesets to track multi-capture chain state.
    * Currently used by Damasca to remember if a soldier has reached the promotion row
    * at any point during a capture chain (promotion is applied at chain end).

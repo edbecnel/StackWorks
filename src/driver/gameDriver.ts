@@ -91,6 +91,12 @@ export interface OnlineGameDriver extends GameDriver {
   /** Online-only: claim a draw (e.g. threefold repetition). */
   claimDrawRemote(args: { kind: "threefold" }): Promise<GameState>;
 
+  /** Online-only: offer a draw (mutual agreement; US Checkers). */
+  offerDrawRemote(): Promise<GameState>;
+
+  /** Online-only: accept/decline a pending draw offer (US Checkers). */
+  respondDrawOfferRemote(args: { accept: boolean }): Promise<GameState>;
+
   /** Online-only: fetch replay/event log for the current room. */
   fetchReplayEvents(args?: { limit?: number }): Promise<import("../shared/onlineProtocol.ts").ReplayEvent[]>;
 

@@ -55,6 +55,7 @@ import { drawMiniStackSpine } from "../render/miniSpine.ts";
 import { isBoardFlipped } from "../render/boardFlip.ts";
 import { getVariantById } from "../variants/variantRegistry.ts";
 import { getSideLabelsForRuleset } from "../shared/sideTerminology.ts";
+import { ensureCheckersUsDraw, getCheckersUsDrawStatus } from "../game/checkersUsDraw.ts";
 
 export type HistoryChangeReason = "move" | "undo" | "redo" | "jump" | "newGame" | "loadGame" | "gameOver";
 
@@ -87,6 +88,9 @@ export class GameController {
   private remainderTimer: number | null = null;
   private history: HistoryManager;
   private driver: GameDriver;
+
+  private drawOfferInputLockActive: boolean = false;
+  private lastPromptedDrawOfferNonce: number | null = null;
   private historyListeners: Array<(reason: HistoryChangeReason) => void> = [];
   private inputEnabled: boolean = true;
   private lastInputEnabled: boolean = true;
@@ -1895,7 +1899,7 @@ export class GameController {
 
   private checkAndHandleCurrentPlayerLost(): boolean {
     const result = checkCurrentPlayerLost(this.state);
-    const isTerminal = Boolean(result.winner) || (this.isChessLikeRuleset() && Boolean(result.reason));
+    const isTerminal = Boolean(result.reason) || Boolean(result.winner);
     if (isTerminal) {
       if (this.isGameOver) return true;
       this.isGameOver = true;
@@ -2550,7 +2554,7 @@ export class GameController {
     
     // When loading a game, check if the current player has already lost
     const currentPlayerResult = checkCurrentPlayerLost(this.state);
-    if (currentPlayerResult.winner || (this.isColumnsChessRuleset() && currentPlayerResult.reason)) {
+    if (currentPlayerResult.reason || currentPlayerResult.winner) {
       this.isGameOver = true;
       const msg = currentPlayerResult.reason || "Game Over";
       this.playSfx("gameOver");
@@ -2566,12 +2570,196 @@ export class GameController {
 
     // Update repetition counts + draw rules from current history.
     this.syncRepetitionRules();
+
+    // US Checkers: mutual-agreement draw offer flow.
+    this.syncCheckersUsDrawOffers();
     
     // Check if captures are available for the current player
     this.recomputeMandatoryCapture();
     this.updatePanel();
 
     this.maybeToastTurnChange();
+  }
+
+  private syncCheckersUsDrawOffers(): void {
+    if (this.isGameOver) {
+      this.lastPromptedDrawOfferNonce = null;
+      if (this.drawOfferInputLockActive) {
+        this.drawOfferInputLockActive = false;
+        this.setInputEnabled(true);
+      }
+      return;
+    }
+
+    const rulesetId = this.state.meta?.rulesetId ?? "lasca";
+    if (rulesetId !== "checkers_us") {
+      this.lastPromptedDrawOfferNonce = null;
+      if (this.drawOfferInputLockActive) {
+        this.drawOfferInputLockActive = false;
+        this.setInputEnabled(true);
+      }
+      return;
+    }
+
+    const pending = (this.state as any)?.checkersUsDraw?.pendingOffer as
+      | { offeredBy: "W" | "B"; nonce: number }
+      | undefined;
+
+    if (!pending) {
+      this.lastPromptedDrawOfferNonce = null;
+      if (this.drawOfferInputLockActive) {
+        this.drawOfferInputLockActive = false;
+        this.setInputEnabled(true);
+      }
+      return;
+    }
+
+    // Pause the game while the offer is pending.
+    if (!this.drawOfferInputLockActive) {
+      this.drawOfferInputLockActive = true;
+      this.setInputEnabled(false);
+    }
+
+    // Only prompt once per offer.
+    if (this.lastPromptedDrawOfferNonce === pending.nonce) return;
+
+    if (this.driver.mode === "online") {
+      const online = this.driver as OnlineGameDriver;
+      const localColor = online.getPlayerColor();
+      const selfId = online.getPlayerId();
+      if (!localColor || selfId === "spectator") return;
+
+      // Offerer does not get prompted.
+      if (pending.offeredBy === localColor) {
+        this.lastPromptedDrawOfferNonce = pending.nonce;
+        return;
+      }
+
+      this.lastPromptedDrawOfferNonce = pending.nonce;
+      const offeredByLabel = this.sideLabel(pending.offeredBy);
+      const accept = confirm(`${offeredByLabel} offers a draw. Accept?`);
+      void this.respondDrawOfferOnline({ accept });
+      return;
+    }
+
+    // Local/hotseat: prompt immediately.
+    this.lastPromptedDrawOfferNonce = pending.nonce;
+    const offeredByLabel = this.sideLabel(pending.offeredBy);
+    const accept = confirm(`${offeredByLabel} offers a draw. Accept?`);
+    this.respondDrawOfferLocal({ accept });
+  }
+
+  private async respondDrawOfferOnline(args: { accept: boolean }): Promise<void> {
+    if (this.driver.mode !== "online") return;
+    try {
+      const next = await (this.driver as OnlineGameDriver).respondDrawOfferRemote({ accept: args.accept });
+      this.clearSelection();
+      this.setState(next);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Respond draw offer failed";
+      this.showToast(msg, 1600);
+      // Allow re-prompt if the offer is still pending.
+      this.lastPromptedDrawOfferNonce = null;
+    }
+  }
+
+  private respondDrawOfferLocal(args: { accept: boolean }): void {
+    const rulesetId = this.state.meta?.rulesetId ?? "lasca";
+    if (rulesetId !== "checkers_us") return;
+
+    const prev = this.state as any;
+    const draw = ensureCheckersUsDraw(prev.checkersUsDraw);
+    if (!draw.pendingOffer) return;
+    draw.pendingOffer = undefined;
+
+    if (args.accept) {
+      this.state = {
+        ...prev,
+        checkersUsDraw: draw,
+        forcedGameOver: {
+          winner: null,
+          reasonCode: "DRAW_BY_AGREEMENT",
+          message: "Draw by mutual agreement",
+        },
+      };
+      this.driver.setState(this.state);
+
+      const snap = this.driver.exportHistorySnapshots();
+      if (snap.states.length > 0 && snap.currentIndex >= 0 && snap.currentIndex < snap.states.length) {
+        snap.states[snap.currentIndex] = this.state;
+        this.driver.replaceHistory(snap);
+      }
+
+      this.isGameOver = true;
+      this.clearSelection();
+      this.showBanner("Draw by mutual agreement", 0);
+      this.showGameOverToast("Draw by mutual agreement");
+      this.updatePanel();
+      this.fireHistoryChange("gameOver");
+      return;
+    }
+
+    this.setState({ ...prev, checkersUsDraw: draw });
+  }
+
+  async offerDraw(): Promise<void> {
+    if (this.isGameOver) return;
+
+    const rulesetId = this.state.meta?.rulesetId ?? "lasca";
+    if (rulesetId !== "checkers_us") {
+      this.showToast("Draw offers are only supported for US Checkers", 1600);
+      return;
+    }
+
+    const pending = (this.state as any)?.checkersUsDraw?.pendingOffer;
+    if (pending) {
+      this.showToast("Draw offer already pending", 1600);
+      return;
+    }
+
+    if (this.driver.mode === "online") {
+      const online = this.driver as OnlineGameDriver;
+      const selfId = online.getPlayerId();
+      const localColor = online.getPlayerColor();
+      if (!selfId || selfId === "spectator" || !localColor) {
+        this.showToast("Only seated players can offer a draw", 1600);
+        return;
+      }
+      if (this.state.toMove !== localColor) {
+        this.showToast("You can only offer a draw on your turn", 1600);
+        return;
+      }
+
+      try {
+        const next = await online.offerDrawRemote();
+        this.clearSelection();
+        this.setState(next);
+        this.showToast("Draw offer sent", 1200);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Offer draw failed";
+        this.showToast(msg, 1600);
+      }
+      return;
+    }
+
+    // Local/hotseat.
+    if (this.state.toMove !== "W" && this.state.toMove !== "B") return;
+
+    const prev = this.state as any;
+    const draw = ensureCheckersUsDraw(prev.checkersUsDraw);
+
+    const mover = this.state.toMove;
+    const currentTurns = Math.max(0, Math.floor(draw.turnCount?.[mover] ?? 0));
+    const lastTurn = Math.floor(draw.lastOfferTurn?.[mover] ?? -999);
+    if (currentTurns - lastTurn < 3) {
+      this.showToast("You can only offer a draw once every 3 moves", 1600);
+      return;
+    }
+
+    draw.lastOfferTurn[mover] = currentTurns;
+    draw.pendingOffer = { offeredBy: mover, nonce: Date.now() & 0x7fffffff };
+
+    this.setState({ ...prev, checkersUsDraw: draw });
   }
 
   getState(): GameState {
@@ -2742,6 +2930,8 @@ export class GameController {
     const elTurn = document.getElementById("statusTurn");
     const elPhase = document.getElementById("statusPhase");
     const elMsg = document.getElementById("statusMessage");
+    const elDrawCounters = document.getElementById("statusDrawCounters") as HTMLElement | null;
+    const elOfferDrawBtn = document.getElementById("offerDrawBtn") as HTMLButtonElement | null;
     const elPlaybackTitle = document.getElementById("playbackTitle");
     const elMoveHistoryTitle = document.getElementById("moveHistoryTitle");
     const elDeadPlayTimer =
@@ -2780,6 +2970,49 @@ export class GameController {
     if (elNewGame) elNewGame.disabled = isOnline;
     if (elLoadGame) elLoadGame.disabled = isOnline;
     if (elLoadGameInput) elLoadGameInput.disabled = isOnline;
+
+    if (elOfferDrawBtn) {
+      const rulesetId = this.state.meta?.rulesetId ?? "lasca";
+      const isCheckersUs = rulesetId === "checkers_us";
+      elOfferDrawBtn.hidden = !isCheckersUs;
+
+      if (isCheckersUs) {
+        const pending = Boolean((this.state as any)?.checkersUsDraw?.pendingOffer);
+        let disabled = this.isGameOver || pending;
+
+        if (this.driver.mode === "online") {
+          const online = this.driver as OnlineGameDriver;
+          const pid = online.getPlayerId();
+          const localColor = online.getPlayerColor();
+          disabled =
+            disabled ||
+            !pid ||
+            pid === "spectator" ||
+            !localColor ||
+            (localColor !== "W" && localColor !== "B") ||
+            this.state.toMove !== localColor;
+
+          if (!disabled && (localColor === "W" || localColor === "B")) {
+            const draw = ensureCheckersUsDraw((this.state as any).checkersUsDraw);
+            const currentTurns = Math.max(0, Math.floor(draw.turnCount?.[localColor] ?? 0));
+            const lastTurn = Math.floor(draw.lastOfferTurn?.[localColor] ?? -999);
+            if (currentTurns - lastTurn < 3) disabled = true;
+          }
+        } else {
+          const mover = this.state.toMove;
+          disabled = disabled || (mover !== "W" && mover !== "B");
+          if (!disabled && (mover === "W" || mover === "B")) {
+            const draw = ensureCheckersUsDraw((this.state as any).checkersUsDraw);
+            const currentTurns = Math.max(0, Math.floor(draw.turnCount?.[mover] ?? 0));
+            const lastTurn = Math.floor(draw.lastOfferTurn?.[mover] ?? -999);
+            if (currentTurns - lastTurn < 3) disabled = true;
+          }
+        }
+
+        elOfferDrawBtn.disabled = disabled;
+        elOfferDrawBtn.title = pending ? "Draw offer pending" : "Offer a draw (mutual agreement)";
+      }
+    }
 
     if (elTurn) elTurn.textContent = this.sideLabel(this.state.toMove);
     if (elPhase) {
@@ -2942,6 +3175,25 @@ export class GameController {
         }
       } else {
         elDeadPlayTimer.textContent = "—";
+      }
+    }
+
+    if (elDrawCounters) {
+      const rulesetId = this.state.meta?.rulesetId ?? "lasca";
+      if (rulesetId === "checkers_us") {
+        const st = getCheckersUsDrawStatus(this.state);
+        if (!st) {
+          elDrawCounters.textContent = "—";
+        } else {
+          const parts: string[] = [];
+          parts.push(`40-move: ${st.noProgressPliesRemaining} plies left`);
+          if (st.thirteen) {
+            parts.push(`13-move: ${st.thirteen.remaining} moves left for ${this.sideLabel(st.thirteen.stronger)}`);
+          }
+          elDrawCounters.textContent = parts.join(" • ");
+        }
+      } else {
+        elDrawCounters.textContent = "—";
       }
     }
     if (elRoomId) {
@@ -3311,8 +3563,45 @@ export class GameController {
       return;
     }
 
-    // Damasca uses special dead-play adjudication on threefold repetition.
     const rulesetId = this.state.meta?.rulesetId ?? "lasca";
+
+    // US Checkers: threefold repetition is an automatic draw (required rules).
+    if (rulesetId === "checkers_us") {
+      this.clearThreefoldClaimToast();
+      this.recomputeRepetitionCounts();
+      const count = this.repetitionCountForCurrentState();
+
+      // Online: server is authoritative.
+      if (this.driver.mode === "online") return;
+
+      if (count >= 3) {
+        this.state = {
+          ...(this.state as any),
+          forcedGameOver: {
+            winner: null,
+            reasonCode: "THREEFOLD_REPETITION",
+            message: "Draw by threefold repetition",
+          },
+        };
+        this.driver.setState(this.state);
+
+        const snap = this.driver.exportHistorySnapshots();
+        if (snap.states.length > 0 && snap.currentIndex >= 0 && snap.currentIndex < snap.states.length) {
+          snap.states[snap.currentIndex] = this.state;
+          this.driver.replaceHistory(snap);
+        }
+
+        this.isGameOver = true;
+        this.clearSelection();
+        this.showBanner("Draw by threefold repetition", 0);
+        this.showGameOverToast("Draw by threefold repetition");
+        this.updatePanel();
+        this.fireHistoryChange("gameOver");
+      }
+      return;
+    }
+
+    // Damasca uses special dead-play adjudication on threefold repetition.
     const isDamasca = rulesetId === "damasca" || rulesetId === "damasca_classic";
     if (isDamasca) {
       this.clearThreefoldClaimToast();

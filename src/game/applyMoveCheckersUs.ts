@@ -1,6 +1,7 @@
 import type { GameState } from "./state.ts";
 import type { Move } from "./moveTypes.ts";
 import { promoteIfNeeded } from "./promote.ts";
+import { applyCheckersUsTurnProgress, finalizeCheckersUsTurnAtBoundary } from "./checkersUsDraw.ts";
 
 /**
  * US Checkers / American draughts.
@@ -47,8 +48,12 @@ export function applyMoveCheckersUs(
     const tempState = { ...state, board: nextBoard };
     const didPromote = promoteIfNeeded(tempState, move.to);
 
+    // Track turn progress (capture resets the 40-move counter).
+    const progressed = applyCheckersUsTurnProgress(state, move, moving[moving.length - 1].rank);
+
     return {
       ...state,
+      ...(progressed.checkersUsDraw ? { checkersUsDraw: progressed.checkersUsDraw } : {}),
       board: nextBoard,
       toMove: state.toMove,
       phase: "idle",
@@ -76,5 +81,20 @@ export function applyMoveCheckersUs(
   const didPromote = promoteIfNeeded(tempState, move.to);
 
   const nextToMove = state.toMove === "B" ? "W" : "B";
-  return { ...state, board: nextBoard, toMove: nextToMove, phase: "idle", didPromote, captureChain: undefined };
+
+  // Track turn progress (quiet move may or may not advance a man).
+  const progressed = applyCheckersUsTurnProgress(state, move, moving[moving.length - 1].rank);
+
+  // Quiet move ends the turn (toMove flips here), so finalize draw bookkeeping now.
+  const afterQuiet: GameState & { didPromote?: boolean } = {
+    ...state,
+    ...(progressed.checkersUsDraw ? { checkersUsDraw: progressed.checkersUsDraw } : {}),
+    board: nextBoard,
+    toMove: nextToMove,
+    phase: "idle",
+    didPromote,
+    captureChain: undefined,
+  };
+
+  return finalizeCheckersUsTurnAtBoundary(afterQuiet, state.toMove) as any;
 }

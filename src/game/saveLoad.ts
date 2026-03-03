@@ -19,6 +19,9 @@ export interface SerializedGameState {
     noProgressPlies: number;
     officerOnlyPlies: number;
   };
+
+  /** US Checkers draw tracking. */
+  checkersUsDraw?: GameState["checkersUsDraw"];
 }
 
 export interface SerializedHistory {
@@ -168,6 +171,7 @@ export function serializeGameState(state: GameState): SerializedGameState {
     chess: (state as any).chess,
     forcedGameOver: (state as any).forcedGameOver,
     damascaDeadPlay: (state as any).damascaDeadPlay,
+    checkersUsDraw: (state as any).checkersUsDraw,
   };
 }
 
@@ -184,6 +188,7 @@ export function deserializeGameState(data: SerializedGameState): GameState {
     chess: (data as any).chess,
     forcedGameOver: (data as any).forcedGameOver,
     damascaDeadPlay: (data as any).damascaDeadPlay,
+    checkersUsDraw: (data as any).checkersUsDraw,
   };
 }
 

@@ -23,6 +23,9 @@ export type WireGameState = {
     noProgressPlies: number;
     officerOnlyPlies: number;
   };
+
+  /** US Checkers draw tracking. */
+  checkersUsDraw?: GameState["checkersUsDraw"];
 };
 
 export type WireHistory = {
@@ -47,6 +50,7 @@ export function serializeWireGameState(state: any): WireGameState {
     forcedGameOver: state.forcedGameOver,
     captureChain: state.captureChain,
     damascaDeadPlay: state.damascaDeadPlay,
+    checkersUsDraw: state.checkersUsDraw,
   };
 }
 
@@ -60,6 +64,7 @@ export function deserializeWireGameState(wire: WireGameState): any {
     forcedGameOver: (wire as any).forcedGameOver,
     captureChain: wire.captureChain,
     damascaDeadPlay: (wire as any).damascaDeadPlay,
+    checkersUsDraw: (wire as any).checkersUsDraw,
   };
 }
 

@@ -212,6 +212,39 @@ export type ClaimDrawResponse =
     }
   | OnlineError;
 
+export type OfferDrawRequest = {
+  roomId: RoomId;
+  playerId: PlayerId;
+  expectedStateVersion?: number;
+};
+
+export type OfferDrawResponse =
+  | {
+      snapshot: WireSnapshot;
+      presence?: PresenceByPlayerId;
+      identity?: IdentityByPlayerId;
+      timeControl?: TimeControl;
+      clock?: ClockState;
+    }
+  | OnlineError;
+
+export type RespondDrawOfferRequest = {
+  roomId: RoomId;
+  playerId: PlayerId;
+  accept: boolean;
+  expectedStateVersion?: number;
+};
+
+export type RespondDrawOfferResponse =
+  | {
+      snapshot: WireSnapshot;
+      presence?: PresenceByPlayerId;
+      identity?: IdentityByPlayerId;
+      timeControl?: TimeControl;
+      clock?: ClockState;
+    }
+  | OnlineError;
+
 export type GetRoomSnapshotResponse =
   | {
       snapshot: WireSnapshot;
