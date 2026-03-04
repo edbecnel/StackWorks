@@ -5,6 +5,14 @@ import fs from "node:fs/promises";
 const STOCKFISH_WORKER_FILE = "stockfish-17.1-lite-single-03e3232.js";
 const STOCKFISH_WASM_FILE = "stockfish-17.1-lite-single-03e3232.wasm";
 
+function normalizeViteBase(raw: string): string {
+  let s = (raw || "").trim();
+  if (!s) return "/";
+  if (!s.startsWith("/")) s = `/${s}`;
+  if (!s.endsWith("/")) s = `${s}/`;
+  return s;
+}
+
 async function copyStockfishToPublic(): Promise<void> {
   const repoRoot = __dirname;
   const srcDir = path.join(repoRoot, "node_modules", "stockfish", "src");
@@ -44,8 +52,23 @@ export default defineConfig(({ mode }) => ({
   // (Useful for self-hosted deployments where operators need online admin tools.)
   // Example: cross-env VITE_EMIT_ADMIN=1 vite build
   // GitHub Pages deployment uses a repo-scoped base like `/<repo>/`.
-  // Only use that base in production; use `/` for local development.
-  base: mode === "production" ? "/StackWorks/" : "/",
+  // Default to that in production, but allow overriding at build time.
+  //
+  // - GitHub Pages (repo site): leave unset (defaults to /StackWorks/)
+  // - Custom domain at root: set VITE_BASE=/
+  // - Subpath hosting: set VITE_BASE=/some/subpath/
+  //
+  // Only use a non-root base in production; use `/` for local development.
+  base:
+    mode === "production"
+      ? normalizeViteBase(
+          typeof process.env.VITE_BASE === "string"
+            ? process.env.VITE_BASE
+            : process.env.CF_PAGES
+              ? "/"
+              : "/StackWorks/",
+        )
+      : "/",
   root: "src",
   // Static assets live at repo-root /public, but Vite's `root` is `src`,
   // so we must point `publicDir` at the correct folder.
@@ -82,7 +105,12 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       input: {
         index: path.resolve(__dirname, "src/index.html"),
-        ...(process.env.VITE_EMIT_ADMIN === "1" ? { admin: path.resolve(__dirname, "src/admin.html") } : {}),
+        ...(process.env.VITE_EMIT_ADMIN === "1"
+          ? {
+              admin: path.resolve(__dirname, "src/admin.html"),
+              "admin-help": path.resolve(__dirname, "src/admin-help.html"),
+            }
+          : {}),
         lasca: path.resolve(__dirname, "src/lasca.html"),
         columnsChess: path.resolve(__dirname, "src/columnsChess.html"),
         chess: path.resolve(__dirname, "src/chess.html"),
