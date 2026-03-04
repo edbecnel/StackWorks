@@ -61,11 +61,9 @@ export function renderStackAtNode(
       inspector.cancelHide();
       inspector.show(nodeId, stack, { rulesetId, boardSize });
     });
-    el.addEventListener("pointerout", (ev) => {
-      const rt = (ev as PointerEvent).relatedTarget as Node | null;
-      if (rt && el.contains(rt)) return;
-      inspector.hideSoon();
-    });
+    // Intentionally do not hide the inspector on hover-out.
+    // UX: the Stack Inspector should keep showing the last hovered stack
+    // until another stack/mini-spine is hovered (or the user pins it on touch).
   };
 
   const bindInspectorTouchPin = (el: SVGGElement): void => {
