@@ -291,6 +291,18 @@
         align-items: center;
         flex-shrink: 0;
       }
+
+      .tokenRow {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        min-width: 0;
+      }
+
+      .tokenRow input {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
     </style>
     <script type="module" src="./adminMain.ts"></script>
   </head>
@@ -307,7 +319,7 @@
           <a class="panelBtn" href="./index.html">Start</a>
           <a
             class="panelBtn"
-            href="./start-help.html"
+            href="./admin-help.html"
             target="_blank"
             rel="noopener noreferrer"
             >Help</a
@@ -329,12 +341,18 @@
 
           <div class="row" style="margin-top: 8px">
             <label for="adminToken">Admin token</label>
-            <input
-              id="adminToken"
-              class="panelInput mono"
-              placeholder="LASCA_ADMIN_TOKEN"
-              autocomplete="off"
-            />
+            <div class="tokenRow">
+              <input
+                id="adminToken"
+                class="panelInput mono"
+                type="password"
+                placeholder="LASCA_ADMIN_TOKEN"
+                autocomplete="off"
+              />
+              <button class="panelBtn" id="adminTokenToggle" type="button">
+                Show
+              </button>
+            </div>
           </div>
 
           <div class="checkRow">

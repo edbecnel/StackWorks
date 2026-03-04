@@ -333,9 +333,27 @@ function rerenderLobbyFromCache(): void {
 function init(): void {
   const elServerUrl = byId<HTMLInputElement>("adminServerUrl");
   const elToken = byId<HTMLInputElement>("adminToken");
+  const elTokenToggle = (document.getElementById("adminTokenToggle") as HTMLButtonElement | null) ?? null;
   const elRemember = byId<HTMLInputElement>("adminRememberToken");
   const elIncludeFull = byId<HTMLInputElement>("adminIncludeFull");
   const elLimit = byId<HTMLInputElement>("adminLobbyLimit");
+
+  const bc: BroadcastChannel | null = (() => {
+    try {
+      return typeof BroadcastChannel === "function" ? new BroadcastChannel("lasca-admin-config") : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const broadcastServerUrlChanged = (): void => {
+    if (!bc) return;
+    try {
+      bc.postMessage({ type: "serverUrlChanged" });
+    } catch {
+      // ignore
+    }
+  };
 
   const serverUrl = localStorage.getItem(LS_KEYS.onlineServerUrl) || "http://localhost:8788";
   elServerUrl.value = normalizeServerUrl(serverUrl);
@@ -346,11 +364,42 @@ function init(): void {
   const token = remember ? localStorage.getItem(LS_KEYS.adminToken) : sessionStorage.getItem(LS_KEYS.adminToken);
   if (token) elToken.value = token;
 
+  const syncTokenToggle = (): void => {
+    if (!elTokenToggle) return;
+    const hidden = (elToken.type || "password") === "password";
+    elTokenToggle.textContent = hidden ? "Show" : "Hide";
+  };
+
+  // Default to hidden/masked.
+  try {
+    elToken.type = "password";
+  } catch {
+    // ignore
+  }
+  syncTokenToggle();
+
+  elTokenToggle?.addEventListener("click", () => {
+    try {
+      elToken.type = elToken.type === "password" ? "text" : "password";
+    } catch {
+      // ignore
+    }
+    syncTokenToggle();
+    // Keep focus on the token field for quick paste/edit.
+    try {
+      elToken.focus();
+      elToken.select();
+    } catch {
+      // ignore
+    }
+  });
+
   elIncludeFull.checked = readBool(LS_KEYS.includeFull, true);
   elLimit.value = String(readInt(LS_KEYS.lobbyLimit, 200, 1, 1000));
 
   elServerUrl.addEventListener("change", () => {
     localStorage.setItem(LS_KEYS.onlineServerUrl, normalizeServerUrl(elServerUrl.value));
+    broadcastServerUrlChanged();
   });
 
   elRemember.addEventListener("change", () => {

@@ -14,6 +14,10 @@ There is a lightweight admin UI page:
 - Source: `src/admin.html` + `src/adminMain.ts`
 - Purpose: list lobby rooms and delete a room using the admin API
 
+There is also an admin help page:
+
+- Source: `src/admin-help.html`
+
 Important: the Admin UI is **not** linked from the Start Page.
 
 Also important: the production build does **not** emit `admin.html` into `dist/` by default.
@@ -214,4 +218,47 @@ If you are serving `dist/` (static hosting), `admin.html` is only present when t
 
 ```bash
 npm run build:admin
+```
+
+## Deploy notes: Vite `base` (GitHub Pages vs custom domains)
+
+This repo historically targets GitHub Pages (repo site) which requires a repo-scoped base path.
+
+The Vite config defaults to:
+
+- Production base: `/StackWorks/` (good for GitHub Pages)
+- Dev base: `/`
+
+To support future deployments (e.g. Cloudflare Pages + a real domain like `https://stackworks.com/`), production base can be overridden at build time with `VITE_BASE`.
+
+Examples:
+
+### GitHub Pages (current default)
+
+No changes needed — do not set `VITE_BASE`:
+
+```bash
+npm run build
+```
+
+### Custom domain at the site root
+
+Use `/`:
+
+```bash
+npx cross-env VITE_BASE=/ vite build
+```
+
+Or if you also want the admin page in the build:
+
+```bash
+npx cross-env VITE_BASE=/ VITE_EMIT_ADMIN=1 vite build
+```
+
+### Hosting under a subpath
+
+If your static host serves the site at a subpath like `https://example.com/stackworks/`, set:
+
+```bash
+npx cross-env VITE_BASE=/stackworks/ vite build
 ```

@@ -468,9 +468,6 @@ window.addEventListener("DOMContentLoaded", () => {
   const elGlassBg = (document.getElementById("launchGlassBgSelect") as HTMLSelectElement | null) ?? null;
 
   const elPlayMode = byId<HTMLSelectElement>("launchPlayMode");
-  const elOnlineServerUrl = byId<HTMLInputElement>("launchOnlineServerUrl");
-  const elOnlineServerUrlLabel =
-    (document.querySelector('label[for="launchOnlineServerUrl"]') as HTMLElement | null) ?? null;
   const elOnlineActionLabel =
     (document.querySelector('label[for="launchOnlineAction"]') as HTMLElement | null) ?? null;
   const elOnlineAction = byId<HTMLSelectElement>("launchOnlineAction");
@@ -555,8 +552,50 @@ window.addEventListener("DOMContentLoaded", () => {
     elAccountStatus.classList.toggle("isError", Boolean(opts?.isError));
   };
 
+  const envServerUrl = (import.meta as any)?.env?.VITE_SERVER_URL as string | undefined;
+  const defaultServerUrl = (() => {
+    if (typeof envServerUrl === "string" && envServerUrl.trim()) return envServerUrl.trim();
+    try {
+      const proto = window.location.protocol || "http:";
+      const host = window.location.hostname;
+      if (host) return `${proto}//${host}:8788`;
+    } catch {
+      // ignore
+    }
+    return "http://localhost:8788";
+  })();
+
+  const resolveConfiguredServerUrl = (): string => {
+    try {
+      const stored = localStorage.getItem(LS_KEYS.onlineServerUrl);
+      const raw = (typeof stored === "string" && stored.trim()) ? stored : defaultServerUrl;
+      return normalizeServerUrl(raw);
+    } catch {
+      return normalizeServerUrl(defaultServerUrl);
+    }
+  };
+
+  let lastConfiguredServerUrl = resolveConfiguredServerUrl();
+
+  const onConfiguredServerUrlMaybeChanged = (): void => {
+    const next = resolveConfiguredServerUrl();
+    if (next === lastConfiguredServerUrl) return;
+    lastConfiguredServerUrl = next;
+
+    // If we're currently viewing online UI, refresh dependent panels.
+    try {
+      syncAvailability();
+      if (elPlayMode.value === "online") {
+        void fetchLobby();
+        void refreshAccountUi();
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   const resolveServerUrlForAccount = (): string | null => {
-    const s = normalizeServerUrl(elOnlineServerUrl.value || "");
+    const s = resolveConfiguredServerUrl();
     if (!s) return null;
     try {
       // eslint-disable-next-line no-new
@@ -1165,11 +1204,6 @@ window.addEventListener("DOMContentLoaded", () => {
         elPlayMode.value = "online";
         localStorage.setItem(LS_KEYS.playMode, "online");
 
-        if (serverUrl) {
-          elOnlineServerUrl.value = serverUrl;
-          localStorage.setItem(LS_KEYS.onlineServerUrl, serverUrl);
-        }
-
         // Persist current prefs (theme/options/AI) and launch directly.
         persistStartPageLaunchPrefs();
         void launchOnline({
@@ -1194,11 +1228,6 @@ window.addEventListener("DOMContentLoaded", () => {
         if (r.visibility === "private") return;
         elPlayMode.value = "online";
         localStorage.setItem(LS_KEYS.playMode, "online");
-
-        if (serverUrl) {
-          elOnlineServerUrl.value = serverUrl;
-          localStorage.setItem(LS_KEYS.onlineServerUrl, serverUrl);
-        }
 
         persistStartPageLaunchPrefs();
         void launchOnline({
@@ -1227,9 +1256,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const fetchLobby = async (): Promise<void> => {
     if (!elLobbySection || !elLobbySection.offsetParent) return; // hidden
-    const serverUrl = normalizeServerUrl(elOnlineServerUrl.value);
+    const serverUrl = resolveConfiguredServerUrl();
     if (!serverUrl) {
-      setLobbyStatus("Lobby: enter a server URL.");
+      setLobbyStatus("Lobby: online server is not configured.");
       lobbyLastRooms = [];
       lobbyLastServerUrl = "";
       renderLobby([]);
@@ -1282,11 +1311,6 @@ window.addEventListener("DOMContentLoaded", () => {
       lobbyFetchInFlight = false;
       elLobbyRefresh && (elLobbyRefresh.disabled = false);
     }
-  };
-
-  const setServerError = (isError: boolean): void => {
-    elOnlineServerUrl.classList.toggle("isError", isError);
-    elOnlineServerUrlLabel?.classList.toggle("isError", isError);
   };
 
   // Populate variant select
@@ -1528,19 +1552,6 @@ window.addEventListener("DOMContentLoaded", () => {
   elGame.value = initialVariantId;
 
   elPlayMode.value = readPlayMode(LS_KEYS.playMode, "local");
-  const envServerUrl = (import.meta as any)?.env?.VITE_SERVER_URL as string | undefined;
-  const defaultServerUrl = (() => {
-    if (typeof envServerUrl === "string" && envServerUrl.trim()) return envServerUrl.trim();
-    try {
-      const proto = window.location.protocol || "http:";
-      const host = window.location.hostname;
-      if (host) return `${proto}//${host}:8788`;
-    } catch {
-      // ignore
-    }
-    return "http://localhost:8788";
-  })();
-  elOnlineServerUrl.value = localStorage.getItem(LS_KEYS.onlineServerUrl) ?? defaultServerUrl;
   elOnlineAction.value = "create";
   localStorage.setItem(LS_KEYS.onlineAction, "create");
   elOnlineVisibility.value = readVisibility(LS_KEYS.onlineVisibility, "public");
@@ -1714,7 +1725,7 @@ window.addEventListener("DOMContentLoaded", () => {
     elPlayMode.disabled = isAiGame;
 
     const playMode = (elPlayMode.value === "online" ? "online" : "local") as PlayMode;
-    const serverUrl = normalizeServerUrl(elOnlineServerUrl.value);
+    const serverUrl = resolveConfiguredServerUrl();
 
     if (elAccountSection) {
       // Account is only meaningful for online play (MP4C auth testing).
@@ -1729,7 +1740,7 @@ window.addEventListener("DOMContentLoaded", () => {
     } else if (playMode === "online") {
       if (!serverUrl) {
         ok = false;
-        warning = "Online mode needs a server URL.";
+        warning = "Online mode is not configured.";
       }
     }
 
@@ -1739,11 +1750,10 @@ window.addEventListener("DOMContentLoaded", () => {
     elLaunch.disabled = !ok;
     setWarning(warning ?? "—", { isError: false });
     setRoomIdError(false);
-    setServerError(false);
 
     // If we are in online mode and the server URL changed, auto-refresh lobby once.
     if (playMode === "online") {
-      const serverUrlNow = normalizeServerUrl(elOnlineServerUrl.value);
+      const serverUrlNow = resolveConfiguredServerUrl();
       if (serverUrlNow && serverUrlNow !== lobbyLastKey) {
         void fetchLobby();
       }
@@ -1757,7 +1767,6 @@ window.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("pageshow", () => {
     try {
       elPlayMode.value = readPlayMode(LS_KEYS.playMode, (elPlayMode.value === "online" ? "online" : "local") as PlayMode);
-      elOnlineServerUrl.value = localStorage.getItem(LS_KEYS.onlineServerUrl) ?? elOnlineServerUrl.value;
       elOnlineAction.value = "create";
       localStorage.setItem(LS_KEYS.onlineAction, "create");
       elOnlineVisibility.value = readVisibility(LS_KEYS.onlineVisibility, (elOnlineVisibility.value as any) ?? "public");
@@ -1768,7 +1777,33 @@ window.addEventListener("DOMContentLoaded", () => {
     }
     syncOnlineVisibility();
     syncAvailability();
+    onConfiguredServerUrlMaybeChanged();
   });
+
+  // Admin-configured server URL updates (from admin page or other tabs).
+  window.addEventListener("storage", (ev) => {
+    if (ev.key === LS_KEYS.onlineServerUrl) onConfiguredServerUrlMaybeChanged();
+  });
+
+  // Best-effort instant same-origin detection (e.g. admin page updates server URL).
+  // Storage events don't fire in the same document, so use a BroadcastChannel when available.
+  // Keep a light polling fallback for older browsers.
+  const bc: BroadcastChannel | null = (() => {
+    try {
+      return typeof BroadcastChannel === "function" ? new BroadcastChannel("lasca-admin-config") : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  if (bc) {
+    bc.addEventListener("message", (ev) => {
+      const msg: any = (ev as any)?.data;
+      if (msg && msg.type === "serverUrlChanged") onConfiguredServerUrlMaybeChanged();
+    });
+  } else {
+    window.setInterval(() => onConfiguredServerUrlMaybeChanged(), 1500);
+  }
 
   elGame.addEventListener("change", syncAvailability);
 
@@ -1796,12 +1831,6 @@ window.addEventListener("DOMContentLoaded", () => {
   elPlayMode.addEventListener("change", () => {
     localStorage.setItem(LS_KEYS.playMode, elPlayMode.value);
     syncOnlineVisibility();
-    syncAvailability();
-  });
-
-  elOnlineServerUrl.addEventListener("input", () => {
-    localStorage.setItem(LS_KEYS.onlineServerUrl, elOnlineServerUrl.value);
-    setServerError(false);
     syncAvailability();
   });
 
@@ -1926,10 +1955,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
     const showOnline = playMode === "online";
     // When local/offline, hide the online controls entirely to avoid confusion.
-    elOnlineServerUrlLabel && (elOnlineServerUrlLabel.style.display = showOnline ? "" : "none");
-    elOnlineServerUrl.style.display = showOnline ? "" : "none";
-    elOnlineServerUrl.disabled = !showOnline;
-
     elOnlineActionLabel && (elOnlineActionLabel.style.display = showOnline ? "" : "none");
     elOnlineAction.style.display = showOnline ? "" : "none";
     elOnlineAction.disabled = !showOnline;
@@ -2019,7 +2044,7 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const serverUrl = normalizeServerUrl(elOnlineServerUrl.value);
+    const serverUrl = resolveConfiguredServerUrl();
     const prefColor = (elOnlinePrefColor.value === "W" || elOnlinePrefColor.value === "B") ? elOnlinePrefColor.value : "auto";
     const visibility = (elOnlineVisibility.value === "private" ? "private" : "public") as RoomVisibility;
 

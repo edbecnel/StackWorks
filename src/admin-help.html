@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StackWorks — Admin Help</title>
+    <link rel="icon" href="./icons/stackworks.svg" type="image/svg+xml" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        color: #e8e6e3;
+        background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+        padding: 20px;
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: rgba(42, 42, 42, 0.95);
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      }
+
+      h1 {
+        color: #fff;
+        font-size: 2.2em;
+        margin-bottom: 10px;
+        border-bottom: 3px solid #4a9eff;
+        padding-bottom: 10px;
+      }
+
+      h2 {
+        color: #4a9eff;
+        font-size: 1.5em;
+        margin-top: 26px;
+        margin-bottom: 12px;
+      }
+
+      h3 {
+        color: #fff;
+        font-size: 1.1em;
+        margin-top: 18px;
+        margin-bottom: 10px;
+      }
+
+      p {
+        margin-bottom: 12px;
+        color: #d4d4d4;
+      }
+
+      ul {
+        margin-left: 22px;
+        margin-bottom: 14px;
+      }
+
+      li {
+        margin-bottom: 8px;
+        color: #d4d4d4;
+      }
+
+      code,
+      .mono {
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+      }
+
+      pre {
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        padding: 12px;
+        overflow: auto;
+        margin: 12px 0;
+      }
+
+      .highlight {
+        background: rgba(74, 158, 255, 0.12);
+        padding: 14px;
+        border-left: 4px solid #4a9eff;
+        border-radius: 6px;
+        margin: 14px 0;
+      }
+
+      .danger {
+        background: rgba(255, 90, 90, 0.1);
+        padding: 14px;
+        border-left: 4px solid rgba(255, 90, 90, 0.85);
+        border-radius: 6px;
+        margin: 14px 0;
+      }
+
+      a {
+        color: #4a9eff;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Admin Help (operator-only)</h1>
+      <p class="subtle">This page is for server operators and developers.</p>
+
+      <div class="danger">
+        <p>Do not share the admin URL or admin token with players.</p>
+      </div>
+
+      <h2>What the Admin page does</h2>
+      <ul>
+        <li>Shows the lobby for an online server.</li>
+        <li>
+          Deletes a room via
+          <span class="mono">DELETE /api/admin/room/:roomId</span>.
+        </li>
+      </ul>
+
+      <h2>Where to open it</h2>
+      <p>
+        The admin UI is part of the <b>client</b> (the static website build),
+        not the server.
+      </p>
+      <ul>
+        <li>
+          Local dev: <span class="mono">http://localhost:8080/admin.html</span>
+        </li>
+        <li>
+          Deployed client:
+          <span class="mono">https://stackworks.games/admin.html</span>
+        </li>
+      </ul>
+
+      <h2>Server URL (admin setting)</h2>
+      <p>
+        The <b>Server URL</b> is the public URL of the online server (the thing
+        that serves <span class="mono">/api/...</span>).
+      </p>
+      <div class="highlight">
+        <p>Two-domain example:</p>
+        <ul>
+          <li>
+            Client/site: <span class="mono">https://stackworks.games</span>
+          </li>
+          <li>
+            Server/API (Render):
+            <span class="mono">https://api.stackworks.games</span>
+          </li>
+        </ul>
+        <p>
+          In the Admin page, set <b>Server URL</b> to
+          <span class="mono">https://api.stackworks.games</span>.
+        </p>
+      </div>
+
+      <h2>Admin token</h2>
+      <p>
+        The server-side admin delete endpoint is protected by a shared secret:
+        <span class="mono">LASCA_ADMIN_TOKEN</span>.
+      </p>
+      <ul>
+        <li>
+          The Admin page sends it as header
+          <span class="mono">x-lasca-admin-token</span>.
+        </li>
+        <li>
+          If the server is missing <span class="mono">LASCA_ADMIN_TOKEN</span>,
+          the endpoint returns 404 (hidden).
+        </li>
+        <li>Wrong token returns 403.</li>
+      </ul>
+      <p>
+        The Admin page masks the token by default; use <b>Show/Hide</b> to
+        toggle visibility.
+      </p>
+
+      <h2>Build flags (emitting admin pages)</h2>
+      <p>
+        By default, production builds do <b>not</b> emit
+        <span class="mono">admin.html</span>. To include it (and this help
+        page), build with:
+      </p>
+      <pre><code>npx cross-env VITE_EMIT_ADMIN=1 vite build</code></pre>
+
+      <h2>Deploy notes: Vite base path</h2>
+      <p>
+        GitHub Pages repo hosting usually needs a base like
+        <span class="mono">/StackWorks/</span>. A real domain (root hosting)
+        usually needs <span class="mono">/</span>.
+      </p>
+      <p>
+        This repo supports overriding the production base at build time using
+        <span class="mono">VITE_BASE</span>.
+      </p>
+      <h3>GitHub Pages (default)</h3>
+      <pre><code>npm run build</code></pre>
+      <h3>Custom domain at root (future)</h3>
+      <pre><code>npx cross-env VITE_BASE=/ vite build</code></pre>
+      <h3>Custom domain root + admin pages</h3>
+      <pre><code>npx cross-env VITE_BASE=/ VITE_EMIT_ADMIN=1 vite build</code></pre>
+
+      <h2>(1) Acquire the stackworks.games domain name</h2>
+      <p>
+        You need to own <span class="mono">stackworks.games</span> before you
+        can point it at Cloudflare Pages and a Render API. You can buy the
+        domain from any domain registrar (or use Cloudflare Registrar).
+      </p>
+      <h3>Checklist</h3>
+      <ol>
+        <li>
+          Pick a registrar (examples: Cloudflare Registrar, Namecheap, Google
+          Domains’ successor, etc.).
+        </li>
+        <li>
+          Search for <span class="mono">stackworks.games</span> and purchase it.
+        </li>
+        <li>Enable auto-renew.</li>
+        <li>
+          Enable WHOIS privacy (if available) so your personal info is not
+          public.
+        </li>
+        <li>
+          Decide where DNS will live:
+          <ul>
+            <li>
+              Easiest: use Cloudflare DNS (you’ll change nameservers at your
+              registrar to Cloudflare’s nameservers).
+            </li>
+            <li>
+              Alternative: keep DNS at your registrar (you’ll create CNAME/A
+              records there instead).
+            </li>
+          </ul>
+        </li>
+      </ol>
+      <div class="highlight">
+        <p>
+          If you’re using Cloudflare Pages, hosting DNS in Cloudflare is usually
+          the smoothest setup, because custom domain + SSL + DNS records are all
+          in one place.
+        </p>
+      </div>
+
+      <h2>(2) Register with Cloudflare Pages (client/site)</h2>
+      <p>
+        Cloudflare Pages is where you deploy the static site (the Vite build).
+        This is your player-facing domain and also where the admin pages live if
+        you choose to deploy them.
+      </p>
+      <h3>Sign up</h3>
+      <ol>
+        <li>Create a Cloudflare account.</li>
+        <li>
+          (Recommended) Add your domain
+          <span class="mono">stackworks.games</span>
+          to Cloudflare so Cloudflare can manage DNS.
+        </li>
+        <li>
+          If you add the domain to Cloudflare DNS: update nameservers at your
+          registrar to the nameservers Cloudflare gives you.
+        </li>
+      </ol>
+      <div class="highlight">
+        <p>
+          You can create a Pages project before you finish nameserver changes,
+          but custom domains won’t fully work until DNS is active.
+        </p>
+      </div>
+
+      <div class="highlight">
+        <p>
+          Troubleshooting: if <span class="mono">nslookup</span> shows
+          <span class="mono">DNS request timed out</span>, try turning off your
+          VPN and re-trying. Some VPNs block or replace DNS.
+        </p>
+      </div>
+
+      <h2>(3) Register with Render (server/API)</h2>
+      <p>
+        Render is where you deploy the online server (Express + WebSockets).
+        You’ll typically serve the API from
+        <span class="mono">api.stackworks.games</span>.
+      </p>
+      <h3>Sign up</h3>
+      <ol>
+        <li>Create a Render account.</li>
+        <li>
+          Connect your GitHub account (or whichever git provider you use).
+        </li>
+      </ol>
+
+      <h2>(4) Set up Cloudflare Pages (website + project)</h2>
+      <h3>On Cloudflare’s website</h3>
+      <ol>
+        <li>
+          Go to <b>Workers &amp; Pages</b> → <b>Pages</b> →
+          <b>Create a project</b>.
+        </li>
+        <li>Select your GitHub repo for this project.</li>
+        <li>
+          Choose the Production branch (commonly
+          <span class="mono">main</span>).
+        </li>
+        <li>Set the build settings (see below).</li>
+        <li>Deploy.</li>
+        <li>
+          Add your custom domain:
+          <ul>
+            <li>
+              In the Pages project, open <b>Custom domains</b> and add
+              <span class="mono">stackworks.games</span> (and optionally
+              <span class="mono">www.stackworks.games</span>).
+            </li>
+            <li>
+              Follow Cloudflare’s DNS prompts (if DNS is hosted in Cloudflare,
+              it’s usually automatic).
+            </li>
+          </ul>
+        </li>
+      </ol>
+
+      <h3>In this project (build settings)</h3>
+      <p>
+        Cloudflare Pages needs to run Vite and upload the
+        <span class="mono">dist</span>
+        folder.
+      </p>
+      <ul>
+        <li>Framework preset: Vite</li>
+        <li>Output directory: <span class="mono">dist</span></li>
+        <li>
+          Environment variables (Production):
+          <ul>
+            <li>
+              <span class="mono">VITE_BASE=/</span> (because you’re hosting at
+              <span class="mono">https://stackworks.games</span>, not under
+              <span class="mono">/StackWorks/</span>)
+            </li>
+          </ul>
+        </li>
+      </ul>
+      <h3>Build command options</h3>
+      <ul>
+        <li>
+          Player site only (no admin pages emitted):
+          <span class="mono">npm run build</span>
+        </li>
+        <li>
+          Player site + admin pages emitted:
+          <span class="mono">npm run build:admin</span>
+        </li>
+      </ul>
+      <div class="danger">
+        <p>
+          If you deploy the admin pages publicly, keep
+          <span class="mono">https://stackworks.games/admin.html</span> private.
+          Treat the admin URL like a secret.
+        </p>
+      </div>
+
+      <h2>(5) Set up Render (website + project)</h2>
+      <h3>On Render’s website</h3>
+      <ol>
+        <li>Click <b>New</b> → <b>Web Service</b>.</li>
+        <li>Select your GitHub repo for this project.</li>
+        <li>
+          Configure the service:
+          <ul>
+            <li>Root directory: <span class="mono">server</span></li>
+            <li>Build command: <span class="mono">npm ci</span></li>
+            <li>Start command: <span class="mono">npm start</span></li>
+          </ul>
+        </li>
+        <li>
+          Add environment variables:
+          <ul>
+            <li>
+              <span class="mono">LASCA_ADMIN_TOKEN</span> (required to enable
+              admin delete)
+            </li>
+          </ul>
+        </li>
+        <li>Deploy.</li>
+        <li>
+          Add custom domain:
+          <ul>
+            <li>
+              In the service settings, add
+              <span class="mono">api.stackworks.games</span>.
+            </li>
+            <li>
+              Render will show a DNS record (often a CNAME to a
+              <span class="mono">onrender.com</span> hostname). Create that
+              record in your DNS.
+            </li>
+          </ul>
+        </li>
+      </ol>
+
+      <h3>In this project (server)</h3>
+      <ul>
+        <li>
+          The server is in <span class="mono">server/</span> and starts with
+          <span class="mono">npm start</span>.
+        </li>
+        <li>
+          Render provides <span class="mono">PORT</span>; the server reads
+          <span class="mono">process.env.PORT</span>.
+        </li>
+        <li>
+          For realtime play, the server uses WebSockets at
+          <span class="mono">/api/ws</span> and can fall back to SSE.
+        </li>
+      </ul>
+      <div class="highlight">
+        <p>
+          Token tip: generate a long random token and store it in a password
+          manager. Use the exact same value for Render’s
+          <span class="mono">LASCA_ADMIN_TOKEN</span> and the Admin page token.
+        </p>
+      </div>
+
+      <div class="highlight">
+        <p>
+          Important: the server start script runs
+          <span class="mono">tsx src/index.ts</span>. That means Render must
+          install devDependencies for the server build (or you’ll need to adjust
+          the server to run compiled JavaScript instead).
+        </p>
+      </div>
+
+      <h2>Admin setup after deploy</h2>
+      <ol>
+        <li>
+          Open <span class="mono">https://stackworks.games/admin.html</span>
+        </li>
+        <li>
+          Set <b>Server URL</b> to
+          <span class="mono">https://api.stackworks.games</span>
+        </li>
+        <li>
+          Paste the admin token (same value as server’s
+          <span class="mono">LASCA_ADMIN_TOKEN</span>)
+        </li>
+        <li>Refresh lobby, then use row actions (Delete / Copy)</li>
+      </ol>
+
+      <div class="danger">
+        <p>
+          The Server URL setting is stored in your browser storage. It is not a
+          global server setting. Each admin device/browser needs to set it once.
+        </p>
+      </div>
+
+      <h2>More details</h2>
+      <p>
+        For the full operator guide, see
+        <span class="mono">docs/admin-tools.md</span> in the repo.
+      </p>
+    </div>
+  </body>
+</html>
