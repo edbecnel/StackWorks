@@ -36,6 +36,8 @@ export function bindPlaybackControls(controller: GameController): void {
 
   let delayMs = DEFAULT_DELAY_MS;
   let playing = false;
+  let boardPaused = false; // true when paused by tapping the board during playback
+  let lastBoardTapAtMs = 0;
   let timer: number | null = null;
 
   const isAtEnd = () => !controller.canRedo() && controller.canUndo();
@@ -80,7 +82,19 @@ export function bindPlaybackControls(controller: GameController): void {
       timer = null;
     }
     playing = false;
+    boardPaused = false;
     renderButton();
+  };
+
+  const pauseByBoard = () => {
+    if (timer !== null) {
+      window.clearTimeout(timer);
+      timer = null;
+    }
+    playing = false;
+    boardPaused = true;
+    renderButton();
+    controller.toast("Playback paused - Tap on the board to continue", 3000, { force: true });
   };
 
   const stepOnce = async () => {
@@ -124,6 +138,7 @@ export function bindPlaybackControls(controller: GameController): void {
     if (playing) return;
     if (!controller.canRedo()) return;
 
+    boardPaused = false;
     playing = true;
     renderButton();
 
@@ -134,6 +149,36 @@ export function bindPlaybackControls(controller: GameController): void {
     renderButton();
   };
 
+  // Bind board tap to pause/resume playback.
+  const boardWrap = document.getElementById("boardWrap") as HTMLElement | null;
+  const boardSvg = boardWrap?.querySelector("svg") as SVGSVGElement | null;
+  if (boardSvg) {
+    const onBoardTap = (ev: Event) => {
+      const now = Date.now();
+      // A single physical tap fires both pointerdown and click; ignore the follow-up.
+      if (ev.type === "click" && now - lastBoardTapAtMs < 350) return;
+
+      if (playing) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        lastBoardTapAtMs = now;
+        pauseByBoard();
+        return;
+      }
+
+      if (boardPaused) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        lastBoardTapAtMs = now;
+        start();
+        return;
+      }
+    };
+
+    boardSvg.addEventListener("pointerdown", onBoardTap, { capture: true });
+    boardSvg.addEventListener("click", onBoardTap, { capture: true });
+  }
+
   // Initial state
   delayMs = parseDelayMs(elDelay.value || String(DEFAULT_DELAY_MS), DEFAULT_DELAY_MS);
   updateSpeedUI();
@@ -141,6 +186,11 @@ export function bindPlaybackControls(controller: GameController): void {
   renderButton();
 
   elBtn.addEventListener("click", () => {
+    if (boardPaused) {
+      start();
+      return;
+    }
+
     if (playing) {
       stop();
       return;
