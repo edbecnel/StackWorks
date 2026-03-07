@@ -212,9 +212,11 @@
       }
 
       .iconToggleGroup {
-        display: inline-flex;
+        display: flex;
+        flex-wrap: wrap;
         gap: 6px;
         align-items: center;
+        min-width: 0;
       }
 
       .iconToggleBtn[aria-pressed="true"] {
@@ -699,19 +701,6 @@
         #appRoot {
           flex-direction: row;
           height: 100dvh;
-        }
-
-        /* Left panel | board | right panel */
-        #leftSidebar {
-          order: 1;
-        }
-
-        #centerArea {
-          order: 2;
-        }
-
-        #rightSidebar {
-          order: 3;
         }
 
         #centerArea {

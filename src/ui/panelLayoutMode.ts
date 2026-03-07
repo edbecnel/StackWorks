@@ -331,6 +331,36 @@ body[data-panel-layout="menu"] #panelLayoutDialogOverlay[data-variant="playback"
     height: auto !important;
     max-height: none;
   }
+
+  /* Thin scrollbars inside sidebar panels (coarse-pointer scrollbar track
+     can appear "dead"/extra-wide on Android in landscape). */
+  body[data-panel-layout="panels"] .sidebarBody {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  }
+
+  /* Safe-area fix for landscape flex-row layout.
+     Some game pages apply  body { padding-left/right: env(safe-area-inset-*) }
+     via @supports, which was correct for portrait but in landscape creates a
+     visible dark gap between the screen edge and the sidebar border ("multiple
+     borders" on mobie).  Counter that by stretching #appRoot back to the true
+     viewport edges, then re-applying safe-area insets as content padding
+     INSIDE the outermost sidebar elements so content is never obscured by the
+     device notch or home indicator. */
+  @supports (padding: env(safe-area-inset-left)) {
+    body[data-panel-layout="panels"] #appRoot {
+      width: 100dvw;
+      margin-left: calc(-1 * env(safe-area-inset-left, 0px));
+    }
+    body[data-panel-layout="panels"] #leftSidebar .sidebarHeader,
+    body[data-panel-layout="panels"] #leftSidebar .sidebarBody {
+      padding-left: max(10px, env(safe-area-inset-left, 0px));
+    }
+    body[data-panel-layout="panels"] #rightSidebar .sidebarHeader,
+    body[data-panel-layout="panels"] #rightSidebar .sidebarBody {
+      padding-right: max(8px, env(safe-area-inset-right, 0px));
+    }
+  }
 }
 
 /* ── Portrait orientation — panels mode ────────────────────────────
