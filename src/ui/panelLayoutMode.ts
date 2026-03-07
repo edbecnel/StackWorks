@@ -317,16 +317,13 @@ body[data-panel-layout="menu"] #panelLayoutDialogOverlay[data-variant="playback"
 /* ── Landscape orientation — panels mode ───────────────────────────
    Always restore row layout in landscape so panels stay left/right,
    overriding any per-page touch/mobile CSS that forces column.
+   DOM order is already correct (leftSidebar → gutterLeft → centerArea →
+   gutterRight → rightSidebar), so no flex order overrides are needed here.
    ────────────────────────────────────────────────────────────────── */
 @media (orientation: landscape) {
   body[data-panel-layout="panels"] #appRoot {
     flex-direction: row;
   }
-
-  /* Explicit order: left panel | board | right panel */
-  body[data-panel-layout="panels"] #leftSidebar  { order: 1; }
-  body[data-panel-layout="panels"] #centerArea   { order: 2; }
-  body[data-panel-layout="panels"] #rightSidebar { order: 3; }
 
   /* Sidebars fill the full height of the row; let JS-set inline width apply */
   body[data-panel-layout="panels"] .sidebar {
