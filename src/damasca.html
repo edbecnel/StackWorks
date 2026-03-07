@@ -732,10 +732,10 @@
         Use capability-based media queries (any-pointer: coarse) instead of width alone.
         This avoids desktop/laptop browsers triggering the stacked layout due to OS scaling/zoom.
       */
-      /* Tablets and smaller in LANDSCAPE: Stack vertically with standard spacing */
+      /* Tablets and smaller in LANDSCAPE: panels left and right of board */
       @media (max-width: 1024px) and (orientation: landscape) and (any-pointer: coarse) {
         #appRoot {
-          flex-direction: column;
+          flex-direction: row;
           height: 100dvh;
         }
 
@@ -743,11 +743,11 @@
           order: 1;
         }
 
-        #rightSidebar {
+        #centerArea {
           order: 2;
         }
 
-        #centerArea {
+        #rightSidebar {
           order: 3;
         }
 
@@ -842,7 +842,7 @@
         }
       }
 
-      /* Tablets and smaller in PORTRAIT: Stack vertically with REDUCED spacing for vertical space */
+      /* Tablets and smaller in PORTRAIT: left panel on top, board in middle, right panel at bottom */
       @media (max-width: 1024px) and (orientation: portrait) and (any-pointer: coarse) {
         #appRoot {
           flex-direction: column;
@@ -853,11 +853,11 @@
           order: 1;
         }
 
-        #rightSidebar {
+        #centerArea {
           order: 2;
         }
 
-        #centerArea {
+        #rightSidebar {
           order: 3;
         }
 

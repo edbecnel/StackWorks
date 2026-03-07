@@ -5,19 +5,11 @@ export type PanelLayoutMode = "panels" | "menu";
 const LS_KEY = "lasca.ui.panelLayout";
 
 function detectDefaultPanelLayoutMode(): PanelLayoutMode {
-  // Use menu mode for mobile-like environments (small screens / coarse pointer).
-  // Only used when the user has NOT explicitly saved a preference.
-  try {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return "panels";
-
-    const small = window.matchMedia("(max-width: 820px)").matches;
-    const coarse = window.matchMedia("(pointer: coarse)").matches;
-    const noHover = window.matchMedia("(hover: none)").matches;
-
-    return small || (coarse && noHover) ? "menu" : "panels";
-  } catch {
-    return "panels";
-  }
+  // Always default to panels on all devices.
+  // Orientation-responsive CSS in ensureInjectedStyles() handles the
+  // layout direction: landscape = left/right sidebars, portrait = top/bottom.
+  // Users who prefer the hamburger menu can switch via the Layout option in Settings.
+  return "panels";
 }
 
 export function readPanelLayoutMode(): PanelLayoutMode {
@@ -320,6 +312,91 @@ body[data-panel-layout="menu"] #panelLayoutDialogOverlay[data-variant="playback"
 }
 #panelLayoutDialogBody .panelSection[data-force-open="1"] .collapseBtn {
   display: none !important;
+}
+
+/* ── Landscape orientation — panels mode ───────────────────────────
+   Always restore row layout in landscape so panels stay left/right,
+   overriding any per-page touch/mobile CSS that forces column.
+   ────────────────────────────────────────────────────────────────── */
+@media (orientation: landscape) {
+  body[data-panel-layout="panels"] #appRoot {
+    flex-direction: row;
+  }
+
+  /* Explicit order: left panel | board | right panel */
+  body[data-panel-layout="panels"] #leftSidebar  { order: 1; }
+  body[data-panel-layout="panels"] #centerArea   { order: 2; }
+  body[data-panel-layout="panels"] #rightSidebar { order: 3; }
+
+  /* Sidebars fill the full height of the row; let JS-set inline width apply */
+  body[data-panel-layout="panels"] .sidebar {
+    width: auto;
+    height: auto !important;
+    max-height: none;
+  }
+}
+
+/* ── Portrait orientation — panels mode ────────────────────────────
+   Landscape (default): leftSidebar | board | rightSidebar  (row)
+   Portrait:            leftSidebar above board, rightSidebar below  (column)
+   ────────────────────────────────────────────────────────────────── */
+@media (orientation: portrait) {
+  body[data-panel-layout="panels"] #appRoot {
+    flex-direction: column;
+  }
+
+  /* Explicit stack order: left panel on top, board in middle, right panel at bottom */
+  body[data-panel-layout="panels"] #leftSidebar  { order: 1; }
+  body[data-panel-layout="panels"] #centerArea   { order: 2; }
+  body[data-panel-layout="panels"] #rightSidebar { order: 3; }
+
+  /* Full-width top/bottom strips; cap height so the board still gets space */
+  body[data-panel-layout="panels"] .sidebar {
+    width: 100% !important;  /* override JS inline width from splitLayout */
+    min-width: 0 !important;
+    height: auto !important;
+    flex: 0 0 auto;
+    max-height: 35vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  /* Board fills the remaining vertical space */
+  body[data-panel-layout="panels"] #centerArea {
+    flex: 1 1 0 !important;
+    min-height: 0;
+    min-width: 0;
+  }
+
+  /* Drag gutters are meaningless in portrait — hide them */
+  body[data-panel-layout="panels"] #gutterLeft,
+  body[data-panel-layout="panels"] #gutterRight,
+  body[data-panel-layout="panels"] .gutter {
+    display: none !important;
+  }
+
+  /* Collapse/expand tab strips are a landscape affordance; hide them on
+     non-collapsed sidebars in portrait (the sidebar header already carries
+     the collapse button). */
+  body[data-panel-layout="panels"] .sidebar:not(.collapsed) .sidebarTab {
+    display: none !important;
+  }
+
+  /* Collapsed sidebar in portrait: keep a compact 44 px tap-strip so the user
+     can re-expand without a page reload.  The main .sidebar rule above sets
+     height: auto !important which would collapse the element to 0 px when its
+     content is hidden; override that here with higher specificity. */
+  body[data-panel-layout="panels"] .sidebar.collapsed {
+    height: 44px !important;
+    max-height: 44px !important;
+    flex: 0 0 44px !important;
+    overflow: hidden;
+  }
+  body[data-panel-layout="panels"] .sidebar.collapsed .sidebarTab {
+    display: flex !important;
+    width: 100%;
+    height: 44px;
+  }
 }
 `;
   document.head.appendChild(style);
@@ -756,6 +833,22 @@ export function bindPanelLayoutMenuMode(): void {
     window.addEventListener("resize", () => {
       scheduleBoardPlayAreaZoomSync();
       scheduleBoardViewportFitSync();
+    });
+  } catch {
+    // ignore
+  }
+
+  // orientationchange fires before resize on some older mobile browsers.
+  // Re-run viewport fit AND re-apply the shell mode (hamburger visibility etc.)
+  // so the UI reflects the new orientation immediately.
+  try {
+    window.addEventListener("orientationchange", () => {
+      // Let the browser finish rotating before measuring.
+      setTimeout(() => {
+        applyVisibility();
+        scheduleBoardPlayAreaZoomSync();
+        scheduleBoardViewportFitSync();
+      }, 150);
     });
   } catch {
     // ignore

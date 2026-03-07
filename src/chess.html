@@ -693,58 +693,54 @@
         display: block;
       }
 
-      /* Mobile & tablets (touch): stack panels vertically and disable gutters.
+      /* Mobile & tablets (touch) — LANDSCAPE: panels left and right of board, disable gutters.
          Use capability-based queries to avoid narrow desktop windows triggering this layout. */
       @media (max-width: 1024px) and (orientation: landscape) and (any-pointer: coarse) {
         #appRoot {
-          flex-direction: column;
+          flex-direction: row;
           height: 100dvh;
         }
 
-        /* Match other games: Left panel, then Info, then Board. */
+        /* Left panel | board | right panel */
         #leftSidebar {
           order: 1;
         }
 
-        #rightSidebar {
+        #centerArea {
           order: 2;
         }
 
-        #centerArea {
+        #rightSidebar {
           order: 3;
         }
 
         .gutter {
           display: none;
         }
-        #leftSidebar,
-        #rightSidebar {
-          width: 100% !important;
-          height: auto;
-        }
         #centerArea {
+          flex: 1 1 auto;
           min-width: 0;
-          height: auto;
           padding-bottom: max(10px, env(safe-area-inset-bottom));
         }
       }
 
+      /* Mobile & tablets (touch) — PORTRAIT: left panel on top, board in middle, right panel at bottom. */
       @media (max-width: 1024px) and (orientation: portrait) and (any-pointer: coarse) {
         #appRoot {
           flex-direction: column;
           height: 100dvh;
         }
 
-        /* Match other games: Left panel, then Info, then Board. */
+        /* Left panel on top, board in middle, right panel at bottom */
         #leftSidebar {
           order: 1;
         }
 
-        #rightSidebar {
+        #centerArea {
           order: 2;
         }
 
-        #centerArea {
+        #rightSidebar {
           order: 3;
         }
 

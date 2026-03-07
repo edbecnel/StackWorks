@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" role="img" aria-label="StackWorks.games logo">
+  <defs>
+    <linearGradient id="goldTop" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#FFF2BF"/>
+      <stop offset="48%" stop-color="#E3B84F"/>
+      <stop offset="100%" stop-color="#B97D1B"/>
+    </linearGradient>
+    <linearGradient id="goldSide" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#D8A338"/>
+      <stop offset="100%" stop-color="#A06412"/>
+    </linearGradient>
+    <linearGradient id="navyGrad" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#173D75"/>
+      <stop offset="100%" stop-color="#0D2547"/>
+    </linearGradient>
+    <filter id="softShadow" x="-25%" y="-25%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
+
+    <g id="disc">
+      <!-- front side wall -->
+      <path d="M -78,0 L -78,44 A 78,22 0 0 0 78,44 L 78,0"
+            fill="url(#goldSide)" stroke="#0D3568" stroke-width="8" stroke-linejoin="round"/>
+      <!-- top face -->
+      <ellipse cx="0" cy="0" rx="78" ry="22" fill="url(#goldTop)" stroke="#0D3568" stroke-width="8"/>
+      <!-- front bottom curve only -->
+      <path d="M -78,44 A 78,22 0 0 0 78,44" fill="none" stroke="#0D3568" stroke-width="8" stroke-linecap="round"/>
+      <!-- top highlight -->
+      <ellipse cx="0" cy="0" rx="47" ry="11" fill="#FFF7DB" opacity="0.62"/>
+    </g>
+  </defs>
+
+  <g transform="translate(36,40)" filter="url(#softShadow)">
+    <ellipse cx="104" cy="244" rx="108" ry="18" fill="#091325" opacity="0.20"/>
+    <g transform="translate(102,152)"><use href="#disc"/></g>
+    <g transform="translate(86,88)"><use href="#disc"/></g>
+    <g transform="translate(110,24)">
+      <use href="#disc"/>
+      <g transform="translate(0,-2) scale(0.88)">
+        <path d="M -22 10 L -22 -3 L -12 2 L 0 -11 L 12 2 L 22 -3 L 22 10 Z" fill="#1E5AA8"/>
+        <circle cx="-22" cy="10" r="3" fill="#1E5AA8"/>
+        <circle cx="0" cy="-11" r="3" fill="#1E5AA8"/>
+        <circle cx="22" cy="10" r="3" fill="#1E5AA8"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- small gap between stack and wordmark -->
+  <g transform="translate(250,78)" filter="url(#softShadow)">
+    <rect x="0" y="22" width="900" height="124" rx="34" fill="url(#navyGrad)" stroke="#C48A2A" stroke-width="6"/>
+    <text x="34" y="114" font-family="Verdana, Trebuchet MS, Arial, sans-serif" font-weight="900" letter-spacing="1.0"
+          fill="url(#goldTop)" stroke="#1A1C22" stroke-width="8" paint-order="stroke">
+      <tspan font-size="96">StackWorks</tspan>
+    </text>
+    <text x="678" y="116" font-family="Verdana, Trebuchet MS, Arial, sans-serif" font-weight="900" letter-spacing="0.2"
+          font-size="38" fill="#FFF7DA">.games</text>
+  </g>
+</svg>
