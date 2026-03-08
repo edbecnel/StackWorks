@@ -1,0 +1,48 @@
+# Cloudflare Pages cache rules.
+
+#
+
+# Vite content-hashes all bundled assets (JS, CSS, SVGs imported via ?url), so
+
+# their filenames change whenever their content changes. These can be cached
+
+# forever with the `immutable` directive — the browser will never need to
+
+# revalidate them.
+
+#
+
+# HTML entry points are NOT hashed; they must always revalidate so users pick
+
+# up new deployments immediately.
+
+# Vite-bundled assets (JS chunks, CSS, imported SVG/image assets).
+
+/assets/\*
+Cache-Control: public, max-age=31536000, immutable
+
+# Stockfish WASM + worker (large, rarely changes, versioned in filename).
+
+/vendor/\*
+Cache-Control: public, max-age=31536000, immutable
+
+# Piece and icon images (not hashed, but change infrequently).
+
+/pieces/\*
+Cache-Control: public, max-age=2592000
+
+/icons/\*
+Cache-Control: public, max-age=2592000
+
+# Splash screen (not hashed).
+
+/splash.png
+Cache-Control: public, max-age=2592000
+
+# HTML entry points — always revalidate.
+
+/\*.html
+Cache-Control: no-cache, must-revalidate
+
+/
+Cache-Control: no-cache, must-revalidate

@@ -469,6 +469,29 @@ function isGlassPaletteId(v: unknown): v is GlassPaletteId {
   );
 }
 
+// Speculatively fetch the selected game's HTML entry point so the browser
+// has it (and its embedded <link rel="modulepreload"> hints) ready before
+// the user clicks Launch. Called on page load and whenever the variant changes.
+function prefetchGamePage(gameSelect: HTMLSelectElement): void {
+  try {
+    const vId = (isVariantId(gameSelect.value) ? gameSelect.value : DEFAULT_VARIANT_ID) as VariantId;
+    const entryUrl = getVariantById(vId).entryUrl;
+    if (!entryUrl) return;
+
+    const prev = document.getElementById("variantPagePrefetch") as HTMLLinkElement | null;
+    if (prev?.getAttribute("href") === entryUrl) return; // already prefetching this one
+    prev?.remove();
+
+    const link = document.createElement("link");
+    link.id = "variantPagePrefetch";
+    link.rel = "prefetch";
+    link.href = entryUrl;
+    document.head.appendChild(link);
+  } catch {
+    // ignore — graceful degradation
+  }
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   maybeResetCheckersThemePrefs();
   const finalizeSplash = initStartSplash();
@@ -1573,6 +1596,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const initialVariantId = readVariantId(LS_KEYS.variantId, DEFAULT_VARIANT_ID);
   elGame.value = initialVariantId;
+  prefetchGamePage(elGame);
 
   elPlayMode.value = readPlayMode(LS_KEYS.playMode, "local");
   elOnlineAction.value = "create";
@@ -1828,7 +1852,10 @@ window.addEventListener("DOMContentLoaded", () => {
     window.setInterval(() => onConfiguredServerUrlMaybeChanged(), 1500);
   }
 
-  elGame.addEventListener("change", syncAvailability);
+  elGame.addEventListener("change", () => {
+    syncAvailability();
+    prefetchGamePage(elGame);
+  });
 
   // Persist disc-game piece theme immediately so terminology can update live on the Start Page.
   elTheme.addEventListener("change", () => {
