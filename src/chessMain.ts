@@ -228,12 +228,32 @@ window.addEventListener("DOMContentLoaded", async () => {
       style: (hasPlayerNames() || boardCoordsInSquaresToggle?.checked) ? "inSquare" : "edge",
     });
 
+  const boardCoordsInSquaresRow = document.getElementById("boardCoordsInSquaresRow") as HTMLElement | null;
+
   const updatePlayerNameDisplay = () => {
     const flipped = isFlipped();
     // When not flipped: white plays from the bottom, black from the top.
     const topName = flipped ? playerWhiteName : playerBlackName;
     const bottomName = flipped ? playerBlackName : playerWhiteName;
     renderPlayerNamesOnSvg(topName, bottomName);
+
+    // When player names occupy the outer frame strips, edge-style coordinate
+    // labels would overwrite them.  Force the "Inside squares" checkbox on and
+    // disable it so the user can't accidentally switch back to edge mode.
+    if (boardCoordsInSquaresToggle) {
+      if (hasPlayerNames()) {
+        boardCoordsInSquaresToggle.checked = true;
+        boardCoordsInSquaresToggle.disabled = true;
+        if (boardCoordsInSquaresRow) boardCoordsInSquaresRow.style.opacity = "0.45";
+      } else {
+        boardCoordsInSquaresToggle.disabled = false;
+        if (boardCoordsInSquaresRow) boardCoordsInSquaresRow.style.opacity = "";
+        // Restore the user's saved preference.
+        const saved = readOptionalBoolPref(LS_OPT_KEYS.boardCoordsInSquares);
+        boardCoordsInSquaresToggle.checked = saved ?? false;
+      }
+    }
+
     // Re-apply coords: may need to switch to/from inSquare mode.
     applyBoardCoords();
   };
