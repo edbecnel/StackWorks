@@ -114,7 +114,11 @@ function initStartSplash(): (() => void) | null {
     // ignore
   }
 
-  const startedAt = performance.now();
+  // Anchor to navigation start (performance.now() is measured from there).
+  // This means "elapsed" reflects how long the user has already been looking at
+  // the splash — including the time spent downloading and parsing the JS bundle —
+  // so a slow CDN load counts toward the minimum branding delay.
+  const startedAt = 0;
   const dismiss = () => root.classList.remove("showStartSplash");
 
   // Fallback: always dismiss after START_SPLASH_MS even if finalizeSplash is never called.
