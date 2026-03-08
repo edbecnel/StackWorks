@@ -1,7 +1,7 @@
 import type { GameController, HistoryChangeReason } from "../controller/gameController.ts";
 
-const DEFAULT_DELAY_MS = 500;
-const MAX_DELAY_MS = 3000;
+const DEFAULT_DELAY_MS = 1000;
+const MAX_DELAY_MS = 5000;
 /** Cap recorded delays at 1 minute so replays of very long think moves don't freeze. */
 const MAX_RECORDED_DELAY_MS = 60_000;
 
@@ -37,7 +37,7 @@ export function bindPlaybackControls(controller: GameController): void {
   if (!elBtn || !elDelay || !elDelayReset || !elDelayLabel) return;
 
   const rangeMin = parseDelayMs(elDelay.min || "0", 0);
-  const rangeMax = parseDelayMs(elDelay.max || "3000", 3000);
+  const rangeMax = parseDelayMs(elDelay.max || "5000", 5000);
 
   let delayMs = DEFAULT_DELAY_MS;
   let playing = false;
