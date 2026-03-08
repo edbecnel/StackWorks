@@ -1044,8 +1044,43 @@
         }
       }
     </style>
+    <style>
+      #gameLoadScreen {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: #1b1b1b;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+      }
+      @keyframes gameLoadSpinnerRotate {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      #gameLoadScreenSpinner {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, 0.15);
+        border-top-color: rgba(255, 255, 255, 0.75);
+        animation: gameLoadSpinnerRotate 0.75s linear infinite;
+      }
+    </style>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        var e = document.getElementById("gameLoadScreen");
+        if (e) e.remove();
+      });
+    </script>
   </head>
   <body>
+    <div id="gameLoadScreen" aria-hidden="true" aria-label="Loading…">
+      <div id="gameLoadScreenSpinner"></div>
+    </div>
     <div id="appRoot">
       <!-- LEFT SIDEBAR -->
       <aside
