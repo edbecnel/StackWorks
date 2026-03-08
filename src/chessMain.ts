@@ -907,14 +907,49 @@ window.addEventListener("DOMContentLoaded", async () => {
       hm.push(s, `${fromA1}${sep}${toA1}`, emtMsPerMove[idx] ?? null);
     }
 
-    controller.loadGame(s, hm.exportSnapshots());
-
-    // Parse player names directly from the raw PGN header lines — more reliable
-    // than chess.js's header() API across versions.
+    // Parse player names and result directly from the raw PGN header lines —
+    // more reliable than chess.js's header() API across versions.
     const parsePgnHeader = (tag: string): string => {
       const m = new RegExp(`^\\[${tag}\\s+"([^"]*)"]`, "im").exec(gamePgn);
       return m ? m[1]!.trim() : "";
     };
+
+    // Detect the game result from the PGN and, if it was a resignation or
+    // explicit draw, push a final forcedGameOver state so playback can surface
+    // the reason (toast + status message) when the user steps to the last slide.
+    const pgnResult = parsePgnHeader("Result");
+    const lastSan = verboseMoves.length > 0 ? String((verboseMoves[verboseMoves.length - 1] as any)?.san ?? "") : "";
+    const wasCheckmate = lastSan.endsWith("#");
+
+    if (!wasCheckmate && (pgnResult === "1-0" || pgnResult === "0-1" || pgnResult === "1/2-1/2")) {
+      const winner: "W" | "B" | null =
+        pgnResult === "1-0" ? "W" : pgnResult === "0-1" ? "B" : null;
+
+      let reasonCode: string;
+      let message: string;
+
+      if (pgnResult === "1/2-1/2") {
+        reasonCode = "DRAW_AGREEMENT";
+        message = "Draw by agreement";
+      } else {
+        // Decisive result but not checkmate — resignation.
+        reasonCode = "RESIGN";
+        const loserColor: "W" | "B" = winner === "W" ? "B" : "W";
+        const winnerName = winner === "W" ? "White" : "Black";
+        const loserName = loserColor === "W" ? "White" : "Black";
+        message = `${loserName} resigned — ${winnerName} wins!`;
+      }
+
+      const finalState = {
+        ...s,
+        forcedGameOver: { winner, reasonCode, message },
+      };
+      hm.push(finalState, reasonCode === "RESIGN" ? "resign" : "draw");
+      s = finalState;
+    }
+
+    controller.loadGame(s, hm.exportSnapshots());
+
     const isGenericName = (n: string) => !n || n === "?" || n === "White" || n === "Black" || n === "-";
     const rawWhite = parsePgnHeader("White");
     const rawBlack = parsePgnHeader("Black");
