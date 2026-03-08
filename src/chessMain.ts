@@ -264,6 +264,17 @@ window.addEventListener("DOMContentLoaded", async () => {
     updatePlayerNameDisplay();
   };
 
+  /** Sanitize a player display name for use in a filename (max 24 chars). */
+  const toFileSlug = (name: string): string =>
+    name.trim().replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "").slice(0, 24);
+
+  /** Build the player-name portion of a save/export filename, e.g. "-Alice_vs_Bob". */
+  const playerNameFilePart = (): string => {
+    const w = toFileSlug(playerWhiteName);
+    const b = toFileSlug(playerBlackName);
+    return w && b ? `-${w}_vs_${b}` : w ? `-${w}` : b ? `-${b}` : "";
+  };
+
   applyBoardCoords();
 
   const themeManager = createThemeManager(svg);
@@ -536,7 +547,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (saveGameBtn) {
     saveGameBtn.addEventListener("click", () => {
       const currentState = controller.getState();
-      saveGameToFile(currentState, history, variant.defaultSaveName ?? "chess-save.json");
+      const ts = new Date().toISOString().replace(/[T:]/g, "-").replace(/\..+/, "");
+      const filename = `chess-${ts}${playerNameFilePart()}.json`;
+      saveGameToFile(currentState, history, filename);
     });
   }
   if (loadGameBtn && loadGameInput) {
@@ -673,6 +686,21 @@ window.addEventListener("DOMContentLoaded", async () => {
     // Determine if we have any per-move elapsed times to embed.
     const hasTimingData = includeTiming && (snap.emtMs?.some((v) => v !== null) ?? false);
 
+    // Derive PGN result token from the current history position.
+    const deriveResultToken = (): string => {
+      const st = snap.states[snap.currentIndex];
+      const forced = (st as any)?.forcedGameOver;
+      if (forced) {
+        if (forced.winner === "W") return "1-0";
+        if (forced.winner === "B") return "0-1";
+        return "1/2-1/2";
+      }
+      return "*";
+    };
+    const resultToken = deriveResultToken();
+    const whiteHeader = playerWhiteName || "?";
+    const blackHeader = playerBlackName || "?";
+
     if (!hasTimingData) {
       // Fast path: no timing, let chess.js build the standard PGN.
       for (const m of moves) {
@@ -681,6 +709,9 @@ window.addEventListener("DOMContentLoaded", async () => {
           throw new Error(`Failed to convert history to PGN at move ${m.from}-${m.to}`);
         }
       }
+      (chess as any).header("White", whiteHeader);
+      (chess as any).header("Black", blackHeader);
+      (chess as any).header("Result", resultToken);
       return chess.pgn({ newline_char: "\n" } as any);
     }
 
@@ -704,7 +735,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
 
     const dateStr = new Date().toISOString().split("T")[0]!.replace(/-/g, ".");
-    const headers = `[Event "?"]\n[Site "?"]\n[Date "${dateStr}"]\n[Round "?"]\n[White "?"]\n[Black "?"]\n[Result "*"]\n`;
+    const headers = `[Event "?"]\n[Site "?"]\n[Date "${dateStr}"]\n[Round "?"]\n[White "${whiteHeader}"]\n[Black "${blackHeader}"]\n[Result "${resultToken}"]\n`;
 
     let movetext = "";
     for (let i = 0; i < sanMoves.length; i++) {
@@ -712,7 +743,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       if (i % 2 === 0) movetext += `${Math.floor(i / 2) + 1}. `;
       movetext += emtMs !== null ? `${san} { [%emt ${formatEmtForPgn(emtMs)}] } ` : `${san} `;
     }
-    movetext += "*";
+    movetext += resultToken;
 
     return headers + "\n" + movetext;
   };
@@ -1355,7 +1386,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `chess-${timestamp}.pgn`;
+        a.download = `chess${playerNameFilePart()}-${timestamp}.pgn`;
         a.click();
         URL.revokeObjectURL(url);
         controller.toast("PGN exported", 1600);
