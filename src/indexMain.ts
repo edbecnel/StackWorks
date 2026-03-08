@@ -104,9 +104,9 @@ function initStartPageCollapsibleSections(): void {
   }
 }
 
-function initStartSplash(): void {
+function initStartSplash(): (() => void) | null {
   const root = document.documentElement;
-  if (!root.classList.contains("showStartSplash")) return;
+  if (!root.classList.contains("showStartSplash")) return null;
 
   try {
     localStorage.setItem(LS_KEYS.startSplashSeen, "1");
@@ -114,9 +114,28 @@ function initStartSplash(): void {
     // ignore
   }
 
-  window.setTimeout(() => {
-    root.classList.remove("showStartSplash");
-  }, START_SPLASH_MS);
+  const startedAt = performance.now();
+  const dismiss = () => root.classList.remove("showStartSplash");
+
+  // Fallback: always dismiss after START_SPLASH_MS even if finalizeSplash is never called.
+  let fallbackTimer: ReturnType<typeof window.setTimeout> | null = window.setTimeout(dismiss, START_SPLASH_MS);
+
+  // Called when startup is complete. If startup took longer than START_SPLASH_MS
+  // (e.g. slow CDN parse time), dismisses immediately. Otherwise waits only the
+  // remaining portion of the minimum branding delay.
+  return () => {
+    if (fallbackTimer !== null) {
+      window.clearTimeout(fallbackTimer);
+      fallbackTimer = null;
+    }
+    const elapsed = performance.now() - startedAt;
+    const remaining = START_SPLASH_MS - elapsed;
+    if (remaining <= 0) {
+      dismiss();
+    } else {
+      window.setTimeout(dismiss, remaining);
+    }
+  };
 }
 
 function maybeResetCheckersThemePrefs(): void {
@@ -448,7 +467,7 @@ function isGlassPaletteId(v: unknown): v is GlassPaletteId {
 
 window.addEventListener("DOMContentLoaded", () => {
   maybeResetCheckersThemePrefs();
-  initStartSplash();
+  const finalizeSplash = initStartSplash();
   initStartPageCollapsibleSections();
 
   installPanelLayoutStartPageOptionUI();
@@ -2056,4 +2075,10 @@ window.addEventListener("DOMContentLoaded", () => {
       fallbackVariantId: v.variantId,
     });
   });
+
+  // Dismiss the splash screen now that startup is complete. If startup took
+  // longer than START_SPLASH_MS (e.g. slow initial load over CDN), the page
+  // is revealed immediately. If startup was fast, we wait only the remaining
+  // portion of the branding delay.
+  finalizeSplash?.();
 });
