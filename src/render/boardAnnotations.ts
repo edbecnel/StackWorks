@@ -235,7 +235,7 @@ function drawPinMark(svg: SVGSVGElement, layer: SVGGElement, mark: BoardPinMark)
 
   const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
   g.setAttribute("class", `board-annotation-pin board-annotation-pin--${mark.color}`);
-  g.setAttribute("opacity", "0.80");
+  g.setAttribute("opacity", "0.93");
 
   const pinPath = document.createElementNS(SVG_NS, "path") as SVGPathElement;
   pinPath.setAttribute("d", pinD);
@@ -277,7 +277,7 @@ function drawProtectMark(svg: SVGSVGElement, layer: SVGGElement, mark: BoardProt
 
   const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
   g.setAttribute("class", `board-annotation-protect board-annotation-protect--${mark.color}`);
-  g.setAttribute("opacity", "0.80");
+  g.setAttribute("opacity", "0.93");
 
   const shield = document.createElementNS(SVG_NS, "path") as SVGPathElement;
   shield.setAttribute("d", shieldD);
