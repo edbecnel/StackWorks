@@ -73,13 +73,13 @@ export class LocalDriver implements GameDriver {
     this.history.clear();
   }
 
-  pushHistory(state: GameState, notation?: string): void {
-    this.history.push(state, notation);
+  pushHistory(state: GameState, notation?: string, emtMs?: number | null): void {
+    this.history.push(state, notation, emtMs);
     this.state = state;
   }
 
   replaceHistory(snap: HistorySnapshots): void {
-    this.history.replaceAll(snap.states, snap.notation, snap.currentIndex);
+    this.history.replaceAll(snap.states, snap.notation, snap.currentIndex, snap.emtMs);
     const current = this.history.getCurrent();
     if (current) this.state = current;
   }
@@ -88,7 +88,7 @@ export class LocalDriver implements GameDriver {
     return this.history.exportSnapshots();
   }
 
-  getHistory(): Array<{ index: number; toMove: "B" | "W"; isCurrent: boolean; notation: string }> {
+  getHistory(): Array<{ index: number; toMove: "B" | "W"; isCurrent: boolean; notation: string; emtMs: number | null }> {
     return this.history.getHistory();
   }
 

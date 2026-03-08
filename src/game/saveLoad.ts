@@ -28,6 +28,8 @@ export interface SerializedHistory {
   states: SerializedGameState[];
   notation: string[];
   currentIndex: number;
+  /** Per-move elapsed time in milliseconds (null = not recorded). Index-aligned with states[]. */
+  emtMs?: Array<number | null>;
 }
 
 export interface SerializedSaveFileV2 {
@@ -207,12 +209,14 @@ export function serializeSaveData(state: GameState, history?: HistoryManager): S
   if (!history) return base;
 
   const exported = history.exportSnapshots();
+  const hasTimingData = exported.emtMs.some((v) => v !== null);
   return {
     ...base,
     history: {
       states: exported.states.map((s) => serializeGameState({ ...s, meta })),
       notation: exported.notation,
       currentIndex: exported.currentIndex,
+      ...(hasTimingData ? { emtMs: exported.emtMs } : {}),
     },
   };
 }
@@ -222,7 +226,7 @@ export function deserializeSaveData(
   expected?: GameMeta
 ): {
   state: GameState;
-  history?: { states: GameState[]; notation: string[]; currentIndex: number };
+  history?: { states: GameState[]; notation: string[]; currentIndex: number; emtMs?: Array<number | null> };
 } {
   const stableBoardForCompare = (s: GameState): string => {
     const entries = Array.from(s.board.entries())
@@ -288,6 +292,7 @@ export function deserializeSaveData(
 
     const states = (v3.history.states || []).map((s: SerializedGameState) => ({ ...deserializeGameState(s), meta }));
     const notation = Array.isArray(v3.history.notation) ? v3.history.notation : [];
+    const emtMs: Array<number | null> | undefined = Array.isArray(v3.history.emtMs) ? v3.history.emtMs : undefined;
 
     if (states.length === 0) {
       // History is missing/invalid; fall back to the current position.
@@ -322,7 +327,7 @@ export function deserializeSaveData(
 
     return {
       state: states[currentIndex],
-      history: { states, notation, currentIndex },
+      history: { states, notation, currentIndex, ...(emtMs ? { emtMs } : {}) },
     };
   }
 
@@ -431,7 +436,7 @@ export function loadGameFromFile(
   expected?: GameMeta
 ): Promise<{
   state: GameState;
-  history?: { states: GameState[]; notation: string[]; currentIndex: number };
+  history?: { states: GameState[]; notation: string[]; currentIndex: number; emtMs?: Array<number | null> };
 }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

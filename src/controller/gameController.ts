@@ -103,6 +103,8 @@ export class GameController {
   private currentTurnNodes: string[] = []; // Track node IDs visited in current turn
   private currentTurnHasCapture: boolean = false; // Track if current turn includes captures
   private repetitionCounts: Map<string, number> = new Map();
+  /** Timestamp (Date.now()) when the last move was committed to history, for [%emt] tracking. */
+  private lastMoveCommittedAtMs: number = 0;
   private onlinePollTimer: number | null = null;
   private onlineRealtimeEnabled: boolean = false;
   private onlineTransportStatus: "connected" | "reconnecting" = "connected";
@@ -2852,6 +2854,7 @@ export class GameController {
     // Clear history and start fresh
     this.driver.clearHistory();
     this.driver.pushHistory(initialState);
+    this.lastMoveCommittedAtMs = Date.now();
     
     // Reset game state
     this.state = initialState;
@@ -2880,7 +2883,7 @@ export class GameController {
 
   loadGame(
     loadedState: GameState,
-    historyData?: { states: GameState[]; notation: string[]; currentIndex: number }
+    historyData?: { states: GameState[]; notation: string[]; currentIndex: number; emtMs?: Array<number | null> }
   ): void {
     if (historyData && historyData.states && historyData.states.length > 0) {
       this.driver.replaceHistory(historyData);
@@ -2924,6 +2927,7 @@ export class GameController {
     // timed turn-change toast.
     this.lastToastToMove = null;
     this.fireHistoryChange("loadGame");
+    this.lastMoveCommittedAtMs = Date.now();
     this.maybeToastTurnChange();
   }
 
@@ -4010,7 +4014,9 @@ export class GameController {
           const separator = this.currentTurnHasCapture ? " × " : " → ";
           const boardSize = this.state.meta?.boardSize ?? 7;
           const notation = this.currentTurnNodes.map((id) => this.nodeIdToA1ForView(id, boardSize)).join(separator);
-          this.driver.pushHistory(this.state, notation);
+          const emtMs = this.lastMoveCommittedAtMs > 0 ? Date.now() - this.lastMoveCommittedAtMs : null;
+          this.lastMoveCommittedAtMs = Date.now();
+          this.driver.pushHistory(this.state, notation, emtMs);
         }
         this.currentTurnNodes = [];
         this.currentTurnHasCapture = false;
@@ -4042,7 +4048,9 @@ export class GameController {
         if (inAnalysis) {
           this.analysisHistory?.push(this.state, notation);
         } else if (this.driver.mode !== "online") {
-          this.driver.pushHistory(this.state, notation);
+          const emtMs = this.lastMoveCommittedAtMs > 0 ? Date.now() - this.lastMoveCommittedAtMs : null;
+          this.lastMoveCommittedAtMs = Date.now();
+          this.driver.pushHistory(this.state, notation, emtMs);
         }
         this.currentTurnNodes = [];
         this.currentTurnHasCapture = false;
@@ -4169,7 +4177,9 @@ export class GameController {
           const separator = this.currentTurnHasCapture ? " × " : " → ";
           const boardSize = this.state.meta?.boardSize ?? 7;
           const notation = this.currentTurnNodes.map((id) => this.nodeIdToA1ForView(id, boardSize)).join(separator);
-          this.driver.pushHistory(this.state, notation);
+          const emtMs = this.lastMoveCommittedAtMs > 0 ? Date.now() - this.lastMoveCommittedAtMs : null;
+          this.lastMoveCommittedAtMs = Date.now();
+          this.driver.pushHistory(this.state, notation, emtMs);
         }
         this.currentTurnNodes = [];
         this.currentTurnHasCapture = false;
@@ -4177,7 +4187,7 @@ export class GameController {
 
         this.syncRepetitionRules();
         if (this.isGameOver) return;
-        
+
         // Update mandatory capture for new turn
         this.recomputeMandatoryCapture();
         
@@ -4282,7 +4292,9 @@ export class GameController {
         const separator = this.currentTurnHasCapture ? " × " : " → ";
         const boardSize = this.state.meta?.boardSize ?? 7;
         const notation = this.currentTurnNodes.map((id) => this.nodeIdToA1ForView(id, boardSize)).join(separator);
-        this.driver.pushHistory(this.state, notation);
+        const emtMs = this.lastMoveCommittedAtMs > 0 ? Date.now() - this.lastMoveCommittedAtMs : null;
+        this.lastMoveCommittedAtMs = Date.now();
+        this.driver.pushHistory(this.state, notation, emtMs);
       }
       this.currentTurnNodes = [];
       this.currentTurnHasCapture = false;
@@ -4323,7 +4335,9 @@ export class GameController {
       if (inAnalysis) {
         this.analysisHistory?.push(this.state, notation);
       } else if (this.driver.mode !== "online") {
-        this.driver.pushHistory(this.state, notation);
+        const emtMs = this.lastMoveCommittedAtMs > 0 ? Date.now() - this.lastMoveCommittedAtMs : null;
+        this.lastMoveCommittedAtMs = Date.now();
+        this.driver.pushHistory(this.state, notation, emtMs);
       }
       this.currentTurnNodes = [];
       this.currentTurnHasCapture = false;

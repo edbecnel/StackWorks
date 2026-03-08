@@ -2,6 +2,8 @@ import type { GameController, HistoryChangeReason } from "../controller/gameCont
 
 const DEFAULT_DELAY_MS = 500;
 const MAX_DELAY_MS = 3000;
+/** Cap recorded delays at 1 minute so replays of very long think moves don't freeze. */
+const MAX_RECORDED_DELAY_MS = 60_000;
 
 function clampInt(n: number, min: number, max: number): number {
   if (!Number.isFinite(n)) return min;
@@ -28,6 +30,9 @@ export function bindPlaybackControls(controller: GameController): void {
   const elDelayReset = document.getElementById("playbackDelayReset") as HTMLButtonElement | null;
   const elDelayLabel = document.getElementById("playbackDelayLabel") as HTMLElement | null;
   const elHint = document.getElementById("playbackHint") as HTMLElement | null;
+  // Optional: "Use recorded timing" checkbox and its container row.
+  const elUseRecorded = document.getElementById("playbackUseRecorded") as HTMLInputElement | null;
+  const elUseRecordedRow = document.getElementById("playbackUseRecordedRow") as HTMLElement | null;
 
   if (!elBtn || !elDelay || !elDelayReset || !elDelayLabel) return;
 
@@ -39,6 +44,25 @@ export function bindPlaybackControls(controller: GameController): void {
   let boardPaused = false; // true when paused by tapping the board during playback
   let lastBoardTapAtMs = 0;
   let timer: number | null = null;
+
+  const historyHasRecordedTiming = (): boolean =>
+    controller.getHistory().some((h) => (h as any).emtMs !== null && (h as any).emtMs !== undefined);
+
+  const getNextMoveEmtMs = (): number | null => {
+    const history = controller.getHistory();
+    const currentIndex = findCurrentIndex(controller);
+    if (currentIndex < 0) return null;
+    const nextEntry = history[currentIndex + 1] as any;
+    return typeof nextEntry?.emtMs === "number" ? nextEntry.emtMs : null;
+  };
+
+  const updateRecordedTimingUI = () => {
+    if (!elUseRecorded) return;
+    const hasData = historyHasRecordedTiming();
+    elUseRecorded.disabled = !hasData;
+    if (elUseRecordedRow) elUseRecordedRow.style.opacity = hasData ? "" : "0.45";
+    if (!hasData && elUseRecorded.checked) elUseRecorded.checked = false;
+  };
 
   const isAtEnd = () => !controller.canRedo() && controller.canUndo();
 
@@ -126,8 +150,15 @@ export function bindPlaybackControls(controller: GameController): void {
       return;
     }
 
-    // After the piece lands, wait the user-configured delay before advancing to the next ply.
-    timer = window.setTimeout(() => void tick(), delayMs);
+    // After the piece lands, wait before advancing to the next ply.
+    // When "Use recorded timing" is active, use the [%emt] value for the upcoming move;
+    // otherwise use the user-configured fixed delay.
+    let waitMs = delayMs;
+    if (elUseRecorded?.checked) {
+      const emtMs = getNextMoveEmtMs();
+      if (emtMs !== null) waitMs = Math.min(emtMs, MAX_RECORDED_DELAY_MS);
+    }
+    timer = window.setTimeout(() => void tick(), waitMs);
   };
 
   const start = () => {
@@ -194,6 +225,7 @@ export function bindPlaybackControls(controller: GameController): void {
   updateSpeedUI();
   playing = false;
   renderButton();
+  updateRecordedTimingUI();
 
   elBtn.addEventListener("click", () => {
     if (boardPaused) {
@@ -232,5 +264,6 @@ export function bindPlaybackControls(controller: GameController): void {
       return;
     }
     renderButton();
+    updateRecordedTimingUI();
   });
 }

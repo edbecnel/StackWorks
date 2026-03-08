@@ -7,6 +7,8 @@ export interface HistorySnapshots {
   states: GameState[];
   notation: string[];
   currentIndex: number;
+  /** Elapsed move time in ms per entry (null = not recorded). */
+  emtMs?: Array<number | null>;
 }
 
 export interface GameDriver {
@@ -29,10 +31,10 @@ export interface GameDriver {
   jumpToHistory(index: number): GameState | null;
 
   clearHistory(): void;
-  pushHistory(state: GameState, notation?: string): void;
+  pushHistory(state: GameState, notation?: string, emtMs?: number | null): void;
   replaceHistory(snap: HistorySnapshots): void;
   exportHistorySnapshots(): HistorySnapshots;
-  getHistory(): Array<{ index: number; toMove: "B" | "W"; isCurrent: boolean; notation: string }>;
+  getHistory(): Array<{ index: number; toMove: "B" | "W"; isCurrent: boolean; notation: string; emtMs: number | null }>;
   getHistoryCurrent(): GameState | null;
 }
 

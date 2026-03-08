@@ -537,7 +537,7 @@ export class RemoteDriver implements GameDriver {
 
     const nextState = deserializeWireGameState(snapshot.state) as GameState & { didPromote?: boolean };
     const h = deserializeWireHistory(snapshot.history);
-    this.history.replaceAll(h.states as any, h.notation, h.currentIndex);
+    this.history.replaceAll(h.states as any, h.notation, h.currentIndex, (h as any).emtMs);
     this.state = nextState;
     this.lastStateHash = hashGameState(nextState as any);
 
@@ -812,22 +812,23 @@ export class RemoteDriver implements GameDriver {
     this.history.clear();
   }
 
-  pushHistory(state: GameState, notation?: string): void {
+  pushHistory(state: GameState, notation?: string, emtMs?: number | null): void {
     // In online mode, server is authoritative; local pushes are ignored.
     // We still update local state for UI consistency.
     this.state = state;
     void notation;
+    void emtMs;
   }
 
   replaceHistory(snap: HistorySnapshots): void {
-    this.history.replaceAll(snap.states as any, snap.notation, snap.currentIndex);
+    this.history.replaceAll(snap.states as any, snap.notation, snap.currentIndex, snap.emtMs);
   }
 
   exportHistorySnapshots(): HistorySnapshots {
     return this.history.exportSnapshots();
   }
 
-  getHistory(): Array<{ index: number; toMove: "B" | "W"; isCurrent: boolean; notation: string }> {
+  getHistory(): Array<{ index: number; toMove: "B" | "W"; isCurrent: boolean; notation: string; emtMs: number | null }> {
     return this.history.getHistory();
   }
 
