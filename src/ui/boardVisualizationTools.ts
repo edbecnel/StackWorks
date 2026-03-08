@@ -1,10 +1,15 @@
 import { clearBoardAnnotations, renderBoardAnnotations, type AnnotationColor, type BoardAnnotationsState } from "../render/boardAnnotations";
 
+export type AnnotationType = "square" | "circle" | "pin" | "protect" | "remove";
+
 export type BoardVisualizationToolsController = {
   clear: () => void;
   /** Active color used for touch annotations (drag arrows / double-tap highlights). */
   setActiveColor: (color: AnnotationColor) => void;
   getActiveColor: () => AnnotationColor;
+  /** Active annotation type used for right-click / touch placements. */
+  setAnnotationType: (type: AnnotationType) => void;
+  getAnnotationType: () => AnnotationType;
   /** When true, touch gestures erase existing annotations instead of adding/toggling. */
   setEraseMode: (enabled: boolean) => void;
   getEraseMode: () => boolean;
@@ -54,6 +59,10 @@ function resolveNodeIdAtClientPoint(svg: SVGSVGElement, clientX: number, clientY
 }
 
 function toggleSquare(state: BoardAnnotationsState, at: string, color: AnnotationColor): void {
+  // Squares and circles are mutually exclusive per node.
+  const circleIdx = state.circles.findIndex((c) => c.at === at);
+  if (circleIdx >= 0) state.circles.splice(circleIdx, 1);
+
   const idx = state.squares.findIndex((s) => s.at === at);
   if (idx >= 0) {
     const existing = state.squares[idx];
@@ -62,6 +71,52 @@ function toggleSquare(state: BoardAnnotationsState, at: string, color: Annotatio
     return;
   }
   state.squares.push({ kind: "square", at, color });
+}
+
+function toggleCircle(state: BoardAnnotationsState, at: string, color: AnnotationColor): void {
+  // Squares and circles are mutually exclusive per node.
+  const squareIdx = state.squares.findIndex((s) => s.at === at);
+  if (squareIdx >= 0) state.squares.splice(squareIdx, 1);
+
+  const idx = state.circles.findIndex((c) => c.at === at);
+  if (idx >= 0) {
+    const existing = state.circles[idx];
+    if (existing.color === color) state.circles.splice(idx, 1);
+    else state.circles[idx] = { kind: "circle", at, color };
+    return;
+  }
+  state.circles.push({ kind: "circle", at, color });
+}
+
+function togglePin(state: BoardAnnotationsState, at: string, color: AnnotationColor): void {
+  // Pins and protects are mutually exclusive per node.
+  const protectIdx = (state.protects ?? []).findIndex((t) => t.at === at);
+  if (protectIdx >= 0) state.protects!.splice(protectIdx, 1);
+
+  const idx = state.pins.findIndex((p) => p.at === at);
+  if (idx >= 0) {
+    const existing = state.pins[idx];
+    if (existing.color === color) state.pins.splice(idx, 1);
+    else state.pins[idx] = { kind: "pin", at, color };
+    return;
+  }
+  state.pins.push({ kind: "pin", at, color });
+}
+
+function toggleProtect(state: BoardAnnotationsState, at: string, color: AnnotationColor): void {
+  // Pins and protects are mutually exclusive per node.
+  const pinIdx = (state.pins ?? []).findIndex((p) => p.at === at);
+  if (pinIdx >= 0) state.pins!.splice(pinIdx, 1);
+
+  if (!state.protects) state.protects = [];
+  const idx = state.protects.findIndex((t) => t.at === at);
+  if (idx >= 0) {
+    const existing = state.protects[idx];
+    if (existing.color === color) state.protects.splice(idx, 1);
+    else state.protects[idx] = { kind: "protect", at, color };
+    return;
+  }
+  state.protects.push({ kind: "protect", at, color });
 }
 
 function toggleArrow(state: BoardAnnotationsState, from: string, to: string, color: AnnotationColor): void {
@@ -75,11 +130,31 @@ function toggleArrow(state: BoardAnnotationsState, from: string, to: string, col
   state.arrows.push({ kind: "arrow", from, to, color });
 }
 
-function eraseSquare(state: BoardAnnotationsState, at: string): boolean {
-  const idx = state.squares.findIndex((s) => s.at === at);
-  if (idx < 0) return false;
-  state.squares.splice(idx, 1);
-  return true;
+function eraseAtNode(state: BoardAnnotationsState, at: string): boolean {
+  // Erase all annotation types at this node.
+  let erased = false;
+  const si = state.squares.findIndex((s) => s.at === at);
+  if (si >= 0) { state.squares.splice(si, 1); erased = true; }
+  const ci = state.circles.findIndex((c) => c.at === at);
+  if (ci >= 0) { state.circles.splice(ci, 1); erased = true; }
+  const pi = state.pins.findIndex((p) => p.at === at);
+  if (pi >= 0) { state.pins.splice(pi, 1); erased = true; }
+  const ti = (state.protects ?? []).findIndex((t) => t.at === at);
+  if (ti >= 0) { state.protects!.splice(ti, 1); erased = true; }
+  return erased;
+}
+
+// Priority erase: removes pin/protect before square/circle.
+function eraseAtNodePriority(state: BoardAnnotationsState, at: string): boolean {
+  const pi = (state.pins ?? []).findIndex((p) => p.at === at);
+  if (pi >= 0) { state.pins!.splice(pi, 1); return true; }
+  const ti = (state.protects ?? []).findIndex((t) => t.at === at);
+  if (ti >= 0) { state.protects!.splice(ti, 1); return true; }
+  const si = state.squares.findIndex((s) => s.at === at);
+  if (si >= 0) { state.squares.splice(si, 1); return true; }
+  const ci = state.circles.findIndex((c) => c.at === at);
+  if (ci >= 0) { state.circles.splice(ci, 1); return true; }
+  return false;
 }
 
 function eraseArrow(state: BoardAnnotationsState, from: string, to: string): boolean {
@@ -93,12 +168,15 @@ export function installBoardVisualizationTools(
   svg: SVGSVGElement,
   opts?: BoardVisualizationToolsOptions
 ): BoardVisualizationToolsController {
-  const state: BoardAnnotationsState = { arrows: [], squares: [] };
+  const state: BoardAnnotationsState = { arrows: [], squares: [], circles: [], pins: [], protects: [] };
 
   const rerender = () => renderBoardAnnotations(svg, state);
   const clear = () => {
     state.arrows = [];
     state.squares = [];
+    state.circles = [];
+    state.pins = [];
+    state.protects = [];
     clearBoardAnnotations(svg);
   };
 
@@ -122,13 +200,6 @@ export function installBoardVisualizationTools(
   );
 
   const DRAG_THRESHOLD_PX = 6;
-  const DOUBLE_TAP_MS = 350;
-  const DOUBLE_TAP_RADIUS_PX = 24;
-
-  let lastTouchTapAtMs = 0;
-  let lastTouchTapNode: string | null = null;
-  let lastTouchTapX = 0;
-  let lastTouchTapY = 0;
 
 
   let gestureActive = false;
@@ -139,8 +210,15 @@ export function installBoardVisualizationTools(
   let dragged = false;
   let gestureColor: AnnotationColor = "orange";
   let activeColor: AnnotationColor = "orange";
+  let activeAnnotationType: AnnotationType = "square";
   let eraseMode = false;
   let activePointerId: number | null = null;
+
+  // Track the last completed right-click node so c/p/t keys can act on it post-gesture.
+  let lastRcNode: string | null = null;
+  let lastRcColor: AnnotationColor = "orange";
+  let lastRcAtMs = 0;
+  const RC_KEY_WINDOW_MS = 1500;
 
   const isTouchInputEnabled = typeof opts?.isTouchInputEnabled === "function" ? opts.isTouchInputEnabled : null;
 
@@ -215,7 +293,6 @@ export function installBoardVisualizationTools(
       if (Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) dragged = true;
 
       // Only prevent default after the user has actually started dragging.
-      // This avoids breaking normal tap-to-move gameplay.
       if (dragged) ev.preventDefault();
     },
     { capture: true, passive: false }
@@ -238,42 +315,39 @@ export function installBoardVisualizationTools(
 
     if (!dragged) {
       if (kind === "right") {
-        toggleSquare(state, from, color);
+        // Dispatch to the appropriate annotation type.
+        switch (activeAnnotationType) {
+          case "circle":  toggleCircle(state, from, color);  break;
+          case "pin":     togglePin(state, from, color);     break;
+          case "protect": toggleProtect(state, from, color); break;
+          case "remove":  eraseAtNodePriority(state, from);  break;
+          default:        toggleSquare(state, from, color);  break;
+        }
+        // Record for the s/c/n/p/x keyboard shortcut window.
+        lastRcNode = from;
+        lastRcColor = color;
+        lastRcAtMs = Date.now();
         rerender();
         suppressClickUntilMs = Date.now() + 600;
       } else {
-        // Touch: single taps do nothing; double-tap toggles square highlight.
+        // Touch: single tap places or erases annotation based on active type / erase mode.
         const now = Date.now();
-        const dt = now - lastTouchTapAtMs;
-        const dx = ev.clientX - lastTouchTapX;
-        const dy = ev.clientY - lastTouchTapY;
-        const closeEnough = Math.hypot(dx, dy) <= DOUBLE_TAP_RADIUS_PX;
-
-        if (lastTouchTapNode === from && dt > 0 && dt <= DOUBLE_TAP_MS && closeEnough) {
-          if (eraseMode) {
-            eraseSquare(state, from);
-          } else {
-            toggleSquare(state, from, color);
-          }
-          rerender();
-          suppressClickUntilMs = now + 600;
-
-          // Consume the second tap so it doesn't act as game input.
-          ev.preventDefault();
-          ev.stopPropagation();
-
-          lastTouchTapAtMs = 0;
-          lastTouchTapNode = null;
+        if (activeAnnotationType === "remove") {
+          eraseAtNodePriority(state, from);
+        } else if (eraseMode) {
+          eraseAtNode(state, from);
         } else {
-          lastTouchTapAtMs = now;
-          lastTouchTapNode = from;
-          lastTouchTapX = ev.clientX;
-          lastTouchTapY = ev.clientY;
-
-          // Do not consume the first tap: allow normal tap-to-move gameplay in analysis mode.
-          // If the user double-taps the same square, the second tap will be consumed when the
-          // highlight toggle happens.
+          switch (activeAnnotationType) {
+            case "circle":  toggleCircle(state, from, color);  break;
+            case "pin":     togglePin(state, from, color);     break;
+            case "protect": toggleProtect(state, from, color); break;
+            default:       toggleSquare(state, from, color); break;
+          }
         }
+        rerender();
+        suppressClickUntilMs = now + 600;
+        ev.preventDefault();
+        ev.stopPropagation();
       }
       return;
     }
@@ -289,11 +363,58 @@ export function installBoardVisualizationTools(
     }
     rerender();
     suppressClickUntilMs = Date.now() + 600;
-
-    // Prevent a drag-gesture arrow from becoming a click.
-    ev.preventDefault();
-    ev.stopPropagation();
   };
+
+  // Keyboard shortcuts: s=square, c=circle, n=pin, p=protect, x=remove.
+  // During an active right-click gesture: changes active annotation type so the
+  // upcoming pointerup uses the new type.
+  // Within RC_KEY_WINDOW_MS after a completed right-click: acts on the last node.
+  const isPlainKey = (ev: KeyboardEvent): boolean =>
+    !ev.ctrlKey && !ev.metaKey && !ev.altKey && !ev.shiftKey;
+
+  const isEditableEl = (target: EventTarget | null): boolean => {
+    if (!target || !(target instanceof Element)) return false;
+    const tag = (target as Element).tagName.toLowerCase();
+    return tag === "input" || tag === "textarea" || tag === "select" ||
+      (target as HTMLElement).isContentEditable;
+  };
+
+  window.addEventListener("keydown", (ev: KeyboardEvent) => {
+    if (!isPlainKey(ev)) return;
+    if (isEditableEl(ev.target)) return;
+
+    const key = ev.key.toLowerCase();
+    if (key !== "s" && key !== "c" && key !== "n" && key !== "p" && key !== "x") return;
+
+    // Always update the active annotation type.
+    // s=square, c=circle, n=pin, p=protect, x=remove
+    const newType: AnnotationType =
+      key === "c" ? "circle" : key === "n" ? "pin" : key === "p" ? "protect" : key === "x" ? "remove" : "square";
+
+    if (gestureActive && gestureKind === "right") {
+      // Gesture in progress: update for when pointerup fires.
+      activeAnnotationType = newType;
+      ev.preventDefault();
+      return;
+    }
+
+    // Act on the last right-clicked node if within the window.
+    const node = lastRcNode;
+    if (node && Date.now() - lastRcAtMs <= RC_KEY_WINDOW_MS) {
+      ev.preventDefault();
+      activeAnnotationType = newType;
+      if (key === "s")      toggleSquare(state, node, lastRcColor);
+      else if (key === "c") toggleCircle(state, node, lastRcColor);
+      else if (key === "n") togglePin(state, node, lastRcColor);
+      else if (key === "p") toggleProtect(state, node, lastRcColor);
+      else                  eraseAtNodePriority(state, node); // x
+      rerender();
+      lastRcAtMs = 0; // consume window
+    } else {
+      // No recent click — just update the active type for future annotations.
+      activeAnnotationType = newType;
+    }
+  });
 
   svg.addEventListener("pointerup", finish, { capture: true, passive: false });
   svg.addEventListener("pointercancel", () => {
@@ -311,6 +432,10 @@ export function installBoardVisualizationTools(
       activeColor = color;
     },
     getActiveColor: () => activeColor,
+    setAnnotationType: (type: AnnotationType) => {
+      activeAnnotationType = type;
+    },
+    getAnnotationType: () => activeAnnotationType,
     setEraseMode: (enabled: boolean) => {
       eraseMode = Boolean(enabled);
     },

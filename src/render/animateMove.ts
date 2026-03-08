@@ -11,6 +11,32 @@ export function getNodeCenter(svg: SVGSVGElement, nodeId: string): { x: number; 
   return { x: cx, y: cy };
 }
 
+/**
+ * Compute the pixel distance for one adjacent hop on the board, measured from `fromNodeId`
+ * to its nearest neighbour (in attribute-space). Returns null if it cannot be determined.
+ * This is used to turn "hops × msPerHop" into a concrete animation duration.
+ */
+export function computeUnitHopPx(svg: SVGSVGElement, fromNodeId: string): number | null {
+  const from = getNodeCenter(svg, fromNodeId);
+  if (!from) return null;
+
+  const circles = svg.querySelectorAll("circle[id]");
+  let minDist = Infinity;
+
+  for (const circle of Array.from(circles)) {
+    const id = circle.getAttribute("id");
+    if (!id || id === fromNodeId) continue;
+    const cx = parseFloat(circle.getAttribute("cx") || "0");
+    const cy = parseFloat(circle.getAttribute("cy") || "0");
+    const dist = Math.sqrt((cx - from.x) ** 2 + (cy - from.y) ** 2);
+    if (dist > 0 && dist < minDist) {
+      minDist = dist;
+    }
+  }
+
+  return minDist === Infinity ? null : minDist;
+}
+
 function getNodeCenterInLayer(
   svg: SVGSVGElement,
   layer: SVGGElement,

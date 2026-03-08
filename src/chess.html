@@ -134,10 +134,19 @@
         margin-top: 10px;
         justify-content: center;
         flex-direction: row;
+        flex-wrap: wrap;
         gap: 10px;
         flex: 0 0 100%;
         width: 100%;
         padding-bottom: max(0px, env(safe-area-inset-bottom));
+      }
+
+      #touchAnnotationPalette .touchAnnotationDivider {
+        width: 1px;
+        height: 24px;
+        background: rgba(255, 255, 255, 0.22);
+        align-self: center;
+        flex-shrink: 0;
       }
 
       #touchAnnotationPalette .touchAnnotationSwatch {
@@ -1457,6 +1466,121 @@
             aria-pressed="false"
             style="background: rgba(102, 204, 255, 0.92)"
           ></button>
+
+          <div class="touchAnnotationDivider"></div>
+
+          <button
+            type="button"
+            class="touchAnnotationSwatch"
+            data-annotation-type="square"
+            aria-label="Square annotation"
+            title="Square"
+            aria-pressed="true"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <rect
+                x="2"
+                y="2"
+                width="12"
+                height="12"
+                stroke="rgba(255,255,255,0.85)"
+                stroke-width="2"
+                fill="rgba(255,255,255,0.1)"
+              />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            class="touchAnnotationSwatch"
+            data-annotation-type="circle"
+            aria-label="Circle annotation (press C)"
+            title="Circle (C)"
+            aria-pressed="false"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle
+                cx="8"
+                cy="8"
+                r="6"
+                stroke="rgba(255,255,255,0.85)"
+                stroke-width="2"
+                fill="rgba(255,255,255,0.1)"
+              />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            class="touchAnnotationSwatch"
+            data-annotation-type="pin"
+            aria-label="Pin annotation (press P)"
+            title="Pin (P)"
+            aria-pressed="false"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <!-- Push-pin: wide rounded-corner cap, bezier shoulders, narrow neck, needle -->
+              <path
+                d="M 4 2 Q 2 2 2 4 L 2 8 Q 2 10.5 5.5 10.5 L 5.5 12 L 8 15 L 10.5 12 L 10.5 10.5 Q 14 10.5 14 8 L 14 4 Q 14 2 12 2 Z"
+                fill="rgba(255,255,255,0.35)"
+                stroke="rgba(255,255,255,0.85)"
+                stroke-width="1"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            class="touchAnnotationSwatch"
+            data-annotation-type="protect"
+            aria-label="Protect annotation (press P)"
+            title="Protect (P)"
+            aria-pressed="false"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M2 2 L14 2 L14 9 Q14 15 8 15.5 Q2 15 2 9 Z"
+                fill="rgba(255,255,255,0.40)"
+                stroke="rgba(255,255,255,0.85)"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+              />
+              <!-- White checkmark -->
+              <path
+                d="M4.5 8.5 L7 11.5 L12.5 5"
+                fill="none"
+                stroke="rgba(255,255,255,0.92)"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
         </div>
       </main>
 

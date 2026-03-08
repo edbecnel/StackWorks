@@ -17,9 +17,30 @@ export type BoardSquareMark = {
   color: AnnotationColor;
 };
 
+export type BoardCircleMark = {
+  kind: "circle";
+  at: string; // nodeId
+  color: AnnotationColor;
+};
+
+export type BoardPinMark = {
+  kind: "pin";
+  at: string; // nodeId
+  color: AnnotationColor;
+};
+
+export type BoardProtectMark = {
+  kind: "protect";
+  at: string; // nodeId
+  color: AnnotationColor;
+};
+
 export type BoardAnnotationsState = {
   arrows: BoardArrowMark[];
   squares: BoardSquareMark[];
+  circles?: BoardCircleMark[];
+  pins?: BoardPinMark[];
+  protects?: BoardProtectMark[];
 };
 
 function parseNodeIdFast(id: string): { r: number; c: number } | null {
@@ -151,6 +172,140 @@ function drawSquareMark(svg: SVGSVGElement, layer: SVGGElement, mark: BoardSquar
   layer.appendChild(el);
 }
 
+function drawCircleMark(svg: SVGSVGElement, layer: SVGGElement, mark: BoardCircleMark): void {
+  const rect = computeSquareRect(svg, mark.at);
+  if (!rect) return;
+
+  const { stroke, fill } = colorToStrokeFill(mark.color);
+
+  const cx = rect.x + rect.w / 2;
+  const cy = rect.y + rect.h / 2;
+  const r = Math.min(rect.w, rect.h) / 2 - 6;
+  if (r <= 0) return;
+
+  const el = document.createElementNS(SVG_NS, "circle") as SVGCircleElement;
+  el.setAttribute("class", `board-annotation-circle board-annotation-circle--${mark.color}`);
+  el.setAttribute("cx", String(cx));
+  el.setAttribute("cy", String(cy));
+  el.setAttribute("r", String(r));
+  el.setAttribute("fill", fill);
+  el.setAttribute("stroke", stroke);
+  el.setAttribute("stroke-width", "3");
+  applyStrokeDefaults(el);
+  layer.appendChild(el);
+}
+
+function drawPinMark(svg: SVGSVGElement, layer: SVGGElement, mark: BoardPinMark): void {
+  const rect = computeSquareRect(svg, mark.at);
+  if (!rect) return;
+
+  const { stroke, arrowFill } = colorToStrokeFill(mark.color);
+
+  const cx = rect.x + rect.w / 2;
+  const cy = rect.y + rect.h / 2;
+  // Push-pin: same height envelope as protect (-18*sc to +22*sc = 40 units).
+  const sc = rect.w / 100;
+  const ox = cx;
+  const oy = cy - 1 * sc;
+  const sw = Math.max(1.5, 2 * sc);
+
+  const capHw  = 14 * sc;  // cap half-width
+  const capTop = oy - 18 * sc;  // top of cap  (matches protect top)
+  const cr     =  4 * sc;  // corner radius
+  const capBot = oy -  4 * sc;  // bottom of cap body
+  const shldrY = oy +  2 * sc;  // where bezier shoulders end / neck begins
+  const neckHw =  5 * sc;  // neck half-width
+  const neckBot= oy + 12 * sc;  // base of neck
+  const tipY   = oy + 22 * sc;  // needle tip  (matches protect bottom)
+
+  const pinD = [
+    `M ${ox - capHw + cr} ${capTop}`,
+    `Q ${ox - capHw} ${capTop}  ${ox - capHw} ${capTop + cr}`,
+    `L ${ox - capHw} ${capBot}`,
+    `Q ${ox - capHw} ${shldrY}  ${ox - neckHw} ${shldrY}`,
+    `L ${ox - neckHw} ${neckBot}`,
+    `L ${ox}           ${tipY}`,
+    `L ${ox + neckHw} ${neckBot}`,
+    `L ${ox + neckHw} ${shldrY}`,
+    `Q ${ox + capHw} ${shldrY}  ${ox + capHw} ${capBot}`,
+    `L ${ox + capHw} ${capTop + cr}`,
+    `Q ${ox + capHw} ${capTop}  ${ox + capHw - cr} ${capTop}`,
+    `Z`,
+  ].join(" ");
+
+  const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  g.setAttribute("class", `board-annotation-pin board-annotation-pin--${mark.color}`);
+  g.setAttribute("opacity", "0.80");
+
+  const pinPath = document.createElementNS(SVG_NS, "path") as SVGPathElement;
+  pinPath.setAttribute("d", pinD);
+  pinPath.setAttribute("fill", arrowFill);
+  pinPath.setAttribute("stroke", stroke);
+  pinPath.setAttribute("stroke-width", String(sw));
+  pinPath.setAttribute("stroke-linejoin", "round");
+  g.appendChild(pinPath);
+
+  layer.appendChild(g);
+}
+
+function drawProtectMark(svg: SVGSVGElement, layer: SVGGElement, mark: BoardProtectMark): void {
+  const rect = computeSquareRect(svg, mark.at);
+  if (!rect) return;
+
+  const { stroke, arrowFill } = colorToStrokeFill(mark.color);
+
+  const cx = rect.x + rect.w / 2;
+  const cy = rect.y + rect.h / 2;
+  // Heraldic shield with checkmark. Design coords (100-unit space).
+  const sc = rect.w / 100;
+  const ox = cx;
+  const oy = cy - 1 * sc;
+
+  const hw  = 16 * sc;  // half-width
+  const top = -18 * sc; // top edge y
+  const mid =   4 * sc; // y where straight sides end
+  const bot =  22 * sc; // y of bottom tip
+
+  const shieldD = [
+    `M ${ox - hw} ${oy + top}`,
+    `L ${ox + hw} ${oy + top}`,
+    `L ${ox + hw} ${oy + mid}`,
+    `Q ${ox + hw} ${oy + bot} ${ox} ${oy + bot}`,
+    `Q ${ox - hw} ${oy + bot} ${ox - hw} ${oy + mid}`,
+    `Z`,
+  ].join(" ");
+
+  const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  g.setAttribute("class", `board-annotation-protect board-annotation-protect--${mark.color}`);
+  g.setAttribute("opacity", "0.80");
+
+  const shield = document.createElementNS(SVG_NS, "path") as SVGPathElement;
+  shield.setAttribute("d", shieldD);
+  shield.setAttribute("fill", arrowFill);
+  shield.setAttribute("stroke", stroke);
+  shield.setAttribute("stroke-width", String(Math.max(1.5, 2 * sc)));
+  applyStrokeDefaults(shield);
+  g.appendChild(shield);
+
+  // Checkmark (✓) centred inside the shield body.
+  // Body vertical centre is halfway between top and mid.
+  const xcy = oy + (top + mid) / 2;
+  const ck = document.createElementNS(SVG_NS, "path") as SVGPathElement;
+  const ck1x = ox - 9 * sc,  ck1y = xcy + 2 * sc;   // left foot
+  const ck2x = ox - 1 * sc,  ck2y = xcy + 9 * sc;   // valley
+  const ck3x = ox + 11 * sc, ck3y = xcy - 9 * sc;   // upper-right tip
+  ck.setAttribute("d", `M ${ck1x} ${ck1y} L ${ck2x} ${ck2y} L ${ck3x} ${ck3y}`);
+  ck.setAttribute("fill", "none");
+  ck.setAttribute("stroke", "rgba(255,255,255,0.92)");
+  ck.setAttribute("stroke-width", String(Math.max(2, 3 * sc)));
+  ck.setAttribute("stroke-linecap", "round");
+  ck.setAttribute("stroke-linejoin", "round");
+  g.appendChild(ck);
+
+  layer.appendChild(g);
+}
+
+
 function drawArrowMark(layer: SVGGElement, mark: BoardArrowMark): void {
   const a = getCircleCenter(mark.from);
   const b = getCircleCenter(mark.to);
@@ -281,9 +436,13 @@ export function renderBoardAnnotations(svg: SVGSVGElement, state: BoardAnnotatio
   const layer = ensureAnnotationsLayer(svg);
   clearLayer(layer);
 
-  // Draw squares first, then arrows on top.
-  for (const s of state.squares) drawSquareMark(svg, layer, s);
-  for (const a of state.arrows) drawArrowMark(layer, a);
+  // Draw background highlights first (squares and circles), then center markers
+  // (pins and protects), then arrows always on top.
+  for (const s of state.squares)            drawSquareMark(svg, layer, s);
+  for (const c of state.circles  ?? [])     drawCircleMark(svg, layer, c);
+  for (const p of state.pins     ?? [])     drawPinMark(svg, layer, p);
+  for (const t of state.protects ?? [])     drawProtectMark(svg, layer, t);
+  for (const a of state.arrows)             drawArrowMark(layer, a);
 }
 
 export function clearBoardAnnotations(svg: SVGSVGElement): void {

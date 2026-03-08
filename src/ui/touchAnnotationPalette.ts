@@ -1,6 +1,6 @@
 import type { GameController } from "../controller/gameController";
 import type { AnnotationColor } from "../render/boardAnnotations";
-import type { BoardVisualizationToolsController } from "./boardVisualizationTools";
+import type { AnnotationType, BoardVisualizationToolsController } from "./boardVisualizationTools";
 
 function isTouchLikeEnvironment(): boolean {
   try {
@@ -25,19 +25,32 @@ export function bindTouchAnnotationPalette(controller: GameController, tools: Bo
   if (!root) return;
 
   const colorBtns = Array.from(root.querySelectorAll<HTMLButtonElement>("button[data-color]"));
-  const clearBtn = root.querySelector<HTMLButtonElement>("button[data-action='clear']");
-  const eraseBtn = root.querySelector<HTMLButtonElement>("button[data-action='erase']");
-  if (colorBtns.length === 0 && !clearBtn && !eraseBtn) return;
+  const typeBtns  = Array.from(root.querySelectorAll<HTMLButtonElement>("button[data-annotation-type]"));
+  const clearBtn  = root.querySelector<HTMLButtonElement>("button[data-action='clear']");
+  const eraseBtn  = root.querySelector<HTMLButtonElement>("button[data-action='erase']");
+  if (colorBtns.length === 0 && typeBtns.length === 0 && !clearBtn && !eraseBtn) return;
 
   const clampColor = (raw: string | null): AnnotationColor => {
     if (raw === "orange" || raw === "green" || raw === "red" || raw === "blue") return raw;
     return "orange";
   };
 
-  const syncPressed = (selected: AnnotationColor) => {
+  const clampType = (raw: string | null): AnnotationType => {
+    if (raw === "square" || raw === "circle" || raw === "pin" || raw === "protect" || raw === "remove") return raw;
+    return "square";
+  };
+
+  const syncColorPressed = (selected: AnnotationColor) => {
     for (const b of colorBtns) {
       const c = clampColor(b.getAttribute("data-color"));
       b.setAttribute("aria-pressed", c === selected ? "true" : "false");
+    }
+  };
+
+  const syncTypePressed = (selected: AnnotationType) => {
+    for (const b of typeBtns) {
+      const t = clampType(b.getAttribute("data-annotation-type"));
+      b.setAttribute("aria-pressed", t === selected ? "true" : "false");
     }
   };
 
@@ -48,7 +61,12 @@ export function bindTouchAnnotationPalette(controller: GameController, tools: Bo
 
   const setSelected = (color: AnnotationColor) => {
     tools.setActiveColor(color);
-    syncPressed(color);
+    syncColorPressed(color);
+  };
+
+  const setType = (type: AnnotationType) => {
+    tools.setAnnotationType(type);
+    syncTypePressed(type);
   };
 
   for (const b of colorBtns) {
@@ -58,6 +76,18 @@ export function bindTouchAnnotationPalette(controller: GameController, tools: Bo
         ev.preventDefault();
         ev.stopPropagation();
         setSelected(clampColor(b.getAttribute("data-color")));
+      },
+      { capture: true }
+    );
+  }
+
+  for (const b of typeBtns) {
+    b.addEventListener(
+      "click",
+      (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        setType(clampType(b.getAttribute("data-annotation-type")));
       },
       { capture: true }
     );
@@ -91,6 +121,7 @@ export function bindTouchAnnotationPalette(controller: GameController, tools: Bo
   };
 
   setSelected(tools.getActiveColor());
+  setType(tools.getAnnotationType());
   syncErasePressed(tools.getEraseMode());
   syncVisibility();
 

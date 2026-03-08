@@ -27,7 +27,7 @@ import {
   DAMASCA_NO_PROGRESS_LIMIT_PLIES,
   DAMASCA_OFFICER_ONLY_LIMIT_PLIES,
 } from "../game/damascaDeadPlay.ts";
-import { animateStack } from "../render/animateMove.ts";
+import { animateStack, getNodeCenter, computeUnitHopPx } from "../render/animateMove.ts";
 import { ensureStackCountsLayer } from "../render/stackCountsLayer.ts";
 import { nodeIdToA1, nodeIdToA1View } from "../game/coordFormat.ts";
 import { getDamaCaptureRemovalMode } from "../game/damaCaptureChain.ts";
@@ -2294,7 +2294,7 @@ export class GameController {
     return null;
   }
 
-  async jumpToHistoryAnimated(index: number, animMs: number = 450): Promise<void> {
+  async jumpToHistoryAnimated(index: number, msPerHop: number = 250): Promise<void> {
     const prev = this.state;
     if (this.analysisMode && !this.analysisHistory) return;
     const target = this.analysisMode ? this.analysisHistory!.jumpTo(index) : this.driver.jumpToHistory(index);
@@ -2344,6 +2344,18 @@ export class GameController {
           } catch {
             // ignore
           }
+
+          // Compute animation duration proportional to the number of board hops.
+          // One hop (adjacent square) always takes msPerHop ms regardless of user speed setting.
+          const unitHopPx = computeUnitHopPx(this.svg, from);
+          const fromPos = getNodeCenter(this.svg, from);
+          const toPos = getNodeCenter(this.svg, to);
+          let hops = 1;
+          if (unitHopPx && unitHopPx > 0 && fromPos && toPos) {
+            const dist = Math.sqrt((toPos.x - fromPos.x) ** 2 + (toPos.y - fromPos.y) ** 2);
+            hops = Math.max(1, Math.round(dist / unitHopPx));
+          }
+          const animMs = hops * msPerHop;
 
           const animations: Array<Promise<void>> = [];
 

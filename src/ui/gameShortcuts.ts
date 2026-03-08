@@ -94,6 +94,21 @@ function openKeyboardShortcutsPopup(controller?: GameController): void {
     ? "<li><b>Toggle analysis:</b> <code>Ctrl/Cmd+Shift+A</code></li>"
     : "";
 
+  const annotationsSection = showAnalysis
+    ? `
+    <h2>Annotations (right-click on the board)</h2>
+    <ul>
+      <li><b>Square highlight:</b> Right-click a square (default) or press <code>S</code></li>
+      <li><b>Circle highlight:</b> Press <code>C</code> while / after right-clicking</li>
+      <li><b>Push pin:</b> Press <code>N</code> while / after right-clicking</li>
+      <li><b>Protect:</b> Press <code>P</code> while / after right-clicking</li>
+      <li><b>Remove:</b> Press <code>X</code> while / after right-clicking — removes pin/protect first; falls back to square/circle</li>
+      <li><b>Arrow:</b> Right-click and drag to a target square</li>
+      <li><b>Color:</b> Hold <code>Shift</code> (green), <code>Ctrl</code> (red), <code>Alt</code> (blue) while right-clicking</li>
+      <li><b>Toggle:</b> Right-clicking an existing annotation of the same color removes it</li>
+    </ul>`
+    : "";
+
   const analysisSection = showAnalysis
     ? `
 
@@ -158,6 +173,11 @@ function openKeyboardShortcutsPopup(controller?: GameController): void {
       <li><b>Full Screen:</b> <code>Ctrl/Cmd+Shift+F</code></li>
     </ul>
 
+    <h2>Playback</h2>
+    <ul>
+      <li><b>Play / Pause:</b> <code>Space</code></li>
+    </ul>
+
     <h2>Speed</h2>
     <ul>
       <li><b>Bot speed:</b> <code>Alt+↑</code>/<code>Alt+↓</code> (when available)</li>
@@ -171,6 +191,7 @@ function openKeyboardShortcutsPopup(controller?: GameController): void {
     </ul>
 
     ${analysisSection}
+    ${annotationsSection}
   </body>
 </html>`;
 

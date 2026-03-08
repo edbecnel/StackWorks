@@ -94,7 +94,7 @@ export function bindPlaybackControls(controller: GameController): void {
     playing = false;
     boardPaused = true;
     renderButton();
-    controller.toast("Playback paused - Tap on the board to continue", 3000, { force: true });
+    controller.toast("Playback paused - Press the Play button or spacebar to continue", 3000, { force: true });
   };
 
   const stepOnce = async () => {
@@ -105,10 +105,9 @@ export function bindPlaybackControls(controller: GameController): void {
     const nextIndex = currentIndex + 1;
     if (nextIndex >= history.length) return;
 
-    // Make the slide clearly visible during playback.
-    // Use (nearly) the full delay budget for animation.
-    const animMs = clampInt(Math.round(delayMs * 0.98), 400, 20_000);
-    await controller.jumpToHistoryAnimated(nextIndex, animMs);
+    // Animation speed is always 250 ms per adjacent position regardless of user delay setting.
+    // The user-configured delayMs is a post-landing pause applied in tick(), not the anim speed.
+    await controller.jumpToHistoryAnimated(nextIndex, 200);
   };
 
   const tick = async () => {
@@ -119,7 +118,6 @@ export function bindPlaybackControls(controller: GameController): void {
       return;
     }
 
-    const startedAt = performance.now();
     await stepOnce();
 
     // Stop if we hit the end.
@@ -128,10 +126,8 @@ export function bindPlaybackControls(controller: GameController): void {
       return;
     }
 
-    // Keep overall tempo: delayMs represents the total time per move.
-    const elapsed = performance.now() - startedAt;
-    const wait = Math.max(0, delayMs - elapsed);
-    timer = window.setTimeout(() => void tick(), wait);
+    // After the piece lands, wait the user-configured delay before advancing to the next ply.
+    timer = window.setTimeout(() => void tick(), delayMs);
   };
 
   const start = () => {
@@ -142,14 +138,15 @@ export function bindPlaybackControls(controller: GameController): void {
     playing = true;
     renderButton();
 
-    timer = window.setTimeout(() => void tick(), delayMs);
+    // Start immediately — the post-landing delay is applied in tick() after each move.
+    timer = window.setTimeout(() => void tick(), 0);
   };
 
   const syncEnabled = () => {
     renderButton();
   };
 
-  // Bind board tap to pause/resume playback.
+  // Bind board tap to pause playback.
   const boardWrap = document.getElementById("boardWrap") as HTMLElement | null;
   const boardSvg = boardWrap?.querySelector("svg") as SVGSVGElement | null;
   if (boardSvg) {
@@ -165,19 +162,32 @@ export function bindPlaybackControls(controller: GameController): void {
         pauseByBoard();
         return;
       }
-
-      if (boardPaused) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        lastBoardTapAtMs = now;
-        start();
-        return;
-      }
     };
 
     boardSvg.addEventListener("pointerdown", onBoardTap, { capture: true });
     boardSvg.addEventListener("click", onBoardTap, { capture: true });
   }
+
+  // Spacebar: pause with toast when playing, resume when paused.
+  window.addEventListener("keydown", (ev: KeyboardEvent) => {
+    if (ev.defaultPrevented) return;
+    if (ev.key !== " " || ev.ctrlKey || ev.metaKey || ev.altKey || ev.shiftKey) return;
+    const target = ev.target as Element | null;
+    const tag = target?.tagName?.toLowerCase() ?? "";
+    if (tag === "input" || tag === "textarea" || tag === "select" || (target as HTMLElement | null)?.isContentEditable) return;
+
+    if (playing) {
+      ev.preventDefault();
+      pauseByBoard();
+      return;
+    }
+
+    if (boardPaused || controller.canRedo()) {
+      ev.preventDefault();
+      start();
+      return;
+    }
+  });
 
   // Initial state
   delayMs = parseDelayMs(elDelay.value || String(DEFAULT_DELAY_MS), DEFAULT_DELAY_MS);
