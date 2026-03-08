@@ -393,6 +393,11 @@
           <b>Note:</b> PGN import is <b>offline-only</b> for now. In online
           rooms, the server is authoritative and imported moves are blocked.
         </div>
+        <div class="warning">
+          <b>Warning:</b> If a game is already in progress, clicking either
+          Import PGN button will show a confirmation prompt before proceeding.
+          The current game will be lost once you confirm.
+        </div>
 
         <h3>Export (Current Line)</h3>
         <ul>
@@ -402,8 +407,13 @@
             position in Move History.
           </li>
           <li>
-            If you’ve jumped back in history, exporting will export that line
+            If you've jumped back in history, exporting will export that line
             (not necessarily the full game).
+          </li>
+          <li>
+            Games ended by resignation are exported correctly — the resignation
+            is recorded in the PGN result header and does not appear as a
+            phantom move.
           </li>
         </ul>
       </div>

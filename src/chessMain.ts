@@ -158,11 +158,92 @@ window.addEventListener("DOMContentLoaded", async () => {
     boardCoordsInSquaresToggle.checked = savedBoardCoordsInSquares;
   }
 
+  // Player names rendered directly inside the SVG border strips.
+  // The board viewBox is 0 0 1000 1000; squares run from (100,100) to (900,900).
+  // The border strip above the squares spans y=60..100 and below spans y=900..940.
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const PLAYER_NAME_FILL = "#4a3020";
+  // Border strip is 40 SVG units tall (squares start at 100, outer rect at 60).
+  // 30 units ≈ 75% of the strip height — readable at typical board render sizes.
+  const PLAYER_NAME_FONT_SIZE = 30;
+
+  const ensurePlayerNameLayer = (): SVGGElement => {
+    const existing = svg.querySelector("#playerNameLayer") as SVGGElement | null;
+    if (existing) return existing;
+    const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
+    g.id = "playerNameLayer";
+    g.setAttribute("pointer-events", "none");
+    svg.appendChild(g);
+    return g;
+  };
+
+  const renderPlayerNamesOnSvg = (topName: string, bottomName: string) => {
+    const layer = ensurePlayerNameLayer();
+    while (layer.firstChild) layer.removeChild(layer.firstChild);
+    if (!topName && !bottomName) return;
+
+    const makeText = (label: string, x: number, y: number): SVGTextElement => {
+      const t = document.createElementNS(SVG_NS, "text") as SVGTextElement;
+      t.textContent = label;
+      t.setAttribute("x", String(x));
+      t.setAttribute("y", String(y));
+      t.setAttribute("text-anchor", "middle");
+      t.setAttribute("dominant-baseline", "middle");
+      t.setAttribute("font-size", String(PLAYER_NAME_FONT_SIZE));
+      t.setAttribute("font-weight", "600");
+      t.setAttribute("fill", PLAYER_NAME_FILL);
+      t.setAttribute("opacity", "0.82");
+      // Clip to the board's horizontal span so long names don't overflow into edge coords.
+      t.setAttribute("clip-path", "url(#playerNameClip)");
+      return t;
+    };
+
+    // Ensure a clip rect that covers the board's horizontal extent.
+    let clipEl = svg.querySelector("#playerNameClip") as SVGClipPathElement | null;
+    if (!clipEl) {
+      const defs = svg.querySelector("defs") ?? svg.insertBefore(document.createElementNS(SVG_NS, "defs"), svg.firstChild);
+      clipEl = document.createElementNS(SVG_NS, "clipPath") as SVGClipPathElement;
+      clipEl.id = "playerNameClip";
+      const r = document.createElementNS(SVG_NS, "rect") as SVGRectElement;
+      r.setAttribute("x", "70"); r.setAttribute("y", "0");
+      r.setAttribute("width", "860"); r.setAttribute("height", "1000");
+      clipEl.appendChild(r);
+      defs.appendChild(clipEl);
+    }
+
+    if (topName) layer.appendChild(makeText(topName, 500, 34));
+    if (bottomName) layer.appendChild(makeText(bottomName, 500, 966));
+  };
+
+  let playerWhiteName = "";
+  let playerBlackName = "";
+
+  const hasPlayerNames = () => Boolean(playerWhiteName || playerBlackName);
+
   const applyBoardCoords = () =>
     renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), variant.boardSize, {
       flipped: isFlipped(),
-      style: boardCoordsInSquaresToggle?.checked ? "inSquare" : "edge",
+      // When player names occupy the border strips the edge-style coordinate
+      // labels would collide with them, so force inSquare mode.
+      style: (hasPlayerNames() || boardCoordsInSquaresToggle?.checked) ? "inSquare" : "edge",
     });
+
+  const updatePlayerNameDisplay = () => {
+    const flipped = isFlipped();
+    // When not flipped: white plays from the bottom, black from the top.
+    const topName = flipped ? playerWhiteName : playerBlackName;
+    const bottomName = flipped ? playerBlackName : playerWhiteName;
+    renderPlayerNamesOnSvg(topName, bottomName);
+    // Re-apply coords: may need to switch to/from inSquare mode.
+    applyBoardCoords();
+  };
+
+  const setPlayerNames = (white: string, black: string) => {
+    playerWhiteName = white;
+    playerBlackName = black;
+    updatePlayerNameDisplay();
+  };
+
   applyBoardCoords();
 
   const themeManager = createThemeManager(svg);
@@ -350,7 +431,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     flipBoardToggle.addEventListener("change", () => {
       writeBoolPref(LS_OPT_KEYS.flipBoard, flipBoardToggle.checked);
       setBoardFlipped(svg, flipBoardToggle.checked);
-      applyBoardCoords();
+      updatePlayerNameDisplay();
       controller.refreshView();
     });
   }
@@ -415,6 +496,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         if (!ok) return;
       }
       controller.newGame(createInitialGameStateForVariant(ACTIVE_VARIANT_ID));
+      setPlayerNames("", "");
     });
   }
 
@@ -524,6 +606,10 @@ window.addEventListener("DOMContentLoaded", async () => {
       const prev = snap.states[i - 1];
       const next = snap.states[i];
 
+      // Skip forced-game-over entries (resign, timeout, etc.) — these push a copy
+      // of the current state onto history with no actual board move.
+      if ((next as any).forcedGameOver) continue;
+
       let fromNode: string | null = null;
       let toNode: string | null = null;
 
@@ -559,18 +645,56 @@ window.addEventListener("DOMContentLoaded", async () => {
     return out;
   };
 
-  const exportCurrentLineToPgnText = (): string => {
+  const exportCurrentLineToPgnText = (includeTiming: boolean): string => {
+    const snap = driver.exportHistorySnapshots();
     const moves = deriveChessJsMovesFromHistory();
     const chess = new Chess();
 
-    for (const m of moves) {
-      const ok = chess.move(m as any);
-      if (!ok) {
-        throw new Error(`Failed to convert history to PGN at move ${m.from}-${m.to}`);
+    // Determine if we have any per-move elapsed times to embed.
+    const hasTimingData = includeTiming && (snap.emtMs?.some((v) => v !== null) ?? false);
+
+    if (!hasTimingData) {
+      // Fast path: no timing, let chess.js build the standard PGN.
+      for (const m of moves) {
+        const ok = chess.move(m as any);
+        if (!ok) {
+          throw new Error(`Failed to convert history to PGN at move ${m.from}-${m.to}`);
+        }
       }
+      return chess.pgn({ newline_char: "\n" } as any);
     }
 
-    return chess.pgn({ newline_char: "\n" } as any);
+    // Slow path: build PGN with [%emt H:MM:SS] comments after each move.
+    const formatEmtForPgn = (ms: number): string => {
+      const total = Math.max(0, Math.round(ms / 1000));
+      const h = Math.floor(total / 3600);
+      const min = Math.floor((total % 3600) / 60);
+      const s = total % 60;
+      return `${h}:${String(min).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    };
+
+    const sanMoves: Array<{ san: string; emtMs: number | null }> = [];
+    for (let i = 0; i < moves.length; i++) {
+      const result = chess.move(moves[i] as any) as any;
+      if (!result) {
+        throw new Error(`Failed to convert history to PGN at move ${moves[i]!.from}-${moves[i]!.to}`);
+      }
+      // History index i+1 corresponds to the state after move i.
+      sanMoves.push({ san: result.san as string, emtMs: snap.emtMs?.[i + 1] ?? null });
+    }
+
+    const dateStr = new Date().toISOString().split("T")[0]!.replace(/-/g, ".");
+    const headers = `[Event "?"]\n[Site "?"]\n[Date "${dateStr}"]\n[Round "?"]\n[White "?"]\n[Black "?"]\n[Result "*"]\n`;
+
+    let movetext = "";
+    for (let i = 0; i < sanMoves.length; i++) {
+      const { san, emtMs } = sanMoves[i]!;
+      if (i % 2 === 0) movetext += `${Math.floor(i / 2) + 1}. `;
+      movetext += emtMs !== null ? `${san} { [%emt ${formatEmtForPgn(emtMs)}] } ` : `${san} `;
+    }
+    movetext += "*";
+
+    return headers + "\n" + movetext;
   };
 
   const internalMoveFromUci = (state: import("./game/state.ts").GameState, fromUci: string, toUci: string): import("./game/moveTypes.ts").Move => {
@@ -597,22 +721,53 @@ window.addEventListener("DOMContentLoaded", async () => {
     return { kind: "move", from, to };
   };
 
-  const importPgnText = (pgn: string): void => {
-    if (driver.mode === "online") {
-      controller.toast("PGN import is offline-only for now", 2400, { force: true });
-      return;
-    }
+  /**
+   * Split a raw PGN text that may contain multiple games into individual game strings.
+   * Each game starts with a header block (`[Tag "Value"]` lines) or, for bare move
+   * lists, is treated as a single game.
+   */
+  const splitPgnGames = (raw: string): string[] => {
+    // A new game boundary is a line that starts a header block after at least one
+    // blank line (or after the start-of-file). We split on the pattern of a blank
+    // line followed by a `[` at the start of a line.
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
 
-    const text = String(pgn ?? "").trim();
-    if (!text) {
-      controller.toast("No PGN provided", 2000, { force: true });
-      return;
+    // Splitting strategy: find positions where a `[` begins a new tag block
+    // after a run of non-header lines (i.e., after movetext + blank line(s)).
+    const games: string[] = [];
+    // Split on one-or-more blank lines that are followed by a `[Tag …` line.
+    const parts = trimmed.split(/\n\s*\n(?=\s*\[)/);
+    for (const part of parts) {
+      const g = part.trim();
+      if (g) games.push(g);
     }
+    return games.length > 0 ? games : [trimmed];
+  };
 
+  /** Extract a human-readable label for a game from its PGN headers. */
+  const pgnGameLabel = (gameText: string, index: number): string => {
+    const header = (tag: string): string => {
+      const m = gameText.match(new RegExp(`\\[${tag}\\s+"([^"]*)"\\]`, "i"));
+      return m?.[1]?.trim() ?? "?";
+    };
+    const white = header("White");
+    const black = header("Black");
+    const result = header("Result");
+    const date = header("Date").replace(/\?/g, "").replace(/\.$/, "").trim() || null;
+    const event = header("Event") !== "?" ? header("Event") : null;
+    const parts = [`${index + 1}. ${white} vs ${black}`];
+    if (result && result !== "*" && result !== "?") parts.push(`(${result})`);
+    if (date) parts.push(`— ${date}`);
+    if (event) parts.push(`— ${event}`);
+    return parts.join(" ");
+  };
+
+  const importSinglePgnGame = (gamePgn: string): void => {
     const chess = new Chess();
     let loadedOk = true;
     try {
-      const res = (chess as any).loadPgn(text, { sloppy: true });
+      const res = (chess as any).loadPgn(gamePgn, { sloppy: true });
       if (res === false) loadedOk = false;
     } catch {
       loadedOk = false;
@@ -622,6 +777,91 @@ window.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
+    // Parse per-move timing comments from the raw PGN text.
+    // Each move SAN in the movetext may be followed by a { comment }.
+    // We extract them in order so they align with chess.js verboseMoves.
+    const parsePgnEmtMs = (rawPgn: string): Array<number | null> => {
+      // Strip only PGN header lines (lines of the form [Tag "value"]) so that
+      // [%emt] and [%clk] annotations inside { } comments are preserved.
+      const movetext = rawPgn.replace(/^\[.+\]\s*$/gm, "").replace(/\s+/g, " ").trim();
+
+      type Tok = { type: "move" | "comment" | "num"; text: string };
+      const tokens: Tok[] = [];
+      let rem = movetext;
+      while (rem.length > 0) {
+        rem = rem.trimStart();
+        if (rem.startsWith("{")) {
+          const end = rem.indexOf("}");
+          if (end < 0) break;
+          tokens.push({ type: "comment", text: rem.slice(1, end) });
+          rem = rem.slice(end + 1);
+        } else {
+          const nextBrace = rem.indexOf("{");
+          const nextSpace = rem.search(/\s/);
+          const end =
+            nextBrace >= 0 && (nextSpace < 0 || nextBrace < nextSpace)
+              ? nextBrace
+              : nextSpace >= 0
+              ? nextSpace
+              : rem.length;
+          const tok = rem.slice(0, end).trim();
+          rem = rem.slice(end);
+          if (!tok) continue;
+          if (/^\d+\.+$/.test(tok)) {
+            tokens.push({ type: "num", text: tok });
+          } else if (tok !== "*" && tok !== "1-0" && tok !== "0-1" && tok !== "1/2-1/2") {
+            tokens.push({ type: "move", text: tok });
+          }
+        }
+      }
+
+      // For each SAN token, the immediately following comment (if any) belongs to it.
+      const extractMs = (comment: string): number | null => {
+        // Prefer [%emt H:MM:SS] — directly gives elapsed time.
+        const emt = comment.match(/\[%emt\s+(\d+):(\d+):(\d+)\]/i);
+        if (emt) return (parseInt(emt[1]!) * 3600 + parseInt(emt[2]!) * 60 + parseInt(emt[3]!)) * 1000;
+        // Fall back to [%clk H:MM:SS] — derive elapsed from clock delta.
+        // We return a special sentinel object pair; caller resolves deltas.
+        return null;
+      };
+
+      // Also gather [%clk] for delta computation.
+      const extractClkMs = (comment: string): number | null => {
+        const clk = comment.match(/\[%clk\s+(\d+):(\d+):(\d+)\]/i);
+        if (!clk) return null;
+        return (parseInt(clk[1]!) * 3600 + parseInt(clk[2]!) * 60 + parseInt(clk[3]!)) * 1000;
+      };
+
+      const result: Array<number | null> = [];
+      // Track clock per side for delta computation: [whiteClkMs, blackClkMs]
+      const prevClk: [number | null, number | null] = [null, null];
+
+      let moveCount = 0;
+      for (let i = 0; i < tokens.length; i++) {
+        if (tokens[i]!.type !== "move") continue;
+        const commentText = tokens[i + 1]?.type === "comment" ? tokens[i + 1]!.text : null;
+        let ms = commentText ? extractMs(commentText) : null;
+        if (ms === null && commentText) {
+          // Try deriving from [%clk] delta.
+          const clkMs = extractClkMs(commentText);
+          if (clkMs !== null) {
+            const sideIdx = moveCount % 2 as 0 | 1;
+            const prev = prevClk[sideIdx];
+            if (prev !== null && prev >= clkMs) ms = prev - clkMs;
+            prevClk[sideIdx] = clkMs;
+          }
+        } else if (commentText) {
+          // Update prevClk for any [%clk] also present alongside [%emt].
+          const clkMs = extractClkMs(commentText);
+          if (clkMs !== null) prevClk[moveCount % 2 as 0 | 1] = clkMs;
+        }
+        result.push(ms);
+        moveCount++;
+      }
+      return result;
+    };
+
+    const emtMsPerMove = parsePgnEmtMs(gamePgn);
     const verboseMoves = chess.history({ verbose: true } as any) as any[];
 
     // Build an internal history by applying the parsed moves.
@@ -630,7 +870,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     hm.push(initial);
     let s = initial;
 
-    for (const mv of verboseMoves) {
+    for (let idx = 0; idx < verboseMoves.length; idx++) {
+      const mv = verboseMoves[idx];
       const fromUci = String(mv?.from ?? "").toLowerCase();
       const toUci = String(mv?.to ?? "").toLowerCase();
       if (!fromUci || !toUci) continue;
@@ -643,11 +884,214 @@ window.addEventListener("DOMContentLoaded", async () => {
       const sep = internal.kind === "capture" ? " × " : " → ";
       const fromA1 = nodeIdToA1(internal.from, 8);
       const toA1 = nodeIdToA1(internal.to, 8);
-      hm.push(s, `${fromA1}${sep}${toA1}`);
+      hm.push(s, `${fromA1}${sep}${toA1}`, emtMsPerMove[idx] ?? null);
     }
 
     controller.loadGame(s, hm.exportSnapshots());
+
+    // Parse player names directly from the raw PGN header lines — more reliable
+    // than chess.js's header() API across versions.
+    const parsePgnHeader = (tag: string): string => {
+      const m = new RegExp(`^\\[${tag}\\s+"([^"]*)"]`, "im").exec(gamePgn);
+      return m ? m[1]!.trim() : "";
+    };
+    const isGenericName = (n: string) => !n || n === "?" || n === "White" || n === "Black" || n === "-";
+    const rawWhite = parsePgnHeader("White");
+    const rawBlack = parsePgnHeader("Black");
+    setPlayerNames(
+      isGenericName(rawWhite) ? "" : rawWhite,
+      isGenericName(rawBlack) ? "" : rawBlack,
+    );
+
     controller.toast("PGN imported", 1800, { force: true });
+  };
+
+  /**
+   * Show a modal listing all games in a multi-game PGN so the user can pick one.
+   * Calls `importSinglePgnGame` for the chosen game and closes both modals.
+   */
+  const showPgnGamePicker = (games: string[], onPick: () => void): void => {
+    const styleId = "lasca-pgn-picker-style";
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement("style");
+      style.id = styleId;
+      style.textContent = `
+        .pgnPickerBackdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.65);
+          z-index: 100000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .pgnPickerCard {
+          width: min(92vw, 560px);
+          max-height: min(86vh, 640px);
+          border-radius: 14px;
+          background: rgba(18,18,20,0.97);
+          border: 1px solid rgba(255,255,255,0.16);
+          color: rgba(255,255,255,0.92);
+          box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+          padding: 16px 16px 12px;
+          font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .pgnPickerTitle {
+          font-size: 14px;
+          font-weight: 800;
+        }
+        .pgnPickerHint {
+          font-size: 11px;
+          opacity: 0.7;
+          margin-top: -4px;
+        }
+        .pgnPickerList {
+          overflow-y: auto;
+          flex: 1 1 auto;
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+          padding-right: 2px;
+        }
+        .pgnPickerItem {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          padding: 8px 10px;
+          border-radius: 8px;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.1);
+          cursor: default;
+        }
+        .pgnPickerItem:hover { background: rgba(255,255,255,0.08); }
+        .pgnPickerItemLabel {
+          font-size: 12px;
+          flex: 1 1 auto;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .pgnPickerLoadBtn {
+          appearance: none;
+          border: 1px solid rgba(255,255,255,0.22);
+          background: rgba(255,255,255,0.08);
+          color: rgba(255,255,255,0.92);
+          border-radius: 7px;
+          padding: 5px 12px;
+          font-size: 11px;
+          cursor: pointer;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+        .pgnPickerLoadBtn:hover { background: rgba(255,255,255,0.16); }
+        .pgnPickerCancel {
+          appearance: none;
+          border: 1px solid rgba(255,255,255,0.14);
+          background: transparent;
+          color: rgba(255,255,255,0.6);
+          border-radius: 8px;
+          padding: 7px 14px;
+          font-size: 12px;
+          cursor: pointer;
+          align-self: flex-end;
+        }
+        .pgnPickerCancel:hover { color: rgba(255,255,255,0.9); }
+      `;
+      document.head.appendChild(style);
+    }
+
+    const backdrop = document.createElement("div");
+    backdrop.className = "pgnPickerBackdrop";
+    backdrop.setAttribute("role", "dialog");
+    backdrop.setAttribute("aria-modal", "true");
+    backdrop.setAttribute("aria-label", "Select a game to import");
+
+    const card = document.createElement("div");
+    card.className = "pgnPickerCard";
+
+    const titleEl = document.createElement("div");
+    titleEl.className = "pgnPickerTitle";
+    titleEl.textContent = `${games.length} games found — choose one to import`;
+
+    const hintEl = document.createElement("div");
+    hintEl.className = "pgnPickerHint";
+    hintEl.textContent = "Only classic chess (standard starting position) games can be imported.";
+
+    const list = document.createElement("div");
+    list.className = "pgnPickerList";
+
+    const close = () => backdrop.remove();
+
+    for (let i = 0; i < games.length; i++) {
+      const gameText = games[i]!;
+      const item = document.createElement("div");
+      item.className = "pgnPickerItem";
+
+      const label = document.createElement("div");
+      label.className = "pgnPickerItemLabel";
+      label.textContent = pgnGameLabel(gameText, i);
+      label.title = label.textContent;
+
+      const loadBtn = document.createElement("button");
+      loadBtn.className = "pgnPickerLoadBtn";
+      loadBtn.textContent = "Load";
+      loadBtn.addEventListener("click", () => {
+        close();
+        onPick();
+        importSinglePgnGame(gameText);
+      });
+
+      item.appendChild(label);
+      item.appendChild(loadBtn);
+      list.appendChild(item);
+    }
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.className = "pgnPickerCancel";
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.addEventListener("click", close);
+
+    backdrop.addEventListener("click", (ev) => { if (ev.target === backdrop) close(); });
+    window.addEventListener("keydown", function onKey(ev) {
+      if (ev.key === "Escape") { close(); window.removeEventListener("keydown", onKey); }
+    });
+
+    card.appendChild(titleEl);
+    card.appendChild(hintEl);
+    card.appendChild(list);
+    card.appendChild(cancelBtn);
+    backdrop.appendChild(card);
+    document.body.appendChild(backdrop);
+    (list.querySelector(".pgnPickerLoadBtn") as HTMLButtonElement | null)?.focus();
+  };
+
+  const importPgnText = (pgn: string, onModalClose?: () => void): void => {
+    if (driver.mode === "online") {
+      controller.toast("PGN import is offline-only for now", 2400, { force: true });
+      return;
+    }
+
+    const text = String(pgn ?? "").trim();
+    if (!text) {
+      controller.toast("No PGN provided", 2000, { force: true });
+      return;
+    }
+
+    const games = splitPgnGames(text);
+
+    if (games.length > 1) {
+      // Show the picker; each Load button calls importSinglePgnGame directly.
+      showPgnGamePicker(games, () => onModalClose?.());
+      return;
+    }
+
+    // Single game — import immediately.
+    importSinglePgnGame(games[0] ?? text);
+    onModalClose?.();
   };
 
   type PgnModalHandle = { open: (initialText?: string) => void; close: () => void };
@@ -773,8 +1217,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     importBtn.className = "lascaPgnBtn";
     importBtn.textContent = "Import";
     importBtn.addEventListener("click", () => {
-      importPgnText(textarea.value);
       backdrop.classList.remove("isOpen");
+      importPgnText(textarea.value);
     });
 
     actions.appendChild(importBtn);
@@ -804,15 +1248,33 @@ window.addEventListener("DOMContentLoaded", async () => {
     };
   };
 
+  // Returns true if at least one move has been played in the current game
+  // (i.e. there is something to lose on import).
+  const hasMovesMade = (): boolean => {
+    const snap = driver.exportHistorySnapshots();
+    return snap.currentIndex > 0;
+  };
+
+  // Returns false if the user cancels, true if they confirm (or there is nothing to lose).
+  const confirmPgnImportOverwrite = (): boolean => {
+    if (driver.mode === "online") return true; // online import will be rejected anyway
+    if (!hasMovesMade()) return true;
+    return window.confirm("Importing a PGN will replace the current game. The current game will be lost. Continue?");
+  };
+
   if (importPgnPasteBtn) {
     importPgnPasteBtn.addEventListener("click", () => {
+      if (!confirmPgnImportOverwrite()) return;
       const modal = ensurePgnPasteModal();
       modal.open("");
     });
   }
 
   if (importPgnFileBtn && importPgnInput) {
-    importPgnFileBtn.addEventListener("click", () => importPgnInput.click());
+    importPgnFileBtn.addEventListener("click", () => {
+      if (!confirmPgnImportOverwrite()) return;
+      importPgnInput.click();
+    });
     importPgnInput.addEventListener("change", async () => {
       const file = importPgnInput.files?.[0];
       if (!file) return;
@@ -829,8 +1291,10 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   if (exportPgnBtn) {
     exportPgnBtn.addEventListener("click", () => {
+      const exportPgnTimingToggle = document.getElementById("exportPgnTimingToggle") as HTMLInputElement | null;
+      const includeTiming = exportPgnTimingToggle?.checked ?? false;
       try {
-        const pgn = exportCurrentLineToPgnText();
+        const pgn = exportCurrentLineToPgnText(includeTiming);
         const timestamp = new Date().toISOString().replace(/:/g, "-").split(".")[0];
         const blob = new Blob([pgn], { type: "application/x-chess-pgn" });
         const url = URL.createObjectURL(blob);
