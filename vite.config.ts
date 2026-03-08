@@ -46,6 +46,34 @@ function stockfishPublicCopyPlugin() {
   };
 }
 
+/**
+ * Injects a tiny inline script into every HTML entry point that registers
+ * the Service Worker at build time. Only used in production builds so that
+ * local development does not accidentally cache stale assets via a SW.
+ *
+ * The SW file (public/sw.js) is copied to the root of the dist output, so it
+ * always lives at `<base>sw.js`. We read the resolved base from Vite's config
+ * via the `configResolved` hook rather than hard-coding it.
+ */
+function injectServiceWorkerPlugin() {
+  let resolvedBase = "/";
+  return {
+    name: "lasca-inject-sw-registration",
+    configResolved(config: { base: string }) {
+      resolvedBase = config.base || "/";
+    },
+    transformIndexHtml(html: string) {
+      const swUrl = resolvedBase + "sw.js";
+      // Minified registration snippet: non-blocking, swallows registration errors
+      // so a missing SW file never breaks the page.
+      const snippet =
+        `<script>if("serviceWorker"in navigator)` +
+        `navigator.serviceWorker.register(${JSON.stringify(swUrl)}).catch(function(){});</script>`;
+      return html.replace("</head>", `${snippet}\n</head>`);
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
   // Admin page is intentionally not linked from the UI and not documented publicly.
   // To include it in production builds, set VITE_EMIT_ADMIN=1 at build time.
@@ -98,7 +126,13 @@ export default defineConfig(({ mode }) => ({
           }
         : undefined,
   },
-  plugins: [stockfishPublicCopyPlugin()],
+  plugins: [
+    stockfishPublicCopyPlugin(),
+    // Register the Service Worker in all HTML entry points for production builds.
+    // The SW caches hashed assets (forever) and HTML pages (stale-while-revalidate)
+    // so that repeat visits load near-instantly from local SW cache.
+    ...(mode === "production" ? [injectServiceWorkerPlugin()] : []),
+  ],
   build: {
     outDir: "../dist",
     emptyOutDir: true,
