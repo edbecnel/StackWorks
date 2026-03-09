@@ -9,6 +9,14 @@ export type BoardArrowMark = {
   from: string; // nodeId, e.g. r0c0
   to: string; // nodeId
   color: AnnotationColor;
+  /**
+   * Controls how a knight-move arrow bends.
+   *  "x"       – horizontal axis first (elbow at the target column, source row)
+   *  "y"       – vertical axis first (elbow at the source column, target row)
+   *  "diagonal" – draw as a straight line (user traced diagonally)
+   * Omitting this field falls back to long-axis-first (previous behaviour).
+   */
+  elbowFirst?: "x" | "y" | "diagonal";
 };
 
 export type BoardSquareMark = {
@@ -204,7 +212,7 @@ function drawPinMark(svg: SVGSVGElement, layer: SVGGElement, mark: BoardPinMark)
   const cx = rect.x + rect.w / 2;
   const cy = rect.y + rect.h / 2;
   // Push-pin: same height envelope as protect (-18*sc to +22*sc = 40 units).
-  const sc = rect.w / 100;
+  const sc = rect.w / 100 * 0.75;  // 25% smaller than full tile scale
   const ox = cx;
   const oy = cy - 1 * sc;
   const sw = Math.max(1.5, 2 * sc);
@@ -257,7 +265,7 @@ function drawProtectMark(svg: SVGSVGElement, layer: SVGGElement, mark: BoardProt
   const cx = rect.x + rect.w / 2;
   const cy = rect.y + rect.h / 2;
   // Heraldic shield with checkmark. Design coords (100-unit space).
-  const sc = rect.w / 100;
+  const sc = rect.w / 100 * 0.75;  // 25% smaller than full tile scale
   const ox = cx;
   const oy = cy - 1 * sc;
 
@@ -338,12 +346,16 @@ function drawArrowMark(layer: SVGGElement, mark: BoardArrowMark): void {
   let headUx = 0;
   let headUy = 0;
 
-  if (isKnightMove) {
-    // Draw a 90° path: long axis first (like chess.com).
-    const elbow =
-      dc !== null && Math.abs(dc) === 2
-        ? { x: b.cx, y: a.cy }
-        : { x: a.cx, y: b.cy };
+  if (isKnightMove && mark.elbowFirst !== "diagonal") {
+    // Draw a 90° L-shaped path.
+    // Elbow orientation is driven by the stored hint (from drag direction);
+    // falls back to long-axis-first when no hint is present.
+    const ef = mark.elbowFirst;
+    const useXFirst =
+      ef === "x" ? true
+      : ef === "y" ? false
+      : (dc !== null && Math.abs(dc) === 2); // long-axis-first fallback
+    const elbow = useXFirst ? { x: b.cx, y: a.cy } : { x: a.cx, y: b.cy };
 
     const v1x = elbow.x - a.cx;
     const v1y = elbow.y - a.cy;
@@ -436,13 +448,13 @@ export function renderBoardAnnotations(svg: SVGSVGElement, state: BoardAnnotatio
   const layer = ensureAnnotationsLayer(svg);
   clearLayer(layer);
 
-  // Draw background highlights first (squares and circles), then center markers
-  // (pins and protects), then arrows always on top.
+  // Draw background highlights first (squares and circles), then arrows,
+  // then pin/protect symbols on top so they are never obscured by arrow lines.
   for (const s of state.squares)            drawSquareMark(svg, layer, s);
   for (const c of state.circles  ?? [])     drawCircleMark(svg, layer, c);
+  for (const a of state.arrows)             drawArrowMark(layer, a);
   for (const p of state.pins     ?? [])     drawPinMark(svg, layer, p);
   for (const t of state.protects ?? [])     drawProtectMark(svg, layer, t);
-  for (const a of state.arrows)             drawArrowMark(layer, a);
 }
 
 export function clearBoardAnnotations(svg: SVGSVGElement): void {

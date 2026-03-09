@@ -43,6 +43,7 @@ const LS_KEYS = {
   optThreefold: "lasca.opt.threefold",
   optToasts: "lasca.opt.toasts",
   optSfx: "lasca.opt.sfx",
+  optShowPlayerNames: "lasca.opt.chess.showPlayerNames",
 
   playMode: "lasca.play.mode",
   onlineServerUrl: "lasca.online.serverUrl",
@@ -552,6 +553,9 @@ window.addEventListener("DOMContentLoaded", () => {
   const elAccountLogout = (document.getElementById("accountLogout") as HTMLButtonElement | null) ?? null;
 
   const elShowResizeIcon = byId<HTMLInputElement>("launchShowResizeIcon");
+  const elShowPlayerNames = (document.getElementById("launchShowPlayerNames") as HTMLInputElement | null) ?? null;
+  const elShowPlayerNamesRow = (document.getElementById("launchShowPlayerNamesRow") as HTMLElement | null) ?? null;
+  const elShowPlayerNamesHint = (document.getElementById("launchShowPlayerNamesHint") as HTMLElement | null) ?? null;
   const elBoardCoords = byId<HTMLInputElement>("launchBoardCoords");
   const elBoardCoordsInSquares = (document.getElementById("launchBoardCoordsInSquares") as HTMLInputElement | null) ?? null;
   const elBoardCoordsInSquaresRow = (elBoardCoordsInSquares?.closest(".checkRow") as HTMLElement | null) ?? null;
@@ -1010,6 +1014,7 @@ window.addEventListener("DOMContentLoaded", () => {
     writeBool(LS_KEYS.optMoveHints, elMoveHints.checked);
     writeBool(LS_KEYS.optAnimations, true);
     writeBool(LS_KEYS.optShowResizeIcon, elShowResizeIcon.checked);
+    if (isClassicChess && elShowPlayerNames) writeBool(LS_KEYS.optShowPlayerNames, elShowPlayerNames.checked);
     writeBool(LS_KEYS.optBoardCoords, elBoardCoords.checked);
     if (elBoardCoordsInSquares) writeBool(LS_KEYS.optBoardCoordsInSquares, elBoardCoordsInSquares.checked);
     writeBool(LS_KEYS.optFlipBoard, elFlipBoard.checked);
@@ -1607,6 +1612,7 @@ window.addEventListener("DOMContentLoaded", () => {
   elOnlineName.value = getGuestDisplayName() ?? "";
 
   elShowResizeIcon.checked = readBool(LS_KEYS.optShowResizeIcon, false);
+  if (elShowPlayerNames) elShowPlayerNames.checked = readBool(LS_KEYS.optShowPlayerNames, true);
   elBoardCoords.checked = readBool(LS_KEYS.optBoardCoords, false);
   if (elBoardCoordsInSquares) elBoardCoordsInSquares.checked = readBool(LS_KEYS.optBoardCoordsInSquares, false);
   elFlipBoard.checked = readBool(LS_KEYS.optFlipBoard, false);
@@ -1684,6 +1690,13 @@ window.addEventListener("DOMContentLoaded", () => {
     const isClassicChess = vId === "chess_classic";
     const isCheckers = v.rulesetId === "checkers_us";
     const usesColumnsChessBoard = isColumnsChess || isClassicChess;
+
+    // "Show player names" only applies to Classic Chess (the only game with SVG name rendering).
+    {
+      const show = isClassicChess;
+      if (elShowPlayerNamesRow) elShowPlayerNamesRow.style.display = show ? "" : "none";
+      if (elShowPlayerNamesHint) elShowPlayerNamesHint.style.display = show ? "" : "none";
+    }
 
     // Board coordinate style (Inside squares) applies to 8x8 checkerboard boards:
     // - Chess / Columns Chess always use a checkerboard board.

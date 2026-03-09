@@ -56,6 +56,7 @@ const LS_OPT_KEYS = {
   checkerboardTheme: "lasca.opt.checkerboardTheme",
   lastMoveHighlights: "lasca.opt.lastMoveHighlights",
   moveHints: "lasca.opt.moveHints",
+  showPlayerNames: "lasca.opt.chess.showPlayerNames",
 } as const;
 
 function readOptionalBoolPref(key: string): boolean | null {
@@ -215,10 +216,18 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (bottomName) layer.appendChild(makeText(bottomName, 500, 966));
   };
 
+  const showPlayerNamesToggle = document.getElementById("showPlayerNamesToggle") as HTMLInputElement | null;
+  const savedShowPlayerNames = readOptionalBoolPref(LS_OPT_KEYS.showPlayerNames);
+  // Default: show player names (checked). Only hide if the user has explicitly saved false.
+  if (showPlayerNamesToggle && savedShowPlayerNames !== null) {
+    showPlayerNamesToggle.checked = savedShowPlayerNames;
+  }
+
   let playerWhiteName = "";
   let playerBlackName = "";
 
-  const hasPlayerNames = () => Boolean(playerWhiteName || playerBlackName);
+  const hasPlayerNames = () =>
+    Boolean(playerWhiteName || playerBlackName) && (showPlayerNamesToggle?.checked !== false);
 
   const applyBoardCoords = () =>
     renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), variant.boardSize, {
@@ -230,11 +239,22 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const boardCoordsInSquaresRow = document.getElementById("boardCoordsInSquaresRow") as HTMLElement | null;
 
+  // Disables the "Show player names" toggle (and dims it) when no names are available,
+  // since the option has no effect without known player identities.
+  const syncShowPlayerNamesUI = () => {
+    if (!showPlayerNamesToggle) return;
+    const namesKnown = Boolean(playerWhiteName || playerBlackName);
+    showPlayerNamesToggle.disabled = !namesKnown;
+    const row = showPlayerNamesToggle.closest("div") as HTMLElement | null;
+    if (row) row.style.opacity = namesKnown ? "" : "0.45";
+  };
+
   const updatePlayerNameDisplay = () => {
     const flipped = isFlipped();
+    const showNames = showPlayerNamesToggle?.checked !== false;
     // When not flipped: white plays from the bottom, black from the top.
-    const topName = flipped ? playerWhiteName : playerBlackName;
-    const bottomName = flipped ? playerBlackName : playerWhiteName;
+    const topName = showNames ? (flipped ? playerWhiteName : playerBlackName) : "";
+    const bottomName = showNames ? (flipped ? playerBlackName : playerWhiteName) : "";
     renderPlayerNamesOnSvg(topName, bottomName);
 
     // When player names occupy the outer frame strips, edge-style coordinate
@@ -261,8 +281,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   const setPlayerNames = (white: string, black: string) => {
     playerWhiteName = white;
     playerBlackName = black;
+    syncShowPlayerNamesUI();
     updatePlayerNameDisplay();
   };
+
+  // Apply initial disabled state (no names known yet at load time).
+  syncShowPlayerNamesUI();
 
   /** Sanitize a player display name for use in a filename (max 24 chars). */
   const toFileSlug = (name: string): string =>
@@ -336,7 +360,10 @@ window.addEventListener("DOMContentLoaded", async () => {
   bindOfflineNavGuard(controller, ACTIVE_VARIANT_ID);
 
   // Analysis graphics: right-drag (desktop) and touch gestures (analysis mode only).
-  const boardVizTools = installBoardVisualizationTools(svg, { isTouchInputEnabled: () => controller.isAnalysisMode() });
+  const boardVizTools = installBoardVisualizationTools(svg, {
+    isTouchInputEnabled: () => controller.isAnalysisMode(),
+    getState: () => controller.getState(),
+  });
   bindTouchAnnotationPalette(controller, boardVizTools);
   controller.addAnalysisModeChangeCallback((enabled) => {
     if (!enabled) boardVizTools.clear();
@@ -439,6 +466,14 @@ window.addEventListener("DOMContentLoaded", async () => {
     highlightSquaresToggle.addEventListener("change", () => {
       writeBoolPref(LS_OPT_KEYS.highlightSquares, highlightSquaresToggle.checked);
       controller.setHighlightSquaresEnabled(highlightSquaresToggle.checked);
+    });
+  }
+
+  // Options: show player names
+  if (showPlayerNamesToggle) {
+    showPlayerNamesToggle.addEventListener("change", () => {
+      writeBoolPref(LS_OPT_KEYS.showPlayerNames, showPlayerNamesToggle.checked);
+      updatePlayerNameDisplay();
     });
   }
 

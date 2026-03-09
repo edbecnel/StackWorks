@@ -1,4 +1,5 @@
 import { clearBoardAnnotations, renderBoardAnnotations, type AnnotationColor, type BoardAnnotationsState } from "../render/boardAnnotations";
+import type { GameState } from "../game/state";
 
 export type AnnotationType = "square" | "circle" | "pin" | "protect" | "remove";
 
@@ -18,6 +19,12 @@ export type BoardVisualizationToolsController = {
 export type BoardVisualizationToolsOptions = {
   /** When true, touch gestures (drag/double-tap) are enabled for annotations. */
   isTouchInputEnabled?: () => boolean;
+  /**
+   * Returns the current game state so that arrow-drag restrictions can be
+   * validated against the actual piece on the source square (pawns, knights).
+   * When absent, no piece-based restriction is applied.
+   */
+  getState?: () => GameState | null;
 };
 
 function colorFromModifiers(ev: Pick<PointerEvent, "shiftKey" | "ctrlKey" | "altKey">): AnnotationColor {
@@ -25,6 +32,66 @@ function colorFromModifiers(ev: Pick<PointerEvent, "shiftKey" | "ctrlKey" | "alt
   if (ev.ctrlKey) return "red";
   if (ev.altKey) return "blue";
   return "orange";
+}
+
+function parseRc(nodeId: string): { r: number; c: number } | null {
+  const m = /^r(\d+)c(\d+)$/.exec(nodeId);
+  if (!m) return null;
+  const r = Number.parseInt(m[1], 10);
+  const c = Number.parseInt(m[2], 10);
+  return Number.isFinite(r) && Number.isFinite(c) ? { r, c } : null;
+}
+
+function isKnightMovePair(from: string, to: string): boolean {
+  const a = parseRc(from);
+  const b = parseRc(to);
+  if (!a || !b) return false;
+  const dr = Math.abs(b.r - a.r);
+  const dc = Math.abs(b.c - a.c);
+  return (dr === 1 && dc === 2) || (dr === 2 && dc === 1);
+}
+
+function isValidPawnTarget(
+  from: { r: number; c: number },
+  to: { r: number; c: number },
+  owner: "W" | "B",
+): boolean {
+  // White moves toward row 0 (dir = -1), Black toward row 7 (dir = +1).
+  const dir = owner === "W" ? -1 : 1;
+  const startRow = owner === "W" ? 6 : 1;
+  const dr = to.r - from.r;
+  const dc = to.c - from.c;
+  // Forward 1 square (straight)
+  if (dr === dir && dc === 0) return true;
+  // Forward 2 squares from starting row (straight)
+  if (dr === 2 * dir && dc === 0 && from.r === startRow) return true;
+  // Diagonal capture squares (1 forward, 1 to either side)
+  if (dr === dir && Math.abs(dc) === 1) return true;
+  return false;
+}
+
+/**
+ * Returns true when the drag from → to should be allowed as an arrow annotation.
+ * Rules are applied per the piece sitting on the `from` square:
+ *  - Knight: only valid knight-move offsets.
+ *  - Pawn:   forward 1, forward 2 from start row, diagonal captures.
+ *  - All other pieces (or empty square / no game state): unrestricted.
+ */
+function isValidArrowTarget(from: string, to: string, getState: (() => GameState | null) | undefined): boolean {
+  const fromRc = parseRc(from);
+  const toRc   = parseRc(to);
+  if (!fromRc || !toRc) return true;
+
+  const gameState = getState?.();
+  if (!gameState) return true;
+
+  const stack = gameState.board.get(from);
+  if (!stack || stack.length === 0) return true; // empty square – no restriction
+
+  const topPiece = stack[stack.length - 1];
+  if (topPiece.rank === "N") return isKnightMovePair(from, to);
+  if (topPiece.rank === "P") return isValidPawnTarget(fromRc, toRc, topPiece.owner);
+  return true; // all other pieces: allow any target
 }
 
 function resolveNodeIdFromTarget(target: EventTarget | null): string | null {
@@ -119,15 +186,69 @@ function toggleProtect(state: BoardAnnotationsState, at: string, color: Annotati
   state.protects.push({ kind: "protect", at, color });
 }
 
-function toggleArrow(state: BoardAnnotationsState, from: string, to: string, color: AnnotationColor): void {
+/**
+ * Analyse the pointer path of a completed drag gesture to determine how a
+ * knight-move arrow should bend.  Looks at the position at ~40 % of arc
+ * length: if the user covered more of the horizontal displacement first it
+ * returns "x" (go horizontal first); more vertical first → "y"; roughly
+ * equal (diagonal trace) → "diagonal".
+ *
+ * @param path     Client-coordinate samples collected during the drag.
+ * @param totalDx  Total horizontal displacement (endX − startX).
+ * @param totalDy  Total vertical displacement (endY − startY).
+ */
+function detectKnightElbow(
+  path: { x: number; y: number }[],
+  totalDx: number,
+  totalDy: number,
+): "x" | "y" | "diagonal" {
+  if (path.length < 3 || Math.abs(totalDx) < 0.5 || Math.abs(totalDy) < 0.5) {
+    return "diagonal";
+  }
+
+  // Compute cumulative arc lengths between successive samples.
+  let totalArc = 0;
+  const seg: number[] = [];
+  for (let i = 1; i < path.length; i++) {
+    const s = Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y);
+    seg.push(s);
+    totalArc += s;
+  }
+  if (totalArc < 1) return "diagonal";
+
+  // Walk forward until we reach 40 % of the total arc length.
+  const target = totalArc * 0.4;
+  let accumulated = 0;
+  let sampleIdx = path.length - 1;
+  for (let i = 0; i < seg.length; i++) {
+    accumulated += seg[i];
+    if (accumulated >= target) { sampleIdx = i + 1; break; }
+  }
+
+  const midPt = path[sampleIdx];
+  const xFrac = Math.abs(midPt.x - path[0].x) / Math.abs(totalDx);
+  const yFrac = Math.abs(midPt.y - path[0].y) / Math.abs(totalDy);
+
+  // When both fractions are within 0.2 of each other, the user dragged diagonally.
+  if (Math.abs(xFrac - yFrac) < 0.2) return "diagonal";
+  return xFrac > yFrac ? "x" : "y";
+}
+
+function toggleArrow(
+  state: BoardAnnotationsState,
+  from: string,
+  to: string,
+  color: AnnotationColor,
+  elbowFirst?: "x" | "y" | "diagonal",
+): void {
   const idx = state.arrows.findIndex((a) => a.from === from && a.to === to);
   if (idx >= 0) {
     const existing = state.arrows[idx];
     if (existing.color === color) state.arrows.splice(idx, 1);
-    else state.arrows[idx] = { kind: "arrow", from, to, color };
+    else state.arrows[idx] = { kind: "arrow", from, to, color, elbowFirst };
     return;
   }
-  state.arrows.push({ kind: "arrow", from, to, color });
+  state.arrows.push({ kind: "arrow", from, to, color, elbowFirst });
 }
 
 function eraseAtNode(state: BoardAnnotationsState, at: string): boolean {
@@ -180,6 +301,8 @@ export function installBoardVisualizationTools(
     clearBoardAnnotations(svg);
   };
 
+  const getGameState = opts?.getState ?? null;
+
   // Prevent the browser context menu on the board so right-drag is usable.
   svg.addEventListener("contextmenu", (e) => {
     e.preventDefault();
@@ -208,6 +331,9 @@ export function installBoardVisualizationTools(
   let startClientX = 0;
   let startClientY = 0;
   let dragged = false;
+  // Client-coordinate positions sampled during the active drag.  Used to infer
+  // the elbow direction for knight-move arrows (X-first, Y-first, or diagonal).
+  let gesturePath: { x: number; y: number }[] = [];
   let gestureColor: AnnotationColor = "orange";
   let activeColor: AnnotationColor = "orange";
   let activeAnnotationType: AnnotationType = "square";
@@ -236,6 +362,7 @@ export function installBoardVisualizationTools(
     startClientX = ev.clientX;
     startClientY = ev.clientY;
     dragged = false;
+    gesturePath = [{ x: ev.clientX, y: ev.clientY }];
     gestureColor = color;
     activePointerId = ev.pointerId;
 
@@ -291,6 +418,9 @@ export function installBoardVisualizationTools(
       const dx = ev.clientX - startClientX;
       const dy = ev.clientY - startClientY;
       if (Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) dragged = true;
+
+      // Record position for later elbow-direction analysis (cap at 300 samples).
+      if (gesturePath.length < 300) gesturePath.push({ x: ev.clientX, y: ev.clientY });
 
       // Only prevent default after the user has actually started dragging.
       if (dragged) ev.preventDefault();
@@ -356,10 +486,22 @@ export function installBoardVisualizationTools(
     if (!to) return;
     if (to === from) return;
 
+    // Arrow drags are gated by piece-specific movement rules on the source square.
+    // Knights: only valid knight-move targets.
+    // Pawns: only forward/capture squares according to the pawn's colour and position.
+    // All other pieces: any target is allowed.
+    if (!isValidArrowTarget(from, to, getGameState)) return;
+
     if (kind === "touch" && eraseMode) {
       eraseArrow(state, from, to);
     } else {
-      toggleArrow(state, from, to, color);
+      const totalDx = ev.clientX - startClientX;
+      const totalDy = ev.clientY - startClientY;
+      const elbowFirst =
+        gesturePath.length >= 3
+          ? detectKnightElbow(gesturePath, totalDx, totalDy)
+          : undefined;
+      toggleArrow(state, from, to, color, elbowFirst);
     }
     rerender();
     suppressClickUntilMs = Date.now() + 600;
