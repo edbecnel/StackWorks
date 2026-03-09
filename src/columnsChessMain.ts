@@ -440,6 +440,13 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  const offerDrawBtn = document.getElementById("offerDrawBtn") as HTMLButtonElement | null;
+  if (offerDrawBtn) {
+    offerDrawBtn.addEventListener("click", () => {
+      void controller.offerDraw();
+    });
+  }
+
   // Save / Load (offline only for Columns Chess today, but works regardless).
   const saveGameBtn = document.getElementById("saveGameBtn") as HTMLButtonElement | null;
   const loadGameBtn = document.getElementById("loadGameBtn") as HTMLButtonElement | null;

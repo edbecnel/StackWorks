@@ -178,12 +178,12 @@ window.addEventListener("DOMContentLoaded", async () => {
     return g;
   };
 
-  const renderPlayerNamesOnSvg = (topName: string, bottomName: string) => {
+  const renderPlayerNamesOnSvg = (topName: string, bottomName: string, topIsBold: boolean, bottomIsBold: boolean) => {
     const layer = ensurePlayerNameLayer();
     while (layer.firstChild) layer.removeChild(layer.firstChild);
     if (!topName && !bottomName) return;
 
-    const makeText = (label: string, x: number, y: number): SVGTextElement => {
+    const makeText = (label: string, x: number, y: number, bold: boolean): SVGTextElement => {
       const t = document.createElementNS(SVG_NS, "text") as SVGTextElement;
       t.textContent = label;
       t.setAttribute("x", String(x));
@@ -191,9 +191,9 @@ window.addEventListener("DOMContentLoaded", async () => {
       t.setAttribute("text-anchor", "middle");
       t.setAttribute("dominant-baseline", "middle");
       t.setAttribute("font-size", String(PLAYER_NAME_FONT_SIZE));
-      t.setAttribute("font-weight", "600");
+      t.setAttribute("font-weight", bold ? "800" : "500");
       t.setAttribute("fill", PLAYER_NAME_FILL);
-      t.setAttribute("opacity", "0.82");
+      t.setAttribute("opacity", bold ? "1" : "0.65");
       // Clip to the board's horizontal span so long names don't overflow into edge coords.
       t.setAttribute("clip-path", "url(#playerNameClip)");
       return t;
@@ -212,8 +212,8 @@ window.addEventListener("DOMContentLoaded", async () => {
       defs.appendChild(clipEl);
     }
 
-    if (topName) layer.appendChild(makeText(topName, 500, 34));
-    if (bottomName) layer.appendChild(makeText(bottomName, 500, 966));
+    if (topName) layer.appendChild(makeText(topName, 500, 34, topIsBold));
+    if (bottomName) layer.appendChild(makeText(bottomName, 500, 966, bottomIsBold));
   };
 
   const showPlayerNamesToggle = document.getElementById("showPlayerNamesToggle") as HTMLInputElement | null;
@@ -225,6 +225,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   let playerWhiteName = "";
   let playerBlackName = "";
+  // Tracks whose turn it is so the active player's name can be rendered bold.
+  let playerToMove: "W" | "B" = "W";
 
   const hasPlayerNames = () =>
     Boolean(playerWhiteName || playerBlackName) && (showPlayerNamesToggle?.checked !== false);
@@ -255,7 +257,11 @@ window.addEventListener("DOMContentLoaded", async () => {
     // When not flipped: white plays from the bottom, black from the top.
     const topName = showNames ? (flipped ? playerWhiteName : playerBlackName) : "";
     const bottomName = showNames ? (flipped ? playerBlackName : playerWhiteName) : "";
-    renderPlayerNamesOnSvg(topName, bottomName);
+    // Bold the name of the player whose turn it is.
+    const topColor: "W" | "B" = flipped ? "W" : "B";
+    const topIsBold = showNames && playerToMove === topColor;
+    const bottomIsBold = showNames && playerToMove !== topColor;
+    renderPlayerNamesOnSvg(topName, bottomName, topIsBold, bottomIsBold);
 
     // When player names occupy the outer frame strips, edge-style coordinate
     // labels would overwrite them.  Force the "Inside squares" checkbox on and
@@ -292,11 +298,23 @@ window.addEventListener("DOMContentLoaded", async () => {
   const toFileSlug = (name: string): string =>
     name.trim().replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "").slice(0, 24);
 
-  /** Build the player-name portion of a save/export filename, e.g. "-Alice_vs_Bob". */
-  const playerNameFilePart = (): string => {
+  /** Build the "White vs. Black (result)" portion of a filename. Returns "" when no names are known. */
+  const playerNameFilePart = (resultSuffix?: string): string => {
     const w = toFileSlug(playerWhiteName);
     const b = toFileSlug(playerBlackName);
-    return w && b ? `-${w}_vs_${b}` : w ? `-${w}` : b ? `-${b}` : "";
+    if (!w && !b) return "";
+    const vsStr = w && b ? `${w} vs. ${b}` : (w || b);
+    return resultSuffix ? `${vsStr} ${resultSuffix}` : vsStr;
+  };
+
+  /** Derive the PGN result suffix from a game state, or "" if still in progress.
+   *  Uses standard PGN result notation; "1/2-1/2" is written as "(½-½)" for filename safety. */
+  const resultSuffixFromState = (st: unknown): string => {
+    const forced = (st as any)?.forcedGameOver;
+    if (!forced) return "";
+    if (forced.winner === "W") return "(1-0)";
+    if (forced.winner === "B") return "(0-1)";
+    return "(½-½)";  // PGN "1/2-1/2" — "/" is not valid in filenames
   };
 
   applyBoardCoords();
@@ -356,6 +374,12 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const controller = new GameController(svg, piecesLayer, inspector as any, state, history, driver);
   controller.bind();
+
+  // Keep playerToMove in sync so the active player's name is always rendered bold.
+  controller.addHistoryChangeCallback(() => {
+    playerToMove = controller.getState().toMove;
+    updatePlayerNameDisplay();
+  });
 
   bindOfflineNavGuard(controller, ACTIVE_VARIANT_ID);
 
@@ -575,6 +599,13 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  const offerDrawBtn = document.getElementById("offerDrawBtn") as HTMLButtonElement | null;
+  if (offerDrawBtn) {
+    offerDrawBtn.addEventListener("click", () => {
+      void controller.offerDraw();
+    });
+  }
+
   // Save / Load
   const saveGameBtn = document.getElementById("saveGameBtn") as HTMLButtonElement | null;
   const loadGameBtn = document.getElementById("loadGameBtn") as HTMLButtonElement | null;
@@ -583,7 +614,10 @@ window.addEventListener("DOMContentLoaded", async () => {
     saveGameBtn.addEventListener("click", () => {
       const currentState = controller.getState();
       const ts = new Date().toISOString().replace(/[T:]/g, "-").replace(/\..+/, "");
-      const filename = `chess-${ts}${playerNameFilePart()}.json`;
+      const namePart = playerNameFilePart(resultSuffixFromState(currentState));
+      const filename = namePart
+        ? `chess -- ${namePart} -- ${ts}.json`
+        : `chess -- ${ts}.json`;
       saveGameToFile(currentState, history, filename);
     });
   }
@@ -1421,7 +1455,10 @@ window.addEventListener("DOMContentLoaded", async () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `chess${playerNameFilePart()}-${timestamp}.pgn`;
+        const pgnNamePart = playerNameFilePart(resultSuffixFromState(controller.getState()));
+        a.download = pgnNamePart
+          ? `${pgnNamePart} -- ${timestamp}.pgn`
+          : `chess -- ${timestamp}.pgn`;
         a.click();
         URL.revokeObjectURL(url);
         controller.toast("PGN exported", 1600);

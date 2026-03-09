@@ -2623,18 +2623,10 @@ export class GameController {
     }
 
     const rulesetId = this.state.meta?.rulesetId ?? "lasca";
-    if (rulesetId !== "checkers_us") {
-      this.lastPromptedDrawOfferNonce = null;
-      if (this.drawOfferInputLockActive) {
-        this.drawOfferInputLockActive = false;
-        this.setInputEnabled(true);
-      }
-      return;
-    }
-
-    const pending = (this.state as any)?.checkersUsDraw?.pendingOffer as
-      | { offeredBy: "W" | "B"; nonce: number }
-      | undefined;
+    const pending: { offeredBy: "W" | "B"; nonce: number } | undefined =
+      rulesetId === "checkers_us"
+        ? ((this.state as any)?.checkersUsDraw?.pendingOffer as { offeredBy: "W" | "B"; nonce: number } | undefined)
+        : ((this.state as any)?.pendingDrawOffer as { offeredBy: "W" | "B"; nonce: number } | undefined);
 
     if (!pending) {
       this.lastPromptedDrawOfferNonce = null;
@@ -2696,56 +2688,81 @@ export class GameController {
 
   private respondDrawOfferLocal(args: { accept: boolean }): void {
     const rulesetId = this.state.meta?.rulesetId ?? "lasca";
-    if (rulesetId !== "checkers_us") return;
-
     const prev = this.state as any;
-    const draw = ensureCheckersUsDraw(prev.checkersUsDraw);
-    if (!draw.pendingOffer) return;
-    draw.pendingOffer = undefined;
 
-    if (args.accept) {
-      this.state = {
-        ...prev,
-        checkersUsDraw: draw,
-        forcedGameOver: {
-          winner: null,
-          reasonCode: "DRAW_BY_AGREEMENT",
-          message: "Draw by mutual agreement",
-        },
-      };
-      this.driver.setState(this.state);
+    if (rulesetId === "checkers_us") {
+      const draw = ensureCheckersUsDraw(prev.checkersUsDraw);
+      if (!draw.pendingOffer) return;
+      draw.pendingOffer = undefined;
 
-      const snap = this.driver.exportHistorySnapshots();
-      if (snap.states.length > 0 && snap.currentIndex >= 0 && snap.currentIndex < snap.states.length) {
-        snap.states[snap.currentIndex] = this.state;
-        this.driver.replaceHistory(snap);
+      if (args.accept) {
+        this.state = {
+          ...prev,
+          checkersUsDraw: draw,
+          forcedGameOver: {
+            winner: null,
+            reasonCode: "DRAW_BY_AGREEMENT",
+            message: "Draw by mutual agreement",
+          },
+        };
+      } else {
+        this.setState({ ...prev, checkersUsDraw: draw });
+        return;
       }
+    } else {
+      if (!prev.pendingDrawOffer) return;
 
-      this.isGameOver = true;
-      this.clearSelection();
-      this.showBanner("Draw by mutual agreement", 0);
-      this.showGameOverToast("Draw by mutual agreement");
-      this.updatePanel();
-      this.fireHistoryChange("gameOver");
-      return;
+      if (args.accept) {
+        this.state = {
+          ...prev,
+          pendingDrawOffer: undefined,
+          forcedGameOver: {
+            winner: null,
+            reasonCode: "DRAW_BY_AGREEMENT",
+            message: "Draw by mutual agreement",
+          },
+        };
+      } else {
+        this.setState({ ...prev, pendingDrawOffer: undefined });
+        return;
+      }
     }
 
-    this.setState({ ...prev, checkersUsDraw: draw });
+    // Accepted: finalize as draw.
+    this.driver.setState(this.state);
+
+    const snap = this.driver.exportHistorySnapshots();
+    if (snap.states.length > 0 && snap.currentIndex >= 0 && snap.currentIndex < snap.states.length) {
+      snap.states[snap.currentIndex] = this.state;
+      this.driver.replaceHistory(snap);
+    }
+
+    this.isGameOver = true;
+    this.clearSelection();
+    this.showBanner("Draw by mutual agreement", 0);
+    this.showGameOverToast("Draw by mutual agreement");
+    this.updatePanel();
+    this.fireHistoryChange("gameOver");
   }
 
   async offerDraw(): Promise<void> {
     if (this.isGameOver) return;
 
     const rulesetId = this.state.meta?.rulesetId ?? "lasca";
-    if (rulesetId !== "checkers_us") {
-      this.showToast("Draw offers are only supported for US Checkers", 1600);
-      return;
-    }
+    const isCheckersUs = rulesetId === "checkers_us";
 
-    const pending = (this.state as any)?.checkersUsDraw?.pendingOffer;
-    if (pending) {
-      this.showToast("Draw offer already pending", 1600);
-      return;
+    if (isCheckersUs) {
+      const pending = (this.state as any)?.checkersUsDraw?.pendingOffer;
+      if (pending) {
+        this.showToast("Draw offer already pending", 1600);
+        return;
+      }
+    } else {
+      const pending = (this.state as any)?.pendingDrawOffer;
+      if (pending) {
+        this.showToast("Draw offer already pending", 1600);
+        return;
+      }
     }
 
     if (this.driver.mode === "online") {
@@ -2756,7 +2773,7 @@ export class GameController {
         this.showToast("Only seated players can offer a draw", 1600);
         return;
       }
-      if (this.state.toMove !== localColor) {
+      if (isCheckersUs && this.state.toMove !== localColor) {
         this.showToast("You can only offer a draw on your turn", 1600);
         return;
       }
@@ -2774,23 +2791,26 @@ export class GameController {
     }
 
     // Local/hotseat.
-    if (this.state.toMove !== "W" && this.state.toMove !== "B") return;
-
     const prev = this.state as any;
-    const draw = ensureCheckersUsDraw(prev.checkersUsDraw);
 
-    const mover = this.state.toMove;
-    const currentTurns = Math.max(0, Math.floor(draw.turnCount?.[mover] ?? 0));
-    const lastTurn = Math.floor(draw.lastOfferTurn?.[mover] ?? -999);
-    if (currentTurns - lastTurn < 3) {
-      this.showToast("You can only offer a draw once every 3 moves", 1600);
-      return;
+    if (isCheckersUs) {
+      if (this.state.toMove !== "W" && this.state.toMove !== "B") return;
+      const draw = ensureCheckersUsDraw(prev.checkersUsDraw);
+      const mover = this.state.toMove as "W" | "B";
+      const currentTurns = Math.max(0, Math.floor(draw.turnCount?.[mover] ?? 0));
+      const lastTurn = Math.floor(draw.lastOfferTurn?.[mover] ?? -999);
+      if (currentTurns - lastTurn < 3) {
+        this.showToast("You can only offer a draw once every 3 moves", 1600);
+        return;
+      }
+      draw.lastOfferTurn[mover] = currentTurns;
+      draw.pendingOffer = { offeredBy: mover, nonce: Date.now() & 0x7fffffff };
+      this.setState({ ...prev, checkersUsDraw: draw });
+    } else {
+      if (this.state.toMove !== "W" && this.state.toMove !== "B") return;
+      const mover = this.state.toMove as "W" | "B";
+      this.setState({ ...prev, pendingDrawOffer: { offeredBy: mover, nonce: Date.now() & 0x7fffffff } });
     }
-
-    draw.lastOfferTurn[mover] = currentTurns;
-    draw.pendingOffer = { offeredBy: mover, nonce: Date.now() & 0x7fffffff };
-
-    this.setState({ ...prev, checkersUsDraw: draw });
   }
 
   getState(): GameState {
@@ -3007,44 +3027,48 @@ export class GameController {
     if (elOfferDrawBtn) {
       const rulesetId = this.state.meta?.rulesetId ?? "lasca";
       const isCheckersUs = rulesetId === "checkers_us";
-      elOfferDrawBtn.hidden = !isCheckersUs;
 
-      if (isCheckersUs) {
-        const pending = Boolean((this.state as any)?.checkersUsDraw?.pendingOffer);
-        let disabled = this.isGameOver || pending;
+      const pending = isCheckersUs
+        ? Boolean((this.state as any)?.checkersUsDraw?.pendingOffer)
+        : Boolean((this.state as any)?.pendingDrawOffer);
 
-        if (this.driver.mode === "online") {
-          const online = this.driver as OnlineGameDriver;
-          const pid = online.getPlayerId();
-          const localColor = online.getPlayerColor();
-          disabled =
-            disabled ||
-            !pid ||
-            pid === "spectator" ||
-            !localColor ||
-            (localColor !== "W" && localColor !== "B") ||
-            this.state.toMove !== localColor;
+      let disabled = this.isGameOver || pending;
 
-          if (!disabled && (localColor === "W" || localColor === "B")) {
+      if (this.driver.mode === "online") {
+        const online = this.driver as OnlineGameDriver;
+        const pid = online.getPlayerId();
+        const localColor = online.getPlayerColor();
+        disabled =
+          disabled ||
+          !pid ||
+          pid === "spectator" ||
+          !localColor ||
+          (localColor !== "W" && localColor !== "B");
+
+        if (!disabled && isCheckersUs && (localColor === "W" || localColor === "B")) {
+          // Checkers-specific: must be your turn + cooldown
+          if (this.state.toMove !== localColor) disabled = true;
+          if (!disabled) {
             const draw = ensureCheckersUsDraw((this.state as any).checkersUsDraw);
             const currentTurns = Math.max(0, Math.floor(draw.turnCount?.[localColor] ?? 0));
             const lastTurn = Math.floor(draw.lastOfferTurn?.[localColor] ?? -999);
             if (currentTurns - lastTurn < 3) disabled = true;
           }
-        } else {
-          const mover = this.state.toMove;
-          disabled = disabled || (mover !== "W" && mover !== "B");
-          if (!disabled && (mover === "W" || mover === "B")) {
-            const draw = ensureCheckersUsDraw((this.state as any).checkersUsDraw);
-            const currentTurns = Math.max(0, Math.floor(draw.turnCount?.[mover] ?? 0));
-            const lastTurn = Math.floor(draw.lastOfferTurn?.[mover] ?? -999);
-            if (currentTurns - lastTurn < 3) disabled = true;
-          }
         }
-
-        elOfferDrawBtn.disabled = disabled;
-        elOfferDrawBtn.title = pending ? "Draw offer pending" : "Offer a draw (mutual agreement)";
+      } else if (isCheckersUs) {
+        const mover = this.state.toMove;
+        disabled = disabled || (mover !== "W" && mover !== "B");
+        if (!disabled && (mover === "W" || mover === "B")) {
+          const draw = ensureCheckersUsDraw((this.state as any).checkersUsDraw);
+          const currentTurns = Math.max(0, Math.floor(draw.turnCount?.[mover] ?? 0));
+          const lastTurn = Math.floor(draw.lastOfferTurn?.[mover] ?? -999);
+          if (currentTurns - lastTurn < 3) disabled = true;
+        }
       }
+
+      elOfferDrawBtn.hidden = false;
+      elOfferDrawBtn.disabled = disabled;
+      elOfferDrawBtn.title = pending ? "Draw offer pending" : "Offer a draw (mutual agreement)";
     }
 
     if (elTurn) elTurn.textContent = this.sideLabel(this.state.toMove);

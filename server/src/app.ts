@@ -1126,9 +1126,14 @@ export function createLascaApp(opts: ServerOpts = {}): {
 
   function requireNoPendingDrawOffer(room: Room): void {
     const rulesetId = (room.state as any)?.meta?.rulesetId ?? "lasca";
-    if (rulesetId !== "checkers_us") return;
-    if (Boolean((room.state as any)?.checkersUsDraw?.pendingOffer)) {
-      throw new Error("Draw offer pending");
+    if (rulesetId === "checkers_us") {
+      if (Boolean((room.state as any)?.checkersUsDraw?.pendingOffer)) {
+        throw new Error("Draw offer pending");
+      }
+    } else {
+      if (Boolean((room.state as any)?.pendingDrawOffer)) {
+        throw new Error("Draw offer pending");
+      }
     }
   }
 
@@ -2692,25 +2697,33 @@ export function createLascaApp(opts: ServerOpts = {}): {
         if (isRoomOver(room)) throw new Error("Game over");
 
         const rulesetId = (room.state as any)?.meta?.rulesetId ?? "lasca";
-        if (rulesetId !== "checkers_us") throw new Error("Draw offers are only supported for US Checkers");
-        if (room.state.toMove !== color) throw new Error(`Not your turn (toMove=${room.state.toMove}, you=${color})`);
 
-        requireNoPendingDrawOffer(room);
+        if (rulesetId === "checkers_us") {
+          if (room.state.toMove !== color) throw new Error(`Not your turn (toMove=${room.state.toMove}, you=${color})`);
 
-        const prev = room.state as any;
-        const draw = ensureCheckersUsDraw(prev.checkersUsDraw);
+          requireNoPendingDrawOffer(room);
 
-        const currentTurns = Math.max(0, Math.floor(draw.turnCount?.[color] ?? 0));
-        const lastTurn = Math.floor(draw.lastOfferTurn?.[color] ?? -999);
-        if (currentTurns - lastTurn < 3) {
-          throw new Error("You can only offer a draw once every 3 moves");
+          const prev = room.state as any;
+          const draw = ensureCheckersUsDraw(prev.checkersUsDraw);
+
+          const currentTurns = Math.max(0, Math.floor(draw.turnCount?.[color] ?? 0));
+          const lastTurn = Math.floor(draw.lastOfferTurn?.[color] ?? -999);
+          if (currentTurns - lastTurn < 3) {
+            throw new Error("You can only offer a draw once every 3 moves");
+          }
+
+          const nonce = Number.parseInt(secureRandomHex(8), 16);
+          draw.lastOfferTurn[color] = currentTurns;
+          draw.pendingOffer = { offeredBy: color as any, nonce };
+
+          room.state = { ...prev, checkersUsDraw: draw };
+        } else {
+          requireNoPendingDrawOffer(room);
+
+          const prev = room.state as any;
+          const nonce = Number.parseInt(secureRandomHex(8), 16);
+          room.state = { ...prev, pendingDrawOffer: { offeredBy: color, nonce } };
         }
-
-        const nonce = Number.parseInt(secureRandomHex(8), 16);
-        draw.lastOfferTurn[color] = currentTurns;
-        draw.pendingOffer = { offeredBy: color as any, nonce };
-
-        room.state = { ...prev, checkersUsDraw: draw };
         updateClockPause(room);
 
         room.stateVersion += 1;
@@ -2757,26 +2770,36 @@ export function createLascaApp(opts: ServerOpts = {}): {
         if (isRoomOver(room)) throw new Error("Game over");
 
         const rulesetId = (room.state as any)?.meta?.rulesetId ?? "lasca";
-        if (rulesetId !== "checkers_us") throw new Error("Draw offers are only supported for US Checkers");
 
         const prev = room.state as any;
-        const draw = ensureCheckersUsDraw(prev.checkersUsDraw);
-        const pending = draw.pendingOffer;
-        if (!pending) throw new Error("No draw offer pending");
-        if (pending.offeredBy === (color as any)) throw new Error("You cannot respond to your own draw offer");
 
-        draw.pendingOffer = undefined;
+        let pendingOffer: { offeredBy: string; nonce: number } | undefined;
+        if (rulesetId === "checkers_us") {
+          pendingOffer = ensureCheckersUsDraw(prev.checkersUsDraw).pendingOffer;
+        } else {
+          pendingOffer = prev.pendingDrawOffer;
+        }
+
+        if (!pendingOffer) throw new Error("No draw offer pending");
+        if (pendingOffer.offeredBy === (color as any)) throw new Error("You cannot respond to your own draw offer");
 
         if (Boolean((body as any).accept)) {
-          room.state = {
+          const nextState: any = {
             ...prev,
-            checkersUsDraw: draw,
             forcedGameOver: {
               winner: null,
               reasonCode: "DRAW_BY_AGREEMENT",
               message: "Draw by mutual agreement",
             },
           };
+          if (rulesetId === "checkers_us") {
+            const draw = ensureCheckersUsDraw(prev.checkersUsDraw);
+            draw.pendingOffer = undefined;
+            nextState.checkersUsDraw = draw;
+          } else {
+            nextState.pendingDrawOffer = undefined;
+          }
+          room.state = nextState;
 
           // Ensure history's current entry reflects the adjudicated state.
           const snap2 = room.history.exportSnapshots();
@@ -2785,7 +2808,13 @@ export function createLascaApp(opts: ServerOpts = {}): {
             room.history.replaceAll(snap2.states as any, snap2.notation, snap2.currentIndex);
           }
         } else {
-          room.state = { ...prev, checkersUsDraw: draw };
+          if (rulesetId === "checkers_us") {
+            const draw = ensureCheckersUsDraw(prev.checkersUsDraw);
+            draw.pendingOffer = undefined;
+            room.state = { ...prev, checkersUsDraw: draw };
+          } else {
+            room.state = { ...prev, pendingDrawOffer: undefined };
+          }
         }
 
         updateClockPause(room);

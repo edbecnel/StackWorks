@@ -773,6 +773,14 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  // Wire up offer draw button.
+  const offerDrawBtn = document.getElementById("offerDrawBtn") as HTMLButtonElement | null;
+  if (offerDrawBtn) {
+    offerDrawBtn.addEventListener("click", () => {
+      void controller.offerDraw();
+    });
+  }
+
   // Wire up leave-room button (online only: forfeits; local/spectator: just return).
   const leaveRoomBtn = document.getElementById("leaveRoomBtn") as HTMLButtonElement | null;
   if (leaveRoomBtn) {

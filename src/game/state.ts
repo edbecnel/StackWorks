@@ -63,6 +63,12 @@ export interface GameState {
   };
 
   /**
+   * Pending mutual-agreement draw offer (used by all rulesets except checkers_us,
+   * which uses `checkersUsDraw.pendingOffer`).
+   */
+  pendingDrawOffer?: { offeredBy: Player; nonce: number };
+
+  /**
    * US Checkers draw / endgame tracking (serialized).
    *
    * - `noProgressPlies`: counts plies since last capture OR soldier-advance.
