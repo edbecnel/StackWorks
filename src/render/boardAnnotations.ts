@@ -2,6 +2,24 @@ import { ensureOverlayLayer } from "./overlays";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
+function isTouchLikeEnvironment(): boolean {
+  try {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+    const coarse = window.matchMedia("(pointer: coarse)").matches;
+    const noHover = window.matchMedia("(hover: none)").matches;
+    if (coarse && noHover) return true;
+  } catch {
+    // ignore
+  }
+
+  try {
+    const nav = navigator as any;
+    return Number(nav?.maxTouchPoints ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
 export type AnnotationColor = "orange" | "green" | "red" | "blue";
 
 export type BoardArrowMark = {
@@ -338,10 +356,10 @@ function drawArrowMark(layer: SVGGElement, mark: BoardArrowMark): void {
   const startInset = 32;
   const endInset = 18;
 
-  // Sizing: match common analysis-arrow feel.
-  // - Stroke width +50% (10 -> 15)
-  // - Arrowhead base width +75% (16 -> 28)
-  const arrowStrokeW = 10;
+  // Sizing: keep arrows readable on coarse pointers (mobile/tablet).
+  // On touch, overly thick strokes can obscure the arrow head.
+  const touchLike = isTouchLikeEnvironment();
+  const arrowStrokeW = touchLike ? 6 : 10;
 
   let headUx = 0;
   let headUy = 0;
@@ -418,8 +436,8 @@ function drawArrowMark(layer: SVGGElement, mark: BoardArrowMark): void {
   }
 
   // Arrow head triangle (aligned to the final segment).
-  const headLen = 18;
-  const headW = 28;
+  const headLen = touchLike ? 14 : 18;
+  const headW = touchLike ? 20 : 28;
   const hx = b.cx - headUx * 5;
   const hy = b.cy - headUy * 5;
   const px = -headUy;

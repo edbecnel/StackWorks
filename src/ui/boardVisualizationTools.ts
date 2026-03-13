@@ -1,7 +1,7 @@
 import { clearBoardAnnotations, renderBoardAnnotations, type AnnotationColor, type BoardAnnotationsState } from "../render/boardAnnotations";
 import type { GameState } from "../game/state";
 
-export type AnnotationType = "square" | "circle" | "pin" | "protect" | "remove";
+export type AnnotationType = "play" | "square" | "circle" | "pin" | "protect" | "remove";
 
 export type BoardVisualizationToolsController = {
   clear: () => void;
@@ -400,6 +400,10 @@ export function installBoardVisualizationTools(
 
       if (!touchEnabled) return;
 
+      // When the touch palette is in "Play" mode, let taps/drags pass through
+      // to the regular gameplay handlers instead of placing annotations.
+      if (activeAnnotationType === "play") return;
+
       const node = resolveNodeIdFromTarget(ev.target);
       if (!node) return;
 
@@ -445,6 +449,7 @@ export function installBoardVisualizationTools(
 
     if (!dragged) {
       if (kind === "right") {
+        if (activeAnnotationType === "play") return;
         // Dispatch to the appropriate annotation type.
         switch (activeAnnotationType) {
           case "circle":  toggleCircle(state, from, color);  break;
@@ -460,6 +465,7 @@ export function installBoardVisualizationTools(
         rerender();
         suppressClickUntilMs = Date.now() + 600;
       } else {
+        if (activeAnnotationType === "play") return;
         // Touch: single tap places or erases annotation based on active type / erase mode.
         const now = Date.now();
         if (activeAnnotationType === "remove") {

@@ -36,7 +36,7 @@ export function bindTouchAnnotationPalette(controller: GameController, tools: Bo
   };
 
   const clampType = (raw: string | null): AnnotationType => {
-    if (raw === "square" || raw === "circle" || raw === "pin" || raw === "protect" || raw === "remove") return raw;
+    if (raw === "play" || raw === "square" || raw === "circle" || raw === "pin" || raw === "protect" || raw === "remove") return raw;
     return "square";
   };
 
@@ -69,6 +69,10 @@ export function bindTouchAnnotationPalette(controller: GameController, tools: Bo
     syncTypePressed(type);
   };
 
+  // "Play" acts as a toggle on touch: when enabled, taps should play moves.
+  // When disabled, return to the previously-selected annotation type.
+  let lastNonPlayType: AnnotationType = "square";
+
   for (const b of colorBtns) {
     b.addEventListener(
       "click",
@@ -87,7 +91,25 @@ export function bindTouchAnnotationPalette(controller: GameController, tools: Bo
       (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
-        setType(clampType(b.getAttribute("data-annotation-type")));
+
+        const clicked = clampType(b.getAttribute("data-annotation-type"));
+        const current = tools.getAnnotationType();
+
+        if (clicked === "play") {
+          if (current === "play") setType(lastNonPlayType);
+          else {
+            if (current !== "play") lastNonPlayType = current;
+            // Entering Play mode should ensure we don't accidentally leave the
+            // UI in Erase mode when returning to annotations.
+            tools.setEraseMode(false);
+            syncErasePressed(false);
+            setType("play");
+          }
+          return;
+        }
+
+        lastNonPlayType = clicked;
+        setType(clicked);
       },
       { capture: true }
     );
@@ -121,7 +143,11 @@ export function bindTouchAnnotationPalette(controller: GameController, tools: Bo
   };
 
   setSelected(tools.getActiveColor());
-  setType(tools.getAnnotationType());
+  {
+    const initial = tools.getAnnotationType();
+    if (initial !== "play") lastNonPlayType = initial;
+    setType(initial);
+  }
   syncErasePressed(tools.getEraseMode());
   syncVisibility();
 
