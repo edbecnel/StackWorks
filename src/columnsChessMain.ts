@@ -162,10 +162,26 @@ window.addEventListener("DOMContentLoaded", async () => {
   const boardCoordsInSquaresToggle = document.getElementById(
     "boardCoordsInSquaresToggle",
   ) as HTMLInputElement | null;
+  const boardCoordsInSquaresRow = (boardCoordsInSquaresToggle?.closest("div") as HTMLElement | null) ?? null;
   const savedBoardCoordsInSquares = readOptionalBoolPref(LS_OPT_KEYS.boardCoordsInSquares);
   if (boardCoordsInSquaresToggle && savedBoardCoordsInSquares !== null) {
     boardCoordsInSquaresToggle.checked = savedBoardCoordsInSquares;
   }
+
+  const syncBoardCoordsInSquaresLock = () => {
+    if (!boardCoordsInSquaresToggle) return;
+    const forceInSquares = boardViewportMode === "playable";
+    if (forceInSquares) {
+      boardCoordsInSquaresToggle.checked = true;
+      boardCoordsInSquaresToggle.disabled = true;
+      if (boardCoordsInSquaresRow) boardCoordsInSquaresRow.style.opacity = "0.45";
+    } else {
+      boardCoordsInSquaresToggle.disabled = false;
+      if (boardCoordsInSquaresRow) boardCoordsInSquaresRow.style.opacity = "";
+      const saved = readOptionalBoolPref(LS_OPT_KEYS.boardCoordsInSquares);
+      boardCoordsInSquaresToggle.checked = saved ?? false;
+    }
+  };
 
   const applyBoardCoords = () =>
     renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), variant.boardSize, {
@@ -173,12 +189,14 @@ window.addEventListener("DOMContentLoaded", async () => {
       style: (boardViewportMode === "playable" || boardCoordsInSquaresToggle?.checked) ? "inSquare" : "edge",
     });
   applyBoardCoords();
+  syncBoardCoordsInSquaresLock();
 
   window.addEventListener(BOARD_VIEWPORT_MODE_CHANGED_EVENT, () => {
     boardViewportMode = readBoardViewportMode();
     applyBoardViewportMode(boardViewportMode);
     applyBoardViewportModeToSvg(svg, boardViewportMode, { boardSize: variant.boardSize });
     applyBoardCoords();
+    syncBoardCoordsInSquaresLock();
   });
 
   const themeManager = createThemeManager(svg);

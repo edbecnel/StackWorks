@@ -336,11 +336,12 @@ window.addEventListener("DOMContentLoaded", async () => {
     const bottomIsBold = namesShown && playerToMove !== topColor;
     renderPlayerNamesOnSvg(topName, bottomName, topIsBold, bottomIsBold);
 
-    // When player names occupy the outer frame strips, edge-style coordinate
-    // labels would overwrite them.  Force the "Inside squares" checkbox on and
-    // disable it so the user can't accidentally switch back to edge mode.
+    // In playable-area viewport mode (and when player names occupy the outer
+    // frame strips), edge-style coordinate labels would overwrite other HUD/UI.
+    // Force the "Inside squares" checkbox on and disable it so the user can't
+    // accidentally switch back to edge mode.
     if (boardCoordsInSquaresToggle) {
-      if (hasPlayerNames()) {
+      if (boardViewportMode === "playable" || hasPlayerNames()) {
         boardCoordsInSquaresToggle.checked = true;
         boardCoordsInSquaresToggle.disabled = true;
         if (boardCoordsInSquaresRow) boardCoordsInSquaresRow.style.opacity = "0.45";

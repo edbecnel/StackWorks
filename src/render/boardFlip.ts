@@ -1,5 +1,7 @@
 const SVG_NS = "http://www.w3.org/2000/svg";
 
+import { getBoardViewportMetrics } from "./boardViewport";
+
 function parseViewBox(svg: SVGSVGElement): { x: number; y: number; w: number; h: number } {
   const raw = svg.getAttribute("viewBox") ?? "";
   const parts = raw
@@ -51,8 +53,16 @@ function ensureBoardView(svg: SVGSVGElement): SVGGElement {
 export function setBoardFlipped(svg: SVGSVGElement, flipped: boolean): void {
   const view = ensureBoardView(svg);
   const vb = parseViewBox(svg);
-  const cx = vb.x + vb.w / 2;
-  const cy = vb.y + vb.h / 2;
+
+  // IMPORTANT:
+  // In playable-area viewport mode, the SVG viewBox often includes asymmetric
+  // reserved strips above/below the squares. Rotating around the viewBox
+  // center would shift the board up/down when flipped, which can cause HUD
+  // overlap. Prefer rotating around the center of the actual square grid.
+  const metrics = getBoardViewportMetrics(svg);
+  const squares = metrics?.squares ?? null;
+  const cx = squares ? (squares.x + squares.w / 2) : (vb.x + vb.w / 2);
+  const cy = squares ? (squares.y + squares.h / 2) : (vb.y + vb.h / 2);
 
   if (flipped) {
     view.setAttribute("transform", `rotate(180 ${cx} ${cy})`);

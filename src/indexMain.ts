@@ -1017,9 +1017,13 @@ window.addEventListener("DOMContentLoaded", () => {
     writeBool(LS_KEYS.optAnimations, true);
     writeBool(LS_KEYS.optShowResizeIcon, elShowResizeIcon.checked);
     if (isClassicChess && elShowPlayerNames) writeBool(LS_KEYS.optShowPlayerNames, elShowPlayerNames.checked);
-    writeBoardViewportMode(elBoardViewport.value === "playable" ? "playable" : "framed");
+    const boardViewportMode = elBoardViewport.value === "playable" ? "playable" : "framed";
+    writeBoardViewportMode(boardViewportMode);
     writeBool(LS_KEYS.optBoardCoords, elBoardCoords.checked);
-    if (elBoardCoordsInSquares) writeBool(LS_KEYS.optBoardCoordsInSquares, elBoardCoordsInSquares.checked);
+    if (elBoardCoordsInSquares) {
+      // In playable-area viewport mode, we force inside-square coordinates.
+      writeBool(LS_KEYS.optBoardCoordsInSquares, boardViewportMode === "playable" ? true : elBoardCoordsInSquares.checked);
+    }
     writeBool(LS_KEYS.optFlipBoard, elFlipBoard.checked);
     writeBool(LS_KEYS.optLastMoveHighlights, elLastMoveHighlights.checked);
     if ((isColumnsChess || isClassicChess || isCheckers) && elColumnsChessBoardTheme) {
@@ -1654,6 +1658,11 @@ window.addEventListener("DOMContentLoaded", () => {
     elAiDelayLabel.textContent = `${v} ms`;
   };
 
+  // When switching into playable-area viewport mode, we force "Inside squares"
+  // on and lock it. Preserve the user's previous selection so it can be
+  // restored when switching back to framed mode.
+  let boardCoordsInSquaresBeforePlayable: boolean | null = null;
+
   elAiDelay.addEventListener("input", syncDelayLabel);
   elAiDelayReset.addEventListener("click", () => {
     elAiDelay.value = "500";
@@ -1711,7 +1720,18 @@ window.addEventListener("DOMContentLoaded", () => {
         v.boardSize === 8 && (usesColumnsChessBoard || isCheckers || Boolean(elBoard8x8Checkered?.checked));
       if (elBoardCoordsInSquaresRow) elBoardCoordsInSquaresRow.style.display = usesCheckerboard ? "" : "none";
       if (elBoardCoordsInSquaresHint) elBoardCoordsInSquaresHint.style.display = usesCheckerboard ? "" : "none";
-      if (elBoardCoordsInSquares) elBoardCoordsInSquares.disabled = !usesCheckerboard || !elBoardCoords.checked;
+      if (elBoardCoordsInSquares) {
+        const forceInSquares = elBoardViewport.value === "playable";
+        if (forceInSquares) {
+          if (boardCoordsInSquaresBeforePlayable === null) boardCoordsInSquaresBeforePlayable = elBoardCoordsInSquares.checked;
+          elBoardCoordsInSquares.checked = true;
+        } else if (boardCoordsInSquaresBeforePlayable !== null) {
+          elBoardCoordsInSquares.checked = boardCoordsInSquaresBeforePlayable;
+          boardCoordsInSquaresBeforePlayable = null;
+        }
+        elBoardCoordsInSquares.disabled = !usesCheckerboard || !elBoardCoords.checked || forceInSquares;
+        if (elBoardCoordsInSquaresRow) elBoardCoordsInSquaresRow.style.opacity = forceInSquares ? "0.45" : "";
+      }
     }
 
     // "Use checkered board for 8×8 games" does not apply to:
@@ -1927,6 +1947,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   elBoardViewport.addEventListener("change", () => {
     writeBoardViewportMode(elBoardViewport.value === "playable" ? "playable" : "framed");
+    syncAvailability();
   });
 
   // This setting controls whether the “Inside squares” sub-option is enabled.

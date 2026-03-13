@@ -332,9 +332,18 @@ window.addEventListener("DOMContentLoaded", async () => {
     inSquaresUI.toggle.checked = savedBoardCoordsInSquares;
   }
   const syncInSquaresUI = () => {
+    const forceInSquares = boardViewportMode === "playable";
     if (inSquaresUI.row) inSquaresUI.row.style.display = canUseInSquareCoords ? "flex" : "none";
     if (inSquaresUI.hint) inSquaresUI.hint.style.display = canUseInSquareCoords ? "block" : "none";
-    if (inSquaresUI.toggle) inSquaresUI.toggle.disabled = !canUseInSquareCoords || !Boolean(boardCoordsToggle?.checked);
+    if (inSquaresUI.toggle) {
+      if (forceInSquares) inSquaresUI.toggle.checked = true;
+      inSquaresUI.toggle.disabled = forceInSquares || !canUseInSquareCoords || !Boolean(boardCoordsToggle?.checked);
+      if (inSquaresUI.row) inSquaresUI.row.style.opacity = forceInSquares ? "0.45" : "";
+      if (!forceInSquares) {
+        const saved = readOptionalBoolPref(LS_OPT_KEYS.boardCoordsInSquares);
+        inSquaresUI.toggle.checked = saved ?? false;
+      }
+    }
   };
 
   const applyBoardCoords = () =>
