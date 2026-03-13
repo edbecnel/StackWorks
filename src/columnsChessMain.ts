@@ -97,6 +97,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   installBoardViewportOptionUI();
   let boardViewportMode = readBoardViewportMode();
   applyBoardViewportMode(boardViewportMode);
+  let hudController: GameController | null = null;
 
   const gameTitleEl = document.getElementById("gameTitle");
   if (gameTitleEl) {
@@ -197,6 +198,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     applyBoardViewportModeToSvg(svg, boardViewportMode, { boardSize: variant.boardSize });
     applyBoardCoords();
     syncBoardCoordsInSquaresLock();
+    hudController?.refreshView();
   });
 
   const themeManager = createThemeManager(svg);
@@ -273,6 +275,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
 
   const controller = new GameController(svg, piecesLayer, orientedInspector as any, state, history, driver);
+  hudController = controller;
   controller.bind();
 
   bindOfflineNavGuard(controller, ACTIVE_VARIANT_ID);

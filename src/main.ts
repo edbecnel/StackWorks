@@ -96,6 +96,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   installBoardViewportOptionUI();
   let boardViewportMode = readBoardViewportMode();
   applyBoardViewportMode(boardViewportMode);
+  let hudController: GameController | null = null;
 
   const gameTitleEl = document.getElementById("gameTitle");
   if (gameTitleEl) setStackWorksGameTitle(gameTitleEl, activeVariant.displayName);
@@ -137,6 +138,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     applyBoardViewportMode(boardViewportMode);
     applyBoardViewportModeToSvg(svg, boardViewportMode, { boardSize: activeVariant.boardSize });
     applyBoardCoords();
+    hudController?.refreshView();
   });
 
   const showResizeIconToggle = document.getElementById("showResizeIconToggle") as HTMLInputElement | null;
@@ -247,6 +249,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   const controller = new GameController(svg, piecesLayer, inspector, state, history, driver);
+  hudController = controller;
   controller.bind();
 
   bindOfflineNavGuard(controller, activeVariant.variantId);

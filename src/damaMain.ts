@@ -151,6 +151,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   installBoardViewportOptionUI();
   let boardViewportMode = readBoardViewportMode();
   applyBoardViewportMode(boardViewportMode);
+  let hudController: GameController | null = null;
 
   // US Checkers: always source piece + board appearance from localStorage.
   // Default only when missing (first run / storage cleared).
@@ -360,6 +361,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     applyBoardViewportModeToSvg(svg, boardViewportMode, { boardSize: activeVariant.boardSize });
     applyBoardCoords();
     syncInSquaresUI();
+    hudController?.refreshView();
   });
 
   const showResizeIconToggle = document.getElementById("showResizeIconToggle") as HTMLInputElement | null;
@@ -464,6 +466,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   const controller = new GameController(svg, piecesLayer, inspector, state, history, driver);
+  hudController = controller;
   controller.bind();
 
   bindOfflineNavGuard(controller, ACTIVE_VARIANT_ID);

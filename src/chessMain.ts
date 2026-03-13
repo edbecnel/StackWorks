@@ -103,6 +103,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   installBoardViewportOptionUI();
   let boardViewportMode = readBoardViewportMode();
   applyBoardViewportMode(boardViewportMode);
+  let hudController: GameController | null = null;
 
   const gameTitleEl = document.getElementById("gameTitle");
   if (gameTitleEl) {
@@ -321,6 +322,8 @@ window.addEventListener("DOMContentLoaded", async () => {
         reservedBottom: namesShown ? 44 : 12,
       });
     } else {
+      // Leaving playable-area mode: restore the original viewBox + outer chrome.
+      applyBoardViewportModeToSvg(svg, "framed", { boardSize: variant.boardSize });
       try {
         delete document.body.dataset.boardHud;
       } catch {
@@ -363,6 +366,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     boardViewportMode = readBoardViewportMode();
     applyBoardViewportMode(boardViewportMode);
     updatePlayerNameDisplay();
+    // Re-render HUD using the new viewBox (turn indicator is positioned in SVG coords).
+    hudController?.refreshView();
   });
 
   const setPlayerNames = (white: string, black: string) => {
@@ -454,6 +459,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
 
   const controller = new GameController(svg, piecesLayer, inspector as any, state, history, driver);
+  hudController = controller;
   controller.bind();
 
   // Keep playerToMove in sync so the active player's name is always rendered bold.
@@ -1130,6 +1136,13 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
 
     controller.loadGame(s, hm.exportSnapshots());
+    // Imported PGNs should start at the beginning so Playback can run forward
+    // immediately without requiring a page refresh.
+    try {
+      controller.jumpToHistory(0);
+    } catch {
+      // ignore
+    }
 
     const isGenericName = (n: string) => !n || n === "?" || n === "White" || n === "Black" || n === "-";
     const rawWhite = parsePgnHeader("White");
