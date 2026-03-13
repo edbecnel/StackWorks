@@ -1401,11 +1401,9 @@ export class GameController {
     this.playSfx("gameOver");
     // Always show terminal-reason toasts even when toast notifications are disabled.
     // - Checkmate: important feedback for chess variants.
-    // - Stalemate: equally important — the game is over and the result is a draw.
     // - Resign / forced endings: important context during move history playback/replay.
     const forcedCode = String((this.state as any)?.forcedGameOver?.reasonCode ?? "").toUpperCase();
-    const isStalemateMsg = /\bstalemate\b/i.test(msg);
-    const force = this.isCheckmateMessage(msg) || isStalemateMsg || forcedCode !== "";
+    const force = this.isCheckmateMessage(msg) || forcedCode !== "";
     this.showToast(msg, 3200, { force });
   }
 

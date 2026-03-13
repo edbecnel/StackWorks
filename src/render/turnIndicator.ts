@@ -1,5 +1,7 @@
 const SVG_NS = "http://www.w3.org/2000/svg";
 
+import { getBoardViewportMetrics } from "./boardViewport.ts";
+
 function parseViewBox(svg: SVGSVGElement): { x: number; y: number; w: number; h: number } {
   const raw = svg.getAttribute("viewBox") ?? "";
   const parts = raw
@@ -43,12 +45,21 @@ export function renderTurnIndicator(
 
   const vb = parseViewBox(svg);
 
+  const metrics = getBoardViewportMetrics(svg);
+
   // Pieces are rendered at ~86 units; this is ~1/4.
   const iconSize = 33;
-  const pad = 18;
+  const padX = metrics?.mode === "playable" ? 6 : 18;
 
-  const x = vb.x + pad;
-  const y = vb.y + pad;
+  const x = vb.x + padX;
+
+  // Playable mode: keep the icon just above the top-left board edge.
+  // Backing rect extends 6px below the icon's bottom, so account for that.
+  const desiredGapToBoard = 4;
+  const y =
+    metrics?.mode === "playable" && metrics.squares
+      ? (metrics.squares.y - desiredGapToBoard - iconSize - 6)
+      : (vb.y + 18);
 
   // A subtle backing so the icon is readable on any theme.
   const backing = document.createElementNS(SVG_NS, "rect") as SVGRectElement;

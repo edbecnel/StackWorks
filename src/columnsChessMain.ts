@@ -38,6 +38,13 @@ import { bindTouchAnnotationPalette } from "./ui/touchAnnotationPalette";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
+import { applyBoardViewportModeToSvg } from "./render/boardViewport";
+import {
+  applyBoardViewportMode,
+  BOARD_VIEWPORT_MODE_CHANGED_EVENT,
+  installBoardViewportOptionUI,
+  readBoardViewportMode,
+} from "./ui/boardViewportMode";
 
 const ACTIVE_VARIANT_ID: VariantId = "columns_chess";
 
@@ -86,6 +93,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   installPanelLayoutOptionUI();
   bindPanelLayoutMenuMode();
 
+  // Board viewport: Framed vs Playable area.
+  installBoardViewportOptionUI();
+  let boardViewportMode = readBoardViewportMode();
+  applyBoardViewportMode(boardViewportMode);
+
   const gameTitleEl = document.getElementById("gameTitle");
   if (gameTitleEl) {
     setStackWorksGameTitle(gameTitleEl, variant.displayName);
@@ -99,6 +111,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   boardLoading.show();
 
   const svg = await loadSvgFileInto(boardWrap, columnsChessBoardSvgUrl);
+
+  applyBoardViewportModeToSvg(svg, boardViewportMode, { boardSize: variant.boardSize });
 
   // Checkerboard background theme (Classic/Green)
   const checkerboardThemeSelect = document.getElementById(
@@ -156,9 +170,16 @@ window.addEventListener("DOMContentLoaded", async () => {
   const applyBoardCoords = () =>
     renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), variant.boardSize, {
       flipped: isFlipped(),
-      style: boardCoordsInSquaresToggle?.checked ? "inSquare" : "edge",
+      style: (boardViewportMode === "playable" || boardCoordsInSquaresToggle?.checked) ? "inSquare" : "edge",
     });
   applyBoardCoords();
+
+  window.addEventListener(BOARD_VIEWPORT_MODE_CHANGED_EVENT, () => {
+    boardViewportMode = readBoardViewportMode();
+    applyBoardViewportMode(boardViewportMode);
+    applyBoardViewportModeToSvg(svg, boardViewportMode, { boardSize: variant.boardSize });
+    applyBoardCoords();
+  });
 
   const themeManager = createThemeManager(svg);
   const THEME_KEY = "lasca.columnsChess.theme";

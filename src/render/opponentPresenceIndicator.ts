@@ -1,5 +1,7 @@
 const SVG_NS = "http://www.w3.org/2000/svg";
 
+import { getBoardViewportMetrics } from "./boardViewport.ts";
+
 type PresenceStatus = "connected" | "in_grace" | "disconnected" | "waiting";
 
 type OpponentPresenceOpts = {
@@ -40,13 +42,22 @@ export function renderOpponentPresenceIndicator(svg: SVGSVGElement, layer: SVGGE
   if (opts.hidden) return;
 
   const vb = parseViewBox(svg);
+  const metrics = getBoardViewportMetrics(svg);
 
   const iconSize = 33;
-  const pad = 18;
-  const rowGap = 10;
+  const padX = metrics?.mode === "playable" ? 6 : 18;
 
-  const x = vb.x + pad;
-  const y = vb.y + pad + iconSize + rowGap;
+  const baseX = vb.x + padX;
+
+  const desiredGapToBoard = 4;
+  const baseY =
+    metrics?.mode === "playable" && metrics.squares
+      ? (metrics.squares.y - desiredGapToBoard - iconSize - 6)
+      : (vb.y + 18 + iconSize + 10);
+
+  // In playable mode, place to the right of the turn indicator.
+  const x = metrics?.mode === "playable" ? (baseX + (iconSize + 12) + 8) : baseX;
+  const y = baseY;
 
   const backing = document.createElementNS(SVG_NS, "rect") as SVGRectElement;
   backing.setAttribute("x", String(x - 6));

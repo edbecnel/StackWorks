@@ -44,6 +44,13 @@ import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
 import { ensureBoardCoordsInSquaresOption } from "./ui/boardCoordsInSquaresOption";
+import { applyBoardViewportModeToSvg } from "./render/boardViewport";
+import {
+  applyBoardViewportMode,
+  BOARD_VIEWPORT_MODE_CHANGED_EVENT,
+  installBoardViewportOptionUI,
+  readBoardViewportMode,
+} from "./ui/boardViewportMode";
 
 const FALLBACK_VARIANT_ID: VariantId = "dama_8_classic_standard";
 
@@ -140,6 +147,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   const activeVariant = getVariantById(ACTIVE_VARIANT_ID);
   const isCheckers = activeVariant.rulesetId === "checkers_us";
 
+  // Board viewport: Framed vs Playable area.
+  installBoardViewportOptionUI();
+  let boardViewportMode = readBoardViewportMode();
+  applyBoardViewportMode(boardViewportMode);
+
   // US Checkers: always source piece + board appearance from localStorage.
   // Default only when missing (first run / storage cleared).
   if (isCheckers) {
@@ -226,6 +238,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     return activeVariant.svgAsset ?? graphBoard8x8SvgUrl;
   })();
   const svg = await loadSvgFileInto(boardWrap, svgAsset);
+
+  applyBoardViewportModeToSvg(svg, boardViewportMode, { boardSize: activeVariant.boardSize });
 
   const flipBoardToggle = document.getElementById("flipBoardToggle") as HTMLInputElement | null;
   const savedFlip = readOptionalBoolPref(LS_OPT_KEYS.flipBoard);
@@ -326,10 +340,18 @@ window.addEventListener("DOMContentLoaded", async () => {
   const applyBoardCoords = () =>
     renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), activeVariant.boardSize, {
       flipped: isFlipped(),
-      style: canUseInSquareCoords && inSquaresUI.toggle?.checked ? "inSquare" : "edge",
+      style: (boardViewportMode === "playable" || (canUseInSquareCoords && inSquaresUI.toggle?.checked)) ? "inSquare" : "edge",
     });
   applyBoardCoords();
   syncInSquaresUI();
+
+  window.addEventListener(BOARD_VIEWPORT_MODE_CHANGED_EVENT, () => {
+    boardViewportMode = readBoardViewportMode();
+    applyBoardViewportMode(boardViewportMode);
+    applyBoardViewportModeToSvg(svg, boardViewportMode, { boardSize: activeVariant.boardSize });
+    applyBoardCoords();
+    syncInSquaresUI();
+  });
 
   const showResizeIconToggle = document.getElementById("showResizeIconToggle") as HTMLInputElement | null;
   const savedShowResizeIcon = readOptionalBoolPref(LS_OPT_KEYS.showResizeIcon);
@@ -909,6 +931,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Panel layout: Panels vs Menu (small-screen friendly).
   installPanelLayoutOptionUI();
   bindPanelLayoutMenuMode();
+
+  // (safe to call again; injection is idempotent)
+  installBoardViewportOptionUI();
 
   // Board height adjustment toggle (for Android tablets with bottom nav bar)
   const boardHeightToggle = document.getElementById("boardHeightToggle") as HTMLButtonElement | null;

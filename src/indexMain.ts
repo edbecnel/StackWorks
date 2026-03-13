@@ -8,6 +8,7 @@ import type { AuthMeResponse, AuthOkResponse, AuthErrorResponse } from "./shared
 import { normalizeCheckerboardThemeId } from "./render/checkerboardTheme";
 import { getSideLabelsForRuleset } from "./shared/sideTerminology";
 import { applyPanelLayoutMode, installPanelLayoutStartPageOptionUI, readPanelLayoutMode } from "./ui/panelLayoutMode";
+import { readBoardViewportMode, writeBoardViewportMode } from "./ui/boardViewportMode";
 
 const LS_KEYS = {
   theme: "lasca.theme",
@@ -556,6 +557,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const elShowPlayerNames = (document.getElementById("launchShowPlayerNames") as HTMLInputElement | null) ?? null;
   const elShowPlayerNamesRow = (document.getElementById("launchShowPlayerNamesRow") as HTMLElement | null) ?? null;
   const elShowPlayerNamesHint = (document.getElementById("launchShowPlayerNamesHint") as HTMLElement | null) ?? null;
+  const elBoardViewport = byId<HTMLSelectElement>("launchBoardViewport");
   const elBoardCoords = byId<HTMLInputElement>("launchBoardCoords");
   const elBoardCoordsInSquares = (document.getElementById("launchBoardCoordsInSquares") as HTMLInputElement | null) ?? null;
   const elBoardCoordsInSquaresRow = (elBoardCoordsInSquares?.closest(".checkRow") as HTMLElement | null) ?? null;
@@ -1015,6 +1017,7 @@ window.addEventListener("DOMContentLoaded", () => {
     writeBool(LS_KEYS.optAnimations, true);
     writeBool(LS_KEYS.optShowResizeIcon, elShowResizeIcon.checked);
     if (isClassicChess && elShowPlayerNames) writeBool(LS_KEYS.optShowPlayerNames, elShowPlayerNames.checked);
+    writeBoardViewportMode(elBoardViewport.value === "playable" ? "playable" : "framed");
     writeBool(LS_KEYS.optBoardCoords, elBoardCoords.checked);
     if (elBoardCoordsInSquares) writeBool(LS_KEYS.optBoardCoordsInSquares, elBoardCoordsInSquares.checked);
     writeBool(LS_KEYS.optFlipBoard, elFlipBoard.checked);
@@ -1613,6 +1616,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   elShowResizeIcon.checked = readBool(LS_KEYS.optShowResizeIcon, false);
   if (elShowPlayerNames) elShowPlayerNames.checked = readBool(LS_KEYS.optShowPlayerNames, true);
+  elBoardViewport.value = readBoardViewportMode();
   elBoardCoords.checked = readBool(LS_KEYS.optBoardCoords, false);
   if (elBoardCoordsInSquares) elBoardCoordsInSquares.checked = readBool(LS_KEYS.optBoardCoordsInSquares, false);
   elFlipBoard.checked = readBool(LS_KEYS.optFlipBoard, false);
@@ -1919,6 +1923,10 @@ window.addEventListener("DOMContentLoaded", () => {
 
   elShowResizeIcon.addEventListener("change", () => {
     writeBool(LS_KEYS.optShowResizeIcon, elShowResizeIcon.checked);
+  });
+
+  elBoardViewport.addEventListener("change", () => {
+    writeBoardViewportMode(elBoardViewport.value === "playable" ? "playable" : "framed");
   });
 
   // This setting controls whether the “Inside squares” sub-option is enabled.

@@ -64,6 +64,15 @@ body[data-panel-layout="menu"] #centerArea {
   padding-right: max(4px, env(safe-area-inset-right));
   padding-bottom: max(4px, env(safe-area-inset-bottom));
   padding-left: max(4px, env(safe-area-inset-left));
+  /* Some pages hard-code a desktop min-width (e.g. 420px) which can cause
+     horizontal clipping in portrait on small devices (and in devtools emulation). */
+  min-width: 0 !important;
+}
+
+/* Small screens (portrait/landscape): allow #centerArea to shrink even if the page
+   stylesheet hard-codes a larger min-width. */
+@media (max-width: 460px) {
+  #centerArea { min-width: 0 !important; }
 }
 
 /* Menu layout mode: allow the SVG board to grow beyond the default 980px cap
@@ -655,7 +664,12 @@ function syncBoardPlayAreaZoom(): void {
   // Scale up the *play area* (squares + coords + pieces) in BOTH layout modes.
   // This reduces the SVG's built-in margin between the checkerboard and the frame.
   try {
-    setBoardPlayAreaZoom(svg, 1.10);
+    // In playable-area viewport mode, the SVG viewBox is already cropped tightly
+    // to the squares span. Applying the play-area zoom would clip the left/right
+    // edge files/ranks, especially in tall portrait viewports.
+    const viewportMode = document.body?.dataset?.boardViewport;
+    const scale = viewportMode === "playable" ? 1.0 : 1.10;
+    setBoardPlayAreaZoom(svg, scale);
   } catch {
     // ignore
   }
@@ -848,6 +862,16 @@ export function bindPanelLayoutMenuMode(): void {
   // Keep the board zoom in sync with layout mode.
   try {
     window.addEventListener("panelLayoutModeChanged", () => {
+      scheduleBoardPlayAreaZoomSync();
+      scheduleBoardViewportFitSync();
+    });
+  } catch {
+    // ignore
+  }
+
+  // Keep board zoom/fit in sync with the board viewport mode (framed vs playable).
+  try {
+    window.addEventListener("boardViewportModeChanged", () => {
       scheduleBoardPlayAreaZoomSync();
       scheduleBoardViewportFitSync();
     });

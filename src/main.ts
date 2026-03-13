@@ -39,6 +39,13 @@ import { getSideLabelsForRuleset } from "./shared/sideTerminology";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
+import { applyBoardViewportModeToSvg } from "./render/boardViewport";
+import {
+  applyBoardViewportMode,
+  BOARD_VIEWPORT_MODE_CHANGED_EVENT,
+  installBoardViewportOptionUI,
+  readBoardViewportMode,
+} from "./ui/boardViewportMode";
 
 const LS_OPT_KEYS = {
   moveHints: "lasca.opt.moveHints",
@@ -85,6 +92,11 @@ function updatePlayerColorBadge(driver: unknown, rulesetId: string, boardSize: n
 window.addEventListener("DOMContentLoaded", async () => {
   const activeVariant = getVariantById(ACTIVE_VARIANT_ID);
 
+  // Board viewport: Framed vs Playable area.
+  installBoardViewportOptionUI();
+  let boardViewportMode = readBoardViewportMode();
+  applyBoardViewportMode(boardViewportMode);
+
   const gameTitleEl = document.getElementById("gameTitle");
   if (gameTitleEl) setStackWorksGameTitle(gameTitleEl, activeVariant.displayName);
 
@@ -95,6 +107,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   boardLoading.show();
 
   const svg = await loadSvgFileInto(boardWrap, lascaBoardSvgUrl);
+
+  applyBoardViewportModeToSvg(svg, boardViewportMode, { boardSize: activeVariant.boardSize });
 
   const flipBoardToggle = document.getElementById("flipBoardToggle") as HTMLInputElement | null;
   const savedFlip = readOptionalBoolPref(LS_OPT_KEYS.flipBoard);
@@ -112,8 +126,18 @@ window.addEventListener("DOMContentLoaded", async () => {
     boardCoordsToggle.checked = savedBoardCoords;
   }
   const applyBoardCoords = () =>
-    renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), activeVariant.boardSize, { flipped: isFlipped() });
+    renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), activeVariant.boardSize, {
+      flipped: isFlipped(),
+      style: boardViewportMode === "playable" ? "inSquare" : "edge",
+    });
   applyBoardCoords();
+
+  window.addEventListener(BOARD_VIEWPORT_MODE_CHANGED_EVENT, () => {
+    boardViewportMode = readBoardViewportMode();
+    applyBoardViewportMode(boardViewportMode);
+    applyBoardViewportModeToSvg(svg, boardViewportMode, { boardSize: activeVariant.boardSize });
+    applyBoardCoords();
+  });
 
   const showResizeIconToggle = document.getElementById("showResizeIconToggle") as HTMLInputElement | null;
   const savedShowResizeIcon = readOptionalBoolPref(LS_OPT_KEYS.showResizeIcon);
@@ -679,6 +703,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Panel layout: Panels vs Menu (small-screen friendly).
   installPanelLayoutOptionUI();
   bindPanelLayoutMenuMode();
+
+  // (safe to call again; injection is idempotent)
+  installBoardViewportOptionUI();
 
   // Board height adjustment toggle (for Android tablets with bottom nav bar)
   const boardHeightToggle = document.getElementById('boardHeightToggle') as HTMLButtonElement | null;

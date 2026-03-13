@@ -40,6 +40,13 @@ import {
   bindKeyboardShortcutsContextMenu,
 } from "./ui/gameShortcuts.ts";
 import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
+import { applyBoardViewportModeToSvg, getBoardViewportMetrics } from "./render/boardViewport";
+import {
+  applyBoardViewportMode,
+  BOARD_VIEWPORT_MODE_CHANGED_EVENT,
+  installBoardViewportOptionUI,
+  readBoardViewportMode,
+} from "./ui/boardViewportMode";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 
@@ -92,6 +99,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   installPanelLayoutOptionUI();
   bindPanelLayoutMenuMode();
 
+  // Board viewport: Framed vs Playable area.
+  installBoardViewportOptionUI();
+  let boardViewportMode = readBoardViewportMode();
+  applyBoardViewportMode(boardViewportMode);
+
   const gameTitleEl = document.getElementById("gameTitle");
   if (gameTitleEl) {
     setStackWorksGameTitle(gameTitleEl, variant.displayName);
@@ -105,6 +117,10 @@ window.addEventListener("DOMContentLoaded", async () => {
   boardLoading.show();
 
   const svg = await loadSvgFileInto(boardWrap, columnsChessBoardSvgUrl);
+
+  // Apply viewport cropping early so the rest of the SVG overlays (turn indicator,
+  // coords, player names) compute positions against the final viewBox.
+  applyBoardViewportModeToSvg(svg, boardViewportMode, { boardSize: variant.boardSize });
 
   // Checkerboard background theme (Classic/Green)
   const checkerboardThemeSelect = document.getElementById(
@@ -159,14 +175,26 @@ window.addEventListener("DOMContentLoaded", async () => {
     boardCoordsInSquaresToggle.checked = savedBoardCoordsInSquares;
   }
 
-  // Player names rendered directly inside the SVG border strips.
-  // The board viewBox is 0 0 1000 1000; squares run from (100,100) to (900,900).
-  // The border strip above the squares spans y=60..100 and below spans y=900..940.
+  // Player names are rendered directly inside the SVG, either in the outer border
+  // strips (framed mode) or in the reserved top/bottom strips (playable mode).
   const SVG_NS = "http://www.w3.org/2000/svg";
   const PLAYER_NAME_FILL = "#4a3020";
-  // Border strip is 40 SVG units tall (squares start at 100, outer rect at 60).
-  // 30 units ≈ 75% of the strip height — readable at typical board render sizes.
+  // Keep this modest so it fits in both framed and playable header/footer strips.
   const PLAYER_NAME_FONT_SIZE = 30;
+  const PLAYER_NAME_BOARD_GAP = Math.round(PLAYER_NAME_FONT_SIZE * 0.30);
+
+  const parseViewBox = (s: SVGSVGElement): { x: number; y: number; w: number; h: number } => {
+    const raw = s.getAttribute("viewBox") ?? "";
+    const parts = raw
+      .trim()
+      .split(/\s+/)
+      .map((p) => Number(p));
+    if (parts.length === 4 && parts.every((n) => Number.isFinite(n))) {
+      const [x, y, w, h] = parts;
+      return { x, y, w, h };
+    }
+    return { x: 0, y: 0, w: 1000, h: 1000 };
+  };
 
   const ensurePlayerNameLayer = (): SVGGElement => {
     const existing = svg.querySelector("#playerNameLayer") as SVGGElement | null;
@@ -182,6 +210,19 @@ window.addEventListener("DOMContentLoaded", async () => {
     const layer = ensurePlayerNameLayer();
     while (layer.firstChild) layer.removeChild(layer.firstChild);
     if (!topName && !bottomName) return;
+
+    const metrics = getBoardViewportMetrics(svg);
+    const vb = metrics?.viewBox ?? parseViewBox(svg);
+    const cx = vb.x + vb.w / 2;
+
+    let topY = vb.y + 34;
+    let bottomY = vb.y + vb.h - 34;
+    if (metrics?.mode === "playable" && metrics.squares) {
+      // Place names near the board edge with a small, equal gap.
+      // We keep dominant-baseline=middle, so offset by half the font-size.
+      topY = metrics.squares.y - PLAYER_NAME_BOARD_GAP - PLAYER_NAME_FONT_SIZE / 2;
+      bottomY = metrics.squares.y + metrics.squares.h + PLAYER_NAME_BOARD_GAP + PLAYER_NAME_FONT_SIZE / 2;
+    }
 
     const makeText = (label: string, x: number, y: number, bold: boolean): SVGTextElement => {
       const t = document.createElementNS(SVG_NS, "text") as SVGTextElement;
@@ -199,21 +240,33 @@ window.addEventListener("DOMContentLoaded", async () => {
       return t;
     };
 
-    // Ensure a clip rect that covers the board's horizontal extent.
+    // Ensure a clip rect so long names don't overflow the board viewport.
     let clipEl = svg.querySelector("#playerNameClip") as SVGClipPathElement | null;
     if (!clipEl) {
       const defs = svg.querySelector("defs") ?? svg.insertBefore(document.createElementNS(SVG_NS, "defs"), svg.firstChild);
       clipEl = document.createElementNS(SVG_NS, "clipPath") as SVGClipPathElement;
       clipEl.id = "playerNameClip";
       const r = document.createElementNS(SVG_NS, "rect") as SVGRectElement;
-      r.setAttribute("x", "70"); r.setAttribute("y", "0");
-      r.setAttribute("width", "860"); r.setAttribute("height", "1000");
+      // In playable mode, the viewBox is already cropped to the squares span.
+      // In framed mode, we still clip to the viewBox so names stay inside the board.
+      r.setAttribute("x", String(vb.x));
+      r.setAttribute("y", String(vb.y));
+      r.setAttribute("width", String(vb.w));
+      r.setAttribute("height", String(vb.h));
       clipEl.appendChild(r);
       defs.appendChild(clipEl);
+    } else {
+      const r = clipEl.querySelector("rect") as SVGRectElement | null;
+      if (r) {
+        r.setAttribute("x", String(vb.x));
+        r.setAttribute("y", String(vb.y));
+        r.setAttribute("width", String(vb.w));
+        r.setAttribute("height", String(vb.h));
+      }
     }
 
-    if (topName) layer.appendChild(makeText(topName, 500, 34, topIsBold));
-    if (bottomName) layer.appendChild(makeText(bottomName, 500, 966, bottomIsBold));
+    if (topName) layer.appendChild(makeText(topName, cx, topY, topIsBold));
+    if (bottomName) layer.appendChild(makeText(bottomName, cx, bottomY, bottomIsBold));
   };
 
   const showPlayerNamesToggle = document.getElementById("showPlayerNamesToggle") as HTMLInputElement | null;
@@ -236,7 +289,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       flipped: isFlipped(),
       // When player names occupy the border strips the edge-style coordinate
       // labels would collide with them, so force inSquare mode.
-      style: (hasPlayerNames() || boardCoordsInSquaresToggle?.checked) ? "inSquare" : "edge",
+      style: (boardViewportMode === "playable" || hasPlayerNames() || boardCoordsInSquaresToggle?.checked) ? "inSquare" : "edge",
     });
 
   const boardCoordsInSquaresRow = document.getElementById("boardCoordsInSquaresRow") as HTMLElement | null;
@@ -254,13 +307,33 @@ window.addEventListener("DOMContentLoaded", async () => {
   const updatePlayerNameDisplay = () => {
     const flipped = isFlipped();
     const showNames = showPlayerNamesToggle?.checked !== false;
+    const namesKnown = Boolean(playerWhiteName || playerBlackName);
+    const namesShown = showNames && namesKnown;
+
+    // In playable-area mode, keep whitespace minimal.
+    if (boardViewportMode === "playable") {
+      applyBoardViewportModeToSvg(svg, boardViewportMode, {
+        boardSize: variant.boardSize,
+        // Small top strip is OK because the HUD badges are positioned very close
+        // to the board edge in playable mode.
+        reservedTop: 52,
+        // Bottom only needs to be large enough for the bottom name when shown.
+        reservedBottom: namesShown ? 44 : 12,
+      });
+    } else {
+      try {
+        delete document.body.dataset.boardHud;
+      } catch {
+        // ignore
+      }
+    }
     // When not flipped: white plays from the bottom, black from the top.
-    const topName = showNames ? (flipped ? playerWhiteName : playerBlackName) : "";
-    const bottomName = showNames ? (flipped ? playerBlackName : playerWhiteName) : "";
+    const topName = namesShown ? (flipped ? playerWhiteName : playerBlackName) : "";
+    const bottomName = namesShown ? (flipped ? playerBlackName : playerWhiteName) : "";
     // Bold the name of the player whose turn it is.
     const topColor: "W" | "B" = flipped ? "W" : "B";
-    const topIsBold = showNames && playerToMove === topColor;
-    const bottomIsBold = showNames && playerToMove !== topColor;
+    const topIsBold = namesShown && playerToMove === topColor;
+    const bottomIsBold = namesShown && playerToMove !== topColor;
     renderPlayerNamesOnSvg(topName, bottomName, topIsBold, bottomIsBold);
 
     // When player names occupy the outer frame strips, edge-style coordinate
@@ -283,6 +356,13 @@ window.addEventListener("DOMContentLoaded", async () => {
     // Re-apply coords: may need to switch to/from inSquare mode.
     applyBoardCoords();
   };
+
+  // React to viewport mode changes (re-crop SVG + reflow overlays).
+  window.addEventListener(BOARD_VIEWPORT_MODE_CHANGED_EVENT, () => {
+    boardViewportMode = readBoardViewportMode();
+    applyBoardViewportMode(boardViewportMode);
+    updatePlayerNameDisplay();
+  });
 
   const setPlayerNames = (white: string, black: string) => {
     playerWhiteName = white;
