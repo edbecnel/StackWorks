@@ -41,54 +41,13 @@ function createStockfishWorker(): {
   const workerAbs = new URL(workerRel, window.location.href).toString();
   const wasmAbs = new URL(wasmRel, window.location.href).toString();
 
-  const hash = `#${encodeURIComponent(wasmAbs)},worker`;
-  const directUrl = `${workerAbs}${hash}`;
-
-  // Use the direct URL approach so the worker has a same-origin (https://) context
-  // rather than a blob: (null-origin) context. A null-origin worker fetching https://
-  // resources can be silently blocked under COEP `require-corp` in some Chromium
-  // versions even when Cross-Origin-Resource-Policy is set.
-  //
-  // The hash fragment is stripped by the browser when fetching the JS file but is
-  // preserved in self.location.hash inside the worker, which is how Stockfish reads
-  // the WASM URL.
-  //
-  // Fall back to the blob bootstrap approach if creating a direct worker fails
-  // (e.g. some browsers reject hash fragments on Worker URLs).
-  try {
-    const worker = new Worker(directUrl, { type: "classic", name: "stockfish" });
-    return { engine: worker as unknown as StockfishEngine, workerUrl: workerAbs, wasmUrl: wasmAbs };
-  } catch {
-    // Blob bootstrap fallback: wraps importScripts so the hash is part of the blob
-    // URL itself rather than a fragment on the https:// URL.
-    const bootstrapSource = `
-      try {
-        self.addEventListener("message", function (ev) {
-          try {
-            if (ev && ev.data === "__sf_ping") {
-              try {
-                self.postMessage(
-                  "__sf_pong hash=" + String(self.location && self.location.hash)
-                );
-              } catch (e) { /* ignore */ }
-            }
-          } catch (e) { /* ignore */ }
-        });
-      } catch (e) { /* ignore */ }
-
-      ${import.meta.env?.DEV ? 'try{self.postMessage("[stockfish] bootstrap loaded");}catch(e){}' : ""}
-      importScripts(${JSON.stringify(workerAbs)});
-    `;
-    const blob = new Blob([bootstrapSource], { type: "text/javascript" });
-    const blobUrl = URL.createObjectURL(blob);
-    const worker = new Worker(`${blobUrl}${hash}`, { type: "classic", name: "stockfish" });
-    return {
-      engine: worker as unknown as StockfishEngine,
-      workerUrl: workerAbs,
-      wasmUrl: wasmAbs,
-      cleanup: () => { try { URL.revokeObjectURL(blobUrl); } catch { /* ignore */ } },
-    };
-  }
+  // No hash needed: when loaded from its own https:// URL, Stockfish auto-derives
+  // the WASM URL via:
+  //   location.origin + location.pathname.replace(/\.js$/i, ".wasm")
+  // which resolves to the correct same-directory .wasm file.
+  // Avoiding a blob: bootstrap worker eliminates null-origin COEP issues.
+  const worker = new Worker(workerAbs, { type: "classic", name: "stockfish" });
+  return { engine: worker as unknown as StockfishEngine, workerUrl: workerAbs, wasmUrl: wasmAbs };
 }
 
 type UciLine = string;
