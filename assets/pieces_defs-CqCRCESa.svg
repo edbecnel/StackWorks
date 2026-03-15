@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" aria-hidden="true">
+  <defs>
+    <!--
+      Columns Chess theme: stackable discs with chess glyphs printed on top.
+      Uses Unicode chess symbols to avoid extra assets.
+
+      Symbol IDs are chess-specific:
+        W_P/W_N/W_B/W_R/W_Q/W_K and B_P/B_N/B_B/B_R/B_Q/B_K
+
+      We also include W_S/B_S/W_O/B_O for compatibility with existing renderers.
+    -->
+
+    <radialGradient id="gradWhite" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="55%" stop-color="#f1f1f1" />
+      <stop offset="100%" stop-color="#d6d6d6" />
+    </radialGradient>
+
+    <radialGradient id="gradBlack" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#444444" />
+      <stop offset="55%" stop-color="#1c1c1c" />
+      <stop offset="100%" stop-color="#050505" />
+    </radialGradient>
+
+    <style>
+      .chessGlyph {
+        font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", "Arial Unicode MS", sans-serif;
+        font-weight: 700;
+        paint-order: stroke fill;
+      }
+    </style>
+
+    <!-- ===== Chess ranks ===== -->
+    <symbol id="W_P" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradWhite)" stroke="#111" stroke-width="6" />
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#000" stroke-opacity="0.18" stroke-width="3" />
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.28" />
+      <text class="chessGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#111" stroke="#ffffff" stroke-opacity="0.30" stroke-width="2">♙</text>
+    </symbol>
+
+    <symbol id="B_P" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradBlack)" stroke="#f5f5f5" stroke-width="6" />
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#fff" stroke-opacity="0.16" stroke-width="3" />
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.10" />
+      <text class="chessGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#f5f5f5" stroke="#000000" stroke-opacity="0.30" stroke-width="2">♟</text>
+    </symbol>
+
+    <symbol id="W_N" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradWhite)" stroke="#111" stroke-width="6" />
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#000" stroke-opacity="0.18" stroke-width="3" />
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.28" />
+      <text class="chessGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#111" stroke="#ffffff" stroke-opacity="0.30" stroke-width="2">♘</text>
+    </symbol>
+
+    <symbol id="B_N" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradBlack)" stroke="#f5f5f5" stroke-width="6" />
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#fff" stroke-opacity="0.16" stroke-width="3" />
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.10" />
+      <text class="chessGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#f5f5f5" stroke="#000000" stroke-opacity="0.30" stroke-width="2">♞</text>
+    </symbol>
+
+    <symbol id="W_B" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradWhite)" stroke="#111" stroke-width="6" />
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#000" stroke-opacity="0.18" stroke-width="3" />
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.28" />
+      <text class="chessGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#111" stroke="#ffffff" stroke-opacity="0.30" stroke-width="2">♗</text>
+    </symbol>
+
+    <symbol id="B_B" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradBlack)" stroke="#f5f5f5" stroke-width="6" />
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#fff" stroke-opacity="0.16" stroke-width="3" />
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.10" />
+      <text class="chessGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#f5f5f5" stroke="#000000" stroke-opacity="0.30" stroke-width="2">♝</text>
+    </symbol>
+
+    <symbol id="W_R" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradWhite)" stroke="#111" stroke-width="6" />
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#000" stroke-opacity="0.18" stroke-width="3" />
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.28" />
+      <text class="chessGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#111" stroke="#ffffff" stroke-opacity="0.30" stroke-width="2">♖</text>
+    </symbol>
+
+    <symbol id="B_R" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradBlack)" stroke="#f5f5f5" stroke-width="6" />
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#fff" stroke-opacity="0.16" stroke-width="3" />
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.10" />
+      <text class="chessGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#f5f5f5" stroke="#000000" stroke-opacity="0.30" stroke-width="2">♜</text>
+    </symbol>
+
+    <symbol id="W_Q" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradWhite)" stroke="#111" stroke-width="6" />
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#000" stroke-opacity="0.18" stroke-width="3" />
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.28" />
+      <text class="chessGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#111" stroke="#ffffff" stroke-opacity="0.30" stroke-width="2">♕</text>
+    </symbol>
+
+    <symbol id="B_Q" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradBlack)" stroke="#f5f5f5" stroke-width="6" />
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#fff" stroke-opacity="0.16" stroke-width="3" />
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.10" />
+      <text class="chessGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#f5f5f5" stroke="#000000" stroke-opacity="0.30" stroke-width="2">♛</text>
+    </symbol>
+
+    <symbol id="W_K" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradWhite)" stroke="#111" stroke-width="6" />
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#000" stroke-opacity="0.18" stroke-width="3" />
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.28" />
+      <text class="chessGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#111" stroke="#ffffff" stroke-opacity="0.30" stroke-width="2">♔</text>
+    </symbol>
+
+    <symbol id="B_K" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradBlack)" stroke="#f5f5f5" stroke-width="6" />
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#fff" stroke-opacity="0.16" stroke-width="3" />
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.10" />
+      <text class="chessGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#f5f5f5" stroke="#000000" stroke-opacity="0.30" stroke-width="2">♚</text>
+    </symbol>
+
+    <!-- Compatibility IDs (soldier/officer) -->
+    <symbol id="W_S" viewBox="0 0 100 100"><use href="#W_P" /></symbol>
+    <symbol id="B_S" viewBox="0 0 100 100"><use href="#B_P" /></symbol>
+    <symbol id="W_O" viewBox="0 0 100 100"><use href="#W_N" /></symbol>
+    <symbol id="B_O" viewBox="0 0 100 100"><use href="#B_N" /></symbol>
+  </defs>
+</svg>

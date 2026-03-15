@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" aria-hidden="true">
+  <defs>
+    <!-- ======== METALLIC GRADIENTS ======== -->
+    
+    <!-- Stainless Steel gradient (for White pieces) -->
+    <radialGradient id="gradSteel" cx="40%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="20%" stop-color="#e8e8e8"/>
+      <stop offset="45%" stop-color="#c0c0c0"/>
+      <stop offset="70%" stop-color="#9a9a9a"/>
+      <stop offset="100%" stop-color="#6b6b6b"/>
+    </radialGradient>
+
+    <!-- Brushed steel texture overlay -->
+    <linearGradient id="steelBrush" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.15"/>
+      <stop offset="10%" stop-color="#d0d0d0" stop-opacity="0.05"/>
+      <stop offset="20%" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="30%" stop-color="#c8c8c8" stop-opacity="0.06"/>
+      <stop offset="40%" stop-color="#ffffff" stop-opacity="0.14"/>
+      <stop offset="50%" stop-color="#b8b8b8" stop-opacity="0.04"/>
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0.11"/>
+      <stop offset="70%" stop-color="#d8d8d8" stop-opacity="0.07"/>
+      <stop offset="80%" stop-color="#ffffff" stop-opacity="0.13"/>
+      <stop offset="90%" stop-color="#c0c0c0" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.10"/>
+    </linearGradient>
+
+    <!-- Copper gradient (for Black pieces) -->
+    <radialGradient id="gradCopper" cx="40%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#f9c89b"/>
+      <stop offset="20%" stop-color="#e8a567"/>
+      <stop offset="45%" stop-color="#c87533"/>
+      <stop offset="70%" stop-color="#a0522d"/>
+      <stop offset="100%" stop-color="#6b3410"/>
+    </radialGradient>
+
+    <!-- Polished copper highlights -->
+    <linearGradient id="copperBrush" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffd4a3" stop-opacity="0.2"/>
+      <stop offset="15%" stop-color="#e8a567" stop-opacity="0.08"/>
+      <stop offset="30%" stop-color="#ffc89b" stop-opacity="0.15"/>
+      <stop offset="45%" stop-color="#d89557" stop-opacity="0.07"/>
+      <stop offset="60%" stop-color="#ffce9f" stop-opacity="0.18"/>
+      <stop offset="75%" stop-color="#c87533" stop-opacity="0.06"/>
+      <stop offset="90%" stop-color="#ffd0a0" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#b86a2d" stop-opacity="0.08"/>
+    </linearGradient>
+
+    <!-- Polished steel for officers -->
+    <radialGradient id="gradSteelPolished" cx="38%" cy="32%" r="68%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="15%" stop-color="#f0f0f0"/>
+      <stop offset="35%" stop-color="#d8d8d8"/>
+      <stop offset="60%" stop-color="#b0b0b0"/>
+      <stop offset="85%" stop-color="#888888"/>
+      <stop offset="100%" stop-color="#5a5a5a"/>
+    </radialGradient>
+
+    <!-- Bronze for copper officers -->
+    <radialGradient id="gradBronze" cx="38%" cy="32%" r="68%">
+      <stop offset="0%" stop-color="#ffddaa"/>
+      <stop offset="15%" stop-color="#f0b878"/>
+      <stop offset="35%" stop-color="#d89548"/>
+      <stop offset="60%" stop-color="#b8732a"/>
+      <stop offset="85%" stop-color="#905520"/>
+      <stop offset="100%" stop-color="#6b3d10"/>
+    </radialGradient>
+
+    <!-- Metallic shine overlay -->
+    <radialGradient id="metallicShine" cx="30%" cy="25%" r="75%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.6"/>
+      <stop offset="30%" stop-color="#ffffff" stop-opacity="0.25"/>
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.2"/>
+    </radialGradient>
+
+    <!-- Star path for officers -->
+    <path id="star5" d="
+      M 50 30
+      L 56.5 43.2
+      L 71.0 45.3
+      L 60.5 55.6
+      L 63.0 70.0
+      L 50.0 63.2
+      L 37.0 70.0
+      L 39.5 55.6
+      L 29.0 45.3
+      L 43.5 43.2
+      Z" />
+
+    <path id="crown" d="
+      M 26 64
+      L 26 40
+      L 38 52
+      L 50 36
+      L 62 52
+      L 74 40
+      L 74 64
+      Z
+      M 28 66
+      H 72
+      V 72
+      H 28
+      Z" />
+
+    <!-- ======== PIECE SYMBOLS ======== -->
+    
+    <!-- White Soldier (Stainless Steel) -->
+    <symbol id="W_S" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradSteel)" stroke="#4a4a4a" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#steelBrush)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#metallicShine)"/>
+      <circle cx="50" cy="50" r="34" fill="none" stroke="#808080" stroke-opacity="0.4" stroke-width="2"/>
+      <circle cx="50" cy="50" r="25" fill="none" stroke="#ffffff" stroke-opacity="0.3" stroke-width="1.5"/>
+      <ellipse cx="36" cy="32" rx="18" ry="12" fill="#ffffff" opacity="0.5"/>
+    </symbol>
+
+    <!-- Black Soldier (Copper) -->
+    <symbol id="B_S" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradCopper)" stroke="#4a2810" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#copperBrush)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#metallicShine)"/>
+      <circle cx="50" cy="50" r="34" fill="none" stroke="#b8732a" stroke-opacity="0.4" stroke-width="2"/>
+      <circle cx="50" cy="50" r="25" fill="none" stroke="#ffc89b" stroke-opacity="0.3" stroke-width="1.5"/>
+      <ellipse cx="36" cy="32" rx="18" ry="12" fill="#ffffff" opacity="0.35"/>
+    </symbol>
+
+    <!-- White Officer (Polished Stainless Steel) -->
+    <symbol id="W_O" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradSteelPolished)" stroke="#3a3a3a" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#steelBrush)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#metallicShine)"/>
+      <circle cx="50" cy="50" r="34" fill="none" stroke="#707070" stroke-opacity="0.5" stroke-width="2"/>
+      <use href="#star5" fill="#4a9eff" opacity="0.95" filter="drop-shadow(0 2px 3px rgba(0,0,0,0.6))" transform="translate(0 -2)"/>
+      <use href="#star5" fill="url(#gradSteel)" opacity="0.3" transform="translate(0 -2)"/>
+      <circle cx="50" cy="50" r="19" fill="none" stroke="#4a9eff" stroke-opacity="0.7" stroke-width="2.5"/>
+      <ellipse cx="36" cy="32" rx="18" ry="12" fill="#ffffff" opacity="0.5"/>
+    </symbol>
+
+    <!-- Black Officer (Polished Bronze) -->
+    <symbol id="B_O" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradBronze)" stroke="#3a2005" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#copperBrush)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#metallicShine)"/>
+      <circle cx="50" cy="50" r="34" fill="none" stroke="#a8682a" stroke-opacity="0.5" stroke-width="2"/>
+      <use href="#star5" fill="#ff9940" opacity="0.95" filter="drop-shadow(0 2px 3px rgba(0,0,0,0.6))" transform="translate(0 -2)"/>
+      <use href="#star5" fill="url(#gradCopper)" opacity="0.3" transform="translate(0 -2)"/>
+      <circle cx="50" cy="50" r="19" fill="none" stroke="#ff9940" stroke-opacity="0.7" stroke-width="2.5"/>
+      <ellipse cx="36" cy="32" rx="18" ry="12" fill="#ffffff" opacity="0.35"/>
+    </symbol>
+
+    <!-- White King (Polished Stainless Steel, Dama) -->
+    <symbol id="W_K" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradSteelPolished)" stroke="#3a3a3a" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#steelBrush)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#metallicShine)"/>
+      <circle cx="50" cy="50" r="34" fill="none" stroke="#707070" stroke-opacity="0.5" stroke-width="2"/>
+      <use href="#crown" fill="#4a9eff" opacity="0.95" filter="drop-shadow(0 2px 3px rgba(0,0,0,0.6))" transform="translate(0 -2)"/>
+      <use href="#crown" fill="url(#gradSteel)" opacity="0.3" transform="translate(0 -2)"/>
+      <circle cx="50" cy="50" r="19" fill="none" stroke="#4a9eff" stroke-opacity="0.7" stroke-width="2.5"/>
+      <ellipse cx="36" cy="32" rx="18" ry="12" fill="#ffffff" opacity="0.5"/>
+    </symbol>
+
+    <!-- Black King (Polished Bronze, Dama) -->
+    <symbol id="B_K" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradBronze)" stroke="#3a2005" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#copperBrush)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#metallicShine)"/>
+      <circle cx="50" cy="50" r="34" fill="none" stroke="#a8682a" stroke-opacity="0.5" stroke-width="2"/>
+      <use href="#crown" fill="#ff9940" opacity="0.95" filter="drop-shadow(0 2px 3px rgba(0,0,0,0.6))" transform="translate(0 -2)"/>
+      <use href="#crown" fill="url(#gradCopper)" opacity="0.3" transform="translate(0 -2)"/>
+      <circle cx="50" cy="50" r="19" fill="none" stroke="#ff9940" stroke-opacity="0.7" stroke-width="2.5"/>
+      <ellipse cx="36" cy="32" rx="18" ry="12" fill="#ffffff" opacity="0.35"/>
+    </symbol>
+  </defs>
+</svg>

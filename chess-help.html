@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StackWorks — Classic Chess Help &amp; Rules</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      sizes="any"
+      href="./icons/pawn3d-classic.svg"
+    />
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        color: #e8e6e3;
+        background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+        padding: 20px;
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: rgba(42, 42, 42, 0.95);
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      }
+
+      h1 {
+        color: #fff;
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        border-bottom: 3px solid #4a9eff;
+        padding-bottom: 10px;
+      }
+
+      h2 {
+        color: #4a9eff;
+        font-size: 1.8em;
+        margin-top: 30px;
+        margin-bottom: 15px;
+      }
+
+      h3 {
+        color: #7db3ff;
+        font-size: 1.3em;
+        margin-top: 20px;
+        margin-bottom: 10px;
+      }
+
+      p {
+        margin-bottom: 15px;
+        color: #d4d4d4;
+      }
+
+      ul,
+      ol {
+        margin-left: 25px;
+        margin-bottom: 15px;
+      }
+
+      li {
+        margin-bottom: 8px;
+        color: #d4d4d4;
+      }
+
+      .highlight {
+        background: rgba(74, 158, 255, 0.2);
+        padding: 15px;
+        border-left: 4px solid #4a9eff;
+        border-radius: 4px;
+        margin: 15px 0;
+      }
+
+      .warning {
+        background: rgba(255, 184, 77, 0.2);
+        padding: 15px;
+        border-left: 4px solid #ffb84d;
+        border-radius: 4px;
+        margin: 15px 0;
+      }
+
+      .rule-box {
+        background: rgba(74, 158, 255, 0.1);
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px 0;
+        border: 1px solid rgba(74, 158, 255, 0.3);
+      }
+
+      a {
+        color: #4a9eff;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .back-link {
+        display: inline-block;
+        margin-top: 30px;
+        padding: 12px 24px;
+        background: #4a9eff;
+        color: #fff;
+        border-radius: 6px;
+        font-weight: 700;
+        transition: background 0.2s;
+      }
+
+      .back-link:hover {
+        background: rgba(74, 158, 255, 0.85);
+        text-decoration: none;
+      }
+
+      code {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: "Courier New", monospace;
+        font-size: 0.9em;
+      }
+    </style>
+  <script>if("serviceWorker"in navigator)navigator.serviceWorker.register("/StackWorks/sw.js").catch(function(){});</script>
+</head>
+
+  <body>
+    <div class="container">
+      <h1>StackWorks — Classic Chess Help &amp; Rules</h1>
+
+      <p>
+        <b>Classic Chess</b> uses standard chess movement and check rules:
+        <b>check</b>, <b>checkmate</b>, <b>stalemate</b>, <b>castling</b>,
+        <b>en passant</b>, and <b>promotion</b>.
+      </p>
+
+      <h2>Table of Contents</h2>
+      <ul>
+        <li><a href="#overview">Rules Overview</a></li>
+        <li><a href="#movement">Movement &amp; Check</a></li>
+        <li><a href="#special">Special Moves</a></li>
+        <li><a href="#repetition">Repetition &amp; Draws</a></li>
+        <li><a href="#interface">Using the Interface</a></li>
+        <li><a href="#pgn">PGN Import &amp; Export</a></li>
+        <li><a href="#fen">FEN Copy/Share</a></li>
+        <li><a href="#notation">Notation</a></li>
+      </ul>
+
+      <h2 id="overview">Rules Overview</h2>
+      <div class="rule-box">
+        <h3>Movement (Chess)</h3>
+        <ul>
+          <li>
+            Pieces move like chess: King, Queen, Rook, Bishop, Knight, Pawn.
+          </li>
+          <li>
+            <b>Check rules apply:</b> you may not make a move that leaves your
+            king in check.
+          </li>
+          <li>
+            Castling and en passant exist when allowed by the current state.
+          </li>
+          <li>Promotion happens on reaching the final rank.</li>
+        </ul>
+
+        <h3>Repetition &amp; Draws (Chess-style)</h3>
+        <ul>
+          <li>
+            <b>Threefold repetition (claimable draw):</b> if the same position
+            occurs at least 3 times, the player to move may claim a draw.
+          </li>
+          <li>
+            <b>Fivefold repetition (automatic draw):</b> if the same position
+            occurs at least 5 times, the game is drawn automatically.
+          </li>
+        </ul>
+      </div>
+
+      <h2 id="movement">Movement &amp; Check</h2>
+      <p>
+        Select a piece to see legal destinations. Legal moves are highlighted.
+      </p>
+      <div class="highlight">
+        <b>Check reminder:</b> A move is illegal if it leaves your king in
+        check.
+      </div>
+
+      <h2 id="special">Special Moves</h2>
+      <div class="rule-box">
+        <h3>Castling</h3>
+        <ul>
+          <li>
+            Castling is a king move of two squares on the home rank; the rook
+            moves to the square next to the king.
+          </li>
+          <li>You cannot castle out of, through, or into check.</li>
+        </ul>
+
+        <h3>En Passant</h3>
+        <ul>
+          <li>
+            When a pawn advances two squares, it may be captured en passant on
+            the immediately following move.
+          </li>
+        </ul>
+
+        <h3>Promotion</h3>
+        <ul>
+          <li>When a pawn reaches the final rank, it is promoted.</li>
+        </ul>
+      </div>
+
+      <h2 id="repetition">Repetition &amp; Draws</h2>
+      <p>
+        Repetition is based on repeating the <b>same position</b>, not repeating
+        the same moves.
+      </p>
+      <div class="highlight">
+        The same position means: same player to move, same piece placement, and
+        the same relevant rights (castling rights and en passant state).
+      </div>
+
+      <h2 id="interface">Using the Interface</h2>
+      <ul>
+        <li><b>Undo/Redo</b> are available in Option Actions.</li>
+        <li><b>Flip board</b> rotates the board 180°.</li>
+        <li><b>Coordinates</b> toggles file/rank labels.</li>
+        <li>
+          <b>Layout</b> (Options → Layout) switches between
+          <b>Panels</b> (sidebars) and <b>Menu</b> (tap <b>☰</b> to open panel
+          sections as dialogs).
+        </li>
+        <li>
+          <b>Inside squares</b> draws coordinates on the board itself: lowercase
+          file letters in the bottom row (lower-right of each square) and rank
+          numbers in the left column (upper-left of each square). The label
+          color uses the opposite square’s base color for contrast.
+        </li>
+        <li>
+          <b>Board theme</b> changes the checkerboard background
+          (Classic/Green/Blue/Stone/Burled Wood).
+        </li>
+        <li><b>Theme</b> changes the piece style (2D/3D/Neo).</li>
+        <li><b>Save/Load</b> lets you export or restore a game state.</li>
+      </ul>
+
+      <h3>Keyboard shortcuts</h3>
+      <p>
+        Shortcuts use <code>Ctrl</code> (Windows/Linux) or <code>Cmd</code>
+        (macOS). Shortcuts are disabled while typing in a text field.
+      </p>
+      <ul>
+        <li><b>Undo:</b> <code>Ctrl/Cmd+Z</code></li>
+        <li>
+          <b>Redo:</b> <code>Ctrl/Cmd+Y</code> or <code>Ctrl/Cmd+Shift+Z</code>
+        </li>
+        <li><b>Save:</b> <code>Ctrl/Cmd+S</code></li>
+        <li><b>Toggle analysis:</b> <code>Ctrl/Cmd+Shift+A</code></li>
+        <li><b>Resign:</b> <code>Ctrl/Cmd+Shift+X</code></li>
+        <li>
+          <b>Full Screen:</b> <code>Ctrl/Cmd+Shift+F</code> (or the Full Screen
+          button)
+        </li>
+        <li>
+          <b>Bot speed:</b> <code>Alt+↑</code>/<code>Alt+↓</code> (when the bot
+          speed control is available)
+        </li>
+        <li>
+          <b>Playback speed:</b> <code>Alt+Shift+↑</code>/<code
+            >Alt+Shift+↓</code
+          >
+        </li>
+        <li>
+          <b>Show keyboard shortcuts:</b> <code>Ctrl/Cmd+Shift+?</code> (also
+          works as <code>Ctrl/Cmd+Shift+/</code>)
+        </li>
+        <li>
+          <b>Right-click menu:</b> Right-click outside the board →
+          <b>Show Keyboard Shortcuts</b>
+        </li>
+      </ul>
+
+      <h3>Analysis mode (private sandbox)</h3>
+      <ul>
+        <li>
+          Toggle via the <b>Analysis</b> button or
+          <code>Ctrl/Cmd+Shift+A</code>.
+        </li>
+        <li>
+          In online rooms, moves made in Analysis mode are <b>local-only</b> and
+          are <b>not</b> submitted to the server.
+        </li>
+        <li>
+          Your opponent does not see your Analysis mode or analysis moves.
+        </li>
+        <li>
+          AI/bots are paused while analysis is enabled, and restored when you
+          exit.
+        </li>
+        <li>
+          <b>Move any piece freely:</b> Both sides' pieces are selectable—click
+          a piece of either color to move it using legal moves. The evaluation
+          panel stays live so you can assess each hypothetical position.
+        </li>
+        <li>Leaving Analysis returns you to the live game state.</li>
+      </ul>
+
+      <h3>Board visualization (arrows &amp; highlights)</h3>
+      <ul>
+        <li>
+          <b>Draw arrows (desktop):</b> Right-click and drag from one square to
+          another.
+        </li>
+        <li>
+          <b>Knight arrows:</b> If the drag is a knight move (2×1), the arrow
+          draws as a 90° “L” shape.
+        </li>
+        <li>
+          <b>Highlight squares (desktop):</b> Right-click a square (default, or
+          press <code>S</code>).
+        </li>
+        <li>
+          <b>Circle highlight:</b> Press <code>C</code> while / after
+          right-clicking.
+        </li>
+        <li>
+          <b>Push pin:</b> Press <code>N</code> while / after right-clicking.
+        </li>
+        <li>
+          <b>Protect:</b> Press <code>P</code> while / after right-clicking.
+        </li>
+        <li>
+          <b>Remove:</b> Press <code>X</code> while / after right-clicking —
+          removes pin/protect first; falls back to square/circle.
+        </li>
+        <li>
+          <b>Colors (desktop):</b> Orange (default), Shift = Green, Ctrl = Red,
+          Alt = Blue.
+        </li>
+        <li><b>Clear (desktop):</b> Left-click anywhere on the board.</li>
+      </ul>
+
+      <div class="highlight">
+        <b>Touch / tablet (Analysis mode):</b> On touch devices, a small swatch
+        palette appears below the board while <b>Analysis</b> is enabled.
+      </div>
+      <ul>
+        <li>
+          <b>Pick color:</b> Tap a color swatch (Orange/Green/Red/Blue) to set
+          the annotation color.
+        </li>
+        <li><b>Draw arrows:</b> Touch and drag from one square to another.</li>
+        <li>
+          <b>Play moves:</b> Tap the <b>Play</b> type button, then tap squares
+          to move pieces. (Turning on <b>Play</b> disables <b>Erase</b>.)
+        </li>
+        <li>
+          <b>Place annotation:</b> Tap a type button (Square / Circle / Pin /
+          Protect) then tap a square.
+        </li>
+        <li>
+          <b>Remove annotation:</b> Tap the <b>Erase</b> button then tap a
+          square; or tap the <b>Remove</b> type button (X) then tap a square —
+          removes pin/protect first, then square/circle.
+        </li>
+        <li>
+          <b>Clear all:</b> Tap the <b>Clear</b> swatch (black square with a red
+          X).
+        </li>
+      </ul>
+
+      <h2 id="pgn">PGN Import &amp; Export</h2>
+      <p>
+        You can import/export games using <b>PGN</b> (Portable Game Notation).
+        This is useful for sharing games with other chess tools or importing a
+        game from elsewhere.
+      </p>
+      <div class="rule-box">
+        <h3>Import (Paste or Upload)</h3>
+        <ul>
+          <li>
+            Open <b>Option Actions</b> and choose <b>Import PGN</b> (paste) or
+            upload a <code>.pgn</code>/<code>.txt</code> file.
+          </li>
+          <li>
+            Import rebuilds the game from the standard starting position and
+            populates the Move History.
+          </li>
+        </ul>
+        <div class="warning">
+          <b>Note:</b> PGN import is <b>offline-only</b> for now. In online
+          rooms, the server is authoritative and imported moves are blocked.
+        </div>
+        <div class="warning">
+          <b>Warning:</b> If a game is already in progress, clicking either
+          Import PGN button will show a confirmation prompt before proceeding.
+          The current game will be lost once you confirm.
+        </div>
+
+        <h3>Export (Current Line)</h3>
+        <ul>
+          <li>
+            <b>Export PGN</b> exports the game up to the
+            <b>currently selected</b>
+            position in Move History.
+          </li>
+          <li>
+            If you've jumped back in history, exporting will export that line
+            (not necessarily the full game).
+          </li>
+          <li>
+            Games ended by resignation are exported correctly — the resignation
+            is recorded in the PGN result header and does not appear as a
+            phantom move.
+          </li>
+        </ul>
+      </div>
+
+      <h2 id="fen">FEN Copy/Share</h2>
+      <p>
+        FEN (Forsyth–Edwards Notation) is a compact string that describes a
+        single chess position.
+      </p>
+      <div class="highlight">
+        <b>Copy FEN from any move:</b> Right-click any Move History entry and
+        choose <b>Copy FEN</b>. This copies the FEN for that exact position to
+        your clipboard.
+      </div>
+      <p>
+        You can paste the FEN into chess analysis tools, share it with a friend,
+        or use it to report/debug a position.
+      </p>
+
+      <h3>Bot (Optional)</h3>
+      <p>
+        Classic Chess supports optional bot opponents. Open
+        <b>Game Panel → Bot</b> and set <b>White</b> and/or <b>Black</b> to a
+        tier (Beginner / Intermediate / Strong).
+      </p>
+      <ul>
+        <li>
+          <b>Speed</b> uses a slider (milliseconds). The current value is shown
+          as an <b>ms readout</b>.
+        </li>
+        <li>Use the <b>↺</b> button to <b>reset</b> speed to the default.</li>
+      </ul>
+      <div class="highlight">
+        <b>Warmup note:</b> The first time Stockfish loads, it may take a while
+        (WASM compile/download). The UI will show a warmup message while it
+        initializes.
+      </div>
+      <div class="highlight">
+        <b>Pause/resume:</b> When the bot is paused on its turn, an on-screen
+        toast appears (for example:
+        <i>“White’s turn. Tap here to resume bot”</i>). Tap the toast itself to
+        resume.
+      </div>
+      <div class="warning">
+        <b>Local engine option:</b> If in-browser Stockfish doesn’t work well on
+        your device, you can run the local Stockfish HTTP server and configure
+        the web app with <code>VITE_STOCKFISH_SERVER_URL</code>.
+      </div>
+
+      <h2 id="notation">Notation</h2>
+      <p>
+        The move list uses a simple square-to-square notation, using
+        <code>→</code> for moves and <code>×</code> for captures.
+      </p>
+
+      <a href="./chess.html" class="back-link">Back to Game</a>
+    </div>
+  </body>
+</html>

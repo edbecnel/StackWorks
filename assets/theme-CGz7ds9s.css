@@ -1,0 +1,215 @@
+/* Semi-Precious Stones Theme */
+
+:root {
+  --lastMoveFromFill: rgba(102, 204, 255, 0.22);
+  --lastMoveToFill: rgba(102, 204, 255, 0.36);
+  --lastMoveStroke: rgba(102, 204, 255, 0.72);
+  --lastMoveStrokeWidth: 3;
+}
+
+body {
+  background:
+    radial-gradient(circle at 18% 12%, rgba(128, 90, 200, 0.22), transparent 46%),
+    radial-gradient(circle at 78% 26%, rgba(70, 170, 210, 0.18), transparent 44%),
+    radial-gradient(circle at 50% 90%, rgba(200, 160, 80, 0.14), transparent 52%),
+    linear-gradient(145deg, #0e0f14 0%, #0a0b10 55%, #07080c 100%);
+  color: #eef0f6;
+}
+
+/* Page container */
+.page-container {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 14px 44px rgba(0, 0, 0, 0.68),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Panel backgrounds - stone texture */
+#info-panel, 
+#controls-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+/* Help page specific styling */
+.help-container {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+  color: #eef0f6;
+}
+
+.help-container h1,
+.help-container h2 {
+  color: #f5f5f5;
+  border-bottom-color: #555;
+}
+
+.help-container section {
+  background: rgba(47, 47, 47, 0.6);
+  border: 1px solid #484848;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Board styling - granite and marble squares */
+.board-light {
+  fill: #e6e7ef; /* pale pearl */
+}
+
+.board-dark {
+  fill: #262837; /* deep slate */
+}
+
+.board-light.selected {
+  fill: #b8d4f0;
+}
+
+.board-dark.selected {
+  fill: #6a8fb8;
+}
+
+.board-light.legal-move {
+  fill: #c8e6c9;
+}
+
+.board-dark.legal-move {
+  fill: #5a7a5c;
+}
+
+.board-light.last-move {
+  fill: #fff9c4;
+}
+
+.board-dark.last-move {
+  fill: #7a7654;
+}
+
+/* Buttons - polished stone effect */
+button {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  color: #eef0f6;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+
+button:hover:not(:disabled) {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.04));
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.62),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+button:active:not(:disabled) {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.10));
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.55);
+}
+
+button:disabled {
+  background: linear-gradient(to bottom, #333, #222);
+  color: #666;
+  border-color: #444;
+}
+
+/* Select dropdown - stone styling */
+select {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
+  color: #eef0f6;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+select:focus {
+  border-color: #777;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(119, 119, 119, 0.3);
+}
+
+/* Checkbox styling */
+input[type="checkbox"] {
+  accent-color: #9f8cff;
+}
+
+/* Move history - stone panel */
+#history-panel {
+  background: rgba(10, 12, 18, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.history-move {
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 3px solid rgba(255, 255, 255, 0.18);
+}
+
+.history-move:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.history-move.current {
+  background: rgba(159, 140, 255, 0.16);
+  border-left-color: rgba(159, 140, 255, 0.55);
+  font-weight: bold;
+}
+
+/* Message area - granite background */
+#message-area {
+  background: rgba(10, 12, 18, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #eef0f6;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.58);
+}
+
+/* Scrollbar - stone theme */
+::-webkit-scrollbar {
+  width: 10px;
+  background: #0a0b10;
+}
+
+::-webkit-scrollbar-track {
+  background: linear-gradient(to right, #0f1118, #0a0b10, #0f1118);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0.08));
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.10));
+}
+
+/* Links */
+a {
+  color: #a8d7ff;
+}
+
+a:hover {
+  color: #d0eeff;
+}
+
+/* Code blocks in help */
+code {
+  background: rgba(26, 26, 26, 0.6);
+  border: 1px solid #444;
+  color: #d0d0d0;
+}
+
+pre {
+  background: rgba(26, 26, 26, 0.7);
+  border: 1px solid #444;
+  color: #d0d0d0;
+}

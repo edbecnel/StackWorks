@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" aria-hidden="true">
+  <defs>
+    <!-- ======== GLASS THEME: CLASSIC TABLETOP BACKGROUND VARIANTS ======== -->
+    <filter id="glass-felt-noise" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" seed="13" stitchTiles="stitch" result="n" />
+      <feColorMatrix in="n" type="matrix" values="
+        0.40 0    0    0 0
+        0    0.40 0    0 0
+        0    0    0.40 0 0
+        0    0    0    0.20 0
+      " />
+      <feGaussianBlur stdDeviation="0.25" />
+    </filter>
+
+    <filter id="glass-walnut-grain" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <!-- Elongated noise -> wood-like grain direction (horizontal-ish). -->
+      <feTurbulence type="fractalNoise" baseFrequency="0.010 0.095" numOctaves="3" seed="19" stitchTiles="stitch" result="n" />
+
+      <!-- Use the noise as an alpha mask, then tint with a dark "ink" flood.
+           This produces darker grain lines over a lighter base.
+      -->
+      <feColorMatrix in="n" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        1 0 0 0 0
+      " result="a" />
+      <feComponentTransfer in="a" result="a2">
+        <feFuncA type="gamma" amplitude="1" exponent="2.25" offset="-0.12" />
+      </feComponentTransfer>
+      <feFlood flood-color="#1b1009" flood-opacity="1" result="ink" />
+      <feComposite in="ink" in2="a2" operator="in" result="grain" />
+
+      <!-- Soften just a touch to avoid harsh banding. -->
+      <feGaussianBlur in="grain" stdDeviation="0.28" result="grainSoft" />
+
+      <!-- Return the grain overlay. -->
+      <feComposite in="grainSoft" in2="grainSoft" operator="over" />
+    </filter>
+
+    <linearGradient id="glass-bg-sheen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.32" />
+      <stop offset="30%" stop-color="#ffffff" stop-opacity="0.10" />
+      <stop offset="70%" stop-color="#000000" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.16" />
+    </linearGradient>
+
+    <pattern id="glass-bg-felt" patternUnits="userSpaceOnUse" width="1000" height="1000">
+      <rect x="0" y="0" width="1000" height="1000" fill="#14110f" />
+      <rect x="0" y="0" width="1000" height="1000" filter="url(#glass-felt-noise)" opacity="0.85" />
+      <rect x="0" y="0" width="1000" height="1000" fill="url(#glass-bg-sheen)" opacity="0.10" />
+    </pattern>
+
+    <pattern id="glass-bg-walnut" patternUnits="userSpaceOnUse" width="1000" height="1000">
+      <!-- Lighter walnut base (so icy-blue glass pops). -->
+      <rect x="0" y="0" width="1000" height="1000" fill="#3b271a" />
+      <!-- Dark grain overlay. -->
+      <rect x="0" y="0" width="1000" height="1000" filter="url(#glass-walnut-grain)" opacity="0.78" />
+      <!-- Very subtle sheen; keep it low to avoid competing with glass pieces. -->
+      <rect x="0" y="0" width="1000" height="1000" fill="url(#glass-bg-sheen)" opacity="0.08" />
+    </pattern>
+
+    <!-- ======== CONNECTOR MASK (prevents lines inside nodes) ======== -->
+    <mask id="mask-connectors" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="1000" height="1000" fill="white"/>
+
+      <!-- hole radius chosen so lines can tuck slightly under the ring -->
+      <!-- node r = 46, hole r = 42 -->
+      <!-- row 0 -->
+      <circle cx="140" cy="140" r="42" fill="black"/>
+      <circle cx="380" cy="140" r="42" fill="black"/>
+      <circle cx="620" cy="140" r="42" fill="black"/>
+      <circle cx="860" cy="140" r="42" fill="black"/>
+      <!-- row 1 -->
+      <circle cx="260" cy="260" r="42" fill="black"/>
+      <circle cx="500" cy="260" r="42" fill="black"/>
+      <circle cx="740" cy="260" r="42" fill="black"/>
+      <!-- row 2 -->
+      <circle cx="140" cy="380" r="42" fill="black"/>
+      <circle cx="380" cy="380" r="42" fill="black"/>
+      <circle cx="620" cy="380" r="42" fill="black"/>
+      <circle cx="860" cy="380" r="42" fill="black"/>
+      <!-- row 3 -->
+      <circle cx="260" cy="500" r="42" fill="black"/>
+      <circle cx="500" cy="500" r="42" fill="black"/>
+      <circle cx="740" cy="500" r="42" fill="black"/>
+      <!-- row 4 -->
+      <circle cx="140" cy="620" r="42" fill="black"/>
+      <circle cx="380" cy="620" r="42" fill="black"/>
+      <circle cx="620" cy="620" r="42" fill="black"/>
+      <circle cx="860" cy="620" r="42" fill="black"/>
+      <!-- row 5 -->
+      <circle cx="260" cy="740" r="42" fill="black"/>
+      <circle cx="500" cy="740" r="42" fill="black"/>
+      <circle cx="740" cy="740" r="42" fill="black"/>
+      <!-- row 6 -->
+      <circle cx="140" cy="860" r="42" fill="black"/>
+      <circle cx="380" cy="860" r="42" fill="black"/>
+      <circle cx="620" cy="860" r="42" fill="black"/>
+      <circle cx="860" cy="860" r="42" fill="black"/>
+    </mask>
+  </defs>
+</svg>

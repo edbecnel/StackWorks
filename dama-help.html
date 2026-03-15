@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StackWorks — Dama Help & Rules</title>
+    <!-- Match Dama game page favicon (inline, base-safe). -->
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      sizes="any"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' ry='3' fill='%231b1b1b'/%3E%3Ccircle cx='8' cy='8' r='6' fill='%2300e676'/%3E%3C/svg%3E"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        color: #e8e6e3;
+        background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+        padding: 20px;
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: rgba(42, 42, 42, 0.95);
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      }
+
+      h1 {
+        color: #fff;
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        border-bottom: 3px solid #4a9eff;
+        padding-bottom: 10px;
+      }
+
+      h2 {
+        color: #4a9eff;
+        font-size: 1.8em;
+        margin-top: 30px;
+        margin-bottom: 15px;
+      }
+
+      h3 {
+        color: #7db3ff;
+        font-size: 1.3em;
+        margin-top: 20px;
+        margin-bottom: 10px;
+      }
+
+      p {
+        margin-bottom: 15px;
+        color: #d4d4d4;
+      }
+
+      ul,
+      ol {
+        margin-left: 25px;
+        margin-bottom: 15px;
+      }
+
+      li {
+        margin-bottom: 8px;
+        color: #d4d4d4;
+      }
+
+      .highlight {
+        background: rgba(74, 158, 255, 0.2);
+        padding: 15px;
+        border-left: 4px solid #4a9eff;
+        border-radius: 4px;
+        margin: 15px 0;
+      }
+
+      .warning {
+        background: rgba(255, 184, 77, 0.2);
+        padding: 15px;
+        border-left: 4px solid #ffb84d;
+        border-radius: 4px;
+        margin: 15px 0;
+      }
+
+      .rule-box {
+        background: rgba(74, 158, 255, 0.1);
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px 0;
+        border: 1px solid rgba(74, 158, 255, 0.3);
+      }
+
+      a {
+        color: #4a9eff;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .back-link {
+        display: inline-block;
+        margin-top: 30px;
+        padding: 12px 24px;
+        background: #4a9eff;
+        color: #fff;
+        border-radius: 6px;
+        font-weight: 700;
+        transition: background 0.2s;
+      }
+
+      .back-link:hover {
+        background: rgba(74, 158, 255, 0.85);
+        text-decoration: none;
+      }
+
+      code {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: "Courier New", monospace;
+        font-size: 0.9em;
+      }
+    </style>
+  <script>if("serviceWorker"in navigator)navigator.serviceWorker.register("/StackWorks/sw.js").catch(function(){});</script>
+</head>
+  <body>
+    <div class="container">
+      <h1>StackWorks — Dama Help & Rules</h1>
+
+      <p>
+        This app supports two Dama variants on an 8×8 board:
+        <strong>Dama Classic</strong> and <strong>Dama International</strong>.
+      </p>
+
+      <h2>Table of Contents</h2>
+      <ul>
+        <li><a href="#variants">Variants (Classic vs International)</a></li>
+        <li><a href="#setup">Game Setup</a></li>
+        <li><a href="#rules">Game Rules</a></li>
+        <li><a href="#captures">Captures & Multi-Captures</a></li>
+        <li><a href="#interface">Using the Interface</a></li>
+      </ul>
+
+      <h2 id="variants">Variants (Classic vs International)</h2>
+      <div class="rule-box">
+        <h3>Dama Classic (Immediate capture removal)</h3>
+        <ul>
+          <li>When you jump an opponent piece, it is removed immediately.</li>
+        </ul>
+
+        <h3>Dama International (End-of-sequence capture removal)</h3>
+        <ul>
+          <li>
+            Jumped pieces are <strong>captured</strong> but remain on the board
+            until your capture sequence ends.
+          </li>
+          <li>
+            Captured-but-not-yet-removed pieces are marked as
+            <strong>pending removal</strong> during the sequence.
+          </li>
+          <li>
+            You cannot jump the same captured piece twice in the same turn.
+          </li>
+        </ul>
+      </div>
+
+      <p>You can switch between variants using the game’s variant selector.</p>
+      <div class="highlight">
+        <strong>Save File Compatibility:</strong> Save files from
+        <strong>Dama Classic</strong> and <strong>Dama International</strong>
+        are interoperable. You can load a save from either variant into the
+        other, and it will automatically adapt to the current variant's capture
+        removal rules. When you save again, it will use the currently running
+        variant.
+      </div>
+      <h2 id="setup">Game Setup</h2>
+      <ul>
+        <li>Board: 8×8</li>
+        <li>12 pieces per side</li>
+        <li>Light moves first</li>
+      </ul>
+
+      <h2 id="rules">Game Rules</h2>
+      <div class="rule-box">
+        <h3>Movement</h3>
+        <ul>
+          <li><strong>Men:</strong> move diagonally forward one square.</li>
+          <li>
+            <strong>Officers (Kings):</strong> move diagonally any distance in
+            any direction ("flying" king for both captures and quiet moves).
+          </li>
+        </ul>
+
+        <h3>Promotion</h3>
+        <ul>
+          <li>A man promotes to an officer upon reaching the far edge.</li>
+          <li>
+            Promotion occurs at the end of a capture sequence (no mid-sequence
+            king powers). If a man reaches the far edge at any point during a
+            capture chain, it promotes after the chain ends (even if it does not
+            finish on the far edge).
+          </li>
+        </ul>
+      </div>
+
+      <h2 id="captures">Captures & Multi-Captures</h2>
+      <div class="highlight">
+        Captures are mandatory when available. If you can continue capturing
+        with the same piece, you must continue until no further captures are
+        available.
+      </div>
+
+      <div class="rule-box">
+        <h3>How captures work</h3>
+        <ul>
+          <li>
+            <strong>Men:</strong> capture by jumping diagonally over an adjacent
+            enemy to the empty square beyond (forward or backward).
+          </li>
+          <li>
+            <strong>Officers:</strong> capture by jumping diagonally over
+            exactly one enemy piece and landing on any empty square beyond it.
+          </li>
+          <li>
+            <strong>Officer capture direction rule (multi-captures):</strong>
+            during a capture chain, an Officer may continue capturing in the
+            <strong>same</strong> diagonal direction (0°) or switch to the
+            <strong>other</strong> diagonal direction (a ±90° turn), but may
+            <strong>not</strong> reverse direction (180°) to capture back the
+            way it came.
+          </li>
+        </ul>
+
+        <h3>Choosing among captures</h3>
+        <ul>
+          <li>
+            When multiple capture lines exist, the game enforces the
+            <strong>maximum-capture</strong> rule: you must choose a capture
+            that can result in the greatest total number of captured pieces.
+          </li>
+        </ul>
+      </div>
+
+      <div class="warning">
+        <strong>International note:</strong> In end-of-sequence capture removal,
+        jumped pieces stay visible until the sequence ends. The marker indicates
+        they are already captured and cannot be jumped again.
+      </div>
+
+      <h2 id="interface">Using the Interface</h2>
+
+      <h3>Online play (2 players)</h3>
+      <p>
+        Online play is available via the Start Page. Player 1 creates a room,
+        then shares the <b>Room ID</b> with Player 2.
+      </p>
+      <ul>
+        <li>
+          Room visibility: when creating a room, choose
+          <b>Public</b> (spectators allowed) or <b>Private</b> (no public
+          spectating).
+        </li>
+        <li>
+          Room ID is shown in-game in <b>Info → Online</b> and can be copied
+          with the button next to “Room ID”.
+        </li>
+        <li>
+          Player 2 joins by pasting the Room ID on the Start Page and clicking
+          Launch.
+        </li>
+        <li>
+          Connection toasts: the game may show <b>Connecting…</b>,
+          <b>Reconnecting…</b>, and <b>Reconnected</b> while the online
+          transport is establishing or recovering.
+        </li>
+        <li>
+          Opponent presence: the Online panel shows opponent status, and the
+          board also shows a small opponent badge under the turn indicator
+          (green=connected, yellow=in grace, red=disconnected, gray=waiting).
+        </li>
+        <li>
+          Spectating: you can spectate <b>public</b> rooms from the Start Page.
+          Private rooms require a secret watch link.
+        </li>
+        <li>
+          Private watch links: seated players can copy a private spectate link
+          from <b>Info → Online</b> using the <b>Ⓦ</b> button.
+        </li>
+        <li>
+          Report issue: open <b>Info → Online</b> and click <b>ⓘ</b> to
+          view/copy diagnostic info (and it will also be uploaded to the server
+          for this room).
+        </li>
+        <li>
+          Leaving: <b>Leave room (forfeit)</b> ends your game immediately
+          (counts as resign) and returns you to the Start Page.
+        </li>
+        <li>
+          Disconnect grace: if one player disconnects while the other stays
+          connected, the disconnected player may lose after a short grace
+          period. If both players disconnect, the game stays paused and does not
+          time out.
+        </li>
+      </ul>
+
+      <h3>Layout (Panels vs Menu)</h3>
+      <p>
+        StackWorks supports <b>Panels</b> mode (left/right of the board in
+        landscape; top/bottom in portrait) and a small-screen-friendly
+        <b>Menu</b> mode.
+      </p>
+      <ul>
+        <li>Change it via <b>Options → Layout</b> (Panels/Menu).</li>
+        <li>
+          In <b>Menu</b> mode, tap <b>☰</b> to open panel sections as dialogs.
+        </li>
+        <li>
+          After a game has started, choosing <b>Start Page</b> will show a
+          warning to avoid losing the current game.
+        </li>
+      </ul>
+
+      <h3>Keyboard shortcuts</h3>
+      <p>
+        Shortcuts use <code>Ctrl</code> (Windows/Linux) or <code>Cmd</code>
+        (macOS). Shortcuts are disabled while typing in a text field.
+      </p>
+      <ul>
+        <li><strong>Undo:</strong> <code>Ctrl/Cmd+Z</code></li>
+        <li>
+          <strong>Redo:</strong> <code>Ctrl/Cmd+Y</code> or
+          <code>Ctrl/Cmd+Shift+Z</code>
+        </li>
+        <li><strong>Save:</strong> <code>Ctrl/Cmd+S</code></li>
+        <li><strong>Resign:</strong> <code>Ctrl/Cmd+Shift+X</code></li>
+        <li>
+          <strong>Full Screen:</strong> <code>Ctrl/Cmd+Shift+F</code> (or the
+          Full Screen button)
+        </li>
+        <li>
+          <strong>Bot speed:</strong> <code>Alt+↑</code>/<code>Alt+↓</code>
+          (when the AI speed control is available)
+        </li>
+        <li>
+          <strong>Playback speed:</strong> <code>Alt+Shift+↑</code>/<code
+            >Alt+Shift+↓</code
+          >
+        </li>
+        <li>
+          <strong>Show keyboard shortcuts:</strong>
+          <code>Ctrl/Cmd+Shift+?</code> (also works as
+          <code>Ctrl/Cmd+Shift+/</code>)
+        </li>
+        <li>
+          <strong>Right-click menu:</strong> Right-click outside the board →
+          <strong>Show Keyboard Shortcuts</strong>
+        </li>
+      </ul>
+      <ul>
+        <li>Click a piece to select it.</li>
+        <li>Legal destinations appear as highlighted circles.</li>
+        <li>
+          <strong>Move History:</strong> Click any entry (including "Start") to
+          jump to that point in the game. Undo/Redo also navigates through
+          history, and the Move History list scrolls to keep the current entry
+          visible.
+        </li>
+        <li>
+          <strong>Board &amp; Pieces:</strong> Use the Board &amp; Pieces panel
+          to pick a <strong>Pieces</strong> theme (piece style). If you enable
+          <strong>Use checkered board (8×8)</strong>, the Board &amp; Pieces
+          panel also includes a <strong>Board</strong> selector
+          (Classic/Green/Blue/Stone/Burled Wood) to change the checkerboard
+          colors.
+        </li>
+        <li>
+          In <strong>Dama International</strong> (end-of-sequence capture
+          removal), captured-but-not-yet-removed pieces are marked with
+          <strong>red circles</strong> to show they are pending removal.
+        </li>
+        <li>
+          During a capture chain, you must continue with the same piece until
+          the chain ends.
+        </li>
+        <li>
+          AI controls can be paused/resumed, and you can use
+          <strong>Step</strong>
+          to advance a single AI move when it is an AI-controlled side’s turn.
+        </li>
+        <li>
+          The ↕️ button near the board toggles reduced board height (useful if
+          the bottom navigation bar overlaps the board). You can enable it via
+          <strong>left panel → Options → Show resize icon</strong>. You can
+          <strong>touch-hold + drag</strong> to reposition it.
+        </li>
+      </ul>
+
+      <a class="back-link" href="./index.html">← Back to Start Page</a>
+    </div>
+  </body>
+</html>

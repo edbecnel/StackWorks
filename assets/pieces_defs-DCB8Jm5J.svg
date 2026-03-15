@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" aria-hidden="true">
+  <defs>
+    <!-- ======== LUMINOUS PIECES ======== -->
+
+    <!-- Warm white glow (White side) -->
+    <filter id="lumGlowWarm" x="-300%" y="-300%" width="700%" height="700%" color-interpolation-filters="sRGB">
+      <!-- Multi-pass bloom to read like an incandescent bulb rather than a flat disk. -->
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3.0" result="b1"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="18.0" result="b2"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="44.0" result="b3"/>
+
+      <!-- Tight bloom (brighter, warmer) -->
+      <feColorMatrix in="b1" type="matrix" values="
+        1.08 0 0 0 0
+        0 1.05 0 0 0
+        0 0 0.95 0 0
+        0 0 0 0.70 0" result="warm1"/>
+
+      <!-- Wide bloom (soft halo) -->
+      <feColorMatrix in="b2" type="matrix" values="
+        1.08 0 0 0 0
+        0 1.05 0 0 0
+        0 0 0.96 0 0
+        0 0 0 0.74 0" result="warm2"/>
+
+      <!-- Far bloom (large halo beyond piece boundary) -->
+      <feColorMatrix in="b3" type="matrix" values="
+        1.12 0 0 0 0
+        0 1.08 0 0 0
+        0 0 0.88 0 0
+        0 0 0 0.85 0" result="warm3"/>
+
+      <feMerge>
+        <feMergeNode in="warm3"/>
+        <feMergeNode in="warm2"/>
+        <feMergeNode in="warm1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Ultraviolet / blacklight glow (Black side) -->
+    <filter id="lumGlowUv" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="3.6" result="b"/>
+      <!-- Push blur towards deep violet/purple rather than cyan/blue. -->
+      <feColorMatrix in="b" type="matrix" values="
+        0.92 0 0 0 0
+        0 0.18 0 0 0
+        0 0 0.80 0 0
+        0 0 0 0.92 0" result="uv"/>
+      <feMerge>
+        <feMergeNode in="uv"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Core gradients -->
+    <radialGradient id="lumWarmCore" cx="38%" cy="32%" r="70%">
+      <stop offset="0%" stop-color="#fffaf0"/>
+      <stop offset="40%" stop-color="#fff1cf"/>
+      <stop offset="80%" stop-color="#ffe2a6"/>
+      <stop offset="100%" stop-color="#d7b36a"/>
+    </radialGradient>
+
+    <!-- White "bulb glass" core: mostly clear/white glass with subtle depth -->
+    <radialGradient id="lumWarmBulbGlass" cx="40%" cy="34%" r="78%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="42%" stop-color="#fffdf7"/>
+      <stop offset="78%" stop-color="#e6e1d9"/>
+      <stop offset="100%" stop-color="#6e6a7e"/>
+    </radialGradient>
+
+    <!-- Emissive layer for warm bulb (drives bloom / perceived brightness) -->
+    <radialGradient id="lumWarmEmission" cx="50%" cy="48%" r="82%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.96"/>
+      <stop offset="35%" stop-color="#fff8ee" stop-opacity="0.74"/>
+      <stop offset="70%" stop-color="#ffe6c8" stop-opacity="0.36"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Subtle bottom shading for glass depth (objectBoundingBox units) -->
+    <linearGradient id="lumWarmBottomShade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="62%" stop-color="#000000" stop-opacity="0.02"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.24"/>
+    </linearGradient>
+
+    <!-- Internal white haze (convincing luminosity without yellowing) -->
+    <radialGradient id="lumWarmBulbHaze" cx="52%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#fffdf8" stop-opacity="0.52"/>
+      <stop offset="55%" stop-color="#fff1dd" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Black "bulb glass" core: mostly black with subtle violet transmission -->
+    <radialGradient id="lumUvBulbGlass" cx="40%" cy="34%" r="78%">
+      <stop offset="0%" stop-color="#1a0625"/>
+      <stop offset="35%" stop-color="#0e0316"/>
+      <stop offset="70%" stop-color="#07010b"/>
+      <stop offset="100%" stop-color="#030105"/>
+    </radialGradient>
+
+    <!-- Internal purple haze (like a blacklight bulb glow) -->
+    <radialGradient id="lumUvBulbHaze" cx="52%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#a25bff" stop-opacity="0.55"/>
+      <stop offset="55%" stop-color="#5b22cc" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="lumShine" cx="32%" cy="24%" r="75%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="30%" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="65%" stop-color="#ffffff" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.18"/>
+    </radialGradient>
+
+    <!-- Black bulb sheen: stronger glass highlight + deeper vignette -->
+    <radialGradient id="lumShineUv" cx="28%" cy="22%" r="82%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.40"/>
+      <stop offset="18%" stop-color="#ffffff" stop-opacity="0.16"/>
+      <stop offset="55%" stop-color="#ffffff" stop-opacity="0.04"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.42"/>
+    </radialGradient>
+
+    <radialGradient id="lumShineWarm" cx="28%" cy="22%" r="82%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="16%" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="55%" stop-color="#ffffff" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.42"/>
+    </radialGradient>
+
+    <!-- Officer star + Dama crown (reused shapes) -->
+    <path id="lumStar5" d="
+      M 50 30
+      L 56.5 43.2
+      L 71.0 45.3
+      L 60.5 55.6
+      L 63.0 70.0
+      L 50.0 63.2
+      L 37.0 70.0
+      L 39.5 55.6
+      L 29.0 45.3
+      L 43.5 43.2
+      Z" />
+
+    <path id="lumCrown" d="
+      M 26 64
+      L 26 40
+      L 38 52
+      L 50 36
+      L 62 52
+      L 74 40
+      L 74 64
+      Z
+      M 28 66
+      H 72
+      V 72
+      H 28
+      Z" />
+
+    <!-- White Soldier: warm luminous -->
+    <symbol id="W_S" viewBox="0 0 100 100" overflow="visible">
+      <g>
+        <!-- Bloom only from an emissive core so glass highlights stay crisp. -->
+        <g filter="url(#lumGlowWarm)">
+          <circle cx="50" cy="50" r="48" fill="url(#lumWarmEmission)"/>
+          <circle cx="50" cy="50" r="9.2" fill="#fff6ea" opacity="0.42"/>
+        </g>
+
+        <!-- Glass body -->
+        <circle cx="50" cy="50" r="43" fill="url(#lumWarmBulbGlass)" stroke="#bcb8cf" stroke-width="6"/>
+        <circle cx="50" cy="50" r="33" fill="none" stroke="#ffffff" stroke-opacity="0.32" stroke-width="3"/>
+        <circle cx="50" cy="52" r="28" fill="url(#lumWarmBulbHaze)"/>
+        <circle cx="50" cy="50" r="43" fill="url(#lumWarmBottomShade)"/>
+
+        <!-- Glass highlight strips (stronger, bulb-like) -->
+        <ellipse cx="34" cy="44" rx="8.5" ry="17" fill="#ffffff" opacity="0.22"/>
+        <ellipse cx="30" cy="38" rx="4.2" ry="9.2" fill="#ffffff" opacity="0.24"/>
+        <ellipse cx="41" cy="33" rx="12" ry="6" fill="#ffffff" opacity="0.06"/>
+
+        <circle cx="50" cy="50" r="43" fill="url(#lumShineWarm)"/>
+
+        <!-- Center filament: crisp hotspot (on top) -->
+        <circle cx="50" cy="50" r="2.8" fill="#fffaf4" opacity="1"/>
+        <circle cx="50" cy="50" r="5.8" fill="#fff1dc" opacity="0.16"/>
+      </g>
+    </symbol>
+
+    <!-- Black Soldier: ultraviolet luminous (blacklight vibe) -->
+    <symbol id="B_S" viewBox="0 0 100 100" overflow="visible">
+      <g filter="url(#lumGlowUv)">
+        <circle cx="50" cy="50" r="43" fill="url(#lumUvBulbGlass)" stroke="#26002f" stroke-width="6"/>
+        <circle cx="50" cy="50" r="33" fill="none" stroke="#4b0f78" stroke-opacity="0.35" stroke-width="3"/>
+        <!-- Internal glow haze -->
+        <circle cx="50" cy="52" r="28" fill="url(#lumUvBulbHaze)"/>
+        <!-- Glass highlight strip (like a bulb reflection) -->
+        <ellipse cx="34" cy="44" rx="8.5" ry="17" fill="#ffffff" opacity="0.11"/>
+        <!-- Center filament: bright luminous dot -->
+        <circle cx="50" cy="50" r="2.7" fill="#ffffff" opacity="0.78"/>
+        <circle cx="50" cy="50" r="4.8" fill="#b688ff" opacity="0.18"/>
+        <circle cx="50" cy="50" r="43" fill="url(#lumShineUv)"/>
+      </g>
+    </symbol>
+
+    <!-- White Officer -->
+    <symbol id="W_O" viewBox="0 0 100 100" overflow="visible">
+      <g>
+        <g filter="url(#lumGlowWarm)">
+          <circle cx="50" cy="50" r="48" fill="url(#lumWarmEmission)"/>
+          <circle cx="50" cy="50" r="9.2" fill="#fff6ea" opacity="0.42"/>
+        </g>
+
+        <circle cx="50" cy="50" r="43" fill="url(#lumWarmBulbGlass)" stroke="#bcb8cf" stroke-width="6"/>
+        <circle cx="50" cy="50" r="33" fill="none" stroke="#ffffff" stroke-opacity="0.32" stroke-width="3"/>
+        <circle cx="50" cy="52" r="28" fill="url(#lumWarmBulbHaze)"/>
+        <circle cx="50" cy="50" r="43" fill="url(#lumWarmBottomShade)"/>
+
+        <ellipse cx="34" cy="44" rx="8.5" ry="17" fill="#ffffff" opacity="0.22"/>
+        <ellipse cx="30" cy="38" rx="4.2" ry="9.2" fill="#ffffff" opacity="0.24"/>
+        <ellipse cx="41" cy="33" rx="12" ry="6" fill="#ffffff" opacity="0.06"/>
+
+        <circle cx="50" cy="50" r="18" fill="none" stroke="#3b2a12" stroke-opacity="0.55" stroke-width="5"/>
+        <circle cx="50" cy="50" r="18" fill="none" stroke="#fff7da" stroke-opacity="0.60" stroke-width="3"/>
+        <circle cx="50" cy="50" r="43" fill="url(#lumShineWarm)"/>
+
+        <circle cx="50" cy="50" r="2.8" fill="#fffaf4" opacity="1"/>
+        <circle cx="50" cy="50" r="5.8" fill="#fff1dc" opacity="0.16"/>
+
+        <use
+          href="#lumStar5"
+          fill="#ffe08a"
+          stroke="#3b2a12"
+          stroke-width="2.6"
+          stroke-linejoin="round"
+          opacity="0.98"
+          transform="translate(0 -2)"/>
+      </g>
+    </symbol>
+
+    <!-- Black Officer -->
+    <symbol id="B_O" viewBox="0 0 100 100" overflow="visible">
+      <g filter="url(#lumGlowUv)">
+        <circle cx="50" cy="50" r="43" fill="url(#lumUvBulbGlass)" stroke="#26002f" stroke-width="6"/>
+        <circle cx="50" cy="50" r="33" fill="none" stroke="#4b0f78" stroke-opacity="0.35" stroke-width="3"/>
+        <circle cx="50" cy="52" r="28" fill="url(#lumUvBulbHaze)"/>
+        <ellipse cx="34" cy="44" rx="8.5" ry="17" fill="#ffffff" opacity="0.11"/>
+        <!-- Center filament: bright luminous dot -->
+        <circle cx="50" cy="50" r="2.7" fill="#ffffff" opacity="0.75"/>
+        <circle cx="50" cy="50" r="4.8" fill="#b688ff" opacity="0.16"/>
+        <use href="#lumStar5" fill="#d9c6ff" opacity="0.92" transform="translate(0 -2)"/>
+        <circle cx="50" cy="50" r="18" fill="none" stroke="#d9c6ff" stroke-opacity="0.40" stroke-width="3"/>
+        <circle cx="50" cy="50" r="43" fill="url(#lumShineUv)"/>
+      </g>
+    </symbol>
+
+    <!-- White King (Dama) -->
+    <symbol id="W_K" viewBox="0 0 100 100" overflow="visible">
+      <g>
+        <g filter="url(#lumGlowWarm)">
+          <circle cx="50" cy="50" r="48" fill="url(#lumWarmEmission)"/>
+          <circle cx="50" cy="50" r="9.2" fill="#fff6ea" opacity="0.42"/>
+        </g>
+
+        <circle cx="50" cy="50" r="43" fill="url(#lumWarmBulbGlass)" stroke="#bcb8cf" stroke-width="6"/>
+        <circle cx="50" cy="50" r="33" fill="none" stroke="#ffffff" stroke-opacity="0.32" stroke-width="3"/>
+        <circle cx="50" cy="52" r="28" fill="url(#lumWarmBulbHaze)"/>
+        <circle cx="50" cy="50" r="43" fill="url(#lumWarmBottomShade)"/>
+
+        <ellipse cx="34" cy="44" rx="8.5" ry="17" fill="#ffffff" opacity="0.22"/>
+        <ellipse cx="30" cy="38" rx="4.2" ry="9.2" fill="#ffffff" opacity="0.24"/>
+        <ellipse cx="41" cy="33" rx="12" ry="6" fill="#ffffff" opacity="0.06"/>
+
+        <use href="#lumCrown" fill="#fff7da" opacity="0.95"/>
+        <circle cx="50" cy="50" r="43" fill="url(#lumShineWarm)"/>
+
+        <circle cx="50" cy="50" r="2.8" fill="#fffaf4" opacity="1"/>
+        <circle cx="50" cy="50" r="5.8" fill="#fff1dc" opacity="0.16"/>
+      </g>
+    </symbol>
+
+    <!-- Black King (Dama) -->
+    <symbol id="B_K" viewBox="0 0 100 100" overflow="visible">
+      <g filter="url(#lumGlowUv)">
+        <circle cx="50" cy="50" r="43" fill="url(#lumUvBulbGlass)" stroke="#26002f" stroke-width="6"/>
+        <circle cx="50" cy="50" r="33" fill="none" stroke="#4b0f78" stroke-opacity="0.35" stroke-width="3"/>
+        <circle cx="50" cy="52" r="28" fill="url(#lumUvBulbHaze)"/>
+        <ellipse cx="34" cy="44" rx="8.5" ry="17" fill="#ffffff" opacity="0.11"/>
+        <!-- Center filament: bright luminous dot -->
+        <circle cx="50" cy="50" r="2.7" fill="#ffffff" opacity="0.75"/>
+        <circle cx="50" cy="50" r="4.8" fill="#b688ff" opacity="0.16"/>
+        <use href="#lumCrown" fill="#d9c6ff" opacity="0.92"/>
+        <circle cx="50" cy="50" r="43" fill="url(#lumShineUv)"/>
+      </g>
+    </symbol>
+  </defs>
+</svg>

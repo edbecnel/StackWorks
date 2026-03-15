@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StackWorks — Start Page Help</title>
+    <link rel="icon" href="./icons/stackworks.svg" type="image/svg+xml" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        color: #e8e6e3;
+        background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+        padding: 20px;
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: rgba(42, 42, 42, 0.95);
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      }
+
+      h1 {
+        color: #fff;
+        font-size: 2.2em;
+        margin-bottom: 10px;
+        border-bottom: 3px solid #4a9eff;
+        padding-bottom: 10px;
+      }
+
+      h2 {
+        color: #4a9eff;
+        font-size: 1.5em;
+        margin-top: 26px;
+        margin-bottom: 12px;
+      }
+
+      p {
+        margin-bottom: 12px;
+        color: #d4d4d4;
+      }
+
+      ul {
+        margin-left: 22px;
+        margin-bottom: 14px;
+      }
+
+      li {
+        margin-bottom: 8px;
+        color: #d4d4d4;
+      }
+
+      .highlight {
+        background: rgba(74, 158, 255, 0.12);
+        padding: 14px;
+        border-left: 4px solid #4a9eff;
+        border-radius: 6px;
+        margin: 14px 0;
+      }
+
+      a {
+        color: #4a9eff;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .links {
+        margin-top: 22px;
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        display: inline-block;
+        background: rgba(74, 158, 255, 0.18);
+        border: 1px solid rgba(74, 158, 255, 0.35);
+        padding: 10px 14px;
+        border-radius: 10px;
+        color: #e8e6e3;
+      }
+
+      .btn:hover {
+        background: rgba(74, 158, 255, 0.26);
+        text-decoration: none;
+      }
+
+      .mono {
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        font-size: 0.95em;
+        background: rgba(255, 255, 255, 0.08);
+        padding: 2px 6px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+    </style>
+  <script>if("serviceWorker"in navigator)navigator.serviceWorker.register("/StackWorks/sw.js").catch(function(){});</script>
+</head>
+  <body>
+    <div class="container">
+      <h1>StackWorks — Start Page Help</h1>
+      <p>
+        The StackWorks Start Page (<span class="mono">index.html</span>) lets you
+        choose a game variant and configure common options before launching.
+      </p>
+
+      <div class="highlight">
+        <p>
+          Settings chosen here are saved in your browser (localStorage) and will
+          be used when the game page loads.
+        </p>
+      </div>
+
+      <div class="highlight">
+        <p>
+          Tip: Each section on the Start Page can be expanded/collapsed by
+          clicking its header. Your expanded/collapsed choices are remembered in
+          your browser; the first time you visit, all sections start expanded.
+        </p>
+      </div>
+
+      <h2>1) Choose game</h2>
+      <ul>
+        <li><b>Lasca</b>: Lasca rules on a 7×7 board (11 pieces per side).</li>
+        <li>
+          <b>Lasca 8×8</b>: Lasca rules on an 8×8 board (12 pieces per side).
+        </li>
+        <li>
+          <b>Damasca</b>: Dama movement + Lasca stacking captures (8×8, 12
+          pieces per side), with two variants:
+          <ul>
+            <li>
+              <b>Classic</b>: non-flying Officers (move/capture like Lasca).
+            </li>
+            <li><b>International</b>: flying Officers (Dama-style).</li>
+          </ul>
+        </li>
+        <li>
+          <b>Dama</b>: Dama on an 8×8 board (12 pieces per side), with two
+          variants:
+          <ul>
+            <li>
+              <b>Dama Classic</b>: captured pieces are removed immediately.
+            </li>
+            <li>
+              <b>Dama International</b>: captured pieces remain on the board
+              until the capture sequence ends.
+            </li>
+          </ul>
+        </li>
+      </ul>
+
+      <h2>2) Board &amp; Pieces</h2>
+      <p>
+        The Pieces dropdown selects the same options found on the game’s
+        Info panel. Your choice is applied when the board loads.
+      </p>
+
+      <p>
+        If you choose the <b>Glass</b> pieces, additional dropdowns appear:
+        <b>Glass colors</b> (piece color-pair presets) and <b>Glass bg</b>
+        (choose between <b>Original</b>, <b>Felt</b>, and <b>Walnut</b>
+        backgrounds).
+      </p>
+
+      <h2>3) Startup options</h2>
+      <p>These are applied when the game loads:</p>
+      <ul>
+        <li>
+          <b>Layout</b>: choose between <b>Panels</b> (sidebars left/right of
+          the board in landscape, top/bottom in portrait) and
+          <b>Menu</b> (hamburger menu that opens panel sections as dialogs).
+          On small touch screens, StackWorks may default to <b>Menu</b> until
+          you choose otherwise.
+        </li>
+        <li>
+          <b>Board viewport</b>: choose <b>Framed</b> (full board) or
+          <b>Playable area</b> (crop to just the squares).
+        </li>
+        <li><b>Show resize icon</b>: show the ↕️ board-height button.</li>
+        <li>
+          <b>Show board coordinates</b>: show row/column labels on the board.
+        </li>
+        <li>
+          <b>Use checkered board for 8×8 games</b>: use a chess-style square
+          grid for 8×8 variants. When enabled, the in-game <b>Board &amp; Pieces</b> panel
+          includes a <b>Board</b> selector (Classic/Green/Blue/Stone/Burled Wood) to change the
+          checkerboard colors.
+        </li>
+        <li>
+          <b>Move preview hints</b>: show extra capture preview rings while selecting a piece.
+        </li>
+        <li>
+          <b>Sound effects</b>: enable subtle sounds for moves/captures.
+        </li>
+      </ul>
+
+      <p>
+        You can also toggle <b>Show resize icon</b> in-game via
+        <b>left panel → Options → Show resize icon</b>.
+      </p>
+
+      <p>
+        The <b>Layout</b> setting can also be changed in-game via
+        <b>Options → Layout</b>.
+      </p>
+
+      <p>
+        Move preview hints can be toggled in-game via
+        <b>left panel → Options → Move preview hints</b>.
+      </p>
+
+      <h2>4) AI options</h2>
+      <p>These match the AI section on the Game panel:</p>
+      <ul>
+        <li>
+          <b>White/Black</b> (Chess variants) or <b>Light/Dark</b> (other variants):
+          set each side to Human / Beginner / Intermediate / Expert.
+        </li>
+        <li>
+          <b>Speed</b>: delay between AI moves in milliseconds.
+          <div class="hint" style="margin-left: 0">
+            Note: <b>Classic Chess</b> uses the in-game <b>Bot</b> section for its
+            own Speed slider (ms) and reset button.
+          </div>
+        </li>
+      </ul>
+
+      <h2>Launch</h2>
+      <p>
+        Click <b>Launch</b> to open the selected game page. If a game variant
+        isn’t available yet, Launch will be disabled.
+      </p>
+
+      <h2>Online multiplayer (2 players)</h2>
+      <p>
+        To play online, set <b>Play mode</b> to <b>Online</b>. Use
+        <b>Create</b> to make a room (Player 1), then use the <b>Lobby</b> list
+        to <b>Join</b>, <b>Spectate</b>, or <b>Rejoin</b> rooms.
+      </p>
+      <ul>
+        <li>
+          The online server is configured by the host/admin.
+        </li>
+        <li>
+          <b>Create</b>: makes a new room and starts you as Player 1.
+          <ul>
+            <li>
+              <b>Room</b>: choose <b>Public</b> (spectators allowed) or
+              <b>Private</b> (no public spectating).
+            </li>
+          </ul>
+        </li>
+        <li>
+          <b>Lobby</b>: shows open rooms on the server. Click <b>Join</b> on a
+          lobby row to join, <b>Spectate</b> to watch (public rooms), or
+          <b>Rejoin</b> to reclaim a previously-saved seat on this browser.
+        </li>
+      </ul>
+
+      <div class="highlight">
+        <p>
+          After creating a room, the game UI shows the <b>Room ID</b> in
+          <b>Info → Online</b>. Use the copy button next to “Room ID” to copy it
+          to your clipboard.
+        </p>
+        <p>
+          When you create a room, the game also shows a sticky
+          <b>Waiting for opponent…</b> toast. Tap it to copy an invite link you
+          can share.
+        </p>
+        <p>
+          Private-room spectating: if you created a <b>Private</b> room, seated
+          players can copy a secret spectate link from <b>Info → Online</b>
+          using the <b>Ⓦ</b> button.
+        </p>
+        <p>
+          While connecting, the game may show toast notifications like
+          <b>Connecting…</b>, <b>Reconnecting…</b>, and <b>Reconnected</b>. You
+          can disable toasts via <b>Show toast notifications</b> on the Start
+          Page.
+        </p>
+        <p>
+          If you run into issues, open <b>Info → Online</b> and use <b>ⓘ</b> to
+          view/copy a diagnostic blob you can paste into a bug report (and it
+          will also be uploaded to the server for this room).
+        </p>
+        <p>
+          When joining, the Start Page will automatically open the correct
+          variant page for that room.
+        </p>
+        <p>
+          Online input is blocked until both players have joined (so a single
+          client can’t accidentally play “both colors” while waiting).
+        </p>
+        <p>
+          Leaving: in online games, <b>Leave room (forfeit)</b> ends your game
+          immediately (counts as resign). If you simply close the tab, the
+          server starts a disconnect grace period.
+        </p>
+        <p>
+          Disconnect behavior:
+          <ul>
+            <li>
+              If your opponent stays connected and you don’t return before grace
+              expires, you may lose by disconnect timeout.
+            </li>
+            <li>
+              If <b>both players disconnect</b>, the game stays paused and does
+              not time out (so you can resume later).
+            </li>
+          </ul>
+        </p>
+      </div>
+
+      <h2>Keyboard shortcuts (in-game)</h2>
+      <p>
+        When you are on a game page, shortcuts use <span class="mono">Ctrl</span>
+        (Windows/Linux) or <span class="mono">Cmd</span> (macOS). Shortcuts are
+        disabled while typing in a text field.
+      </p>
+      <ul>
+        <li><b>Undo:</b> <span class="mono">Ctrl/Cmd+Z</span></li>
+        <li><b>Redo:</b> <span class="mono">Ctrl/Cmd+Y</span> or <span class="mono">Ctrl/Cmd+Shift+Z</span></li>
+        <li><b>Save:</b> <span class="mono">Ctrl/Cmd+S</span></li>
+        <li><b>Toggle analysis (Chess variants only):</b> <span class="mono">Ctrl/Cmd+Shift+A</span></li>
+        <li><b>Resign:</b> <span class="mono">Ctrl/Cmd+Shift+X</span></li>
+        <li><b>Full Screen:</b> <span class="mono">Ctrl/Cmd+Shift+F</span> (or the Full Screen button)</li>
+        <li><b>Bot speed:</b> <span class="mono">Alt+↑</span>/<span class="mono">Alt+↓</span> (when the AI speed control is available)</li>
+        <li><b>Playback speed:</b> <span class="mono">Alt+Shift+↑</span>/<span class="mono">Alt+Shift+↓</span></li>
+        <li><b>Show keyboard shortcuts:</b> <span class="mono">Ctrl/Cmd+Shift+?</span> (also works as <span class="mono">Ctrl/Cmd+Shift+/</span>)</li>
+        <li><b>Right-click menu:</b> For chess variants, right-click outside the board → <b>Show Keyboard Shortcuts</b></li>
+      </ul>
+
+      <div class="highlight">
+        <p>
+          <b>Analysis mode (Chess variants only):</b> toggle via the <b>Analysis</b>
+          button or <span class="mono">Ctrl/Cmd+Shift+A</span>. In online rooms,
+          analysis moves are local-only and are not submitted to the server.
+          AI/bots are paused during analysis.
+        </p>
+      </div>
+
+      <h2>More help</h2>
+      <p>
+        For game rules and gameplay instructions, see the variant help pages.
+      </p>
+
+      <div class="links">
+        <a class="btn" href="./index.html">Back to Start</a>
+        <a class="btn" href="./help.html?from=startHelp">Lasca Help & Rules</a>
+        <a class="btn" href="./dama-help.html?from=startHelp">Dama Help & Rules</a>
+        <a class="btn" href="./checkers-help.html?from=startHelp">Checkers (US) Help & Rules</a>
+        <a class="btn" href="./damasca-help.html?from=startHelp">Damasca Help & Rules</a>
+        <a class="btn" href="./chess-help.html?from=startHelp">Classic Chess Help & Rules</a>
+        <a class="btn" href="./columnsChess-help.html?from=startHelp">Columns Chess Help & Rules</a>
+      </div>
+    </div>
+  </body>
+</html>

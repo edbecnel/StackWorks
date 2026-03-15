@@ -1,9 +1,16 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lasca - Help & Rules</title>
+    <title>StackWorks — Lasca Help & Rules (7×7 and 8×8)</title>
+    <!-- Match Lasca game page favicon (inline, base-safe). -->
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      sizes="any"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' ry='3' fill='%231b1b1b'/%3E%3Ccircle cx='8' cy='8' r='6' fill='%2300e676'/%3E%3C/svg%3E"
+    />
     <style>
       * {
         margin: 0;
@@ -12,7 +19,8 @@
       }
 
       body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
           "Helvetica Neue", Arial, sans-serif;
         line-height: 1.6;
         color: #e8e6e3;
@@ -156,10 +164,14 @@
         color: #ddd;
       }
     </style>
-  </head>
+  <script>if("serviceWorker"in navigator)navigator.serviceWorker.register("/StackWorks/sw.js").catch(function(){});</script>
+</head>
   <body>
     <div class="container">
-      <h1><span class="emoji">🎲</span> Lasca - Help & Rules</h1>
+      <h1>
+        <span class="emoji">🎲</span> StackWorks — Lasca Help & Rules (7×7 and
+        8×8)
+      </h1>
 
       <p>
         <em
@@ -181,9 +193,8 @@
       <h2 id="about">About Lasca</h2>
       <p>
         Lasca (also known as Laska) is a checkers variant that combines elements
-        of checkers and chess. The game is played on a 7×7 board with a unique
-        stacking mechanic that makes it more strategic than traditional
-        checkers.
+        of checkers and chess. This app supports both the classic 7×7 Lasca
+        board and an 8×8 board (Lasca rules on a Dama-sized board).
       </p>
 
       <div class="highlight">
@@ -194,16 +205,19 @@
       </div>
 
       <h2 id="setup">Game Setup</h2>
+      <p>
+        Lasca rules are the same on both board sizes. The difference is the
+        board and starting piece count.
+      </p>
       <ul>
+        <li><strong>Classic Lasca (7×7):</strong> 11 soldiers per side</li>
+        <li><strong>Lasca on 8×8 board:</strong> 12 soldiers per side</li>
         <li>
-          <span class="piece-symbol white-piece">⚪ White</span> starts at the
-          bottom (rows 0-1) with 11 soldiers
+          <span class="piece-symbol white-piece">⚪ Light</span> starts at the
+          bottom; <span class="piece-symbol black-piece">⚫ Dark</span> starts
+          at the top
         </li>
-        <li>
-          <span class="piece-symbol black-piece">⚫ Black</span> starts at the
-          top (rows 5-6) with 11 soldiers
-        </li>
-        <li>White moves first</li>
+        <li>Light moves first</li>
         <li>All pieces start as soldiers (simple pieces)</li>
       </ul>
 
@@ -278,10 +292,10 @@
             <strong>Officers</strong> <span class="emoji">⭐</span>
           </li>
           <li>
-            White soldiers promote on row 6 (top of board), Black soldiers on
-            row 0 (bottom of board)
+            Light soldiers promote on row 6 (top of board), Dark soldiers on row
+            0 (bottom of board)
           </li>
-          <li>White officers are displayed in green, Black officers in red</li>
+          <li>Light officers are displayed in green, Dark officers in red</li>
           <li>Officers can move and capture in all four diagonal directions</li>
           <li>
             Only the top piece of a stack determines movement—officers control
@@ -328,6 +342,105 @@
 
       <h2 id="interface">Using the Interface</h2>
 
+      <h3>Online play (2 players)</h3>
+      <p>
+        You can play online via the Start Page by choosing
+        <b>Play mode → Online</b>. Player 1 creates a room, then shares the
+        <b>Room ID</b> with Player 2.
+      </p>
+      <ul>
+        <li>
+          Room visibility: when creating a room, choose
+          <b>Public</b> (spectators allowed) or <b>Private</b> (no public
+          spectating).
+        </li>
+        <li>
+          Room ID is shown in-game in <b>Info → Online</b> with a copy button.
+        </li>
+        <li>
+          When you create a room, the game shows a sticky
+          <b>Waiting for opponent…</b> toast; tap it to copy an invite link to
+          share.
+        </li>
+        <li>Player 2 joins by pasting the Room ID on the Start Page.</li>
+        <li>
+          Online input is blocked until both players have joined (prevents one
+          client from playing “both colors” while waiting).
+        </li>
+        <li>
+          Spectating: you can spectate <b>public</b> rooms from the Start Page.
+          Private rooms require a secret watch link.
+        </li>
+        <li>
+          Private watch links: seated players can copy a private spectate link
+          from <b>Info → Online</b> using the <b>Ⓦ</b> button.
+        </li>
+        <li>
+          Connection toasts: the game may show <b>Connecting…</b>,
+          <b>Reconnecting…</b>, and <b>Reconnected</b>. These respect the “Show
+          toast notifications” setting.
+        </li>
+        <li>
+          Opponent presence: the Online panel shows opponent status, and the
+          board also shows a small opponent badge under the turn indicator
+          (green=connected, yellow=in grace, red=disconnected, gray=waiting).
+        </li>
+        <li>
+          Report issue: open <b>Info → Online</b> and click <b>ⓘ</b> to
+          view/copy debug info (and it will also be uploaded to the server for
+          this room).
+        </li>
+        <li>
+          Disconnect grace: if one player disconnects while the other stays
+          connected, the disconnected player may lose after a short grace
+          period. If both players disconnect, the game stays paused and does not
+          time out.
+        </li>
+      </ul>
+
+      <h3>Keyboard shortcuts</h3>
+      <p>
+        Shortcuts use <code>Ctrl</code> (Windows/Linux) or <code>Cmd</code>
+        (macOS). Shortcuts are disabled while typing in a text field.
+      </p>
+      <ul>
+        <li><strong>Undo:</strong> <code>Ctrl/Cmd+Z</code></li>
+        <li>
+          <strong>Redo:</strong> <code>Ctrl/Cmd+Y</code> or
+          <code>Ctrl/Cmd+Shift+Z</code>
+        </li>
+        <li><strong>Save:</strong> <code>Ctrl/Cmd+S</code></li>
+        <li><strong>Resign:</strong> <code>Ctrl/Cmd+Shift+X</code></li>
+        <li>
+          <strong>Full Screen:</strong> <code>Ctrl/Cmd+Shift+F</code> (or the
+          Full Screen button)
+        </li>
+        <li>
+          <strong>Bot speed:</strong> <code>Alt+↑</code>/<code>Alt+↓</code>
+          (when the AI speed control is available)
+        </li>
+        <li>
+          <strong>Playback speed:</strong> <code>Alt+Shift+↑</code>/<code
+            >Alt+Shift+↓</code
+          >
+        </li>
+        <li>
+          <strong>Show keyboard shortcuts:</strong>
+          <code>Ctrl/Cmd+Shift+?</code> (also works as
+          <code>Ctrl/Cmd+Shift+/</code>)
+        </li>
+        <li>
+          <strong>Right-click menu:</strong> Right-click outside the board →
+          <strong>Show Keyboard Shortcuts</strong>
+        </li>
+      </ul>
+
+      <h3>Sound effects</h3>
+      <p>
+        The game can play subtle sounds for moves/captures. You can toggle this
+        from the Start Page (startup option) and in-game from the Options panel.
+      </p>
+
       <h3>Making Moves</h3>
       <ol>
         <li><strong>Click</strong> on one of your pieces to select it</li>
@@ -340,13 +453,10 @@
       </ol>
 
       <h3>Move Hints</h3>
-      <p>Enable "Show move hints" to see:</p>
-      <ul>
-        <li><strong>Red circles:</strong> Enemy pieces you'll jump over</li>
-        <li>
-          <strong>Orange circles:</strong> Landing positions after capture
-        </li>
-      </ul>
+      <p>
+        Move preview hints can be toggled in-game via
+        <strong>left panel → Options → Move preview hints</strong>.
+      </p>
 
       <h3>Stack Inspector</h3>
       <p>The right panel shows the composition of stacks:</p>
@@ -354,6 +464,21 @@
         <li>Click any stack to see all pieces in it from bottom to top</li>
         <li>The top piece is marked with a star</li>
         <li>Pieces are colored by their owner</li>
+      </ul>
+
+      <h3>Board Height Button</h3>
+      <p>
+        When enabled, an on-board button (↕️) appears near the bottom-right of
+        the board to help when the browser’s bottom navigation bar overlaps the
+        play area. You can enable this from the Start Page, or in-game via
+        <strong>left panel → Options → Show resize icon</strong>.
+      </p>
+      <ul>
+        <li><strong>Tap:</strong> toggle reduced board height on/off</li>
+        <li>
+          <strong>Touch-hold + drag:</strong> move the button if it blocks
+          something (its position is remembered)
+        </li>
       </ul>
 
       <h3>Board Notation</h3>
@@ -366,10 +491,10 @@
         <li><strong>Columns:</strong> Numbered 0-6 from left to right</li>
         <li>
           <strong>Format:</strong> Positions are written as
-          <code>r{row}c{col}</code>, e.g., <code>r0c0</code> is the bottom-left
-          corner, <code>r6c6</code> is the top-right corner
+          <code>{Column}{Row}</code>, e.g., <code>A1</code> is the bottom-left
+          corner, <code>G7</code> is the top-right corner
         </li>
-        <li>White starts on rows 0-1, Black starts on rows 5-6</li>
+        <li>Light starts on rows 0-1, Dark starts on rows 5-6</li>
       </ul>
       <p>
         While not displayed in the UI, this notation is standard for recording
@@ -380,21 +505,201 @@
 
       <h3>Game Controls</h3>
       <ul>
+        <li>
+          <strong>New Game:</strong> Start a fresh game (with confirmation)
+        </li>
+        <li>
+          <strong>Resign:</strong> Forfeit the current game (with confirmation)
+        </li>
+        <li>
+          <strong>Leave room (forfeit):</strong> Online-only. Leave the room and
+          forfeit immediately (counts as resign), then return to the Start Page.
+        </li>
         <li><strong>Undo/Redo:</strong> Navigate through your move history</li>
         <li><strong>Save Game:</strong> Export your game to a JSON file</li>
         <li><strong>Load Game:</strong> Import a previously saved game</li>
         <li>
           <strong>Move History:</strong> See all moves made in the current game
+          (shown in the <strong>Info</strong> panel, below the Stack Inspector).
+          Quiet moves use → (e.g., "A1 → B2"), captures use × (e.g., "C3 × D4").
+          Multi-capture chains show the full path (e.g., "A1 × B2 × C3"). The
+          list auto-scrolls so the latest move stays visible. You can also
+          <strong>click any entry</strong> (including "Start") to jump to that
+          point in the game; when you Undo/Redo or jump, the list scrolls to
+          keep the current entry visible.
+        </li>
+        <li>
+          <strong>Export Move History:</strong> Download a JSON file containing
+          all moves from the current game with timestamps. Useful for recording
+          games for publication or analysis
+        </li>
+      </ul>
+
+      <h3>Options</h3>
+      <p>
+        The <strong>Game Panel</strong> (left sidebar) contains an
+        <strong>Options</strong> section with display and gameplay settings:
+      </p>
+      <ul>
+        <li>
+          <strong>Layout:</strong> Choose <strong>Panels</strong> (sidebars) or
+          <strong>Menu</strong> (hamburger menu that opens panel sections as
+          dialogs). On small touch screens, StackWorks may default to
+          <strong>Menu</strong> until you choose otherwise.
+        </li>
+        <li>
+          <strong>Board viewport:</strong> Choose <strong>Framed</strong> (full
+          board) or <strong>Playable area</strong> (crop to just the squares)
+        </li>
+        <li>
+          <strong>Show board coordinates:</strong> Display column letters (A–G)
+          and row numbers (1–7) along the edges of the board
+        </li>
+        <li>
+          <strong>Use checkered board (8×8):</strong> For 8×8 variants, switch
+          to a chess-style square grid. When enabled, the Board &amp; Pieces
+          panel includes a <strong>Board</strong> selector
+          (Classic/Green/Blue/Stone/Burled Wood) to change the checkerboard
+          colors.
+        </li>
+      </ul>
+
+      <p>
+        In <strong>Menu</strong> mode, tap <strong>☰</strong> to open the panel
+        section list. After the first tap, a top bar appears with
+        <strong>Start Page</strong> and <strong>?</strong> (help). If you choose
+        Start Page after a game has started, StackWorks will show a warning to
+        prevent accidental loss of the current game.
+      </p>
+
+      <p>
+        Repetition draws are enforced by the ruleset (not a UI option). When a
+        threefold repetition is available, the current player may claim a draw;
+        fivefold repetition is an automatic draw.
+      </p>
+
+      <h3>Option Actions</h3>
+      <p>
+        Below Options, the <strong>Option Actions</strong> section contains game
+        control buttons:
+      </p>
+      <ul>
+        <li>
+          <strong>New Game:</strong> Start a fresh game (with confirmation)
+        </li>
+        <li>
+          <strong>Save Game / Load Game:</strong> Export or import game state as
+          JSON
+        </li>
+        <li>
+          <strong>Export Move History:</strong> Download move history as JSON
+        </li>
+        <li><strong>Undo / Redo:</strong> Navigate through move history</li>
+        <li>
+          <strong>Resign:</strong> Forfeit the current game (with confirmation)
+        </li>
+        <li>
+          <strong>Leave room (forfeit):</strong> Online-only. Leave the room and
+          forfeit immediately (counts as resign), then return to the Start Page.
+        </li>
+      </ul>
+
+      <h3>AI</h3>
+      <p>
+        The <strong>Game Panel</strong> (left sidebar) includes an
+        <strong>AI</strong>
+        section that lets you choose who is controlled by the computer.
+      </p>
+      <ul>
+        <li>
+          <strong>Light / Dark:</strong> Set each side to Human, Beginner,
+          Intermediate, or Expert.
+        </li>
+        <li>
+          <strong>Both sides AI:</strong> If you set both to AI, the game can
+          play on its own.
+        </li>
+        <li>
+          <strong>Speed:</strong> Adds a pause between AI moves so play is
+          easier to follow.
+        </li>
+        <li>
+          <strong>Pause / Step:</strong> Pause AI play, or step a single move
+          (useful for AI vs AI).
+        </li>
+      </ul>
+
+      <h3>Evaluation</h3>
+      <p>
+        The <strong>Info</strong> panel (right sidebar) includes an
+        <strong>Evaluation</strong> section showing a quick “who is better”
+        style indicator. Click an icon to choose what to display (hover to see
+        the tooltip):
+      </p>
+      <ul>
+        <li>
+          <strong>⚖ Advantage (estimate):</strong> A heuristic evaluation of the
+          current position
+        </li>
+        <li>
+          <strong>▦ Controlled stacks:</strong> Count of stacks controlled by
+          each side (top piece)
+        </li>
+        <li>
+          <strong>⛀ Material (all pieces):</strong> All pieces currently on the
+          board, including buried
         </li>
       </ul>
 
       <h3>Themes</h3>
+      <p>
+        The <strong>Theme</strong> panel lets you change how pieces look (piece
+        theme). On 8×8 games using the checkered board option, it also includes
+        a <strong>Board</strong> selector (Classic/Green/Blue/Stone/Burled Wood)
+        for the checkerboard colors.
+      </p>
       <p>Choose between different visual themes:</p>
       <ul>
         <li><strong>Classic:</strong> Traditional tan and brown board</li>
         <li>
-          <strong>High Contrast:</strong> Enhanced visibility with stronger
-          colors
+          <strong>Wooden:</strong> Natural wood grain textures with light maple,
+          dark walnut, and cherry wood pieces on a warm wooden board
+        </li>
+        <li>
+          <strong>Copper & Steel:</strong> Modern metallic theme with polished
+          stainless steel and copper pieces featuring brushed metal textures and
+          realistic metallic shine
+        </li>
+        <li>
+          <strong>Granite & Marble:</strong> Elegant stone theme with polished
+          white marble and black granite pieces featuring realistic veining,
+          bright reflective speckles, and rounded beveled edges for a
+          dimensional 3D appearance
+        </li>
+        <li>
+          <strong>Semi-Precious Stones:</strong> Gem-like theme with
+          semi-precious pieces (11 light + 11 dark) and enhanced shine (strong
+          speculars/glints) to make stones easier to identify at a glance
+        </li>
+        <li>
+          <strong>Glass:</strong> Sleek translucent glass pieces in light yellow
+          and dark blue with shiny reflections, rounded edges, and glossy
+          highlights for a modern appearance. Includes optional piece color-pair
+          presets (Glass colors) and background variants (Original / Felt /
+          Walnut), selectable from the Board &amp; Pieces panel or the Start
+          Page.
+        </li>
+        <li>
+          <strong>Turtle:</strong> Turtle-shell patterned pieces with Dark in
+          green and Light in a light yellowish orange-brown
+        </li>
+        <li>
+          <strong>Porcelain:</strong> Smooth glazed ceramic pieces with a clean,
+          polished look
+        </li>
+        <li>
+          <strong>Luminous:</strong> Incandescent-style pieces with a warm glow
+          and strong halo
         </li>
       </ul>
 
@@ -402,9 +707,7 @@
       <p>In development mode (console):</p>
       <ul>
         <li><code>__random()</code> - Generate a random game state</li>
-        <li>
-          <code>__random(11, "B")</code> - Random state with Black to move
-        </li>
+        <li><code>__random(11, "B")</code> - Random state with Dark to move</li>
         <li>
           <code>__random(11, "W", "R")</code> - Test scenario for anti-loop rule
         </li>
@@ -459,6 +762,21 @@
       </p>
 
       <a href="lasca.html" class="back-link">← Back to Game</a>
+      <script>
+        (function () {
+          try {
+            var params = new URLSearchParams(window.location.search);
+            if (params.get("from") !== "startHelp") return;
+
+            var a = document.querySelector("a.back-link");
+            if (!a) return;
+            a.setAttribute("href", "./start-help.html");
+            a.textContent = "\u2190 Back to StackWorks Start Page Help";
+          } catch (e) {
+            // ignore
+          }
+        })();
+      </script>
     </div>
   </body>
 </html>

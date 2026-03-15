@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StackWorks — Columns Chess Help &amp; Rules</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      sizes="any"
+      href="./icons/pawn3d-classic.svg"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        color: #e8e6e3;
+        background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+        padding: 20px;
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: rgba(42, 42, 42, 0.95);
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      }
+
+      h1 {
+        color: #fff;
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        border-bottom: 3px solid #4a9eff;
+        padding-bottom: 10px;
+      }
+
+      h2 {
+        color: #4a9eff;
+        font-size: 1.8em;
+        margin-top: 30px;
+        margin-bottom: 15px;
+      }
+
+      h3 {
+        color: #7db3ff;
+        font-size: 1.3em;
+        margin-top: 20px;
+        margin-bottom: 10px;
+      }
+
+      p {
+        margin-bottom: 15px;
+        color: #d4d4d4;
+      }
+
+      ul,
+      ol {
+        margin-left: 25px;
+        margin-bottom: 15px;
+      }
+
+      li {
+        margin-bottom: 8px;
+        color: #d4d4d4;
+      }
+
+      .highlight {
+        background: rgba(74, 158, 255, 0.2);
+        padding: 15px;
+        border-left: 4px solid #4a9eff;
+        border-radius: 4px;
+        margin: 15px 0;
+      }
+
+      .warning {
+        background: rgba(255, 184, 77, 0.2);
+        padding: 15px;
+        border-left: 4px solid #ffb84d;
+        border-radius: 4px;
+        margin: 15px 0;
+      }
+
+      .rule-box {
+        background: rgba(74, 158, 255, 0.1);
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px 0;
+        border: 1px solid rgba(74, 158, 255, 0.3);
+      }
+
+      a {
+        color: #4a9eff;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .back-link {
+        display: inline-block;
+        margin-top: 30px;
+        padding: 12px 24px;
+        background: #4a9eff;
+        color: #fff;
+        border-radius: 6px;
+        font-weight: 700;
+        transition: background 0.2s;
+      }
+
+      .back-link:hover {
+        background: rgba(74, 158, 255, 0.85);
+        text-decoration: none;
+      }
+
+      code {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: "Courier New", monospace;
+        font-size: 0.9em;
+      }
+    </style>
+  <script>if("serviceWorker"in navigator)navigator.serviceWorker.register("/StackWorks/sw.js").catch(function(){});</script>
+</head>
+  <body>
+    <div class="container">
+      <h1>StackWorks — Columns Chess Help &amp; Rules</h1>
+
+      <p>
+        <b>Columns Chess</b> combines chess movement (including <b>check</b>)
+        with Lasca-style stacking captures. Squares can hold a <b>stack</b>
+        (a “column”) of pieces.
+      </p>
+
+      <h2>Table of Contents</h2>
+      <ul>
+        <li><a href="#overview">Rules Overview</a></li>
+        <li><a href="#movement">Movement &amp; Check</a></li>
+        <li><a href="#stacks">Stacks (Columns)</a></li>
+        <li><a href="#captures">Captures &amp; Remainders</a></li>
+        <li><a href="#repetition">Repetition &amp; Ko</a></li>
+        <li><a href="#interface">Using the Interface</a></li>
+        <li><a href="#notation">Notation</a></li>
+      </ul>
+
+      <h2 id="overview">Rules Overview</h2>
+      <div class="rule-box">
+        <h3>Movement (Chess)</h3>
+        <ul>
+          <li>
+            Pieces move like chess: King, Queen, Rook, Bishop, Knight, Pawn.
+          </li>
+          <li>
+            <b>Check rules apply:</b> you may not make a move that leaves your
+            king in check.
+          </li>
+          <li>
+            Castling and en passant exist when allowed by the current state.
+          </li>
+          <li>Promotion happens on reaching the final rank (as in chess).</li>
+        </ul>
+
+        <h3>Stacks + Stacking Captures</h3>
+        <ul>
+          <li>
+            Only the <b>top piece</b> of a stack determines who controls that
+            square.
+          </li>
+          <li>
+            Captures remove only the <b>top</b> piece of the captured stack.
+          </li>
+          <li>
+            The captured top piece is inserted at the <b>bottom</b> of the
+            capturing stack on the destination square.
+          </li>
+          <li>
+            If the captured stack had a remainder (more pieces underneath), the
+            remainder is moved back to the capturer’s origin square.
+          </li>
+        </ul>
+
+        <h3>Repetition &amp; Draws (Chess-style) + Ko</h3>
+        <ul>
+          <li>
+            <b>Ko (immediate recapture ban):</b> immediately after a capture,
+            you may not make a move that recreates the exact position from
+            before that capture.
+          </li>
+          <li>
+            <b>Threefold repetition (claimable draw):</b> if the same position
+            occurs at least 3 times, the player to move may claim a draw.
+          </li>
+          <li>
+            <b>Fivefold repetition (automatic draw):</b> if the same position
+            occurs at least 5 times, the game is drawn automatically.
+          </li>
+        </ul>
+      </div>
+
+      <h2 id="movement">Movement &amp; Check</h2>
+      <p>
+        You move like chess. Legal destinations are highlighted after selecting
+        a piece/stack.
+      </p>
+      <div class="highlight">
+        <b>Check reminder:</b> Even if a move is otherwise legal by movement, it
+        is illegal if it leaves your king in check.
+      </div>
+
+      <h2 id="stacks">Stacks (Columns)</h2>
+      <ul>
+        <li>A square can contain a stack of pieces (bottom → top).</li>
+        <li>
+          Only the <b>top piece</b> determines which player controls the square.
+        </li>
+        <li>
+          Hover a stacked square to open the <b>Stack Inspector</b> (right
+          panel) and see the full column order.
+        </li>
+        <li>
+          A small “mini spine” preview is drawn for stacks on the board. It is
+          shown <b>inside</b> the square on the right side, and stays on
+          <b>screen-right</b> even when the board is flipped.
+        </li>
+      </ul>
+
+      <h2 id="captures">Captures &amp; Remainders</h2>
+      <p>A capture targets an occupied square.</p>
+      <div class="rule-box">
+        <h3>What a capture does</h3>
+        <ul>
+          <li>
+            Captures remove only the <b>top</b> piece of the captured stack.
+          </li>
+          <li>
+            That captured piece is inserted <b>under</b> the capturing stack on
+            the destination square.
+          </li>
+          <li>
+            If the captured stack had more than one piece, the remaining pieces
+            (the “remainder”) are moved back to the capturer’s origin square.
+          </li>
+          <li>
+            If the captured stack had exactly one piece, the origin square
+            becomes empty.
+          </li>
+        </ul>
+      </div>
+
+      <h2 id="repetition">Repetition &amp; Ko</h2>
+      <p>
+        Columns Chess uses chess-style repetition draws (threefold claimable,
+        fivefold automatic). This is about repeating the <b>same position</b>,
+        not repeating the same moves.
+      </p>
+
+      <div class="warning">
+        A position counts as “the same” only if the <b>same legal moves</b>
+        exist. In practice that means the same board (including stack order),
+        the same player to move, and the same chess rights (castling + en
+        passant availability).
+      </div>
+
+      <ul>
+        <li><b>The same player</b> is to move.</li>
+        <li>
+          The same pieces (type + color) are on the same squares, with the same
+          <b>stack order</b> in each column.
+        </li>
+        <li>
+          The same legal moves exist — which means <b>castling rights</b> and
+          <b>en passant</b> availability must match too.
+        </li>
+      </ul>
+
+      <div class="rule-box">
+        <h3>Ko (immediate recapture ban)</h3>
+        <ul>
+          <li>Ko is checked only immediately after a <b>capture</b>.</li>
+          <li>
+            A move is illegal if it would recreate the exact position that
+            existed immediately before the last capture.
+          </li>
+          <li>Ko is cleared as soon as a <b>non-capture</b> move is made.</li>
+        </ul>
+
+        <h3>Threefold repetition (claimable draw)</h3>
+        <ul>
+          <li>
+            If the same position occurs at least <b>3</b> times, the player to
+            move may <b>claim a draw</b>.
+          </li>
+        </ul>
+
+        <h3>Fivefold repetition (automatic draw)</h3>
+        <ul>
+          <li>
+            If the same position occurs at least <b>5</b> times, the game is a
+            <b>draw automatically</b> (no claim needed).
+          </li>
+        </ul>
+      </div>
+
+      <h2 id="interface">Using the Interface</h2>
+      <ul>
+        <li>
+          Click a piece/stack to select it, then click a highlighted target to
+          move.
+        </li>
+        <li>
+          Hover stacked squares to open the <b>Stack Inspector</b> and see the
+          full bottom → top order.
+        </li>
+        <li>
+          <b>Layout</b> (Options → Layout) switches between
+          <b>Panels</b> (sidebars) and <b>Menu</b> (tap <b>☰</b> to open panel
+          sections as dialogs).
+        </li>
+        <li>
+          Use the <b>Start Page</b> link in the top bar to return to the Start
+          Page.
+        </li>
+      </ul>
+
+      <h3>Keyboard shortcuts</h3>
+      <p>
+        Shortcuts use <code>Ctrl</code> (Windows/Linux) or <code>Cmd</code>
+        (macOS). Shortcuts are disabled while typing in a text field.
+      </p>
+      <ul>
+        <li><b>Undo:</b> <code>Ctrl/Cmd+Z</code></li>
+        <li>
+          <b>Redo:</b> <code>Ctrl/Cmd+Y</code> or <code>Ctrl/Cmd+Shift+Z</code>
+        </li>
+        <li><b>Save:</b> <code>Ctrl/Cmd+S</code></li>
+        <li><b>Toggle analysis:</b> <code>Ctrl/Cmd+Shift+A</code></li>
+        <li><b>Resign:</b> <code>Ctrl/Cmd+Shift+X</code></li>
+        <li>
+          <b>Full Screen:</b> <code>Ctrl/Cmd+Shift+F</code> (or the Full Screen
+          button)
+        </li>
+        <li>
+          <b>Bot speed:</b> <code>Alt+↑</code>/<code>Alt+↓</code> (when the AI
+          speed control is available)
+        </li>
+        <li>
+          <b>Playback speed:</b> <code>Alt+Shift+↑</code>/<code
+            >Alt+Shift+↓</code
+          >
+        </li>
+        <li>
+          <b>Show keyboard shortcuts:</b> <code>Ctrl/Cmd+Shift+?</code> (also
+          works as <code>Ctrl/Cmd+Shift+/</code>)
+        </li>
+        <li>
+          <b>Right-click menu:</b> Right-click outside the board →
+          <b>Show Keyboard Shortcuts</b>
+        </li>
+      </ul>
+
+      <h3>Analysis mode (private sandbox)</h3>
+      <ul>
+        <li>
+          Toggle via the <b>Analysis</b> button or
+          <code>Ctrl/Cmd+Shift+A</code>.
+        </li>
+        <li>
+          In online rooms, moves made in Analysis mode are <b>local-only</b> and
+          are <b>not</b> submitted to the server.
+        </li>
+        <li>
+          Your opponent does not see your Analysis mode or analysis moves.
+        </li>
+        <li>
+          AI/bots are paused while analysis is enabled, and restored when you
+          exit.
+        </li>
+        <li>
+          <b>Move any piece freely:</b> Both sides' pieces are selectable—click
+          a piece of either color to move it using legal moves. The evaluation
+          panel stays live so you can assess each hypothetical position.
+        </li>
+        <li>Leaving Analysis returns you to the live game state.</li>
+      </ul>
+
+      <h3>Board visualization (arrows &amp; highlights)</h3>
+      <ul>
+        <li>
+          <b>Draw arrows (desktop):</b> Right-click and drag from one square to
+          another.
+        </li>
+        <li>
+          <b>Knight arrows:</b> If the drag is a knight move (2×1), the arrow
+          draws as a 90° “L” shape.
+        </li>
+        <li>
+          <b>Highlight squares (desktop):</b> Right-click a square (default, or
+          press <code>S</code>).
+        </li>
+        <li>
+          <b>Circle highlight:</b> Press <code>C</code> while / after
+          right-clicking.
+        </li>
+        <li>
+          <b>Push pin:</b> Press <code>N</code> while / after right-clicking.
+        </li>
+        <li>
+          <b>Protect:</b> Press <code>P</code> while / after right-clicking.
+        </li>
+        <li>
+          <b>Remove:</b> Press <code>X</code> while / after right-clicking —
+          removes pin/protect first; falls back to square/circle.
+        </li>
+        <li>
+          <b>Colors (desktop):</b> Orange (default), Shift = Green, Ctrl = Red,
+          Alt = Blue.
+        </li>
+        <li><b>Clear (desktop):</b> Left-click anywhere on the board.</li>
+      </ul>
+
+      <div class="highlight">
+        <b>Touch / tablet (Analysis mode):</b> On touch devices, a small swatch
+        palette appears below the board while <b>Analysis</b> is enabled.
+      </div>
+      <ul>
+        <li>
+          <b>Pick color:</b> Tap a color swatch (Orange/Green/Red/Blue) to set
+          the annotation color.
+        </li>
+        <li><b>Draw arrows:</b> Touch and drag from one square to another.</li>
+        <li>
+          <b>Play moves:</b> Tap the <b>Play</b> type button, then tap squares
+          to move pieces. (Turning on <b>Play</b> disables <b>Erase</b>.)
+        </li>
+        <li>
+          <b>Place annotation:</b> Tap a type button (Square / Circle / Pin /
+          Protect) then tap a square.
+        </li>
+        <li>
+          <b>Remove annotation:</b> Tap the <b>Erase</b> button then tap a
+          square; or tap the <b>Remove</b> type button (X) then tap a square —
+          removes pin/protect first, then square/circle.
+        </li>
+        <li>
+          <b>Clear all:</b> Tap the <b>Clear</b> swatch (black square with a red
+          X).
+        </li>
+      </ul>
+
+      <h3>Left panel → Options</h3>
+      <ul>
+        <li><b>Show board coordinates</b> toggles A–H and 1–8 labels.</li>
+        <li>
+          <b>Inside squares</b> draws coordinates on the board itself: lowercase
+          file letters in the bottom row (lower-right of each square) and rank
+          numbers in the left column (upper-left of each square). The label
+          color uses the opposite square’s base color for contrast.
+        </li>
+        <li>
+          <b>Flip Board</b> rotates the board 180° so Black is on bottom;
+          coordinates update to match the viewer.
+        </li>
+        <li>
+          <b>Show resize icon</b> enables the ↕️ button on the board to adjust
+          board height.
+        </li>
+        <li>
+          <b>Show toast notifications</b> shows center-screen toasts (e.g.
+          Check!).
+        </li>
+        <li><b>Sound effects</b> toggles subtle UI/move sounds.</li>
+      </ul>
+
+      <h3>Left panel → Option Actions</h3>
+      <ul>
+        <li><b>New Game</b> starts a fresh game.</li>
+        <li><b>Save Game</b> downloads a JSON save file.</li>
+        <li><b>Load Game</b> restores a previously saved JSON file.</li>
+        <li>
+          <b>Undo</b> / <b>Redo</b> step backward/forward through the local move
+          history. They enable only when an undo/redo is possible.
+        </li>
+        <li><b>Resign</b> concedes the game.</li>
+      </ul>
+
+      <h3>Right panel → Theme</h3>
+      <ul>
+        <li>
+          <b>Board</b> changes checkerboard colors
+          (Classic/Green/Blue/Stone/Burled Wood).
+        </li>
+        <li><b>Theme</b> changes piece style (Discs/3D).</li>
+      </ul>
+
+      <p>
+        Tip: if something looks wrong, include the exact move sequence and (if
+        online) the room ID when reporting a bug.
+      </p>
+
+      <h2 id="notation">Notation</h2>
+      <p>
+        In move history, <code>→</code> indicates a non-capture move and
+        <code>×</code> indicates a capture.
+      </p>
+
+      <a class="back-link" href="./index.html">← Back to Start Page</a>
+    </div>
+  </body>
+</html>

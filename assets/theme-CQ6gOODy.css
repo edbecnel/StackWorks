@@ -1,0 +1,178 @@
+/* Metal Theme Styles - Copper and Stainless Steel */
+
+/* Metallic gradient background */
+body {
+  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 50%, #0d0d0d 100%);
+  background-attachment: fixed;
+}
+
+/* Brushed metal texture for panels */
+.sidebar {
+  background: 
+    linear-gradient(to bottom, rgba(80, 80, 80, 0.1), rgba(40, 40, 40, 0.15)),
+    repeating-linear-gradient(
+      90deg,
+      rgba(120, 120, 120, 0.03) 0px,
+      transparent 1px,
+      transparent 2px,
+      rgba(120, 120, 120, 0.03) 3px
+    ),
+    var(--panel-bg);
+}
+
+/* Steel board squares with metallic sheen */
+#lascaBoard .board-square-light {
+  fill: #c0c0c0;
+  filter: 
+    drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+#lascaBoard .board-square-dark {
+  fill: #6b6b6b;
+  filter: 
+    drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+/* Metallic edges on board squares */
+#lascaBoard .board-square-light,
+#lascaBoard .board-square-dark {
+  stroke: rgba(150, 150, 150, 0.5);
+  stroke-width: 1.5;
+}
+
+/* Node circles with metallic finish */
+#lascaBoard circle[id^="r"] {
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));
+}
+
+/* Connector lines with steel tone */
+#lascaBoard .connector {
+  stroke: #808080;
+  stroke-width: 3;
+  opacity: 0.5;
+}
+
+/* Panel styling with brushed metal look */
+.panelSection {
+  background: rgba(50, 50, 50, 0.6);
+  border-color: rgba(100, 100, 100, 0.5);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.panelBtn {
+  background: rgba(60, 60, 60, 0.7);
+  border-color: rgba(120, 120, 120, 0.6);
+  color: #e8e8e8;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.panelBtn:hover {
+  background: rgba(80, 80, 80, 0.8);
+  border-color: rgba(150, 150, 150, 0.7);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.panelBtn:disabled {
+  opacity: 0.4;
+  background: rgba(40, 40, 40, 0.5);
+}
+
+/* Theme dropdown with metallic styling */
+.themeDropdownBtn {
+  background: rgba(60, 60, 60, 0.7);
+  border-color: rgba(120, 120, 120, 0.6);
+  color: #e8e8e8;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.themeDropdownMenu {
+  background: rgba(35, 35, 35, 0.95);
+  border-color: rgba(100, 100, 100, 0.7);
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.themeOption {
+  color: #e8e8e8;
+}
+
+.themeOption:hover {
+  background: rgba(60, 60, 60, 0.7);
+}
+
+.themeOption[aria-selected="true"] {
+  background: rgba(80, 80, 80, 0.8);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+/* Overlay rings with metallic colors */
+:root {
+  --halo-selection: #4a9eff;
+  --halo-target: #00e676;
+  --lastMoveFromFill: rgba(102, 204, 255, 0.22);
+  --lastMoveToFill: rgba(102, 204, 255, 0.36);
+  --lastMoveStroke: rgba(102, 204, 255, 0.72);
+  --lastMoveStrokeWidth: 3;
+}
+
+.selection-ring {
+  stroke: #4a9eff !important;
+  stroke-width: 4 !important;
+  filter: drop-shadow(0 0 4px rgba(74, 158, 255, 0.6));
+}
+
+.target-ring {
+  stroke: #ff9940 !important;
+  stroke-width: 4 !important;
+  filter: drop-shadow(0 0 4px rgba(255, 153, 64, 0.6));
+}
+
+/* Cool metallic text colors */
+h3, .sidebarTitle {
+  color: #e8e8e8;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.kv {
+  color: rgba(232, 232, 232, 0.85);
+}
+
+.kv .k {
+  color: rgba(180, 180, 180, 0.8);
+}
+
+/* Add metallic sheen to headers */
+.sidebarHeader {
+  background: linear-gradient(to bottom, rgba(80, 80, 80, 0.2), transparent);
+  border-bottom-color: rgba(120, 120, 120, 0.3);
+}
+
+/* Metallic scrollbar styling for WebKit browsers */
+::-webkit-scrollbar {
+  width: 12px;
+  background: rgba(40, 40, 40, 0.5);
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(30, 30, 30, 0.6);
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #808080, #606060);
+  border-radius: 6px;
+  border: 2px solid rgba(50, 50, 50, 0.5);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #909090, #707070);
+}

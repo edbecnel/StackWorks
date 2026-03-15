@@ -1,25 +1,976 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Lasca</title>
-    <meta http-equiv="refresh" content="0; url=./lasca.html" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <title>StackWorks — Start</title>
+    <link rel="icon" href="./icons/stackworks.svg" type="image/svg+xml" />
+    <link rel="preload" as="image" href="./splash.png" />
     <script>
-      window.location.replace("./lasca.html");
+      // Show the splash screen on the first Start Page visit, and also on refresh.
+      // Use a tiny inline script so we can decide before the page paints (avoids flicker).
+      (function () {
+        try {
+          function isReloadNavigation() {
+            try {
+              var getEntriesByType =
+                performance && performance.getEntriesByType;
+              if (typeof getEntriesByType === "function") {
+                var nav = getEntriesByType.call(performance, "navigation");
+                if (nav && nav.length && nav[0] && nav[0].type) {
+                  return nav[0].type === "reload";
+                }
+              }
+              // Legacy fallback (deprecated but still present in some browsers):
+              // 1 = TYPE_RELOAD
+              var legacy =
+                performance &&
+                performance.navigation &&
+                performance.navigation.type;
+              return legacy === 1;
+            } catch (e) {
+              return false;
+            }
+          }
+
+          if (
+            isReloadNavigation() ||
+            !localStorage.getItem("lasca.start.splashSeen")
+          ) {
+            document.documentElement.classList.add("showStartSplash");
+          }
+        } catch (e) {
+          // If storage is unavailable, skip the splash to avoid trapping the user.
+        }
+      })();
     </script>
     <style>
+      :root {
+        --page-bg: #1b1b1b;
+
+        --error: #ff5a5a;
+        --error-bg: rgba(255, 90, 90, 0.16);
+        --panel-bg: rgba(255, 255, 255, 0.06);
+        --panel-border: rgba(255, 255, 255, 0.1);
+        --panel-text: rgba(255, 255, 255, 0.9);
+        --panel-subtext: rgba(255, 255, 255, 0.7);
+
+        /* Match Lasca dropdown option styling */
+        --themeMenuBg: rgba(0, 0, 0, 0.88);
+        --themeMenuBorder: rgba(255, 255, 255, 0.18);
+        --themeMenuText: rgba(255, 255, 255, 0.92);
+        --themeMenuHoverBg: rgba(255, 255, 255, 0.1);
+        --themeMenuSelectedBg: rgba(255, 255, 255, 0.16);
+
+        --gutter-w: 8px;
+        --panel-radius: 12px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
       body {
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial,
+        margin: 0;
+        min-height: 100vh;
+        background: var(--page-bg);
+        font-family:
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Arial,
           sans-serif;
-        padding: 2rem;
+        color: var(--panel-text);
       }
-      a {
-        color: #0b74ff;
+
+      html.showStartSplash body {
+        overflow: hidden;
       }
-    </style>
-  </head>
+
+      html.showStartSplash .wrap {
+        visibility: hidden;
+      }
+
+      .startSplash {
+        position: fixed;
+        inset: 0;
+        background: var(--page-bg);
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        z-index: 9999;
+      }
+
+      html.showStartSplash .startSplash {
+        display: flex;
+      }
+
+      .startSplash img {
+        max-width: 84vw;
+        max-height: 84vh;
+        width: auto;
+        height: auto;
+        display: block;
+      }
+
+      @keyframes splashSpinnerRotate {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .startSplashSpinner {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, 0.15);
+        border-top-color: rgba(255, 255, 255, 0.75);
+        animation: splashSpinnerRotate 0.75s linear infinite;
+        flex-shrink: 0;
+      }
+
+      .wrap {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 18px;
+      }
+
+      header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 750;
+        letter-spacing: 0.2px;
+      }
+
+      .subtle {
+        margin: 0;
+        color: var(--panel-subtext);
+        font-size: 12px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      @media (min-width: 900px) {
+        .grid {
+          /* Use minmax(0, 1fr) so long unbroken text (e.g., room IDs) can't force one column wider and squeeze the other. */
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        }
+      }
+
+      .panelSection {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.18);
+        border-radius: var(--panel-radius);
+        padding: 12px;
+        /* Let panels shrink inside the grid instead of sizing to min-content. */
+        min-width: 0;
+      }
+
+      .panelSection h2 {
+        margin: 0 0 10px 0;
+        font-size: 12px;
+        font-weight: 800;
+        color: rgba(255, 255, 255, 0.86);
+        letter-spacing: 0.3px;
+      }
+
+      .panelSectionSummary {
+        cursor: pointer;
+        user-select: none;
+        margin: 0 0 10px 0;
+        font-size: 12px;
+        font-weight: 800;
+        color: rgba(255, 255, 255, 0.86);
+        letter-spacing: 0.3px;
+      }
+
+      .panelSection:not([open]) .panelSectionSummary {
+        margin-bottom: 0;
+      }
+
+      .panelSectionSummary::marker {
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .panelSectionSummary::-webkit-details-marker {
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 120px minmax(0, 1fr);
+        gap: 8px 10px;
+        align-items: center;
+        font-size: 12px;
+      }
+
+      label {
+        color: rgba(255, 255, 255, 0.86);
+      }
+
+      .panelSelect {
+        width: 100%;
+        min-width: 0;
+        color-scheme: dark;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(0, 0, 0, 0.18);
+        color: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        padding: 6px 9px;
+        font-size: 12px;
+        line-height: 1.2;
+        white-space: normal;
+      }
+
+      /* Small screens: keep the AI speed row from overflowing horizontally. */
+      @media (max-width: 600px) {
+        #launchAiDelay {
+          flex: 1 1 0 !important;
+          width: auto !important;
+          min-width: 60px;
+        }
+
+        #launchAiDelayLabel {
+          white-space: nowrap;
+        }
+      }
+
+      .panelSelect:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .panelSelect option,
+      .panelSelect optgroup {
+        background: var(--themeMenuBg);
+        color: var(--themeMenuText);
+        white-space: normal;
+      }
+
+      .panelBtn {
+        appearance: none;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(0, 0, 0, 0.18);
+        color: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 12px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .panelBtn:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .panelBtn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .checkRow {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .checkRow input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+      }
+
+      .checkRow label {
+        cursor: pointer;
+        user-select: none;
+        font-size: 13px;
+      }
+
+      .hint {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.6);
+        margin-top: 6px;
+        margin-left: 24px;
+      }
+
+      .footer {
+        margin-top: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .warn {
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 12px;
+        margin: 0;
+      }
+
+      .warn.isError {
+        color: var(--error);
+        font-weight: 750;
+      }
+
+      .panelSelect.isError {
+        border-color: var(--error);
+        box-shadow: 0 0 0 2px var(--error-bg);
+        color: var(--error);
+      }
+
+      label.isError {
+        color: var(--error);
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      a.panelBtn {
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .mono {
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        font-size: 0.95em;
+      }
+
+      .lobbyList {
+        margin-top: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .lobbyTools {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .lobbyTools input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+      }
+
+      .lobbyTools label {
+        cursor: pointer;
+        user-select: none;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.85);
+        white-space: nowrap;
+      }
+
+      .lobbyItem {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.14);
+      }
+
+      .lobbyItemLeft {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+
+      .lobbyItemTitle {
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .lobbyItemSub {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.65);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .accountStatus {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .accountStatus.isError {
+        color: var(--error);
+        font-weight: 750;
+      }
+
+      .accountActions {
+        margin-top: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .inputWithIcon {
+        position: relative;
+        width: 100%;
+      }
+
+      .inputWithIcon > .panelSelect {
+        padding-right: 34px;
+      }
+
+      .iconBtn {
+        appearance: none;
+        border: 0;
+        background: transparent;
+        color: rgba(255, 255, 255, 0.75);
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        padding: 4px;
+        border-radius: 8px;
+        cursor: pointer;
+        line-height: 0;
+      }
+
+      .iconBtn:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .iconBtn:focus-visible {
+        outline: 2px solid rgba(255, 255, 255, 0.5);
+        outline-offset: 2px;
+      }
+
+      .iconBtn svg {
+        width: 18px;
+        height: 18px;
+        display: block;
+      }
+
+      .iconBtn.isRevealed .slash {
+        display: none;
+      }
+    </style>
+    <script type="module" crossorigin src="/StackWorks/assets/index-CayDV6UO.js"></script>
+    <link rel="modulepreload" crossorigin href="/StackWorks/assets/boardViewportMode-pkA4TaH-.js">
+  <script>if("serviceWorker"in navigator)navigator.serviceWorker.register("/StackWorks/sw.js").catch(function(){});</script>
+</head>
   <body>
-    <p>Redirecting to <a href="./lasca.html">lasca.html</a>…</p>
+    <div class="startSplash" id="startSplash" aria-hidden="true">
+      <img src="./splash.png" alt="" />
+      <div class="startSplashSpinner" aria-hidden="true"></div>
+    </div>
+    <div class="wrap">
+      <header>
+        <div>
+          <h1>StackWorks</h1>
+          <p class="subtle">Start Page — choose game & options.</p>
+        </div>
+        <div class="actions">
+          <a
+            class="panelBtn"
+            href="./start-help.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Help</a
+          >
+        </div>
+      </header>
+
+      <div class="grid">
+        <details
+          class="panelSection"
+          aria-label="Game"
+          open
+          data-start-section="game"
+        >
+          <summary class="panelSectionSummary">Game</summary>
+          <div class="row">
+            <label for="launchGame">Variant</label>
+            <select id="launchGame" class="panelSelect"></select>
+          </div>
+          <p
+            id="launchGameNote"
+            class="hint"
+            style="margin-left: 0; margin-top: 10px"
+          >
+            —
+          </p>
+        </details>
+
+        <details
+          class="panelSection"
+          aria-label="Board & Pieces"
+          open
+          data-start-section="boardPieces"
+        >
+          <summary class="panelSectionSummary">Board &amp; Pieces</summary>
+
+          <div
+            class="row"
+            id="launchColumnsChessBoardThemeRow"
+            style="display: none"
+          >
+            <label for="launchColumnsChessBoardTheme">Board</label>
+            <select id="launchColumnsChessBoardTheme" class="panelSelect">
+              <option value="classic">Classic</option>
+              <option value="green">Green</option>
+              <option value="blue">Blue</option>
+              <option value="stone">Stone</option>
+              <option value="burled">Burled Wood</option>
+              <option value="checkers">Classic Checkers</option>
+            </select>
+          </div>
+
+          <div class="row">
+            <label for="launchTheme">Pieces</label>
+            <select id="launchTheme" class="panelSelect"></select>
+          </div>
+
+          <div class="row" id="launchGlassColorsRow" style="display: none">
+            <label for="launchGlassColorsSelect">Glass colors</label>
+            <select id="launchGlassColorsSelect" class="panelSelect">
+              <option value="yellow_blue">Yellow / Blue</option>
+              <option value="cyan_violet">Cyan / Violet</option>
+              <option value="mint_magenta">Mint / Magenta</option>
+              <option value="pearl_smoke">Pearl / Smoke</option>
+              <option value="lavender_sapphire">Lavender / Sapphire</option>
+              <option value="aqua_amber">Aqua / Amber</option>
+            </select>
+          </div>
+
+          <div class="row" id="launchGlassBgRow" style="display: none">
+            <label for="launchGlassBgSelect">Glass bg</label>
+            <select id="launchGlassBgSelect" class="panelSelect">
+              <option value="original">Original</option>
+              <option value="felt">Felt</option>
+              <option value="walnut">Walnut</option>
+            </select>
+          </div>
+        </details>
+
+        <details
+          class="panelSection"
+          aria-label="Startup options"
+          open
+          data-start-section="startup"
+        >
+          <summary class="panelSectionSummary">Startup options</summary>
+
+          <div class="checkRow">
+            <input type="checkbox" id="launchShowResizeIcon" />
+            <label for="launchShowResizeIcon">Show resize icon</label>
+          </div>
+          <div class="hint">
+            Show the ↕️ board-height button (also in-game: left panel → Options)
+          </div>
+
+          <div class="checkRow" id="launchShowPlayerNamesRow">
+            <input type="checkbox" id="launchShowPlayerNames" checked />
+            <label for="launchShowPlayerNames">Show player names</label>
+          </div>
+          <div class="hint" id="launchShowPlayerNamesHint">
+            Names above/below the board (online &amp; PGN games)
+          </div>
+
+          <div class="row">
+            <label for="launchBoardViewport">Board viewport</label>
+            <select id="launchBoardViewport" class="panelSelect">
+              <option value="framed">Framed</option>
+              <option value="playable">Playable area</option>
+            </select>
+          </div>
+          <div class="hint">
+            Framed shows the full board; Playable area crops to the squares
+          </div>
+
+          <div class="checkRow">
+            <input type="checkbox" id="launchBoardCoords" />
+            <label for="launchBoardCoords">Show board coordinates</label>
+          </div>
+          <div class="hint">Column letters and row numbers</div>
+
+          <div class="checkRow" style="margin-left: 24px; display: none">
+            <input type="checkbox" id="launchBoardCoordsInSquares" />
+            <label for="launchBoardCoordsInSquares">Inside squares</label>
+          </div>
+          <div class="hint" style="margin-left: 48px; display: none">
+            Lowercase letters on bottom row; numbers on left column
+          </div>
+
+          <div class="checkRow">
+            <input type="checkbox" id="launchFlipBoard" />
+            <label for="launchFlipBoard">Flip board</label>
+          </div>
+          <div class="hint">Rotate the board 180°</div>
+
+          <div class="checkRow">
+            <input type="checkbox" id="launchLastMoveHighlights" />
+            <label for="launchLastMoveHighlights"
+              >Highlight last move (origin → destination)</label
+            >
+          </div>
+          <div class="hint">
+            Shows translucent squares on the board after each move
+          </div>
+
+          <div class="checkRow">
+            <input type="checkbox" id="launchMoveHints" />
+            <label for="launchMoveHints">Move preview hints</label>
+          </div>
+          <div class="hint">
+            Shows extra capture preview rings while selecting a piece
+          </div>
+
+          <div class="checkRow">
+            <input type="checkbox" id="launchBoard8x8Checkered" />
+            <label for="launchBoard8x8Checkered"
+              >Use checkered board for 8×8 games</label
+            >
+          </div>
+          <div class="hint">Renders 8×8 games on a chess-style square grid</div>
+
+          <div class="checkRow">
+            <input type="checkbox" id="launchToasts" />
+            <label for="launchToasts">Show toast notifications</label>
+          </div>
+          <div class="hint">On-screen turn and status popups</div>
+
+          <div class="checkRow">
+            <input type="checkbox" id="launchSfx" />
+            <label for="launchSfx">Sound effects</label>
+          </div>
+          <div class="hint">Plays subtle sounds for moves/captures</div>
+        </details>
+
+        <details
+          class="panelSection"
+          aria-label="Play mode"
+          open
+          data-start-section="playMode"
+        >
+          <summary class="panelSectionSummary">Play mode</summary>
+          <div class="row">
+            <label for="launchPlayMode">Mode</label>
+            <select id="launchPlayMode" class="panelSelect">
+              <option value="local">Local (offline)</option>
+              <option value="online">Online (2 players)</option>
+            </select>
+
+            <label for="launchOnlineAction">Online</label>
+            <select id="launchOnlineAction" class="panelSelect">
+              <option value="create">Create room</option>
+            </select>
+
+            <label id="launchOnlineNameLabel" for="launchOnlineName"
+              >Name</label
+            >
+            <input
+              id="launchOnlineName"
+              class="panelSelect"
+              type="text"
+              autocomplete="nickname"
+              inputmode="text"
+              placeholder="Guest"
+            />
+
+            <label id="launchOnlineVisibilityLabel" for="launchOnlineVisibility"
+              >Room</label
+            >
+            <select id="launchOnlineVisibility" class="panelSelect">
+              <option value="public">Public (spectators allowed)</option>
+              <option value="private">Private (no spectators)</option>
+            </select>
+
+            <label id="launchOnlinePrefColorLabel" for="launchOnlinePrefColor"
+              >Color</label
+            >
+            <select id="launchOnlinePrefColor" class="panelSelect">
+              <option value="auto">Auto</option>
+              <option value="W">Light</option>
+              <option value="B">Dark</option>
+            </select>
+
+            <label id="launchOnlinePlayerIdLabel" for="launchOnlinePlayerId"
+              >Player ID</label
+            >
+            <input
+              id="launchOnlinePlayerId"
+              class="panelSelect"
+              type="text"
+              autocomplete="off"
+              readonly
+              placeholder="—"
+            />
+
+            <label id="launchOnlineRoomIdLabel" for="launchOnlineRoomId"
+              >Room ID</label
+            >
+            <input
+              id="launchOnlineRoomId"
+              class="panelSelect"
+              type="text"
+              autocomplete="off"
+              placeholder="Paste room ID"
+            />
+          </div>
+          <div id="launchOnlineHint" class="hint" style="margin-left: 0">
+            Online Create logs a join link in the browser console (F12). To
+            Join/Spectate/Rejoin, use the Lobby list.
+          </div>
+        </details>
+
+        <details
+          class="panelSection"
+          aria-label="Lobby"
+          id="launchLobbySection"
+          open
+          data-start-section="lobby"
+        >
+          <summary class="panelSectionSummary">Lobby</summary>
+          <div class="row" style="grid-template-columns: 1fr auto auto">
+            <div id="launchLobbyStatus" class="hint" style="margin: 0">—</div>
+            <div class="lobbyTools">
+              <input type="checkbox" id="launchLobbyMineOnly" />
+              <label for="launchLobbyMineOnly">My rooms</label>
+            </div>
+            <button id="launchLobbyRefresh" class="panelBtn" type="button">
+              Refresh
+            </button>
+          </div>
+          <div id="launchLobbyList" class="lobbyList"></div>
+        </details>
+
+        <details
+          class="panelSection"
+          aria-label="Account"
+          id="launchAccountSection"
+          open
+          data-start-section="account"
+        >
+          <summary class="panelSectionSummary">Account (optional)</summary>
+
+          <div id="launchAccountStatus" class="accountStatus">—</div>
+
+          <form id="accountLoginForm" autocomplete="on" method="post">
+            <div class="row" style="margin-top: 10px">
+              <label for="accountEmail">Email</label>
+              <input
+                id="accountEmail"
+                name="username"
+                class="panelSelect"
+                type="email"
+                autocomplete="username"
+                inputmode="email"
+                autocapitalize="none"
+                spellcheck="false"
+                placeholder="you@example.com"
+              />
+
+              <label for="accountPassword">Password</label>
+              <div class="inputWithIcon">
+                <input
+                  id="accountPassword"
+                  name="password"
+                  class="panelSelect"
+                  type="password"
+                  autocomplete="current-password"
+                  placeholder="••••••••"
+                />
+                <button
+                  id="accountPasswordToggle"
+                  class="iconBtn"
+                  type="button"
+                  aria-label="Show password"
+                  aria-pressed="false"
+                  title="Show password"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linejoin="round"
+                    />
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="3"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    />
+                    <path
+                      class="slash"
+                      d="M4 4l16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </form>
+
+          <div class="row" style="margin-top: 10px">
+            <label for="accountDisplayName">Display</label>
+            <input
+              id="accountDisplayName"
+              class="panelSelect"
+              type="text"
+              autocomplete="nickname"
+              inputmode="text"
+              placeholder="Player"
+            />
+
+            <label for="accountAvatarUrl">Avatar</label>
+            <input
+              id="accountAvatarUrl"
+              class="panelSelect"
+              type="url"
+              autocomplete="off"
+              inputmode="url"
+              placeholder="(optional) https://…"
+            />
+
+            <label for="accountAvatarFile">Avatar file</label>
+            <input
+              id="accountAvatarFile"
+              class="panelSelect"
+              type="file"
+              accept=".png,.svg,image/png,image/svg+xml"
+            />
+          </div>
+
+          <div class="accountActions">
+            <button id="accountRefresh" class="panelBtn" type="button">
+              Refresh
+            </button>
+            <button id="accountRegister" class="panelBtn" type="button">
+              Register
+            </button>
+            <button
+              id="accountLogin"
+              class="panelBtn"
+              type="submit"
+              form="accountLoginForm"
+            >
+              Login
+            </button>
+            <button id="accountUpdateProfile" class="panelBtn" type="button">
+              Update profile
+            </button>
+            <button id="accountUploadAvatar" class="panelBtn" type="button">
+              Upload avatar
+            </button>
+            <button id="accountLogout" class="panelBtn" type="button">
+              Logout
+            </button>
+          </div>
+
+          <div class="hint" style="margin-left: 0">
+            Uses cookie sessions on the multiplayer server (port 8788). This
+            panel is for testing MP4C auth; it does not change seat tokens or
+            online authority rules yet.
+          </div>
+        </details>
+
+        <details
+          class="panelSection"
+          aria-label="Bot"
+          open
+          data-start-section="bot"
+        >
+          <summary class="panelSectionSummary">Bot</summary>
+          <div class="row" style="grid-template-columns: 64px minmax(0, 1fr)">
+            <label for="launchAiWhite">Light</label>
+            <select id="launchAiWhite" class="panelSelect">
+              <option value="human">Human</option>
+              <option value="easy">Beginner</option>
+              <option value="medium">Intermediate</option>
+              <option value="advanced">Strong</option>
+            </select>
+
+            <label for="launchAiBlack">Dark</label>
+            <select id="launchAiBlack" class="panelSelect">
+              <option value="human">Human</option>
+              <option value="easy">Beginner</option>
+              <option value="medium">Intermediate</option>
+              <option value="advanced">Strong</option>
+            </select>
+
+            <label for="launchAiDelay">Speed</label>
+            <div style="display: flex; gap: 6px; align-items: center">
+              <input
+                id="launchAiDelay"
+                type="range"
+                min="0"
+                max="3000"
+                step="100"
+                value="500"
+                style="flex: 0 1 140px; width: 140px"
+              />
+              <button id="launchAiDelayReset" class="panelBtn" type="button">
+                ↺
+              </button>
+              <div
+                id="launchAiDelayLabel"
+                style="
+                  min-width: 52px;
+                  text-align: left;
+                  font-variant-numeric: tabular-nums;
+                "
+              >
+                500 ms
+              </div>
+            </div>
+          </div>
+          <div class="hint" style="margin-left: 0">
+            Set a side to a bot to auto-play that color.
+          </div>
+        </details>
+      </div>
+
+      <div class="footer">
+        <p id="launchWarning" class="warn">—</p>
+        <div class="actions">
+          <button id="launchBtn" class="panelBtn" type="button">Launch</button>
+        </div>
+      </div>
+    </div>
   </body>
 </html>

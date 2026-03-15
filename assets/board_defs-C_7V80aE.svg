@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" aria-hidden="true">
+  <defs>
+    <!-- ======== WOOD GRAIN BACKGROUND (subtle, piece-safe) ======== -->
+    <filter id="wooden-bg-grain" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <!-- Stretched noise creates a wood-like grain direction. -->
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.16" numOctaves="3" seed="9" stitchTiles="stitch" result="noise" />
+      <!-- Increase banding a bit, but keep it smooth. -->
+      <feColorMatrix in="noise" type="matrix" values="
+        1.4 0   0   0  -0.2
+        0   1.2 0   0  -0.2
+        0   0   1.0 0  -0.2
+        0   0   0   1   0
+      " result="bands" />
+      <feGaussianBlur in="bands" stdDeviation="0.45" result="soft" />
+      <!-- Tint the grain towards warm brown, and reduce alpha. -->
+      <feColorMatrix in="soft" type="matrix" values="
+        0.55 0    0    0  0.05
+        0    0.42 0    0  0.05
+        0    0    0.30 0  0.05
+        0    0    0    0.18 0
+      " result="tinted" />
+      <feComponentTransfer in="tinted">
+        <feFuncA type="gamma" amplitude="1" exponent="1.25" offset="0" />
+      </feComponentTransfer>
+    </filter>
+
+    <!--
+      Use a single 1000x1000 tile (board viewBox) so the pattern doesn't visibly repeat
+      within the board area.
+    -->
+    <pattern id="wooden-bg-fill" patternUnits="userSpaceOnUse" width="1000" height="1000">
+      <!-- Base maple/warm paper tone (keeps pieces readable). -->
+      <rect x="0" y="0" width="1000" height="1000" fill="#e8ddcc" />
+      <!-- Grain overlay. -->
+      <rect x="0" y="0" width="1000" height="1000" filter="url(#wooden-bg-grain)" />
+      <!-- Very subtle gloss sweep. -->
+      <rect x="0" y="0" width="1000" height="1000" fill="url(#wooden-bg-gloss)" opacity="0.22" />
+    </pattern>
+
+    <linearGradient id="wooden-bg-gloss" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.45" />
+      <stop offset="35%" stop-color="#ffffff" stop-opacity="0.12" />
+      <stop offset="70%" stop-color="#000000" stop-opacity="0.06" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.12" />
+    </linearGradient>
+
+    <!-- ======== CONNECTOR MASK (prevents lines inside nodes) ======== -->
+    <mask id="mask-connectors" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="1000" height="1000" fill="white"/>
+
+      <!-- hole radius chosen so lines can tuck slightly under the ring -->
+      <!-- node r = 46, hole r = 42 -->
+      <!-- row 0 -->
+      <circle cx="140" cy="140" r="42" fill="black"/>
+      <circle cx="380" cy="140" r="42" fill="black"/>
+      <circle cx="620" cy="140" r="42" fill="black"/>
+      <circle cx="860" cy="140" r="42" fill="black"/>
+      <!-- row 1 -->
+      <circle cx="260" cy="260" r="42" fill="black"/>
+      <circle cx="500" cy="260" r="42" fill="black"/>
+      <circle cx="740" cy="260" r="42" fill="black"/>
+      <!-- row 2 -->
+      <circle cx="140" cy="380" r="42" fill="black"/>
+      <circle cx="380" cy="380" r="42" fill="black"/>
+      <circle cx="620" cy="380" r="42" fill="black"/>
+      <circle cx="860" cy="380" r="42" fill="black"/>
+      <!-- row 3 -->
+      <circle cx="260" cy="500" r="42" fill="black"/>
+      <circle cx="500" cy="500" r="42" fill="black"/>
+      <circle cx="740" cy="500" r="42" fill="black"/>
+      <!-- row 4 -->
+      <circle cx="140" cy="620" r="42" fill="black"/>
+      <circle cx="380" cy="620" r="42" fill="black"/>
+      <circle cx="620" cy="620" r="42" fill="black"/>
+      <circle cx="860" cy="620" r="42" fill="black"/>
+      <!-- row 5 -->
+      <circle cx="260" cy="740" r="42" fill="black"/>
+      <circle cx="500" cy="740" r="42" fill="black"/>
+      <circle cx="740" cy="740" r="42" fill="black"/>
+      <!-- row 6 -->
+      <circle cx="140" cy="860" r="42" fill="black"/>
+      <circle cx="380" cy="860" r="42" fill="black"/>
+      <circle cx="620" cy="860" r="42" fill="black"/>
+      <circle cx="860" cy="860" r="42" fill="black"/>
+    </mask>
+  </defs>
+</svg>

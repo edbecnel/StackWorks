@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Light Yellow Glass Gradient -->
+    <radialGradient id="gradYellowGlass" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" style="stop-color:#ffffed;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#fffacd;stop-opacity:0.95" />
+      <stop offset="60%" style="stop-color:#ffec8b;stop-opacity:0.9" />
+      <stop offset="100%" style="stop-color:#ffd700;stop-opacity:0.85" />
+    </radialGradient>
+
+    <!-- Dark Blue Glass Gradient -->
+    <radialGradient id="gradBlueGlass" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" style="stop-color:#4169e1;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#1e3a8a;stop-opacity:0.95" />
+      <stop offset="60%" style="stop-color:#0f1e47;stop-opacity:0.9" />
+      <stop offset="100%" style="stop-color:#0a1128;stop-opacity:0.85" />
+    </radialGradient>
+
+    <!-- Polished Yellow Glass (Officers) -->
+    <radialGradient id="gradYellowGlassPolished" cx="30%" cy="25%" r="70%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="25%" style="stop-color:#ffffed;stop-opacity:0.98" />
+      <stop offset="55%" style="stop-color:#fff8a8;stop-opacity:0.92" />
+      <stop offset="100%" style="stop-color:#ffeb3b;stop-opacity:0.88" />
+    </radialGradient>
+
+    <!-- Polished Blue Glass (Officers) -->
+    <radialGradient id="gradBlueGlassPolished" cx="30%" cy="25%" r="70%">
+      <stop offset="0%" style="stop-color:#5b9bd5;stop-opacity:1" />
+      <stop offset="25%" style="stop-color:#2563eb;stop-opacity:0.98" />
+      <stop offset="55%" style="stop-color:#1e40af;stop-opacity:0.92" />
+      <stop offset="100%" style="stop-color:#0f1e47;stop-opacity:0.88" />
+    </radialGradient>
+
+    <!-- Glass Shine Effect -->
+    <radialGradient id="glassShine" cx="30%" cy="25%" r="50%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.8" />
+      <stop offset="40%" style="stop-color:#ffffff;stop-opacity:0.4" />
+      <stop offset="70%" style="stop-color:#ffffff;stop-opacity:0.1" />
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0" />
+    </radialGradient>
+
+    <!-- Glass Reflection Highlight -->
+    <radialGradient id="glassReflection" cx="35%" cy="28%" r="45%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.6" />
+      <stop offset="50%" style="stop-color:#ffffff;stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0" />
+    </radialGradient>
+
+    <!-- Rounded Edge Effect for Glass Pieces -->
+    <radialGradient id="glassEdge" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0" />
+      <stop offset="75%" style="stop-color:#ffffff;stop-opacity:0" />
+      <stop offset="88%" style="stop-color:#000000;stop-opacity:0.12" />
+      <stop offset="96%" style="stop-color:#000000;stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:#000000;stop-opacity:0.28" />
+    </radialGradient>
+
+    <!-- Top Edge Highlight for Glass -->
+    <radialGradient id="glassTopHighlight" cx="50%" cy="28%" r="65%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.5" />
+      <stop offset="35%" style="stop-color:#ffffff;stop-opacity:0.25" />
+      <stop offset="70%" style="stop-color:#ffffff;stop-opacity:0" />
+    </radialGradient>
+
+    <!-- Light Yellow Glass Soldier -->
+    <symbol id="W_S" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="42" fill="url(#gradYellowGlass)" stroke="#d4af37" stroke-width="2" stroke-opacity="0.6"/>
+      <circle cx="50" cy="50" r="42" fill="url(#glassShine)"/>
+      <!-- Rounded edge effect -->
+      <circle cx="50" cy="50" r="42" fill="url(#glassEdge)"/>
+      <circle cx="50" cy="50" r="42" fill="url(#glassTopHighlight)"/>
+      <!-- Glass reflection -->
+      <ellipse cx="38" cy="32" rx="20" ry="16" fill="url(#glassReflection)"/>
+      <!-- Inner glass ring -->
+      <circle cx="50" cy="50" r="35" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-opacity="0.3"/>
+    </symbol>
+
+    <!-- Dark Blue Glass Soldier -->
+    <symbol id="B_S" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="42" fill="url(#gradBlueGlass)" stroke="#1e3a8a" stroke-width="2" stroke-opacity="0.6"/>
+      <circle cx="50" cy="50" r="42" fill="url(#glassShine)"/>
+      <!-- Rounded edge effect -->
+      <circle cx="50" cy="50" r="42" fill="url(#glassEdge)"/>
+      <circle cx="50" cy="50" r="42" fill="url(#glassTopHighlight)"/>
+      <!-- Glass reflection -->
+      <ellipse cx="38" cy="32" rx="20" ry="16" fill="url(#glassReflection)"/>
+      <!-- Inner glass ring -->
+      <circle cx="50" cy="50" r="35" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-opacity="0.3"/>
+    </symbol>
+
+    <!-- Light Yellow Glass Officer -->
+    <symbol id="W_O" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="42" fill="url(#gradYellowGlassPolished)" stroke="#daa520" stroke-width="2.5" stroke-opacity="0.7"/>
+      <circle cx="50" cy="50" r="42" fill="url(#glassShine)"/>
+      <!-- Rounded edge effect -->
+      <circle cx="50" cy="50" r="42" fill="url(#glassEdge)"/>
+      <circle cx="50" cy="50" r="42" fill="url(#glassTopHighlight)"/>
+      <!-- Glass reflection -->
+      <ellipse cx="38" cy="32" rx="20" ry="16" fill="url(#glassReflection)"/>
+      <!-- White star for officer -->
+      <path d="M 50,30 L 54,44 L 68,44 L 57,52 L 61,66 L 50,58 L 39,66 L 43,52 L 32,44 L 46,44 Z" 
+            fill="#ffffff" stroke="#ffd700" stroke-width="1.5" opacity="0.95"
+        filter="drop-shadow(0 0 3px rgba(255, 255, 255, 0.8))" transform="translate(0 -2)"/>
+      <!-- Inner glass ring -->
+      <circle cx="50" cy="50" r="35" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-opacity="0.35"/>
+    </symbol>
+
+    <!-- Dark Blue Glass Officer -->
+    <symbol id="B_O" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="42" fill="url(#gradBlueGlassPolished)" stroke="#2563eb" stroke-width="2.5" stroke-opacity="0.7"/>
+      <circle cx="50" cy="50" r="42" fill="url(#glassShine)"/>
+      <!-- Rounded edge effect -->
+      <circle cx="50" cy="50" r="42" fill="url(#glassEdge)"/>
+      <circle cx="50" cy="50" r="42" fill="url(#glassTopHighlight)"/>
+      <!-- Glass reflection -->
+      <ellipse cx="38" cy="32" rx="20" ry="16" fill="url(#glassReflection)"/>
+      <!-- White star for officer -->
+      <path d="M 50,30 L 54,44 L 68,44 L 57,52 L 61,66 L 50,58 L 39,66 L 43,52 L 32,44 L 46,44 Z" 
+            fill="#ffffff" stroke="#87ceeb" stroke-width="1.5" opacity="0.95"
+            filter="drop-shadow(0 0 3px rgba(255, 255, 255, 0.8))" transform="translate(0 -2)"/>
+      <!-- Inner glass ring -->
+      <circle cx="50" cy="50" r="35" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-opacity="0.35"/>
+    </symbol>
+
+    <!-- Light Yellow Glass King (Dama) -->
+    <symbol id="W_K" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="42" fill="url(#gradYellowGlassPolished)" stroke="#daa520" stroke-width="2.5" stroke-opacity="0.7"/>
+      <circle cx="50" cy="50" r="42" fill="url(#glassShine)"/>
+      <!-- Rounded edge effect -->
+      <circle cx="50" cy="50" r="42" fill="url(#glassEdge)"/>
+      <circle cx="50" cy="50" r="42" fill="url(#glassTopHighlight)"/>
+      <!-- Glass reflection -->
+      <ellipse cx="38" cy="32" rx="20" ry="16" fill="url(#glassReflection)"/>
+      <!-- White crown for king -->
+      <path d="M 26 64 L 26 40 L 38 52 L 50 36 L 62 52 L 74 40 L 74 64 Z M 28 66 H 72 V 72 H 28 Z"
+            fill="#ffffff" stroke="#ffd700" stroke-width="1.5" opacity="0.95"
+            filter="drop-shadow(0 0 3px rgba(255, 255, 255, 0.8))" transform="translate(0 -2)"/>
+      <!-- Inner glass ring -->
+      <circle cx="50" cy="50" r="35" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-opacity="0.35"/>
+    </symbol>
+
+    <!-- Dark Blue Glass King (Dama) -->
+    <symbol id="B_K" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="42" fill="url(#gradBlueGlassPolished)" stroke="#2563eb" stroke-width="2.5" stroke-opacity="0.7"/>
+      <circle cx="50" cy="50" r="42" fill="url(#glassShine)"/>
+      <!-- Rounded edge effect -->
+      <circle cx="50" cy="50" r="42" fill="url(#glassEdge)"/>
+      <circle cx="50" cy="50" r="42" fill="url(#glassTopHighlight)"/>
+      <!-- Glass reflection -->
+      <ellipse cx="38" cy="32" rx="20" ry="16" fill="url(#glassReflection)"/>
+      <!-- White crown for king -->
+      <path d="M 26 64 L 26 40 L 38 52 L 50 36 L 62 52 L 74 40 L 74 64 Z M 28 66 H 72 V 72 H 28 Z"
+            fill="#ffffff" stroke="#87ceeb" stroke-width="1.5" opacity="0.95"
+            filter="drop-shadow(0 0 3px rgba(255, 255, 255, 0.8))" transform="translate(0 -2)"/>
+      <!-- Inner glass ring -->
+      <circle cx="50" cy="50" r="35" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-opacity="0.35"/>
+    </symbol>
+  </defs>
+</svg>

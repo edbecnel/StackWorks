@@ -1,0 +1,1798 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"
+    />
+    <title>Columns Chess</title>
+
+    <!-- Explicit favicon to avoid /favicon.ico 404 during dev -->
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      sizes="any"
+      href="/StackWorks/icons/pawn3d-classic.svg"
+    />
+
+    <style>
+      :root {
+        --page-bg: #1b1b1b;
+        --panel-bg: rgba(255, 255, 255, 0.06);
+        --panel-border: rgba(255, 255, 255, 0.1);
+        --panel-text: rgba(255, 255, 255, 0.9);
+
+        /* Theme dropdown popup colors (match other games) */
+        --themeMenuBg: rgba(0, 0, 0, 0.88);
+        --themeMenuBorder: rgba(255, 255, 255, 0.18);
+        --themeMenuText: rgba(255, 255, 255, 0.92);
+        --themeMenuHoverBg: rgba(255, 255, 255, 0.1);
+        --themeMenuSelectedBg: rgba(255, 255, 255, 0.16);
+
+        --gutter-w: 8px;
+        --tab-w: 22px;
+        --panel-radius: 12px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+        background: var(--page-bg);
+        font-family:
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Arial,
+          sans-serif;
+        color: var(--panel-text);
+      }
+
+      /* ===== App Layout (split left/center/right) ===== */
+      #appRoot {
+        height: 100%;
+        width: 100%;
+        display: flex;
+        align-items: stretch;
+      }
+
+      .sidebar {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        background: var(--panel-bg);
+        border: 1px solid var(--panel-border);
+        border-radius: 0;
+        overflow: hidden;
+        transition: width 120ms ease;
+        min-width: 0;
+      }
+
+      .sidebarHeader {
+        height: 44px;
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .sidebarTitle {
+        font-size: 13px;
+        font-weight: 650;
+        letter-spacing: 0.2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .sidebarButtons {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .panelBtn {
+        appearance: none;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(0, 0, 0, 0.18);
+        color: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        padding: 6px 9px;
+        font-size: 12px;
+        line-height: 1;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .panelBtn:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .panelBtn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .panelBtn:disabled:hover {
+        background: rgba(0, 0, 0, 0.18);
+      }
+
+      /* Touch analysis palette (shown via JS on touch + Analysis mode) */
+      #touchAnnotationPalette {
+        display: none;
+        margin-top: 10px;
+        justify-content: center;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 10px;
+        flex: 0 0 100%;
+        width: 100%;
+        padding-bottom: max(0px, env(safe-area-inset-bottom));
+      }
+
+      #touchAnnotationPalette .touchAnnotationDivider {
+        width: 1px;
+        height: 24px;
+        background: rgba(255, 255, 255, 0.22);
+        align-self: center;
+        flex-shrink: 0;
+      }
+
+      #touchAnnotationPalette .touchAnnotationSwatch {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        border: 1px solid var(--panel-border);
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        background: transparent;
+        color: var(--panel-text);
+      }
+
+      #touchAnnotationPalette .touchAnnotationSwatch[data-action="clear"] {
+        background: rgba(0, 0, 0, 0.72);
+        border-color: rgba(255, 255, 255, 0.65);
+      }
+
+      #touchAnnotationPalette
+        .touchAnnotationSwatch[data-action="clear"]::before,
+      #touchAnnotationPalette
+        .touchAnnotationSwatch[data-action="clear"]::after {
+        content: "";
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        top: 50%;
+        height: 2px;
+        background: rgba(255, 77, 79, 0.92);
+        transform-origin: center;
+      }
+
+      #touchAnnotationPalette
+        .touchAnnotationSwatch[data-action="clear"]::before {
+        transform: translateY(-50%) rotate(45deg);
+      }
+
+      #touchAnnotationPalette
+        .touchAnnotationSwatch[data-action="clear"]::after {
+        transform: translateY(-50%) rotate(-45deg);
+      }
+
+      #touchAnnotationPalette .touchAnnotationSwatch[data-action="erase"] {
+        background: rgba(0, 0, 0, 0.28);
+      }
+
+      #touchAnnotationPalette
+        .touchAnnotationSwatch[data-action="erase"][aria-pressed="true"] {
+        outline: 2px solid rgba(255, 255, 255, 0.72);
+        outline-offset: 2px;
+      }
+
+      #touchAnnotationPalette .touchAnnotationSwatch[aria-pressed="true"] {
+        outline: 2px solid rgba(255, 255, 255, 0.72);
+        outline-offset: 2px;
+      }
+
+      .iconToggleBtn {
+        width: 34px;
+        height: 30px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        line-height: 1;
+      }
+
+      .panelSelect {
+        width: 100%;
+        min-width: 0;
+        color-scheme: dark;
+        border: 1px solid var(--themeMenuBorder);
+        background: rgba(0, 0, 0, 0.18);
+        color: var(--themeMenuText);
+        border-radius: 10px;
+        padding: 6px 10px;
+        font-size: 13px;
+        line-height: 1.2;
+        outline: none;
+      }
+
+      .panelSelect:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .panelSelect option,
+      .panelSelect optgroup {
+        background: var(--themeMenuBg);
+        color: var(--themeMenuText);
+        white-space: normal;
+      }
+
+      /* Playback speed row: keep controls within section bounds on narrow sidebars. */
+      label[for="playbackDelay"] + div {
+        width: 100%;
+        min-width: 0;
+      }
+
+      #playbackDelay {
+        flex: 1 1 0 !important;
+        width: auto !important;
+        min-width: 0;
+        accent-color: rgba(255, 255, 255, 0.75);
+      }
+
+      #playbackDelayReset,
+      #playbackDelayLabel {
+        flex: 0 0 auto;
+      }
+
+      /* Bot speed row: keep controls within section bounds on narrow sidebars. */
+      label[for="botDelay"] + div {
+        width: 100%;
+        min-width: 0;
+      }
+
+      #botDelay {
+        flex: 1 1 0 !important;
+        width: auto !important;
+        min-width: 0;
+        accent-color: rgba(255, 255, 255, 0.75);
+      }
+
+      #botDelayReset,
+      #botDelayLabel {
+        flex: 0 0 auto;
+      }
+
+      a.panelBtn {
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .sidebarBody {
+        flex: 1 1 auto;
+        overflow: auto;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .panelSection {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.18);
+        border-radius: var(--panel-radius);
+        padding: 10px;
+      }
+
+      .panelSection h3 {
+        margin: 0 0 8px 0;
+        font-size: 12px;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.86);
+        letter-spacing: 0.3px;
+      }
+
+      .sectionHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        user-select: none;
+        margin: 0 0 8px 0;
+      }
+
+      .sectionHeader h3 {
+        margin: 0;
+        flex: 1;
+      }
+
+      .collapseBtn {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.6);
+        transition:
+          transform 0.2s ease,
+          color 0.2s ease;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .sectionHeader:hover .collapseBtn {
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .panelSection.collapsed .collapseBtn {
+        transform: rotate(-90deg);
+      }
+
+      .sectionContent {
+        overflow: visible;
+        transition:
+          max-height 0.25s ease,
+          opacity 0.2s ease;
+        max-height: 2000px;
+        opacity: 1;
+      }
+
+      .panelSection.collapsed .sectionContent {
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+      }
+
+      .panelSection.collapsed .sectionHeader {
+        margin-bottom: 0;
+      }
+
+      /* Move History: add a slightly lighter surface so black piece SVGs remain visible. */
+      #moveHistory {
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        padding: 6px;
+      }
+
+      /* Single-column layout rows (rendered as direct children divs). */
+      #moveHistory > div[data-history-index] {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.135);
+        margin: 2px 0;
+      }
+
+      #moveHistory > div[data-history-index][data-is-current="1"] {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      /* Single-column layout: match two-column column colors.
+         White moves keep the default (same as the White column).
+         Black moves use the lighter Black-column background. */
+      #moveHistory > div[data-history-index][data-history-who="B"] {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      #moveHistory
+        > div[data-history-index][data-history-who="B"][data-is-current="1"] {
+        background: rgba(255, 255, 255, 0.28);
+      }
+
+      .historyGrid {
+        display: grid;
+        grid-template-columns: 2.8em 1fr 1fr;
+        column-gap: 8px;
+        row-gap: 4px;
+        align-items: baseline;
+      }
+
+      .historyGrid .cell {
+        padding: 2px 6px;
+        border-radius: 6px;
+      }
+
+      /* Two-column layout cells: give move cells a soft background. */
+      .historyGrid .cell:not(.hdr):not(.num) {
+        background: rgba(255, 255, 255, 0.135);
+      }
+
+      /* Two-column layout: lighten only the Black column cells.
+         DOM order is: hdr(3), start(1), then repeating triplets: #(col1), White(col2), Black(col3).
+         That makes Black cells :nth-child(3n+1), excluding the Start row.
+         Keep White column background as-is. */
+      .historyGrid > .cell:not(.hdr):not(.num):not(.start):nth-child(3n + 1) {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .historyGrid
+        > .cell.current:not(.hdr):not(.num):not(.start):nth-child(3n + 1) {
+        background: rgba(255, 255, 255, 0.28);
+      }
+
+      .historyGrid .cell.clickable {
+        cursor: pointer;
+      }
+
+      .historyGrid .cell.hdr {
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.8);
+        padding: 2px 6px 4px 6px;
+      }
+
+      .historyGrid .cell.num {
+        color: rgba(255, 255, 255, 0.55);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .historyGrid .cell.current {
+        font-weight: bold;
+        color: rgba(255, 255, 255, 0.95);
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .historyGrid .cell.start {
+        grid-column: 1 / span 3;
+      }
+
+      .kv {
+        display: grid;
+        grid-template-columns: 72px 1fr;
+        gap: 6px 10px;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.78);
+      }
+      .kv .k {
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      .sidebar.collapsed {
+        width: var(--tab-w) !important;
+        border-left: 1px solid rgba(255, 255, 255, 0.12);
+        border-right: 1px solid rgba(255, 255, 255, 0.12);
+      }
+      .sidebar.collapsed .sidebarHeader,
+      .sidebar.collapsed .sidebarBody {
+        display: none;
+      }
+
+      .sidebarTab {
+        height: 100%;
+        width: var(--tab-w);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        background: rgba(0, 0, 0, 0.18);
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.75);
+        user-select: none;
+      }
+      .sidebar.collapsed .sidebarTab {
+        display: flex;
+      }
+      .sidebarTab:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.92);
+      }
+
+      .gutter {
+        width: var(--gutter-w);
+        background: rgba(255, 255, 255, 0.04);
+        cursor: col-resize;
+        position: relative;
+        flex: 0 0 auto;
+      }
+      .gutter:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .gutter::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 2px;
+        transform: translateX(-50%);
+        background: rgba(255, 255, 255, 0.12);
+      }
+      .gutter.disabled {
+        cursor: default;
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .gutter.disabled::after {
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      /* ===== Center Area (board) ===== */
+      #centerArea {
+        flex: 1 1 auto;
+        min-width: 420px;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+        overflow: auto;
+        position: relative;
+      }
+
+      #boardColumn {
+        width: 100%;
+        height: auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      #boardWrap {
+        width: 100%;
+        height: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        min-height: 0;
+      }
+
+      #boardWrap svg {
+        width: min(100%, 980px);
+        height: auto;
+        max-width: 100%;
+        max-height: 100%;
+        display: block;
+        color: var(--panel-text);
+        transition: transform 0.3s ease;
+        touch-action: none;
+      }
+
+      #centerArea.reduced-height #boardWrap svg {
+        transform: scale(0.88);
+        transform-origin: top center;
+      }
+
+      #boardHeightToggle {
+        position: absolute;
+        bottom: 110px;
+        right: 16px;
+        width: 36px;
+        height: 36px;
+        border-radius: 18px;
+        background: rgba(0, 0, 0, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 15px;
+        cursor: pointer;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        touch-action: none;
+        user-select: none;
+      }
+
+      #boardHeightToggle:hover {
+        background: rgba(74, 158, 255, 0.8);
+        border-color: rgba(255, 255, 255, 0.4);
+        transform: scale(1.05);
+      }
+
+      #zoomHint {
+        color: var(--panel-subtext);
+        font-size: 12px;
+        line-height: 1.35;
+        margin-bottom: 10px;
+      }
+
+      #zoomBody {
+        overflow: auto;
+        min-height: 160px;
+        max-height: 60vh;
+        resize: vertical;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 10px;
+      }
+
+      #zoomSvg {
+        width: 100%;
+        display: block;
+      }
+
+      /* Mobile & tablets (touch) — LANDSCAPE: panels left and right of board, disable gutters.
+         Use capability-based queries to avoid narrow desktop windows triggering this layout. */
+      @media (max-width: 1024px) and (orientation: landscape) and (any-pointer: coarse) {
+        #appRoot {
+          flex-direction: row;
+          height: 100dvh;
+        }
+
+        #centerArea {
+          flex: 1 1 auto;
+          min-width: 0;
+          padding-bottom: max(10px, env(safe-area-inset-bottom));
+        }
+      }
+
+      /* Mobile & tablets (touch) — PORTRAIT: left panel on top, board in middle, right panel at bottom. */
+      @media (max-width: 1024px) and (orientation: portrait) and (any-pointer: coarse) {
+        #appRoot {
+          flex-direction: column;
+          height: 100dvh;
+        }
+
+        /* Left panel on top, board in middle, right panel at bottom */
+        #leftSidebar {
+          order: 1;
+        }
+
+        #centerArea {
+          order: 2;
+        }
+
+        #rightSidebar {
+          order: 3;
+        }
+
+        .gutter {
+          display: none;
+        }
+        #leftSidebar,
+        #rightSidebar {
+          width: 100% !important;
+          height: auto;
+        }
+        #centerArea {
+          min-width: 0;
+          height: auto;
+          padding-bottom: max(10px, env(safe-area-inset-bottom));
+        }
+      }
+    </style>
+    <style>
+      #gameLoadScreen {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: #1b1b1b;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+      }
+      @keyframes gameLoadSpinnerRotate {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      #gameLoadScreenSpinner {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, 0.15);
+        border-top-color: rgba(255, 255, 255, 0.75);
+        animation: gameLoadSpinnerRotate 0.75s linear infinite;
+      }
+    </style>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        var e = document.getElementById("gameLoadScreen");
+        if (e) e.remove();
+      });
+    </script>
+    <script type="module" crossorigin src="/StackWorks/assets/columnsChess-CT_OBK_h.js"></script>
+    <link rel="modulepreload" crossorigin href="/StackWorks/assets/boardViewportMode-pkA4TaH-.js">
+    <link rel="modulepreload" crossorigin href="/StackWorks/assets/offlineNavGuard-CJuByz3l.js">
+    <link rel="modulepreload" crossorigin href="/StackWorks/assets/stackInspector-BPhP5Akm.js">
+    <link rel="modulepreload" crossorigin href="/StackWorks/assets/touchAnnotationPalette-DAqXNWpa.js">
+  <script>if("serviceWorker"in navigator)navigator.serviceWorker.register("/StackWorks/sw.js").catch(function(){});</script>
+</head>
+
+  <body>
+    <div id="gameLoadScreen" aria-hidden="true" aria-label="Loading…">
+      <div id="gameLoadScreenSpinner"></div>
+    </div>
+    <div id="appRoot">
+      <!-- LEFT SIDEBAR -->
+      <aside
+        id="leftSidebar"
+        class="sidebar"
+        style="width: 280px"
+        aria-label="Left panel"
+      >
+        <div class="sidebarHeader">
+          <div class="sidebarTitle" id="gameTitle">Columns Chess</div>
+          <div class="sidebarButtons">
+            <a
+              href="./index.html"
+              class="panelBtn"
+              title="Back to Start Page"
+              style="
+                text-decoration: none;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              "
+            >
+              Start Page
+            </a>
+            <a
+              href="./columnsChess-help.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="panelBtn"
+              title="Help & Rules"
+              style="
+                text-decoration: none;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              "
+            >
+              ?
+            </a>
+            <button
+              class="panelBtn"
+              type="button"
+              data-action="collapse-left"
+              title="Collapse left panel"
+            >
+              ⟨
+            </button>
+          </div>
+        </div>
+
+        <div class="sidebarBody">
+          <div class="panelSection" data-section="status">
+            <div class="sectionHeader" data-toggle="status">
+              <h3>Status</h3>
+              <span class="collapseBtn">▼</span>
+            </div>
+            <div class="sectionContent">
+              <div class="kv">
+                <div class="k">Turn</div>
+                <div id="statusTurn">White</div>
+                <div class="k">Rules/Board</div>
+                <div id="statusRulesBoard">—</div>
+                <div class="k">Phase</div>
+                <div id="statusPhase">Setup</div>
+                <div class="k">Message</div>
+                <div id="statusMessage">—</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panelSection" data-section="options">
+            <div class="sectionHeader" data-toggle="options">
+              <h3>Options</h3>
+              <span class="collapseBtn">▼</span>
+            </div>
+            <div class="sectionContent">
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-top: 8px;
+                "
+              >
+                <input
+                  type="checkbox"
+                  id="showResizeIconToggle"
+                  style="width: 16px; height: 16px; cursor: pointer"
+                />
+                <label
+                  for="showResizeIconToggle"
+                  style="font-size: 13px; cursor: pointer; user-select: none"
+                  >Show resize icon</label
+                >
+              </div>
+              <div
+                style="
+                  font-size: 11px;
+                  color: rgba(255, 255, 255, 0.6);
+                  margin-top: 6px;
+                  margin-left: 24px;
+                "
+              >
+                Shows the ↕️ button on the board
+              </div>
+
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-top: 12px;
+                "
+              >
+                <input
+                  type="checkbox"
+                  id="boardCoordsToggle"
+                  style="width: 16px; height: 16px; cursor: pointer"
+                />
+                <label
+                  for="boardCoordsToggle"
+                  style="font-size: 13px; cursor: pointer; user-select: none"
+                  >Show board coordinates</label
+                >
+              </div>
+              <div
+                style="
+                  font-size: 11px;
+                  color: rgba(255, 255, 255, 0.6);
+                  margin-top: 6px;
+                  margin-left: 24px;
+                "
+              >
+                Column letters (A–H) and row numbers (1–8)
+              </div>
+
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-top: 8px;
+                  margin-left: 24px;
+                "
+              >
+                <input
+                  type="checkbox"
+                  id="boardCoordsInSquaresToggle"
+                  style="width: 16px; height: 16px; cursor: pointer"
+                />
+                <label
+                  for="boardCoordsInSquaresToggle"
+                  style="font-size: 13px; cursor: pointer; user-select: none"
+                  >Inside squares</label
+                >
+              </div>
+              <div
+                style="
+                  font-size: 11px;
+                  color: rgba(255, 255, 255, 0.6);
+                  margin-top: 6px;
+                  margin-left: 48px;
+                "
+              >
+                Lowercase letters on bottom row; numbers on left column
+              </div>
+
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-top: 12px;
+                "
+              >
+                <input
+                  type="checkbox"
+                  id="flipBoardToggle"
+                  style="width: 16px; height: 16px; cursor: pointer"
+                />
+                <label
+                  for="flipBoardToggle"
+                  style="font-size: 13px; cursor: pointer; user-select: none"
+                  >Flip Board</label
+                >
+              </div>
+              <div
+                style="
+                  font-size: 11px;
+                  color: rgba(255, 255, 255, 0.6);
+                  margin-top: 6px;
+                  margin-left: 24px;
+                "
+              >
+                Black on bottom (reverses displayed coordinates)
+              </div>
+
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-top: 12px;
+                "
+              >
+                <input
+                  type="checkbox"
+                  id="toastToggle"
+                  checked
+                  style="width: 16px; height: 16px; cursor: pointer"
+                />
+                <label
+                  for="toastToggle"
+                  style="font-size: 13px; cursor: pointer; user-select: none"
+                  >Show toast notifications</label
+                >
+              </div>
+              <div
+                style="
+                  font-size: 11px;
+                  color: rgba(255, 255, 255, 0.6);
+                  margin-top: 6px;
+                  margin-left: 24px;
+                "
+              >
+                Shows a center-screen toast (e.g. Check!)
+              </div>
+
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-top: 12px;
+                "
+              >
+                <input
+                  type="checkbox"
+                  id="soundToggle"
+                  style="width: 16px; height: 16px; cursor: pointer"
+                />
+                <label
+                  for="soundToggle"
+                  style="font-size: 13px; cursor: pointer; user-select: none"
+                  >Sound effects</label
+                >
+              </div>
+              <div
+                style="
+                  font-size: 11px;
+                  color: rgba(255, 255, 255, 0.6);
+                  margin-top: 6px;
+                  margin-left: 24px;
+                "
+              >
+                Plays subtle sounds for moves/captures
+              </div>
+
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-top: 12px;
+                "
+              >
+                <input
+                  type="checkbox"
+                  id="lastMoveHighlightsToggle"
+                  checked
+                  style="width: 16px; height: 16px; cursor: pointer"
+                />
+                <label
+                  for="lastMoveHighlightsToggle"
+                  style="font-size: 13px; cursor: pointer; user-select: none"
+                  >Highlight last move (origin → destination)</label
+                >
+              </div>
+              <div
+                style="
+                  font-size: 11px;
+                  color: rgba(255, 255, 255, 0.6);
+                  margin-top: 6px;
+                  margin-left: 24px;
+                "
+              >
+                Shows previous/current square overlays after each move
+              </div>
+
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-top: 12px;
+                "
+              >
+                <input
+                  type="checkbox"
+                  id="moveHintsToggle"
+                  style="width: 16px; height: 16px; cursor: pointer"
+                />
+                <label
+                  for="moveHintsToggle"
+                  style="font-size: 13px; cursor: pointer; user-select: none"
+                  >Move preview hints</label
+                >
+              </div>
+              <div
+                style="
+                  font-size: 11px;
+                  color: rgba(255, 255, 255, 0.6);
+                  margin-top: 6px;
+                  margin-left: 24px;
+                "
+              >
+                Shows extra capture preview rings when selecting a piece
+              </div>
+            </div>
+          </div>
+
+          <div class="panelSection" data-section="optionsActions">
+            <div class="sectionHeader" data-toggle="optionsActions">
+              <h3>Option Actions</h3>
+              <span class="collapseBtn">▼</span>
+            </div>
+            <div class="sectionContent">
+              <div style="margin-top: 0">
+                <button
+                  id="newGameBtn"
+                  class="panelBtn"
+                  type="button"
+                  style="width: 100%; padding: 6px 12px; font-size: 12px"
+                >
+                  New Game
+                </button>
+              </div>
+
+              <div style="display: flex; gap: 8px; margin-top: 16px">
+                <button
+                  id="saveGameBtn"
+                  class="panelBtn"
+                  type="button"
+                  style="flex: 1; padding: 6px 12px; font-size: 12px"
+                >
+                  Save Game
+                </button>
+                <button
+                  id="loadGameBtn"
+                  class="panelBtn"
+                  type="button"
+                  style="flex: 1; padding: 6px 12px; font-size: 12px"
+                >
+                  Load Game
+                </button>
+              </div>
+              <input
+                type="file"
+                id="loadGameInput"
+                accept=".json"
+                style="display: none"
+              />
+
+              <div style="display: flex; gap: 8px; margin-top: 16px">
+                <button
+                  id="undoBtn"
+                  class="panelBtn"
+                  type="button"
+                  style="flex: 1; padding: 6px 12px; font-size: 12px"
+                  disabled
+                >
+                  ← Undo
+                </button>
+                <button
+                  id="redoBtn"
+                  class="panelBtn"
+                  type="button"
+                  style="flex: 1; padding: 6px 12px; font-size: 12px"
+                  disabled
+                >
+                  Redo →
+                </button>
+              </div>
+
+              <div style="margin-top: 10px">
+                <button
+                  id="analysisToggleBtn"
+                  class="panelBtn"
+                  type="button"
+                  aria-pressed="false"
+                  style="width: 100%; padding: 6px 12px; font-size: 12px"
+                >
+                  Analysis Mode: Off
+                </button>
+              </div>
+
+              <div style="margin-top: 8px">
+                <button
+                  id="fullScreenBtn"
+                  class="panelBtn"
+                  type="button"
+                  aria-pressed="false"
+                  style="width: 100%; padding: 6px 12px; font-size: 12px"
+                >
+                  Full Screen: Off
+                </button>
+              </div>
+
+              <div style="margin-top: 16px">
+                <button
+                  id="resignBtn"
+                  class="panelBtn"
+                  type="button"
+                  style="width: 100%; padding: 6px 12px; font-size: 12px"
+                >
+                  Resign
+                </button>
+              </div>
+
+              <div style="margin-top: 8px">
+                <button
+                  id="offerDrawBtn"
+                  class="panelBtn"
+                  type="button"
+                  style="width: 100%; padding: 6px 12px; font-size: 12px"
+                  hidden
+                >
+                  Offer draw
+                </button>
+              </div>
+
+              <div style="margin-top: 10px">
+                <button
+                  id="exportHistoryBtn"
+                  class="panelBtn"
+                  type="button"
+                  style="width: 100%; padding: 6px 12px; font-size: 12px"
+                >
+                  Export Move History
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panelSection" data-section="bot">
+            <div class="sectionHeader" data-toggle="bot">
+              <h3>Bot</h3>
+              <span class="collapseBtn">▼</span>
+            </div>
+            <div class="sectionContent">
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 52px minmax(0, 1fr);
+                  gap: 8px 10px;
+                  align-items: center;
+                  justify-items: start;
+                  font-size: 12px;
+                "
+              >
+                <label for="botWhiteSelect">White</label>
+                <select
+                  id="botWhiteSelect"
+                  class="panelSelect"
+                  style="width: 100%"
+                >
+                  <option value="human">Human</option>
+                  <option value="bot">Bot</option>
+                </select>
+
+                <label for="botBlackSelect">Black</label>
+                <select
+                  id="botBlackSelect"
+                  class="panelSelect"
+                  style="width: 100%"
+                >
+                  <option value="human">Human</option>
+                  <option value="bot">Bot</option>
+                </select>
+
+                <label for="botDelay">Speed</label>
+                <div style="display: flex; gap: 6px; align-items: center">
+                  <input
+                    id="botDelay"
+                    type="range"
+                    min="0"
+                    max="3000"
+                    step="100"
+                    value="500"
+                    style="flex: 0 1 105px; width: 105px"
+                  />
+                  <button
+                    id="botDelayReset"
+                    class="panelBtn iconToggleBtn"
+                    type="button"
+                    title="Reset to default speed"
+                    aria-label="Reset bot speed to default"
+                  >
+                    ↺
+                  </button>
+                  <div
+                    id="botDelayLabel"
+                    style="
+                      min-width: 52px;
+                      text-align: left;
+                      font-variant-numeric: tabular-nums;
+                      white-space: nowrap;
+                    "
+                  >
+                    500 ms
+                  </div>
+                </div>
+
+                <div
+                  style="
+                    grid-column: 1 / -1;
+                    display: flex;
+                    gap: 8px;
+                    width: 100%;
+                  "
+                >
+                  <button
+                    id="botPauseBtn"
+                    class="panelBtn"
+                    type="button"
+                    style="flex: 1; padding: 6px 12px"
+                  >
+                    Pause bot
+                  </button>
+
+                  <button
+                    id="botResetLearningBtn"
+                    class="panelBtn"
+                    type="button"
+                    style="flex: 1; padding: 6px 12px"
+                    title="Reset adaptive difficulty (not used for Columns Chess yet)"
+                  >
+                    Reset learning
+                  </button>
+                </div>
+
+                <div
+                  id="botStatus"
+                  style="
+                    grid-column: 1 / -1;
+                    font-size: 11px;
+                    color: rgba(255, 255, 255, 0.6);
+                  "
+                >
+                  Bot off
+                </div>
+              </div>
+              <div
+                style="
+                  font-size: 11px;
+                  color: rgba(255, 255, 255, 0.6);
+                  margin-top: 8px;
+                "
+              >
+                Columns Chess bot uses a fast fallback AI with stacking-aware
+                evaluation.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="sidebarTab"
+          data-action="expand-left"
+          title="Expand left panel"
+        >
+          ⟩
+        </div>
+      </aside>
+
+      <div
+        id="gutterLeft"
+        class="gutter"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize left panel"
+      ></div>
+
+      <!-- CENTER (BOARD) -->
+      <main id="centerArea" aria-label="Board area">
+        <button
+          id="boardHeightToggle"
+          type="button"
+          title="Adjust board height for bottom navigation bar"
+          aria-label="Toggle board height adjustment"
+        >
+          ↕️
+        </button>
+        <div id="boardColumn">
+          <div id="boardWrap"></div>
+
+          <div id="touchAnnotationPalette" aria-label="Annotation color">
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-action="clear"
+              aria-label="Clear annotations"
+              title="Clear annotations"
+            ></button>
+
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-action="erase"
+              aria-label="Erase mode"
+              title="Erase mode"
+              aria-pressed="false"
+            >
+              ⌫
+            </button>
+
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-color="orange"
+              aria-label="Orange annotations"
+              aria-pressed="true"
+              style="background: rgba(255, 159, 64, 0.92)"
+            ></button>
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-color="green"
+              aria-label="Green annotations"
+              aria-pressed="false"
+              style="background: rgba(0, 230, 118, 0.92)"
+            ></button>
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-color="red"
+              aria-label="Red annotations"
+              aria-pressed="false"
+              style="background: rgba(255, 77, 79, 0.92)"
+            ></button>
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-color="blue"
+              aria-label="Blue annotations"
+              aria-pressed="false"
+              style="background: rgba(102, 204, 255, 0.92)"
+            ></button>
+
+            <div class="touchAnnotationDivider"></div>
+
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-annotation-type="play"
+              aria-label="Play moves (tap squares)"
+              title="Play moves"
+              aria-pressed="false"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <polygon
+                  points="5,3 13,8 5,13"
+                  fill="rgba(255,255,255,0.70)"
+                  stroke="rgba(255,255,255,0.85)"
+                  stroke-width="1"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-annotation-type="square"
+              aria-label="Square annotation"
+              title="Square"
+              aria-pressed="true"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <rect
+                  x="2"
+                  y="2"
+                  width="12"
+                  height="12"
+                  stroke="rgba(255,255,255,0.85)"
+                  stroke-width="2"
+                  fill="rgba(255,255,255,0.1)"
+                />
+              </svg>
+            </button>
+
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-annotation-type="circle"
+              aria-label="Circle annotation (press C)"
+              title="Circle (C)"
+              aria-pressed="false"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle
+                  cx="8"
+                  cy="8"
+                  r="6"
+                  stroke="rgba(255,255,255,0.85)"
+                  stroke-width="2"
+                  fill="rgba(255,255,255,0.1)"
+                />
+              </svg>
+            </button>
+
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-annotation-type="pin"
+              aria-label="Pin annotation (press P)"
+              title="Pin (P)"
+              aria-pressed="false"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <!-- Push-pin: wide rounded-corner cap, bezier shoulders, narrow neck, needle -->
+                <path
+                  d="M 4 2 Q 2 2 2 4 L 2 8 Q 2 10.5 5.5 10.5 L 5.5 12 L 8 15 L 10.5 12 L 10.5 10.5 Q 14 10.5 14 8 L 14 4 Q 14 2 12 2 Z"
+                  fill="rgba(255,255,255,0.35)"
+                  stroke="rgba(255,255,255,0.85)"
+                  stroke-width="1"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-annotation-type="protect"
+              aria-label="Protect annotation (press P)"
+              title="Protect (P)"
+              aria-pressed="false"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M2 2 L14 2 L14 9 Q14 15 8 15.5 Q2 15 2 9 Z"
+                  fill="rgba(255,255,255,0.40)"
+                  stroke="rgba(255,255,255,0.85)"
+                  stroke-width="1.5"
+                  stroke-linejoin="round"
+                />
+                <!-- White checkmark -->
+                <path
+                  d="M4.5 8.5 L7 11.5 L12.5 5"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.92)"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </main>
+
+      <div
+        id="gutterRight"
+        class="gutter"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize right panel"
+      ></div>
+
+      <!-- RIGHT SIDEBAR -->
+      <aside
+        id="rightSidebar"
+        class="sidebar"
+        style="width: 320px"
+        aria-label="Right panel"
+      >
+        <div class="sidebarHeader">
+          <div class="sidebarTitle">Info</div>
+          <div class="sidebarButtons">
+            <button
+              class="panelBtn"
+              type="button"
+              data-action="collapse-right"
+              title="Collapse right panel"
+            >
+              ⟩
+            </button>
+          </div>
+        </div>
+
+        <div class="sidebarBody">
+          <div class="panelSection" data-section="theme">
+            <div class="sectionHeader" data-toggle="theme">
+              <h3>Board & Pieces</h3>
+              <span class="collapseBtn">▼</span>
+            </div>
+            <div class="sectionContent">
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 10px;
+                  margin-top: 8px;
+                "
+              >
+                <label
+                  for="checkerboardThemeSelect"
+                  style="font-size: 13px; user-select: none; min-width: 52px"
+                  >Board</label
+                >
+                <select
+                  id="checkerboardThemeSelect"
+                  class="panelSelect"
+                  style="flex: 1; outline: none"
+                >
+                  <option value="classic">Classic</option>
+                  <option value="green">Green</option>
+                  <option value="blue">Blue</option>
+                  <option value="stone">Stone</option>
+                  <option value="burled">Burled Wood</option>
+                  <option value="checkers">Classic Checkers</option>
+                </select>
+              </div>
+              <div
+                style="
+                  font-size: 11px;
+                  color: rgba(255, 255, 255, 0.6);
+                  margin-top: 6px;
+                  margin-left: 62px;
+                "
+              >
+                Checkerboard background colors
+              </div>
+
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 10px;
+                  margin-top: 8px;
+                "
+              >
+                <label
+                  for="columnsThemeSelect"
+                  style="font-size: 13px; user-select: none; min-width: 52px"
+                  >Pieces</label
+                >
+                <select
+                  id="columnsThemeSelect"
+                  class="panelSelect"
+                  style="flex: 1; outline: none"
+                >
+                  <option value="discs">Discs</option>
+                  <option value="2d">2D</option>
+                  <option value="3d">3D</option>
+                  <option value="neo">Neo</option>
+                </select>
+              </div>
+              <div
+                style="
+                  font-size: 11px;
+                  color: rgba(255, 255, 255, 0.6);
+                  margin-top: 6px;
+                  margin-left: 62px;
+                "
+              >
+                Discs = classic glyphs • 2D/3D = raster pieces
+              </div>
+            </div>
+          </div>
+
+          <div class="panelSection" data-section="inspector">
+            <div class="sectionHeader" data-toggle="inspector">
+              <h3 id="zoomTitle">Stack Inspector</h3>
+              <span class="collapseBtn">▼</span>
+            </div>
+            <div class="sectionContent">
+              <div id="zoomHint">
+                Hover a stacked piece to see the full column order (bottom →
+                top).
+              </div>
+              <div id="zoomBody"></div>
+            </div>
+          </div>
+
+          <div class="panelSection" data-section="playback">
+            <div class="sectionHeader" data-toggle="playback">
+              <h3 id="playbackTitle">Playback</h3>
+              <span class="collapseBtn">▼</span>
+            </div>
+            <div class="sectionContent">
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 52px minmax(0, 1fr);
+                  gap: 8px 2px;
+                  align-items: center;
+                  justify-items: start;
+                  font-size: 12px;
+                "
+              >
+                <div style="display: flex; gap: 6px; align-items: center">
+                  <button
+                    id="playbackBtn"
+                    class="panelBtn iconToggleBtn"
+                    type="button"
+                    title="Play move history"
+                    aria-label="Play move history"
+                    aria-pressed="false"
+                  >
+                    ▶
+                  </button>
+                </div>
+                <div
+                  id="playbackHint"
+                  style="
+                    font-size: 11px;
+                    color: rgba(255, 255, 255, 0.6);
+                    line-height: 1.2;
+                  "
+                >
+                  Plays forward from the current position
+                </div>
+
+                <label for="playbackDelay">Speed</label>
+                <div
+                  style="
+                    display: flex;
+                    gap: 6px;
+                    align-items: center;
+                    width: 100%;
+                    min-width: 0;
+                  "
+                >
+                  <input
+                    id="playbackDelay"
+                    type="range"
+                    min="0"
+                    max="3000"
+                    step="100"
+                    value="500"
+                    style="flex: 0 1 105px; width: 105px"
+                  />
+                  <button
+                    id="playbackDelayReset"
+                    class="panelBtn iconToggleBtn"
+                    type="button"
+                    title="Reset to default speed"
+                    aria-label="Reset playback speed to default"
+                  >
+                    ↺
+                  </button>
+                  <div
+                    id="playbackDelayLabel"
+                    style="
+                      min-width: 52px;
+                      text-align: left;
+                      font-variant-numeric: tabular-nums;
+                      white-space: nowrap;
+                    "
+                  >
+                    500 ms
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panelSection" data-section="moveHistory">
+            <div class="sectionHeader" data-toggle="moveHistory">
+              <h3 id="moveHistoryTitle">Move History</h3>
+              <span class="collapseBtn">▼</span>
+            </div>
+            <div class="sectionContent">
+              <div
+                style="
+                  display: flex;
+                  gap: 8px;
+                  align-items: center;
+                  margin-bottom: 8px;
+                "
+              >
+                <label
+                  for="moveHistoryLayout"
+                  style="
+                    font-size: 12px;
+                    color: rgba(255, 255, 255, 0.7);
+                    white-space: nowrap;
+                  "
+                  >Layout</label
+                >
+                <select
+                  id="moveHistoryLayout"
+                  class="panelSelect"
+                  style="
+                    width: auto;
+                    flex: 1 1 auto;
+                    padding: 4px 10px;
+                    font-size: 12px;
+                  "
+                >
+                  <option value="single">Single column</option>
+                  <option value="two">Two columns</option>
+                </select>
+              </div>
+              <div
+                id="moveHistory"
+                style="
+                  font-size: 12px;
+                  color: rgba(255, 255, 255, 0.7);
+                  line-height: 1.5;
+                  max-height: 320px;
+                  overflow: auto;
+                "
+              >
+                No moves yet
+              </div>
+            </div>
+          </div>
+
+          <div class="panelSection" data-section="rules">
+            <div class="sectionHeader" data-toggle="rules">
+              <h3>Rules</h3>
+              <span class="collapseBtn">▼</span>
+            </div>
+            <div
+              class="sectionContent"
+              style="
+                font-size: 12px;
+                color: var(--panel-subtext);
+                line-height: 1.45;
+              "
+            >
+              Chess moves + check/checkmate/stalemate, with Lasca-style stacking
+              captures. Captures take only the top piece of a stack.
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="sidebarTab"
+          data-action="expand-right"
+          title="Expand right panel"
+        >
+          ⟨
+        </div>
+      </aside>
+    </div>
+
+  </body>
+</html>

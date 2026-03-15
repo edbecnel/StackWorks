@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" aria-hidden="true">
+  <defs>
+    <!-- Turtle palette:
+         - Black side pieces: green
+         - White side pieces: light yellowish orange-brown
+         - Shell pattern: hex/scale outlines + subtle highlight
+    -->
+
+    <!-- Greens (Black player) -->
+    <radialGradient id="turtleGreenBase" cx="38%" cy="30%" r="70%">
+      <stop offset="0%"  stop-color="#a7e07a"/>
+      <stop offset="55%" stop-color="#3a9b3f"/>
+      <stop offset="100%" stop-color="#1f5e2a"/>
+    </radialGradient>
+
+    <!-- Light yellowish orange-brown (White player) -->
+    <radialGradient id="turtleTanBase" cx="38%" cy="30%" r="70%">
+      <stop offset="0%"  stop-color="#ffe3b8"/>
+      <stop offset="55%" stop-color="#d7a66e"/>
+      <stop offset="100%" stop-color="#9a6a3c"/>
+    </radialGradient>
+
+    <!-- Soft specular highlight -->
+    <radialGradient id="turtleShine" cx="32%" cy="26%" r="75%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="35%" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="70%" stop-color="#000000" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.16"/>
+    </radialGradient>
+
+    <!-- A simple shell-like hex pattern.
+         We overlay it over the base fill with low opacity.
+    -->
+    <pattern id="turtleShellPattern" patternUnits="userSpaceOnUse" width="22" height="19">
+      <!-- Hex-ish cell outlines -->
+      <path d="M 5 2 L 11 2 L 15 9.5 L 11 17 L 5 17 L 1 9.5 Z" fill="none" stroke="#1b1b1b" stroke-opacity="0.35" stroke-width="1.2"/>
+      <path d="M 16 2 L 22 2 L 26 9.5 L 22 17 L 16 17 L 12 9.5 Z" fill="none" stroke="#1b1b1b" stroke-opacity="0.28" stroke-width="1.2"/>
+      <!-- small inner arcs to feel more organic -->
+      <path d="M 5 6 Q 8 4 11 6" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="1"/>
+      <path d="M 5 13 Q 8 15 11 13" fill="none" stroke="#000000" stroke-opacity="0.10" stroke-width="1"/>
+    </pattern>
+
+    <path id="star5" d="
+      M 50 30
+      L 56.5 43.2
+      L 71.0 45.3
+      L 60.5 55.6
+      L 63.0 70.0
+      L 50.0 63.2
+      L 37.0 70.0
+      L 39.5 55.6
+      L 29.0 45.3
+      L 43.5 43.2
+      Z" />
+
+    <path id="crown" d="
+      M 26 64
+      L 26 40
+      L 38 52
+      L 50 36
+      L 62 52
+      L 74 40
+      L 74 64
+      Z
+      M 28 66
+      H 72
+      V 72
+      H 28
+      Z" />
+
+    <!-- ======== PIECE SYMBOLS ======== -->
+
+    <!-- White Soldier (tan shell) -->
+    <symbol id="W_S" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#turtleTanBase)" stroke="#3b2b1f" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#turtleShellPattern)" opacity="0.55"/>
+      <circle cx="50" cy="50" r="43" fill="url(#turtleShine)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#000" stroke-opacity="0.16" stroke-width="3"/>
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.16"/>
+    </symbol>
+
+    <!-- Black Soldier (green shell) -->
+    <symbol id="B_S" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#turtleGreenBase)" stroke="#14331b" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#turtleShellPattern)" opacity="0.55"/>
+      <circle cx="50" cy="50" r="43" fill="url(#turtleShine)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#000" stroke-opacity="0.16" stroke-width="3"/>
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.12"/>
+    </symbol>
+
+    <!-- White Officer (tan shell + emblem) -->
+    <symbol id="W_O" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#turtleTanBase)" stroke="#2f221a" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#turtleShellPattern)" opacity="0.55"/>
+      <circle cx="50" cy="50" r="43" fill="url(#turtleShine)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#000" stroke-opacity="0.16" stroke-width="3"/>
+      <use href="#star5" fill="#2f221a" opacity="0.9" transform="translate(0 -2)"/>
+      <circle cx="50" cy="50" r="18" fill="none" stroke="#2f221a" stroke-opacity="0.75" stroke-width="3"/>
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.14"/>
+    </symbol>
+
+    <!-- Black Officer (green shell + emblem) -->
+    <symbol id="B_O" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#turtleGreenBase)" stroke="#102a16" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#turtleShellPattern)" opacity="0.55"/>
+      <circle cx="50" cy="50" r="43" fill="url(#turtleShine)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#000" stroke-opacity="0.16" stroke-width="3"/>
+      <use href="#star5" fill="#102a16" opacity="0.9" transform="translate(0 -2)"/>
+      <circle cx="50" cy="50" r="18" fill="none" stroke="#102a16" stroke-opacity="0.75" stroke-width="3"/>
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.12"/>
+    </symbol>
+
+    <!-- White King (tan shell + crown, Dama) -->
+    <symbol id="W_K" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#turtleTanBase)" stroke="#2f221a" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#turtleShellPattern)" opacity="0.55"/>
+      <circle cx="50" cy="50" r="43" fill="url(#turtleShine)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#000" stroke-opacity="0.16" stroke-width="3"/>
+      <use href="#crown" fill="#2f221a" opacity="0.9" transform="translate(0 -2)"/>
+      <circle cx="50" cy="50" r="18" fill="none" stroke="#2f221a" stroke-opacity="0.75" stroke-width="3"/>
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.14"/>
+    </symbol>
+
+    <!-- Black King (green shell + crown, Dama) -->
+    <symbol id="B_K" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#turtleGreenBase)" stroke="#102a16" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#turtleShellPattern)" opacity="0.55"/>
+      <circle cx="50" cy="50" r="43" fill="url(#turtleShine)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#000" stroke-opacity="0.16" stroke-width="3"/>
+      <use href="#crown" fill="#102a16" opacity="0.9" transform="translate(0 -2)"/>
+      <circle cx="50" cy="50" r="18" fill="none" stroke="#102a16" stroke-opacity="0.75" stroke-width="3"/>
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.12"/>
+    </symbol>
+  </defs>
+</svg>

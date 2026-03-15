@@ -1,0 +1,199 @@
+/* Stone Theme - Black Granite & White Marble */
+
+:root {
+  --lastMoveFromFill: rgba(102, 204, 255, 0.22);
+  --lastMoveToFill: rgba(102, 204, 255, 0.36);
+  --lastMoveStroke: rgba(102, 204, 255, 0.72);
+  --lastMoveStrokeWidth: 3;
+}
+
+body {
+  background: linear-gradient(135deg, #4a4a4a 0%, #2a2a2a 50%, #1a1a1a 100%);
+  color: #e8e8e8;
+}
+
+/* Page container */
+.page-container {
+  background: linear-gradient(to bottom, #3a3a3a, #252525);
+  border: 2px solid #555;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Panel backgrounds - stone texture */
+#info-panel, 
+#controls-panel {
+  background: linear-gradient(135deg, #3f3f3f 0%, #2f2f2f 50%, #252525 100%);
+  border: 1px solid #555;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Help page specific styling */
+.help-container {
+  background: linear-gradient(to bottom, #3a3a3a, #252525);
+  color: #e8e8e8;
+}
+
+.help-container h1,
+.help-container h2 {
+  color: #f5f5f5;
+  border-bottom-color: #555;
+}
+
+.help-container section {
+  background: rgba(47, 47, 47, 0.6);
+  border: 1px solid #484848;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Board styling - granite and marble squares */
+.board-light {
+  fill: #e8e8e8; /* Light marble */
+}
+
+.board-dark {
+  fill: #3a3a3a; /* Dark granite */
+}
+
+.board-light.selected {
+  fill: #b8d4f0;
+}
+
+.board-dark.selected {
+  fill: #6a8fb8;
+}
+
+.board-light.legal-move {
+  fill: #c8e6c9;
+}
+
+.board-dark.legal-move {
+  fill: #5a7a5c;
+}
+
+.board-light.last-move {
+  fill: #fff9c4;
+}
+
+.board-dark.last-move {
+  fill: #7a7654;
+}
+
+/* Buttons - polished stone effect */
+button {
+  background: linear-gradient(to bottom, #4a4a4a, #2f2f2f);
+  color: #e8e8e8;
+  border: 1px solid #666;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+button:hover:not(:disabled) {
+  background: linear-gradient(to bottom, #555, #3a3a3a);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5),
+              inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+button:active:not(:disabled) {
+  background: linear-gradient(to bottom, #2f2f2f, #4a4a4a);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+button:disabled {
+  background: linear-gradient(to bottom, #333, #222);
+  color: #666;
+  border-color: #444;
+}
+
+/* Select dropdown - stone styling */
+select {
+  background: linear-gradient(to bottom, #3a3a3a, #2a2a2a);
+  color: #e8e8e8;
+  border: 1px solid #555;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+select:focus {
+  border-color: #777;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(119, 119, 119, 0.3);
+}
+
+/* Checkbox styling */
+input[type="checkbox"] {
+  accent-color: #666;
+}
+
+/* Move history - stone panel */
+#history-panel {
+  background: rgba(42, 42, 42, 0.7);
+  border: 1px solid #555;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.history-move {
+  background: rgba(58, 58, 58, 0.5);
+  border-left: 3px solid #555;
+}
+
+.history-move:hover {
+  background: rgba(74, 74, 74, 0.7);
+}
+
+.history-move.current {
+  background: rgba(90, 90, 90, 0.8);
+  border-left-color: #999;
+  font-weight: bold;
+}
+
+/* Message area - granite background */
+#message-area {
+  background: rgba(26, 26, 26, 0.85);
+  border: 1px solid #444;
+  color: #e8e8e8;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+/* Scrollbar - stone theme */
+::-webkit-scrollbar {
+  width: 10px;
+  background: #2a2a2a;
+}
+
+::-webkit-scrollbar-track {
+  background: linear-gradient(to right, #333, #2a2a2a, #333);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #5a5a5a, #3a3a3a);
+  border-radius: 5px;
+  border: 1px solid #444;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #6a6a6a, #4a4a4a);
+}
+
+/* Links */
+a {
+  color: #90c0e0;
+}
+
+a:hover {
+  color: #b0d8f0;
+}
+
+/* Code blocks in help */
+code {
+  background: rgba(26, 26, 26, 0.6);
+  border: 1px solid #444;
+  color: #d0d0d0;
+}
+
+pre {
+  background: rgba(26, 26, 26, 0.7);
+  border: 1px solid #444;
+  color: #d0d0d0;
+}

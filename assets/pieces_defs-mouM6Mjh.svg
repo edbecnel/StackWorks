@@ -1,0 +1,1548 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" aria-hidden="true">
+  <defs>
+    <!-- ======== WOOD GRAIN PATTERNS ======== -->
+    
+    <!-- Light wood grain pattern (for White/Light pieces) -->
+    <pattern id="woodGrainLight" patternUnits="userSpaceOnUse" width="28" height="28">
+      <rect width="28" height="28" fill="#e8dcc4"/>
+      <path d="M-2,6 Q6,4 14,6 T30,6" stroke="#b79b73" stroke-width="1.5" fill="none" opacity="0.78"/>
+      <path d="M-2,12 Q7,10 16,12 T30,12" stroke="#a98d66" stroke-width="1.1" fill="none" opacity="0.58"/>
+      <path d="M-2,18 Q5,19 12,18 T26,18 T30,18" stroke="#b79b73" stroke-width="1.2" fill="none" opacity="0.66"/>
+      <path d="M-2,23 Q8,22 18,23 T30,23" stroke="#9a815d" stroke-width="1.0" fill="none" opacity="0.48"/>
+      <!-- subtle bright pass to make grain read as polished wood -->
+      <path d="M-2,9 Q6,7 14,9 T30,9" stroke="#fff6e6" stroke-width="0.9" fill="none" opacity="0.18"/>
+      <ellipse cx="9" cy="15" rx="2.6" ry="6.8" fill="#a98d66" opacity="0.26"/>
+      <ellipse cx="20" cy="9" rx="2.2" ry="5.6" fill="#b79b73" opacity="0.22"/>
+    </pattern>
+
+    <!-- Dark wood grain pattern (for Black/Dark pieces) -->
+    <pattern id="woodGrainDark" patternUnits="userSpaceOnUse" width="28" height="28">
+      <rect width="28" height="28" fill="#5a3a2a"/>
+      <path d="M-2,6 Q6,4 14,6 T30,6" stroke="#2a1810" stroke-width="1.4" fill="none" opacity="0.68"/>
+      <path d="M-2,12 Q7,10 16,12 T30,12" stroke="#1f120c" stroke-width="1.1" fill="none" opacity="0.52"/>
+      <path d="M-2,18 Q5,19 12,18 T26,18 T30,18" stroke="#3c2418" stroke-width="1.2" fill="none" opacity="0.60"/>
+      <path d="M-2,23 Q8,22 18,23 T30,23" stroke="#1f120c" stroke-width="1.0" fill="none" opacity="0.44"/>
+      <!-- lighter highlight grain so texture is discernible on dark wood -->
+      <path d="M-2,9 Q6,7 14,9 T30,9" stroke="#b08a6f" stroke-width="1.0" fill="none" opacity="0.22"/>
+      <ellipse cx="9" cy="15" rx="2.6" ry="6.8" fill="#2a1810" opacity="0.30"/>
+      <ellipse cx="20" cy="9" rx="2.2" ry="5.6" fill="#3c2418" opacity="0.22"/>
+    </pattern>
+
+    <!-- Walnut wood grain for officers -->
+    <pattern id="woodGrainWalnut" patternUnits="userSpaceOnUse" width="28" height="28">
+      <rect width="28" height="28" fill="#6b4423"/>
+      <path d="M-2,6 Q6,4 14,6 T30,6" stroke="#3a1d0a" stroke-width="1.5" fill="none" opacity="0.70"/>
+      <path d="M-2,12 Q7,10 16,12 T30,12" stroke="#4a2d15" stroke-width="1.2" fill="none" opacity="0.62"/>
+      <path d="M-2,18 Q5,19 12,18 T26,18 T30,18" stroke="#3a1d0a" stroke-width="1.3" fill="none" opacity="0.66"/>
+      <path d="M-2,23 Q8,22 18,23 T30,23" stroke="#4a2d15" stroke-width="1.0" fill="none" opacity="0.48"/>
+      <path d="M-2,9 Q6,7 14,9 T30,9" stroke="#c49a72" stroke-width="1.0" fill="none" opacity="0.20"/>
+      <ellipse cx="11" cy="14" rx="3.1" ry="8.2" fill="#2d1a0d" opacity="0.28"/>
+      <ellipse cx="21" cy="18" rx="2.4" ry="5.8" fill="#4a2d15" opacity="0.22"/>
+    </pattern>
+
+    <!-- Cherry wood for officers (lighter) -->
+    <pattern id="woodGrainCherry" patternUnits="userSpaceOnUse" width="28" height="28">
+      <rect width="28" height="28" fill="#c97c54"/>
+      <path d="M-2,6 Q6,4 14,6 T30,6" stroke="#7c3f2b" stroke-width="1.5" fill="none" opacity="0.62"/>
+      <path d="M-2,12 Q7,10 16,12 T30,12" stroke="#8a4932" stroke-width="1.2" fill="none" opacity="0.58"/>
+      <path d="M-2,18 Q5,19 12,18 T26,18 T30,18" stroke="#7c3f2b" stroke-width="1.3" fill="none" opacity="0.58"/>
+      <path d="M-2,23 Q8,22 18,23 T30,23" stroke="#8a4932" stroke-width="1.0" fill="none" opacity="0.42"/>
+      <path d="M-2,9 Q6,7 14,9 T30,9" stroke="#f3c1a1" stroke-width="0.9" fill="none" opacity="0.20"/>
+      <ellipse cx="12" cy="15" rx="2.9" ry="7.8" fill="#7c3f2b" opacity="0.26"/>
+      <ellipse cx="22" cy="9" rx="2.3" ry="5.8" fill="#8a4932" opacity="0.22"/>
+    </pattern>
+
+    <!-- Gradient overlays for 3D effect -->
+    <radialGradient id="woodShineLight" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.32"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.15"/>
+    </radialGradient>
+
+    <radialGradient id="woodShineDark" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.25"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.3"/>
+    </radialGradient>
+
+    <!-- Procedural wood texture (organic grain, avoids visible tiling) -->
+    <filter id="woodTextureMaple" x="-20%" y="-20%" width="140%" height="140%">
+      <!-- warp field (breaks up regular straight grain) -->
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="71" stitchTiles="stitch" result="warp"/>
+      <!-- directional grain (then warped) -->
+      <feTurbulence type="turbulence" baseFrequency="0.010 0.28" numOctaves="2" seed="7" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.35" exponent="1.25" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.35" exponent="1.25" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.35" exponent="1.25" offset="-0.10"/>
+      </feComponentTransfer>
+
+      <!-- darker grain (multiply) -->
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.56 0" result="grainA"/>
+      <feFlood flood-color="#5a3a1f" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="multiply" result="wood1"/>
+
+      <!-- subtle highlight grain (screen) -->
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.18 0" result="hiA"/>
+      <feFlood flood-color="#fff1dc" flood-opacity="1" result="hiColor"/>
+      <feComposite in="hiColor" in2="hiA" operator="in" result="hiTint"/>
+      <feComposite in="hiTint" in2="SourceAlpha" operator="in" result="hiMasked"/>
+      <feBlend in="wood1" in2="hiMasked" mode="screen" result="wood2"/>
+
+      <!-- occasional knots / cathedral grain accents (rare blobs, masked to piece alpha) -->
+      <feTurbulence type="fractalNoise" baseFrequency="0.030" numOctaves="1" seed="701" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.55 0" result="knotsA"/>
+      <feFlood flood-color="#5a3a1f" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <!-- Additional Maple variants (different seeds -> different knots/grain per piece) -->
+    <filter id="woodTextureMaple_1" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="72" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.010 0.28" numOctaves="2" seed="17" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.35" exponent="1.25" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.35" exponent="1.25" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.35" exponent="1.25" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.56 0" result="grainA"/>
+      <feFlood flood-color="#5a3a1f" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="multiply" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.18 0" result="hiA"/>
+      <feFlood flood-color="#fff1dc" flood-opacity="1" result="hiColor"/>
+      <feComposite in="hiColor" in2="hiA" operator="in" result="hiTint"/>
+      <feComposite in="hiTint" in2="SourceAlpha" operator="in" result="hiMasked"/>
+      <feBlend in="wood1" in2="hiMasked" mode="screen" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.030" numOctaves="1" seed="702" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.55 0" result="knotsA"/>
+      <feFlood flood-color="#5a3a1f" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureMaple_2" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="73" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.010 0.28" numOctaves="2" seed="27" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.35" exponent="1.25" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.35" exponent="1.25" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.35" exponent="1.25" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.56 0" result="grainA"/>
+      <feFlood flood-color="#5a3a1f" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="multiply" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.18 0" result="hiA"/>
+      <feFlood flood-color="#fff1dc" flood-opacity="1" result="hiColor"/>
+      <feComposite in="hiColor" in2="hiA" operator="in" result="hiTint"/>
+      <feComposite in="hiTint" in2="SourceAlpha" operator="in" result="hiMasked"/>
+      <feBlend in="wood1" in2="hiMasked" mode="screen" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.030" numOctaves="1" seed="703" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.55 0" result="knotsA"/>
+      <feFlood flood-color="#5a3a1f" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureMaple_3" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="74" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.010 0.28" numOctaves="2" seed="37" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.35" exponent="1.25" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.35" exponent="1.25" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.35" exponent="1.25" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.56 0" result="grainA"/>
+      <feFlood flood-color="#5a3a1f" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="multiply" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.18 0" result="hiA"/>
+      <feFlood flood-color="#fff1dc" flood-opacity="1" result="hiColor"/>
+      <feComposite in="hiColor" in2="hiA" operator="in" result="hiTint"/>
+      <feComposite in="hiTint" in2="SourceAlpha" operator="in" result="hiMasked"/>
+      <feBlend in="wood1" in2="hiMasked" mode="screen" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.030" numOctaves="1" seed="704" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.55 0" result="knotsA"/>
+      <feFlood flood-color="#5a3a1f" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureMaple_4" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="75" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.010 0.28" numOctaves="2" seed="47" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.35" exponent="1.25" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.35" exponent="1.25" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.35" exponent="1.25" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.56 0" result="grainA"/>
+      <feFlood flood-color="#5a3a1f" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="multiply" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.18 0" result="hiA"/>
+      <feFlood flood-color="#fff1dc" flood-opacity="1" result="hiColor"/>
+      <feComposite in="hiColor" in2="hiA" operator="in" result="hiTint"/>
+      <feComposite in="hiTint" in2="SourceAlpha" operator="in" result="hiMasked"/>
+      <feBlend in="wood1" in2="hiMasked" mode="screen" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.030" numOctaves="1" seed="705" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.55 0" result="knotsA"/>
+      <feFlood flood-color="#5a3a1f" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureMaple_5" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="76" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.010 0.28" numOctaves="2" seed="57" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.35" exponent="1.25" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.35" exponent="1.25" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.35" exponent="1.25" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.56 0" result="grainA"/>
+      <feFlood flood-color="#5a3a1f" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="multiply" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.18 0" result="hiA"/>
+      <feFlood flood-color="#fff1dc" flood-opacity="1" result="hiColor"/>
+      <feComposite in="hiColor" in2="hiA" operator="in" result="hiTint"/>
+      <feComposite in="hiTint" in2="SourceAlpha" operator="in" result="hiMasked"/>
+      <feBlend in="wood1" in2="hiMasked" mode="screen" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.030" numOctaves="1" seed="706" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.55 0" result="knotsA"/>
+      <feFlood flood-color="#5a3a1f" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureCherry" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="111" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.011 0.26" numOctaves="2" seed="11" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.32" exponent="1.25" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.32" exponent="1.25" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.32" exponent="1.25" offset="-0.10"/>
+      </feComponentTransfer>
+
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.42 0" result="grainA"/>
+      <feFlood flood-color="#6a3324" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="multiply" result="wood1"/>
+
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.16 0" result="hiA"/>
+      <feFlood flood-color="#ffd7bd" flood-opacity="1" result="hiColor"/>
+      <feComposite in="hiColor" in2="hiA" operator="in" result="hiTint"/>
+      <feComposite in="hiTint" in2="SourceAlpha" operator="in" result="hiMasked"/>
+      <feBlend in="wood1" in2="hiMasked" mode="screen" result="wood2"/>
+
+      <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="1" seed="1101" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.52 0" result="knotsA"/>
+      <feFlood flood-color="#542418" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureCherry_1" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="112" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.011 0.26" numOctaves="2" seed="21" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.32" exponent="1.25" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.32" exponent="1.25" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.32" exponent="1.25" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.42 0" result="grainA"/>
+      <feFlood flood-color="#6a3324" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="multiply" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.16 0" result="hiA"/>
+      <feFlood flood-color="#ffd7bd" flood-opacity="1" result="hiColor"/>
+      <feComposite in="hiColor" in2="hiA" operator="in" result="hiTint"/>
+      <feComposite in="hiTint" in2="SourceAlpha" operator="in" result="hiMasked"/>
+      <feBlend in="wood1" in2="hiMasked" mode="screen" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="1" seed="1102" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.52 0" result="knotsA"/>
+      <feFlood flood-color="#542418" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureCherry_2" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="113" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.011 0.26" numOctaves="2" seed="31" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.32" exponent="1.25" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.32" exponent="1.25" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.32" exponent="1.25" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.42 0" result="grainA"/>
+      <feFlood flood-color="#6a3324" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="multiply" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.16 0" result="hiA"/>
+      <feFlood flood-color="#ffd7bd" flood-opacity="1" result="hiColor"/>
+      <feComposite in="hiColor" in2="hiA" operator="in" result="hiTint"/>
+      <feComposite in="hiTint" in2="SourceAlpha" operator="in" result="hiMasked"/>
+      <feBlend in="wood1" in2="hiMasked" mode="screen" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="1" seed="1103" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.52 0" result="knotsA"/>
+      <feFlood flood-color="#542418" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureCherry_3" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="114" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.011 0.26" numOctaves="2" seed="41" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.32" exponent="1.25" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.32" exponent="1.25" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.32" exponent="1.25" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.42 0" result="grainA"/>
+      <feFlood flood-color="#6a3324" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="multiply" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.16 0" result="hiA"/>
+      <feFlood flood-color="#ffd7bd" flood-opacity="1" result="hiColor"/>
+      <feComposite in="hiColor" in2="hiA" operator="in" result="hiTint"/>
+      <feComposite in="hiTint" in2="SourceAlpha" operator="in" result="hiMasked"/>
+      <feBlend in="wood1" in2="hiMasked" mode="screen" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="1" seed="1104" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.52 0" result="knotsA"/>
+      <feFlood flood-color="#542418" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureCherry_4" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="115" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.011 0.26" numOctaves="2" seed="51" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.32" exponent="1.25" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.32" exponent="1.25" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.32" exponent="1.25" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.42 0" result="grainA"/>
+      <feFlood flood-color="#6a3324" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="multiply" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.16 0" result="hiA"/>
+      <feFlood flood-color="#ffd7bd" flood-opacity="1" result="hiColor"/>
+      <feComposite in="hiColor" in2="hiA" operator="in" result="hiTint"/>
+      <feComposite in="hiTint" in2="SourceAlpha" operator="in" result="hiMasked"/>
+      <feBlend in="wood1" in2="hiMasked" mode="screen" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="1" seed="1105" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.52 0" result="knotsA"/>
+      <feFlood flood-color="#542418" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureCherry_5" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="116" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.011 0.26" numOctaves="2" seed="61" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.32" exponent="1.25" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.32" exponent="1.25" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.32" exponent="1.25" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.42 0" result="grainA"/>
+      <feFlood flood-color="#6a3324" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="multiply" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.16 0" result="hiA"/>
+      <feFlood flood-color="#ffd7bd" flood-opacity="1" result="hiColor"/>
+      <feComposite in="hiColor" in2="hiA" operator="in" result="hiTint"/>
+      <feComposite in="hiTint" in2="SourceAlpha" operator="in" result="hiMasked"/>
+      <feBlend in="wood1" in2="hiMasked" mode="screen" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="1" seed="1106" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.52 0" result="knotsA"/>
+      <feFlood flood-color="#542418" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureWalnut" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="191" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.011 0.24" numOctaves="2" seed="19" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+      </feComponentTransfer>
+
+      <!-- light grain (screen) to show texture on dark wood -->
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.26 0" result="grainA"/>
+      <feFlood flood-color="#caa47f" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="screen" result="wood1"/>
+
+      <!-- subtle darker streaks for depth (multiply) -->
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.22 0" result="darkA"/>
+      <feFlood flood-color="#1f120c" flood-opacity="1" result="darkColor"/>
+      <feComposite in="darkColor" in2="darkA" operator="in" result="darkTint"/>
+      <feComposite in="darkTint" in2="SourceAlpha" operator="in" result="darkMasked"/>
+      <feBlend in="wood1" in2="darkMasked" mode="multiply" result="wood2"/>
+
+      <feTurbulence type="fractalNoise" baseFrequency="0.026" numOctaves="1" seed="1901" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.46 0" result="knotsA"/>
+      <feFlood flood-color="#2d1a0d" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureWalnut_1" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="192" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.011 0.24" numOctaves="2" seed="29" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.26 0" result="grainA"/>
+      <feFlood flood-color="#caa47f" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="screen" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.22 0" result="darkA"/>
+      <feFlood flood-color="#1f120c" flood-opacity="1" result="darkColor"/>
+      <feComposite in="darkColor" in2="darkA" operator="in" result="darkTint"/>
+      <feComposite in="darkTint" in2="SourceAlpha" operator="in" result="darkMasked"/>
+      <feBlend in="wood1" in2="darkMasked" mode="multiply" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.026" numOctaves="1" seed="1902" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.46 0" result="knotsA"/>
+      <feFlood flood-color="#2d1a0d" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureWalnut_2" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="193" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.011 0.24" numOctaves="2" seed="39" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.26 0" result="grainA"/>
+      <feFlood flood-color="#caa47f" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="screen" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.22 0" result="darkA"/>
+      <feFlood flood-color="#1f120c" flood-opacity="1" result="darkColor"/>
+      <feComposite in="darkColor" in2="darkA" operator="in" result="darkTint"/>
+      <feComposite in="darkTint" in2="SourceAlpha" operator="in" result="darkMasked"/>
+      <feBlend in="wood1" in2="darkMasked" mode="multiply" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.026" numOctaves="1" seed="1903" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.46 0" result="knotsA"/>
+      <feFlood flood-color="#2d1a0d" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureWalnut_3" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="194" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.011 0.24" numOctaves="2" seed="49" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.26 0" result="grainA"/>
+      <feFlood flood-color="#caa47f" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="screen" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.22 0" result="darkA"/>
+      <feFlood flood-color="#1f120c" flood-opacity="1" result="darkColor"/>
+      <feComposite in="darkColor" in2="darkA" operator="in" result="darkTint"/>
+      <feComposite in="darkTint" in2="SourceAlpha" operator="in" result="darkMasked"/>
+      <feBlend in="wood1" in2="darkMasked" mode="multiply" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.026" numOctaves="1" seed="1904" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.46 0" result="knotsA"/>
+      <feFlood flood-color="#2d1a0d" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureWalnut_4" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="195" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.011 0.24" numOctaves="2" seed="59" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.26 0" result="grainA"/>
+      <feFlood flood-color="#caa47f" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="screen" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.22 0" result="darkA"/>
+      <feFlood flood-color="#1f120c" flood-opacity="1" result="darkColor"/>
+      <feComposite in="darkColor" in2="darkA" operator="in" result="darkTint"/>
+      <feComposite in="darkTint" in2="SourceAlpha" operator="in" result="darkMasked"/>
+      <feBlend in="wood1" in2="darkMasked" mode="multiply" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.026" numOctaves="1" seed="1905" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.46 0" result="knotsA"/>
+      <feFlood flood-color="#2d1a0d" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureWalnut_5" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="196" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.011 0.24" numOctaves="2" seed="69" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.26 0" result="grainA"/>
+      <feFlood flood-color="#caa47f" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="screen" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.22 0" result="darkA"/>
+      <feFlood flood-color="#1f120c" flood-opacity="1" result="darkColor"/>
+      <feComposite in="darkColor" in2="darkA" operator="in" result="darkTint"/>
+      <feComposite in="darkTint" in2="SourceAlpha" operator="in" result="darkMasked"/>
+      <feBlend in="wood1" in2="darkMasked" mode="multiply" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.026" numOctaves="1" seed="1906" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.46 0" result="knotsA"/>
+      <feFlood flood-color="#2d1a0d" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureDark" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="231" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.011 0.25" numOctaves="2" seed="23" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+      </feComponentTransfer>
+
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.28 0" result="grainA"/>
+      <feFlood flood-color="#b08a6f" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="screen" result="wood1"/>
+
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.20 0" result="darkA"/>
+      <feFlood flood-color="#1b0f0a" flood-opacity="1" result="darkColor"/>
+      <feComposite in="darkColor" in2="darkA" operator="in" result="darkTint"/>
+      <feComposite in="darkTint" in2="SourceAlpha" operator="in" result="darkMasked"/>
+      <feBlend in="wood1" in2="darkMasked" mode="multiply" result="wood2"/>
+
+      <feTurbulence type="fractalNoise" baseFrequency="0.026" numOctaves="1" seed="2301" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.46 0" result="knotsA"/>
+      <feFlood flood-color="#160b08" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureDark_1" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="232" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.011 0.25" numOctaves="2" seed="33" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.28 0" result="grainA"/>
+      <feFlood flood-color="#b08a6f" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="screen" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.20 0" result="darkA"/>
+      <feFlood flood-color="#1b0f0a" flood-opacity="1" result="darkColor"/>
+      <feComposite in="darkColor" in2="darkA" operator="in" result="darkTint"/>
+      <feComposite in="darkTint" in2="SourceAlpha" operator="in" result="darkMasked"/>
+      <feBlend in="wood1" in2="darkMasked" mode="multiply" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.026" numOctaves="1" seed="2302" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.46 0" result="knotsA"/>
+      <feFlood flood-color="#160b08" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureDark_2" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="233" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.011 0.25" numOctaves="2" seed="43" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.28 0" result="grainA"/>
+      <feFlood flood-color="#b08a6f" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="screen" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.20 0" result="darkA"/>
+      <feFlood flood-color="#1b0f0a" flood-opacity="1" result="darkColor"/>
+      <feComposite in="darkColor" in2="darkA" operator="in" result="darkTint"/>
+      <feComposite in="darkTint" in2="SourceAlpha" operator="in" result="darkMasked"/>
+      <feBlend in="wood1" in2="darkMasked" mode="multiply" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.026" numOctaves="1" seed="2303" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.46 0" result="knotsA"/>
+      <feFlood flood-color="#160b08" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureDark_3" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="234" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.011 0.25" numOctaves="2" seed="53" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.28 0" result="grainA"/>
+      <feFlood flood-color="#b08a6f" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="screen" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.20 0" result="darkA"/>
+      <feFlood flood-color="#1b0f0a" flood-opacity="1" result="darkColor"/>
+      <feComposite in="darkColor" in2="darkA" operator="in" result="darkTint"/>
+      <feComposite in="darkTint" in2="SourceAlpha" operator="in" result="darkMasked"/>
+      <feBlend in="wood1" in2="darkMasked" mode="multiply" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.026" numOctaves="1" seed="2304" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.46 0" result="knotsA"/>
+      <feFlood flood-color="#160b08" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureDark_4" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="235" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.011 0.25" numOctaves="2" seed="63" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.28 0" result="grainA"/>
+      <feFlood flood-color="#b08a6f" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="screen" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.20 0" result="darkA"/>
+      <feFlood flood-color="#1b0f0a" flood-opacity="1" result="darkColor"/>
+      <feComposite in="darkColor" in2="darkA" operator="in" result="darkTint"/>
+      <feComposite in="darkTint" in2="SourceAlpha" operator="in" result="darkMasked"/>
+      <feBlend in="wood1" in2="darkMasked" mode="multiply" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.026" numOctaves="1" seed="2305" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.46 0" result="knotsA"/>
+      <feFlood flood-color="#160b08" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <filter id="woodTextureDark_5" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="236" stitchTiles="stitch" result="warp"/>
+      <feTurbulence type="turbulence" baseFrequency="0.011 0.25" numOctaves="2" seed="73" stitchTiles="stitch" result="grain"/>
+      <feDisplacementMap in="grain" in2="warp" scale="12" xChannelSelector="R" yChannelSelector="G" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="noiseGray"/>
+      <feComponentTransfer in="noiseGray" result="noiseLevels">
+        <feFuncR type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncG type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+        <feFuncB type="gamma" amplitude="1.34" exponent="1.22" offset="-0.10"/>
+      </feComponentTransfer>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.28 0" result="grainA"/>
+      <feFlood flood-color="#b08a6f" flood-opacity="1" result="grainColor"/>
+      <feComposite in="grainColor" in2="grainA" operator="in" result="grainTint"/>
+      <feComposite in="grainTint" in2="SourceAlpha" operator="in" result="grainMasked"/>
+      <feBlend in="SourceGraphic" in2="grainMasked" mode="screen" result="wood1"/>
+      <feColorMatrix in="noiseLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.20 0" result="darkA"/>
+      <feFlood flood-color="#1b0f0a" flood-opacity="1" result="darkColor"/>
+      <feComposite in="darkColor" in2="darkA" operator="in" result="darkTint"/>
+      <feComposite in="darkTint" in2="SourceAlpha" operator="in" result="darkMasked"/>
+      <feBlend in="wood1" in2="darkMasked" mode="multiply" result="wood2"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.026" numOctaves="1" seed="2306" stitchTiles="stitch" result="knotsNoise"/>
+      <feColorMatrix in="knotsNoise" type="saturate" values="0" result="knotsGray"/>
+      <feComponentTransfer in="knotsGray" result="knotsLevels">
+        <feFuncR type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncG type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+        <feFuncB type="gamma" amplitude="1" exponent="7" offset="-0.62"/>
+      </feComponentTransfer>
+      <feColorMatrix in="knotsLevels" type="matrix" values="
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0 0
+        0 0 0 0.46 0" result="knotsA"/>
+      <feFlood flood-color="#160b08" flood-opacity="1" result="knotsColor"/>
+      <feComposite in="knotsColor" in2="knotsA" operator="in" result="knotsTint"/>
+      <feComposite in="knotsTint" in2="SourceAlpha" operator="in" result="knotsMasked"/>
+      <feBlend in="wood2" in2="knotsMasked" mode="multiply" result="wood3"/>
+      <feDisplacementMap in="wood3" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <!-- High-gloss overlays (specular + edge vignette) -->
+    <filter id="woodGlossBlur" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.2"/>
+    </filter>
+
+    <radialGradient id="woodGlossEdgeLight" cx="50%" cy="55%" r="55%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="72%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="88%" stop-color="#000000" stop-opacity="0.10"/>
+      <stop offset="96%" stop-color="#000000" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.22"/>
+    </radialGradient>
+
+    <radialGradient id="woodGlossEdgeDark" cx="50%" cy="55%" r="55%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="70%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="86%" stop-color="#000000" stop-opacity="0.16"/>
+      <stop offset="95%" stop-color="#000000" stop-opacity="0.26"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+
+    <radialGradient id="woodTopGloss" cx="50%" cy="25%" r="70%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="28%" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="woodReflection" cx="35%" cy="28%" r="48%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.65"/>
+      <stop offset="55%" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Star path for officers -->
+    <path id="star5" d="
+      M 50 30
+      L 56.5 43.2
+      L 71.0 45.3
+      L 60.5 55.6
+      L 63.0 70.0
+      L 50.0 63.2
+      L 37.0 70.0
+      L 39.5 55.6
+      L 29.0 45.3
+      L 43.5 43.2
+      Z" />
+
+    <path id="crown" d="
+      M 26 64
+      L 26 40
+      L 38 52
+      L 50 36
+      L 62 52
+      L 74 40
+      L 74 64
+      Z
+      M 28 66
+      H 72
+      V 72
+      H 28
+      Z" />
+
+    <!-- ======== PIECE SYMBOLS ======== -->
+    
+    <!-- White Soldier (Light Wood) -->
+    <symbol id="W_S" viewBox="0 0 100 100">
+      <g filter="url(#woodTextureMaple)">
+        <circle cx="50" cy="50" r="43" fill="#d6bb93"/>
+      </g>
+      <circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/>
+      <ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" filter="url(#woodGlossBlur)"/>
+      <path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/>
+    </symbol>
+
+    <!-- Black Soldier (Dark Wood) -->
+    <symbol id="B_S" viewBox="0 0 100 100">
+      <g filter="url(#woodTextureDark)">
+        <circle cx="50" cy="50" r="43" fill="#4a2f20"/>
+      </g>
+      <circle cx="50" cy="50" r="43" fill="none" stroke="#2a1810" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#6b4a3a" stroke-opacity="0.4" stroke-width="2"/>
+      <ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.65" filter="url(#woodGlossBlur)"/>
+      <path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/>
+    </symbol>
+
+    <!-- White Officer (Maple Wood) -->
+    <symbol id="W_O" viewBox="0 0 100 100">
+      <g filter="url(#woodTextureMaple)">
+        <circle cx="50" cy="50" r="43" fill="#d6bb93"/>
+      </g>
+      <circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/>
+      <use href="#star5" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/>
+      <circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/>
+      <ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.55" filter="url(#woodGlossBlur)"/>
+      <path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/>
+    </symbol>
+
+    <!-- Black Officer (Walnut Wood) -->
+    <symbol id="B_O" viewBox="0 0 100 100">
+      <g filter="url(#woodTextureWalnut)">
+        <circle cx="50" cy="50" r="43" fill="#5a3618"/>
+      </g>
+      <circle cx="50" cy="50" r="43" fill="none" stroke="#2d1a0d" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#5a3618" stroke-opacity="0.4" stroke-width="2"/>
+      <use href="#star5" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/>
+      <circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/>
+      <ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.42" filter="url(#woodGlossBlur)"/>
+      <path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/>
+    </symbol>
+
+    <!-- White King (Maple Wood, Dama) -->
+    <symbol id="W_K" viewBox="0 0 100 100">
+      <g filter="url(#woodTextureMaple)">
+        <circle cx="50" cy="50" r="43" fill="#d6bb93"/>
+      </g>
+      <circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/>
+      <use href="#crown" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/>
+      <circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/>
+      <ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.55" filter="url(#woodGlossBlur)"/>
+      <path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/>
+    </symbol>
+
+    <!-- Black King (Walnut Wood, Dama) -->
+    <symbol id="B_K" viewBox="0 0 100 100">
+      <g filter="url(#woodTextureWalnut)">
+        <circle cx="50" cy="50" r="43" fill="#5a3618"/>
+      </g>
+      <circle cx="50" cy="50" r="43" fill="none" stroke="#2d1a0d" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#5a3618" stroke-opacity="0.4" stroke-width="2"/>
+      <use href="#crown" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/>
+      <circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/>
+      <ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.42" filter="url(#woodGlossBlur)"/>
+      <path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/>
+    </symbol>
+
+    <!-- ======== VARIANT PIECES (stable per-piece grain) ======== -->
+
+    <!-- White Soldier variants (Maple) -->
+    <symbol id="W_S_v0" viewBox="0 0 100 100">
+      <g filter="url(#woodTextureMaple)"><circle cx="50" cy="50" r="43" fill="#d6bb93"/></g>
+      <circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/>
+      <ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" filter="url(#woodGlossBlur)"/>
+      <path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/>
+    </symbol>
+    <symbol id="W_S_v1" viewBox="0 0 100 100">
+      <g filter="url(#woodTextureMaple_1)"><circle cx="50" cy="50" r="43" fill="#d6bb93"/></g>
+      <circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/>
+      <ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" filter="url(#woodGlossBlur)"/>
+      <path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/>
+    </symbol>
+    <symbol id="W_S_v2" viewBox="0 0 100 100">
+      <g filter="url(#woodTextureMaple_2)"><circle cx="50" cy="50" r="43" fill="#d6bb93"/></g>
+      <circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/>
+      <ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" filter="url(#woodGlossBlur)"/>
+      <path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/>
+    </symbol>
+    <symbol id="W_S_v3" viewBox="0 0 100 100">
+      <g filter="url(#woodTextureMaple_3)"><circle cx="50" cy="50" r="43" fill="#d6bb93"/></g>
+      <circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/>
+      <ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" filter="url(#woodGlossBlur)"/>
+      <path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/>
+    </symbol>
+    <symbol id="W_S_v4" viewBox="0 0 100 100">
+      <g filter="url(#woodTextureMaple_4)"><circle cx="50" cy="50" r="43" fill="#d6bb93"/></g>
+      <circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/>
+      <ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" filter="url(#woodGlossBlur)"/>
+      <path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/>
+    </symbol>
+    <symbol id="W_S_v5" viewBox="0 0 100 100">
+      <g filter="url(#woodTextureMaple_5)"><circle cx="50" cy="50" r="43" fill="#d6bb93"/></g>
+      <circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/>
+      <ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" filter="url(#woodGlossBlur)"/>
+      <path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/>
+    </symbol>
+
+    <!-- Black Soldier variants (Dark) -->
+    <symbol id="B_S_v0" viewBox="0 0 100 100">
+      <g filter="url(#woodTextureDark)"><circle cx="50" cy="50" r="43" fill="#4a2f20"/></g>
+      <circle cx="50" cy="50" r="43" fill="none" stroke="#2a1810" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#6b4a3a" stroke-opacity="0.4" stroke-width="2"/>
+      <ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.65" filter="url(#woodGlossBlur)"/>
+      <path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/>
+    </symbol>
+    <symbol id="B_S_v1" viewBox="0 0 100 100">
+      <g filter="url(#woodTextureDark_1)"><circle cx="50" cy="50" r="43" fill="#4a2f20"/></g>
+      <circle cx="50" cy="50" r="43" fill="none" stroke="#2a1810" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#6b4a3a" stroke-opacity="0.4" stroke-width="2"/>
+      <ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.65" filter="url(#woodGlossBlur)"/>
+      <path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/>
+    </symbol>
+    <symbol id="B_S_v2" viewBox="0 0 100 100">
+      <g filter="url(#woodTextureDark_2)"><circle cx="50" cy="50" r="43" fill="#4a2f20"/></g>
+      <circle cx="50" cy="50" r="43" fill="none" stroke="#2a1810" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#6b4a3a" stroke-opacity="0.4" stroke-width="2"/>
+      <ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.65" filter="url(#woodGlossBlur)"/>
+      <path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/>
+    </symbol>
+    <symbol id="B_S_v3" viewBox="0 0 100 100">
+      <g filter="url(#woodTextureDark_3)"><circle cx="50" cy="50" r="43" fill="#4a2f20"/></g>
+      <circle cx="50" cy="50" r="43" fill="none" stroke="#2a1810" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#6b4a3a" stroke-opacity="0.4" stroke-width="2"/>
+      <ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.65" filter="url(#woodGlossBlur)"/>
+      <path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/>
+    </symbol>
+    <symbol id="B_S_v4" viewBox="0 0 100 100">
+      <g filter="url(#woodTextureDark_4)"><circle cx="50" cy="50" r="43" fill="#4a2f20"/></g>
+      <circle cx="50" cy="50" r="43" fill="none" stroke="#2a1810" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#6b4a3a" stroke-opacity="0.4" stroke-width="2"/>
+      <ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.65" filter="url(#woodGlossBlur)"/>
+      <path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/>
+    </symbol>
+    <symbol id="B_S_v5" viewBox="0 0 100 100">
+      <g filter="url(#woodTextureDark_5)"><circle cx="50" cy="50" r="43" fill="#4a2f20"/></g>
+      <circle cx="50" cy="50" r="43" fill="none" stroke="#2a1810" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#6b4a3a" stroke-opacity="0.4" stroke-width="2"/>
+      <ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.65" filter="url(#woodGlossBlur)"/>
+      <path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/>
+    </symbol>
+
+    <!-- White Officer variants (Maple) -->
+    <symbol id="W_O_v0" viewBox="0 0 100 100">
+      <g filter="url(#woodTextureMaple)"><circle cx="50" cy="50" r="43" fill="#d6bb93"/></g>
+      <circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/>
+      <circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/>
+      <use href="#star5" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/>
+      <circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/>
+      <ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.55" filter="url(#woodGlossBlur)"/>
+      <path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/>
+    </symbol>
+    <symbol id="W_O_v1" viewBox="0 0 100 100"><g filter="url(#woodTextureMaple_1)"><circle cx="50" cy="50" r="43" fill="#d6bb93"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/><use href="#star5" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.55" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+    <symbol id="W_O_v2" viewBox="0 0 100 100"><g filter="url(#woodTextureMaple_2)"><circle cx="50" cy="50" r="43" fill="#d6bb93"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/><use href="#star5" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.55" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+    <symbol id="W_O_v3" viewBox="0 0 100 100"><g filter="url(#woodTextureMaple_3)"><circle cx="50" cy="50" r="43" fill="#d6bb93"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/><use href="#star5" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.55" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+    <symbol id="W_O_v4" viewBox="0 0 100 100"><g filter="url(#woodTextureMaple_4)"><circle cx="50" cy="50" r="43" fill="#d6bb93"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/><use href="#star5" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.55" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+    <symbol id="W_O_v5" viewBox="0 0 100 100"><g filter="url(#woodTextureMaple_5)"><circle cx="50" cy="50" r="43" fill="#d6bb93"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/><use href="#star5" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.55" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+
+    <!-- Black Officer variants (Walnut) -->
+    <symbol id="B_O_v0" viewBox="0 0 100 100"><g filter="url(#woodTextureWalnut)"><circle cx="50" cy="50" r="43" fill="#5a3618"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#2d1a0d" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#5a3618" stroke-opacity="0.4" stroke-width="2"/><use href="#star5" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.42" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+    <symbol id="B_O_v1" viewBox="0 0 100 100"><g filter="url(#woodTextureWalnut_1)"><circle cx="50" cy="50" r="43" fill="#5a3618"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#2d1a0d" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#5a3618" stroke-opacity="0.4" stroke-width="2"/><use href="#star5" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.42" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+    <symbol id="B_O_v2" viewBox="0 0 100 100"><g filter="url(#woodTextureWalnut_2)"><circle cx="50" cy="50" r="43" fill="#5a3618"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#2d1a0d" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#5a3618" stroke-opacity="0.4" stroke-width="2"/><use href="#star5" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.42" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+    <symbol id="B_O_v3" viewBox="0 0 100 100"><g filter="url(#woodTextureWalnut_3)"><circle cx="50" cy="50" r="43" fill="#5a3618"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#2d1a0d" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#5a3618" stroke-opacity="0.4" stroke-width="2"/><use href="#star5" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.42" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+    <symbol id="B_O_v4" viewBox="0 0 100 100"><g filter="url(#woodTextureWalnut_4)"><circle cx="50" cy="50" r="43" fill="#5a3618"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#2d1a0d" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#5a3618" stroke-opacity="0.4" stroke-width="2"/><use href="#star5" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.42" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+    <symbol id="B_O_v5" viewBox="0 0 100 100"><g filter="url(#woodTextureWalnut_5)"><circle cx="50" cy="50" r="43" fill="#5a3618"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#2d1a0d" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#5a3618" stroke-opacity="0.4" stroke-width="2"/><use href="#star5" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.42" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+
+    <!-- White King variants (Maple) -->
+    <symbol id="W_K_v0" viewBox="0 0 100 100"><g filter="url(#woodTextureMaple)"><circle cx="50" cy="50" r="43" fill="#d6bb93"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/><use href="#crown" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.55" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+    <symbol id="W_K_v1" viewBox="0 0 100 100"><g filter="url(#woodTextureMaple_1)"><circle cx="50" cy="50" r="43" fill="#d6bb93"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/><use href="#crown" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.55" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+    <symbol id="W_K_v2" viewBox="0 0 100 100"><g filter="url(#woodTextureMaple_2)"><circle cx="50" cy="50" r="43" fill="#d6bb93"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/><use href="#crown" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.55" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+    <symbol id="W_K_v3" viewBox="0 0 100 100"><g filter="url(#woodTextureMaple_3)"><circle cx="50" cy="50" r="43" fill="#d6bb93"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/><use href="#crown" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.55" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+    <symbol id="W_K_v4" viewBox="0 0 100 100"><g filter="url(#woodTextureMaple_4)"><circle cx="50" cy="50" r="43" fill="#d6bb93"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/><use href="#crown" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.55" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+    <symbol id="W_K_v5" viewBox="0 0 100 100"><g filter="url(#woodTextureMaple_5)"><circle cx="50" cy="50" r="43" fill="#d6bb93"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#7b5f3a" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeLight)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#a89070" stroke-opacity="0.4" stroke-width="2"/><use href="#crown" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.55" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+
+    <!-- Black King variants (Walnut) -->
+    <symbol id="B_K_v0" viewBox="0 0 100 100"><g filter="url(#woodTextureWalnut)"><circle cx="50" cy="50" r="43" fill="#5a3618"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#2d1a0d" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#5a3618" stroke-opacity="0.4" stroke-width="2"/><use href="#crown" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.42" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+    <symbol id="B_K_v1" viewBox="0 0 100 100"><g filter="url(#woodTextureWalnut_1)"><circle cx="50" cy="50" r="43" fill="#5a3618"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#2d1a0d" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#5a3618" stroke-opacity="0.4" stroke-width="2"/><use href="#crown" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.42" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+    <symbol id="B_K_v2" viewBox="0 0 100 100"><g filter="url(#woodTextureWalnut_2)"><circle cx="50" cy="50" r="43" fill="#5a3618"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#2d1a0d" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#5a3618" stroke-opacity="0.4" stroke-width="2"/><use href="#crown" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.42" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+    <symbol id="B_K_v3" viewBox="0 0 100 100"><g filter="url(#woodTextureWalnut_3)"><circle cx="50" cy="50" r="43" fill="#5a3618"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#2d1a0d" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#5a3618" stroke-opacity="0.4" stroke-width="2"/><use href="#crown" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.42" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+    <symbol id="B_K_v4" viewBox="0 0 100 100"><g filter="url(#woodTextureWalnut_4)"><circle cx="50" cy="50" r="43" fill="#5a3618"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#2d1a0d" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#5a3618" stroke-opacity="0.4" stroke-width="2"/><use href="#crown" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.42" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+    <symbol id="B_K_v5" viewBox="0 0 100 100"><g filter="url(#woodTextureWalnut_5)"><circle cx="50" cy="50" r="43" fill="#5a3618"/></g><circle cx="50" cy="50" r="43" fill="none" stroke="#2d1a0d" stroke-width="5"/><circle cx="50" cy="50" r="43" fill="url(#woodShineDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodGlossEdgeDark)"/><circle cx="50" cy="50" r="43" fill="url(#woodTopGloss)"/><circle cx="50" cy="50" r="33" fill="none" stroke="#5a3618" stroke-opacity="0.4" stroke-width="2"/><use href="#crown" fill="#ffd700" opacity="0.95" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))" transform="translate(0 -2)"/><circle cx="50" cy="50" r="18" fill="none" stroke="#ffd700" stroke-opacity="0.6" stroke-width="2.5"/><ellipse cx="38" cy="33" rx="20" ry="14" fill="url(#woodReflection)" opacity="0.42" filter="url(#woodGlossBlur)"/><path d="M 18 60 A 34 34 0 0 0 46 84" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="4" stroke-linecap="round" filter="url(#woodGlossBlur)"/></symbol>
+  </defs>
+</svg>

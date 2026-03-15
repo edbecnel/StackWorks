@@ -1,0 +1,195 @@
+<svg
+  id="lascaBoard"
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 1000 1000"
+  aria-label="Columns Chess board"
+>
+  <defs id="lascaDefs">
+    <!-- Theme defs are replaced when switching themes -->
+    <g id="lascaThemeDefs"></g>
+
+    <!-- Runtime defs are owned by the app (clipPaths, temporary effects, etc.) -->
+    <g id="lascaRuntimeDefs"></g>
+  </defs>
+
+  <g id="bgFill">
+    <rect x="0" y="0" width="1000" height="1000" fill="#e8ddcc" />
+    <rect x="60" y="60" width="880" height="880" fill="#e8ddcc" opacity="0.70" />
+  </g>
+
+  <g id="squares">
+    <rect x="100" y="100" width="100" height="100" fill="#f0d9b5" />
+    <rect x="200" y="100" width="100" height="100" fill="#b58863" />
+    <rect x="300" y="100" width="100" height="100" fill="#f0d9b5" />
+    <rect x="400" y="100" width="100" height="100" fill="#b58863" />
+    <rect x="500" y="100" width="100" height="100" fill="#f0d9b5" />
+    <rect x="600" y="100" width="100" height="100" fill="#b58863" />
+    <rect x="700" y="100" width="100" height="100" fill="#f0d9b5" />
+    <rect x="800" y="100" width="100" height="100" fill="#b58863" />
+
+    <rect x="100" y="200" width="100" height="100" fill="#b58863" />
+    <rect x="200" y="200" width="100" height="100" fill="#f0d9b5" />
+    <rect x="300" y="200" width="100" height="100" fill="#b58863" />
+    <rect x="400" y="200" width="100" height="100" fill="#f0d9b5" />
+    <rect x="500" y="200" width="100" height="100" fill="#b58863" />
+    <rect x="600" y="200" width="100" height="100" fill="#f0d9b5" />
+    <rect x="700" y="200" width="100" height="100" fill="#b58863" />
+    <rect x="800" y="200" width="100" height="100" fill="#f0d9b5" />
+
+    <rect x="100" y="300" width="100" height="100" fill="#f0d9b5" />
+    <rect x="200" y="300" width="100" height="100" fill="#b58863" />
+    <rect x="300" y="300" width="100" height="100" fill="#f0d9b5" />
+    <rect x="400" y="300" width="100" height="100" fill="#b58863" />
+    <rect x="500" y="300" width="100" height="100" fill="#f0d9b5" />
+    <rect x="600" y="300" width="100" height="100" fill="#b58863" />
+    <rect x="700" y="300" width="100" height="100" fill="#f0d9b5" />
+    <rect x="800" y="300" width="100" height="100" fill="#b58863" />
+
+    <rect x="100" y="400" width="100" height="100" fill="#b58863" />
+    <rect x="200" y="400" width="100" height="100" fill="#f0d9b5" />
+    <rect x="300" y="400" width="100" height="100" fill="#b58863" />
+    <rect x="400" y="400" width="100" height="100" fill="#f0d9b5" />
+    <rect x="500" y="400" width="100" height="100" fill="#b58863" />
+    <rect x="600" y="400" width="100" height="100" fill="#f0d9b5" />
+    <rect x="700" y="400" width="100" height="100" fill="#b58863" />
+    <rect x="800" y="400" width="100" height="100" fill="#f0d9b5" />
+
+    <rect x="100" y="500" width="100" height="100" fill="#f0d9b5" />
+    <rect x="200" y="500" width="100" height="100" fill="#b58863" />
+    <rect x="300" y="500" width="100" height="100" fill="#f0d9b5" />
+    <rect x="400" y="500" width="100" height="100" fill="#b58863" />
+    <rect x="500" y="500" width="100" height="100" fill="#f0d9b5" />
+    <rect x="600" y="500" width="100" height="100" fill="#b58863" />
+    <rect x="700" y="500" width="100" height="100" fill="#f0d9b5" />
+    <rect x="800" y="500" width="100" height="100" fill="#b58863" />
+
+    <rect x="100" y="600" width="100" height="100" fill="#b58863" />
+    <rect x="200" y="600" width="100" height="100" fill="#f0d9b5" />
+    <rect x="300" y="600" width="100" height="100" fill="#b58863" />
+    <rect x="400" y="600" width="100" height="100" fill="#f0d9b5" />
+    <rect x="500" y="600" width="100" height="100" fill="#b58863" />
+    <rect x="600" y="600" width="100" height="100" fill="#f0d9b5" />
+    <rect x="700" y="600" width="100" height="100" fill="#b58863" />
+    <rect x="800" y="600" width="100" height="100" fill="#f0d9b5" />
+
+    <rect x="100" y="700" width="100" height="100" fill="#f0d9b5" />
+    <rect x="200" y="700" width="100" height="100" fill="#b58863" />
+    <rect x="300" y="700" width="100" height="100" fill="#f0d9b5" />
+    <rect x="400" y="700" width="100" height="100" fill="#b58863" />
+    <rect x="500" y="700" width="100" height="100" fill="#f0d9b5" />
+    <rect x="600" y="700" width="100" height="100" fill="#b58863" />
+    <rect x="700" y="700" width="100" height="100" fill="#f0d9b5" />
+    <rect x="800" y="700" width="100" height="100" fill="#b58863" />
+
+    <rect x="100" y="800" width="100" height="100" fill="#b58863" />
+    <rect x="200" y="800" width="100" height="100" fill="#f0d9b5" />
+    <rect x="300" y="800" width="100" height="100" fill="#b58863" />
+    <rect x="400" y="800" width="100" height="100" fill="#f0d9b5" />
+    <rect x="500" y="800" width="100" height="100" fill="#b58863" />
+    <rect x="600" y="800" width="100" height="100" fill="#f0d9b5" />
+    <rect x="700" y="800" width="100" height="100" fill="#b58863" />
+    <rect x="800" y="800" width="100" height="100" fill="#f0d9b5" />
+  </g>
+
+  <g id="frame">
+    <rect
+      x="6"
+      y="6"
+      width="988"
+      height="988"
+      fill="none"
+      stroke="#000"
+      stroke-opacity="0.15"
+      stroke-width="12"
+    />
+  </g>
+
+  <!-- Connectors are unused by Columns Chess preview; keep hidden. -->
+  <g
+    id="connectors"
+    stroke="#404040"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    display="none"
+    pointer-events="none"
+  ></g>
+
+  <g id="nodes" fill="transparent" stroke="transparent" stroke-width="0" opacity="0" pointer-events="all">
+    <!-- Full 8×8 node grid (r0 at top, c0 at left). -->
+    <circle id="r0c0" cx="150" cy="150" r="40" />
+    <circle id="r0c1" cx="250" cy="150" r="40" />
+    <circle id="r0c2" cx="350" cy="150" r="40" />
+    <circle id="r0c3" cx="450" cy="150" r="40" />
+    <circle id="r0c4" cx="550" cy="150" r="40" />
+    <circle id="r0c5" cx="650" cy="150" r="40" />
+    <circle id="r0c6" cx="750" cy="150" r="40" />
+    <circle id="r0c7" cx="850" cy="150" r="40" />
+
+    <circle id="r1c0" cx="150" cy="250" r="40" />
+    <circle id="r1c1" cx="250" cy="250" r="40" />
+    <circle id="r1c2" cx="350" cy="250" r="40" />
+    <circle id="r1c3" cx="450" cy="250" r="40" />
+    <circle id="r1c4" cx="550" cy="250" r="40" />
+    <circle id="r1c5" cx="650" cy="250" r="40" />
+    <circle id="r1c6" cx="750" cy="250" r="40" />
+    <circle id="r1c7" cx="850" cy="250" r="40" />
+
+    <circle id="r2c0" cx="150" cy="350" r="40" />
+    <circle id="r2c1" cx="250" cy="350" r="40" />
+    <circle id="r2c2" cx="350" cy="350" r="40" />
+    <circle id="r2c3" cx="450" cy="350" r="40" />
+    <circle id="r2c4" cx="550" cy="350" r="40" />
+    <circle id="r2c5" cx="650" cy="350" r="40" />
+    <circle id="r2c6" cx="750" cy="350" r="40" />
+    <circle id="r2c7" cx="850" cy="350" r="40" />
+
+    <circle id="r3c0" cx="150" cy="450" r="40" />
+    <circle id="r3c1" cx="250" cy="450" r="40" />
+    <circle id="r3c2" cx="350" cy="450" r="40" />
+    <circle id="r3c3" cx="450" cy="450" r="40" />
+    <circle id="r3c4" cx="550" cy="450" r="40" />
+    <circle id="r3c5" cx="650" cy="450" r="40" />
+    <circle id="r3c6" cx="750" cy="450" r="40" />
+    <circle id="r3c7" cx="850" cy="450" r="40" />
+
+    <circle id="r4c0" cx="150" cy="550" r="40" />
+    <circle id="r4c1" cx="250" cy="550" r="40" />
+    <circle id="r4c2" cx="350" cy="550" r="40" />
+    <circle id="r4c3" cx="450" cy="550" r="40" />
+    <circle id="r4c4" cx="550" cy="550" r="40" />
+    <circle id="r4c5" cx="650" cy="550" r="40" />
+    <circle id="r4c6" cx="750" cy="550" r="40" />
+    <circle id="r4c7" cx="850" cy="550" r="40" />
+
+    <circle id="r5c0" cx="150" cy="650" r="40" />
+    <circle id="r5c1" cx="250" cy="650" r="40" />
+    <circle id="r5c2" cx="350" cy="650" r="40" />
+    <circle id="r5c3" cx="450" cy="650" r="40" />
+    <circle id="r5c4" cx="550" cy="650" r="40" />
+    <circle id="r5c5" cx="650" cy="650" r="40" />
+    <circle id="r5c6" cx="750" cy="650" r="40" />
+    <circle id="r5c7" cx="850" cy="650" r="40" />
+
+    <circle id="r6c0" cx="150" cy="750" r="40" />
+    <circle id="r6c1" cx="250" cy="750" r="40" />
+    <circle id="r6c2" cx="350" cy="750" r="40" />
+    <circle id="r6c3" cx="450" cy="750" r="40" />
+    <circle id="r6c4" cx="550" cy="750" r="40" />
+    <circle id="r6c5" cx="650" cy="750" r="40" />
+    <circle id="r6c6" cx="750" cy="750" r="40" />
+    <circle id="r6c7" cx="850" cy="750" r="40" />
+
+    <circle id="r7c0" cx="150" cy="850" r="40" />
+    <circle id="r7c1" cx="250" cy="850" r="40" />
+    <circle id="r7c2" cx="350" cy="850" r="40" />
+    <circle id="r7c3" cx="450" cy="850" r="40" />
+    <circle id="r7c4" cx="550" cy="850" r="40" />
+    <circle id="r7c5" cx="650" cy="850" r="40" />
+    <circle id="r7c6" cx="750" cy="850" r="40" />
+    <circle id="r7c7" cx="850" cy="850" r="40" />
+  </g>
+
+  <!-- Pieces must render ABOVE nodes so hover/click targets reach the stacks (tooltips + stack inspector). -->
+  <g id="pieces"></g>
+</svg>

@@ -1,0 +1,323 @@
+/* Glass Theme - Shiny Blue & Yellow */
+
+:root {
+  --lastMoveFromFill: rgba(102, 204, 255, 0.22);
+  --lastMoveToFill: rgba(102, 204, 255, 0.36);
+  --lastMoveStroke: rgba(102, 204, 255, 0.72);
+  --lastMoveStrokeWidth: 3;
+}
+
+body {
+  color: #e0f2fe;
+}
+
+/* ===== Page background variants (classic tabletop) =====
+   - Felt (default): dark warm charcoal with subtle spotlight + micro-noise.
+   - Walnut: low-contrast dark walnut with very subtle grain.
+*/
+
+body[data-glass-bg="original"] {
+  background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 50%, #020617 100%);
+}
+
+body:not([data-glass-bg]),
+body[data-glass-bg="felt"] {
+  background-color: #14110f;
+  background-image:
+    /* Soft overhead spotlight */
+    radial-gradient(1200px 800px at 50% 10%, rgba(255, 244, 232, 0.085) 0%, rgba(255, 244, 232, 0.03) 34%, rgba(0, 0, 0, 0) 62%),
+    /* Gentle vignette */
+    radial-gradient(1000px 850px at 50% 85%, rgba(0, 0, 0, 0.52) 0%, rgba(0, 0, 0, 0.0) 62%),
+    /* Base felt tone */
+    linear-gradient(180deg, #1b1714 0%, #0f0d0b 100%),
+    /* Micro texture (kept extremely subtle) */
+    url("./felt_noise.svg");
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
+  background-size: cover, cover, cover, 420px 420px;
+  background-position: center, center, center, center;
+  background-attachment: fixed, fixed, fixed, fixed;
+  background-blend-mode: screen, multiply, normal, overlay;
+}
+
+body[data-glass-bg="walnut"] {
+  background-color: #2b1b12;
+  background-image:
+    /* Soft overhead spotlight */
+    radial-gradient(1200px 800px at 50% 12%, rgba(255, 244, 232, 0.09) 0%, rgba(255, 244, 232, 0.03) 34%, rgba(0,  0, 0, 0) 62%),
+    /* Gentle vignette */
+    radial-gradient(1000px 850px at 50% 85%, rgba(0, 0, 0, 0.50) 0%, rgba(0, 0, 0, 0.0) 62%),
+    /* Base walnut gradient */
+    linear-gradient(135deg, #4b3424 0%, #332216 52%, #1a110b 100%),
+    /* Low-contrast walnut grain */
+    url("./walnut_grain.svg");
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
+  background-size: cover, cover, cover, 520px 520px;
+  background-position: center, center, center, center;
+  background-attachment: fixed, fixed, fixed, fixed;
+  background-blend-mode: screen, multiply, normal, multiply;
+}
+
+/* Slightly increase transparency of glass pieces on darker tabletop backgrounds.
+   Keep Original unchanged.
+*/
+body[data-glass-bg="felt"] {
+  --glass-piece-opacity: 0.74;
+}
+
+body[data-glass-bg="walnut"] {
+  --glass-piece-opacity: 0.74;
+}
+
+#lascaBoard #pieces use {
+  opacity: var(--glass-piece-opacity, 1);
+}
+
+/* Page container with glass effect */
+.page-container {
+  background: linear-gradient(to bottom, rgba(30, 58, 138, 0.4), rgba(15, 23, 42, 0.4));
+  border: 2px solid rgba(100, 149, 237, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+/* Panel backgrounds - translucent glass */
+#info-panel, 
+#controls-panel {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.3), rgba(15, 23, 42, 0.4));
+  border: 1px solid rgba(100, 149, 237, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+}
+
+/* Help page specific styling */
+.help-container {
+  background: linear-gradient(to bottom, rgba(30, 58, 138, 0.4), rgba(15, 23, 42, 0.4));
+  color: #e0f2fe;
+  backdrop-filter: blur(10px);
+}
+
+.help-container h1,
+.help-container h2 {
+  color: #fbbf24;
+  border-bottom-color: rgba(251, 191, 36, 0.3);
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+}
+
+.help-container section {
+  background: rgba(30, 58, 138, 0.25);
+  border: 1px solid rgba(100, 149, 237, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(5px);
+}
+
+/* Board styling - glass-like squares */
+.board-light {
+  fill: rgba(255, 235, 59, 0.6);
+  filter: drop-shadow(0 2px 6px rgba(255, 215, 0, 0.4));
+}
+
+.board-dark {
+  fill: rgba(37, 99, 235, 0.6);
+  filter: drop-shadow(0 2px 6px rgba(37, 99, 235, 0.4));
+}
+
+.board-light.selected {
+  fill: rgba(255, 255, 150, 0.8);
+  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+}
+
+.board-dark.selected {
+  fill: rgba(96, 165, 250, 0.8);
+  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.6));
+}
+
+.board-light.legal-move {
+  fill: rgba(187, 247, 208, 0.7);
+}
+
+.board-dark.legal-move {
+  fill: rgba(74, 222, 128, 0.5);
+}
+
+.board-light.last-move {
+  fill: rgba(254, 240, 138, 0.8);
+}
+
+.board-dark.last-move {
+  fill: rgba(147, 197, 253, 0.7);
+}
+
+/* Board background (the paper/wood/felt behind nodes).
+   The base board SVG includes #bgFill with 2 rects; we keep the inset subtle
+   so the background pattern doesn't get doubled up too hard.
+*/
+/* Board background (the paper/wood/felt behind nodes).
+   The base board SVG includes #bgFill with 2 rects.
+*/
+
+body[data-glass-bg="original"] #lascaBoard #bgFill rect:nth-child(1) {
+  fill: #e8ddcc !important;
+  opacity: 1 !important;
+}
+
+body[data-glass-bg="original"] #lascaBoard #bgFill rect:nth-child(2) {
+  fill: #e8ddcc !important;
+  opacity: 0.70 !important;
+}
+
+body:not([data-glass-bg]) #lascaBoard #bgFill rect:nth-child(2),
+body[data-glass-bg="felt"] #lascaBoard #bgFill rect:nth-child(2),
+body[data-glass-bg="walnut"] #lascaBoard #bgFill rect:nth-child(2) {
+  opacity: 0.22 !important;
+}
+
+body:not([data-glass-bg]) #lascaBoard #bgFill rect,
+body[data-glass-bg="felt"] #lascaBoard #bgFill rect {
+  fill: url(#glass-bg-felt) !important;
+}
+
+body[data-glass-bg="walnut"] #lascaBoard #bgFill rect {
+  fill: url(#glass-bg-walnut) !important;
+}
+
+/* Buttons - glass style */
+button {
+  background: linear-gradient(to bottom, rgba(59, 130, 246, 0.4), rgba(30, 58, 138, 0.5));
+  color: #e0f2fe;
+  border: 1px solid rgba(96, 165, 250, 0.4);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+button:hover:not(:disabled) {
+  background: linear-gradient(to bottom, rgba(96, 165, 250, 0.5), rgba(59, 130, 246, 0.6));
+  border-color: rgba(147, 197, 253, 0.5);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+button:active:not(:disabled) {
+  background: linear-gradient(to bottom, rgba(30, 58, 138, 0.6), rgba(59, 130, 246, 0.5));
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+button:disabled {
+  background: linear-gradient(to bottom, rgba(30, 58, 138, 0.2), rgba(15, 23, 42, 0.3));
+  color: rgba(224, 242, 254, 0.4);
+  border-color: rgba(100, 149, 237, 0.2);
+}
+
+/* Select dropdown - glass effect */
+select {
+  background: linear-gradient(to bottom, rgba(30, 58, 138, 0.5), rgba(15, 23, 42, 0.6));
+  color: #e0f2fe;
+  border: 1px solid rgba(100, 149, 237, 0.3);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(6px);
+}
+
+select:focus {
+  border-color: rgba(147, 197, 253, 0.5);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+/* Checkbox styling */
+input[type="checkbox"] {
+  accent-color: #3b82f6;
+}
+
+/* Move history - glass panel */
+#history-panel {
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(100, 149, 237, 0.2);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+}
+
+.history-move {
+  background: rgba(30, 58, 138, 0.3);
+  border-left: 3px solid rgba(59, 130, 246, 0.4);
+}
+
+.history-move:hover {
+  background: rgba(59, 130, 246, 0.4);
+}
+
+.history-move.current {
+  background: rgba(96, 165, 250, 0.5);
+  border-left-color: #fbbf24;
+  font-weight: bold;
+}
+
+/* Message area - glass background */
+#message-area {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(100, 149, 237, 0.3);
+  color: #fef08a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+/* Scrollbar - glass theme */
+::-webkit-scrollbar {
+  width: 10px;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+::-webkit-scrollbar-track {
+  background: linear-gradient(to right, rgba(30, 58, 138, 0.3), rgba(15, 23, 42, 0.5));
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, rgba(96, 165, 250, 0.6), rgba(59, 130, 246, 0.7));
+  border-radius: 5px;
+  border: 1px solid rgba(147, 197, 253, 0.3);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, rgba(147, 197, 253, 0.7), rgba(96, 165, 250, 0.8));
+}
+
+/* Links */
+a {
+  color: #fbbf24;
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.4);
+}
+
+a:hover {
+  color: #fcd34d;
+  text-shadow: 0 0 12px rgba(252, 211, 77, 0.6);
+}
+
+/* Code blocks in help */
+code {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(100, 149, 237, 0.3);
+  color: #fef08a;
+}
+
+pre {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(100, 149, 237, 0.3);
+  color: #fef08a;
+}
+
+/* Glass glow effects */
+h3, .sidebarTitle {
+  color: #fbbf24;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.3);
+}
+
+.kv {
+  color: #e0f2fe;
+}
+
+.kv .k {
+  color: rgba(224, 242, 254, 0.7);
+}

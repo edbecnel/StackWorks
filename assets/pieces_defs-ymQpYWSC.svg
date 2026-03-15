@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" aria-hidden="true">
+  <defs>
+    <!--
+      Raster 3D theme (custom): each piece is a raster image (PNG/WebP/etc).
+
+      NOTE: The board renderer uses SVG <use href="#ID">, so we still define SVG symbols,
+      but the actual artwork comes from raster files in /public.
+
+      Place your images under:
+        public/pieces/raster3d/
+
+      Required filenames (100x100 recommended; any square size works):
+        W_S.png B_S.png W_O.png B_O.png W_K.png B_K.png
+        W_P.png B_P.png W_N.png B_N.png W_B.png B_B.png
+        W_R.png B_R.png W_Q.png B_Q.png
+
+      The images should include their own disc/3D shading.
+
+      Fallback: if an image is missing, the simple disc+Unicode glyph behind it will show.
+      (This is just to avoid invisible pieces while iterating.)
+    -->
+
+    <radialGradient id="gradWhite" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="55%" stop-color="#f1f1f1" />
+      <stop offset="100%" stop-color="#d6d6d6" />
+    </radialGradient>
+
+    <radialGradient id="gradBlack" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#444444" />
+      <stop offset="55%" stop-color="#1c1c1c" />
+      <stop offset="100%" stop-color="#050505" />
+    </radialGradient>
+
+    <style>
+      .fallbackGlyph {
+        font-family: system-ui, -apple-system, "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+        font-weight: 800;
+        paint-order: stroke fill;
+      }
+
+      .rasterPiece {
+        image-rendering: auto;
+      }
+    </style>
+
+    <symbol id="fallbackWhiteDisc" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradWhite)" stroke="#111" stroke-width="6" />
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#000" stroke-opacity="0.18" stroke-width="3" />
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.28" />
+    </symbol>
+
+    <symbol id="fallbackBlackDisc" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" fill="url(#gradBlack)" stroke="#f5f5f5" stroke-width="6" />
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#fff" stroke-opacity="0.16" stroke-width="3" />
+      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#fff" opacity="0.10" />
+    </symbol>
+
+    <symbol id="fallbackW_P" viewBox="0 0 100 100">
+      <use href="#fallbackWhiteDisc" />
+      <text class="fallbackGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#111" stroke="#ffffff" stroke-opacity="0.30" stroke-width="2">♙</text>
+    </symbol>
+
+    <symbol id="fallbackB_P" viewBox="0 0 100 100">
+      <use href="#fallbackBlackDisc" />
+      <text class="fallbackGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#f5f5f5" stroke="#000000" stroke-opacity="0.30" stroke-width="2">♟</text>
+    </symbol>
+
+    <symbol id="fallbackW_N" viewBox="0 0 100 100">
+      <use href="#fallbackWhiteDisc" />
+      <text class="fallbackGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#111" stroke="#ffffff" stroke-opacity="0.30" stroke-width="2">♘</text>
+    </symbol>
+
+    <symbol id="fallbackB_N" viewBox="0 0 100 100">
+      <use href="#fallbackBlackDisc" />
+      <text class="fallbackGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#f5f5f5" stroke="#000000" stroke-opacity="0.30" stroke-width="2">♞</text>
+    </symbol>
+
+    <symbol id="fallbackW_B" viewBox="0 0 100 100">
+      <use href="#fallbackWhiteDisc" />
+      <text class="fallbackGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#111" stroke="#ffffff" stroke-opacity="0.30" stroke-width="2">♗</text>
+    </symbol>
+
+    <symbol id="fallbackB_B" viewBox="0 0 100 100">
+      <use href="#fallbackBlackDisc" />
+      <text class="fallbackGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#f5f5f5" stroke="#000000" stroke-opacity="0.30" stroke-width="2">♝</text>
+    </symbol>
+
+    <symbol id="fallbackW_R" viewBox="0 0 100 100">
+      <use href="#fallbackWhiteDisc" />
+      <text class="fallbackGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#111" stroke="#ffffff" stroke-opacity="0.30" stroke-width="2">♖</text>
+    </symbol>
+
+    <symbol id="fallbackB_R" viewBox="0 0 100 100">
+      <use href="#fallbackBlackDisc" />
+      <text class="fallbackGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#f5f5f5" stroke="#000000" stroke-opacity="0.30" stroke-width="2">♜</text>
+    </symbol>
+
+    <symbol id="fallbackW_Q" viewBox="0 0 100 100">
+      <use href="#fallbackWhiteDisc" />
+      <text class="fallbackGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#111" stroke="#ffffff" stroke-opacity="0.30" stroke-width="2">♕</text>
+    </symbol>
+
+    <symbol id="fallbackB_Q" viewBox="0 0 100 100">
+      <use href="#fallbackBlackDisc" />
+      <text class="fallbackGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#f5f5f5" stroke="#000000" stroke-opacity="0.30" stroke-width="2">♛</text>
+    </symbol>
+
+    <symbol id="fallbackW_K" viewBox="0 0 100 100">
+      <use href="#fallbackWhiteDisc" />
+      <text class="fallbackGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#111" stroke="#ffffff" stroke-opacity="0.30" stroke-width="2">♔</text>
+    </symbol>
+
+    <symbol id="fallbackB_K" viewBox="0 0 100 100">
+      <use href="#fallbackBlackDisc" />
+      <text class="fallbackGlyph" x="50" y="56" text-anchor="middle" dominant-baseline="middle" font-size="60" fill="#f5f5f5" stroke="#000000" stroke-opacity="0.30" stroke-width="2">♚</text>
+    </symbol>
+
+    <symbol id="fallbackW_S" viewBox="0 0 100 100"><use href="#fallbackWhiteDisc" /></symbol>
+    <symbol id="fallbackB_S" viewBox="0 0 100 100"><use href="#fallbackBlackDisc" /></symbol>
+    <symbol id="fallbackW_O" viewBox="0 0 100 100"><use href="#fallbackW_N" /></symbol>
+    <symbol id="fallbackB_O" viewBox="0 0 100 100"><use href="#fallbackB_N" /></symbol>
+
+    <!-- ===== Actual piece symbols (raster on top of fallback) ===== -->
+    <symbol id="W_S" viewBox="0 0 100 100">
+      <use href="#fallbackW_S" />
+      <image class="rasterPiece" href="pieces/raster3d/W_S.png" x="9" y="6" width="82" height="90" preserveAspectRatio="xMidYMax meet" />
+    </symbol>
+
+    <symbol id="B_S" viewBox="0 0 100 100">
+      <use href="#fallbackB_S" />
+      <image class="rasterPiece" href="pieces/raster3d/B_S.png" x="9" y="6" width="82" height="90" preserveAspectRatio="xMidYMax meet" />
+    </symbol>
+
+    <symbol id="W_O" viewBox="0 0 100 100">
+      <use href="#fallbackW_O" />
+      <image class="rasterPiece" href="pieces/raster3d/W_O.png" x="9" y="6" width="82" height="90" preserveAspectRatio="xMidYMax meet" />
+    </symbol>
+
+    <symbol id="B_O" viewBox="0 0 100 100">
+      <use href="#fallbackB_O" />
+      <image class="rasterPiece" href="pieces/raster3d/B_O.png" x="9" y="6" width="82" height="90" preserveAspectRatio="xMidYMax meet" />
+    </symbol>
+
+    <symbol id="W_P" viewBox="0 0 100 100">
+      <use href="#fallbackW_P" />
+      <image class="rasterPiece" href="pieces/raster3d/W_P.png" x="15" y="27" width="70" height="69" preserveAspectRatio="xMidYMax meet" />
+    </symbol>
+
+    <symbol id="B_P" viewBox="0 0 100 100">
+      <use href="#fallbackB_P" />
+      <image class="rasterPiece" href="pieces/raster3d/B_P.png" x="15" y="27" width="70" height="69" preserveAspectRatio="xMidYMax meet" />
+    </symbol>
+
+    <symbol id="W_N" viewBox="0 0 100 100">
+      <use href="#fallbackW_N" />
+      <image class="rasterPiece" href="pieces/raster3d/W_N.png" x="13" y="15" width="74" height="81" preserveAspectRatio="xMidYMax meet" />
+    </symbol>
+
+    <symbol id="B_N" viewBox="0 0 100 100">
+      <use href="#fallbackB_N" />
+      <image class="rasterPiece" href="pieces/raster3d/B_N.png" x="13" y="15" width="74" height="81" preserveAspectRatio="xMidYMax meet" />
+    </symbol>
+
+    <symbol id="W_B" viewBox="0 0 100 100">
+      <use href="#fallbackW_B" />
+      <image class="rasterPiece" href="pieces/raster3d/W_B.png" x="8" y="4" width="84" height="92" preserveAspectRatio="xMidYMax meet" />
+    </symbol>
+
+    <symbol id="B_B" viewBox="0 0 100 100">
+      <use href="#fallbackB_B" />
+      <image class="rasterPiece" href="pieces/raster3d/B_B.png" x="8" y="4" width="84" height="92" preserveAspectRatio="xMidYMax meet" />
+    </symbol>
+
+    <symbol id="W_R" viewBox="0 0 100 100">
+      <use href="#fallbackW_R" />
+      <image class="rasterPiece" href="pieces/raster3d/W_R.png" x="13" y="15" width="74" height="81" preserveAspectRatio="xMidYMax meet" />
+    </symbol>
+
+    <symbol id="B_R" viewBox="0 0 100 100">
+      <use href="#fallbackB_R" />
+      <image class="rasterPiece" href="pieces/raster3d/B_R.png" x="13" y="15" width="74" height="81" preserveAspectRatio="xMidYMax meet" />
+    </symbol>
+
+    <symbol id="W_Q" viewBox="0 0 100 100">
+      <use href="#fallbackW_Q" />
+      <image class="rasterPiece" href="pieces/raster3d/W_Q.png" x="7" y="3" width="86" height="95" preserveAspectRatio="xMidYMax meet" />
+    </symbol>
+
+    <symbol id="B_Q" viewBox="0 0 100 100">
+      <use href="#fallbackB_Q" />
+      <image class="rasterPiece" href="pieces/raster3d/B_Q.png" x="7" y="3" width="86" height="95" preserveAspectRatio="xMidYMax meet" />
+    </symbol>
+
+    <symbol id="W_K" viewBox="0 0 100 100">
+      <use href="#fallbackW_K" />
+      <image class="rasterPiece" href="pieces/raster3d/W_K.png" x="6" y="2" width="88" height="96" preserveAspectRatio="xMidYMax meet" />
+    </symbol>
+
+    <symbol id="B_K" viewBox="0 0 100 100">
+      <use href="#fallbackB_K" />
+      <image class="rasterPiece" href="pieces/raster3d/B_K.png" x="6" y="2" width="88" height="96" preserveAspectRatio="xMidYMax meet" />
+    </symbol>
+  </defs>
+</svg>
