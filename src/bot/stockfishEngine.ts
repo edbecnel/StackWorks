@@ -44,14 +44,24 @@ function createStockfishWorker(): {
   const hash = `#${encodeURIComponent(wasmAbs)},worker`;
   const directUrl = `${workerAbs}${hash}`;
 
-  // Some browser/hosting combinations are flaky when creating a Worker directly
-  // from a URL with a hash fragment. A small bootstrap worker created from a Blob
-  // makes the hash unquestionably belong to the worker's own location.
+  // Use the direct URL approach so the worker has a same-origin (https://) context
+  // rather than a blob: (null-origin) context. A null-origin worker fetching https://
+  // resources can be silently blocked under COEP `require-corp` in some Chromium
+  // versions even when Cross-Origin-Resource-Policy is set.
   //
-  // If a CSP blocks blob workers, we fall back to the direct URL approach.
+  // The hash fragment is stripped by the browser when fetching the JS file but is
+  // preserved in self.location.hash inside the worker, which is how Stockfish reads
+  // the WASM URL.
+  //
+  // Fall back to the blob bootstrap approach if creating a direct worker fails
+  // (e.g. some browsers reject hash fragments on Worker URLs).
   try {
+    const worker = new Worker(directUrl, { type: "classic", name: "stockfish" });
+    return { engine: worker as unknown as StockfishEngine, workerUrl: workerAbs, wasmUrl: wasmAbs };
+  } catch {
+    // Blob bootstrap fallback: wraps importScripts so the hash is part of the blob
+    // URL itself rather than a fragment on the https:// URL.
     const bootstrapSource = `
-      // Minimal diagnostics + liveness check that survives Stockfish overwriting onmessage.
       try {
         self.addEventListener("message", function (ev) {
           try {
@@ -60,17 +70,11 @@ function createStockfishWorker(): {
                 self.postMessage(
                   "__sf_pong hash=" + String(self.location && self.location.hash)
                 );
-              } catch (e) {
-                // ignore
-              }
+              } catch (e) { /* ignore */ }
             }
-          } catch (e) {
-            // ignore
-          }
+          } catch (e) { /* ignore */ }
         });
-      } catch (e) {
-        // ignore
-      }
+      } catch (e) { /* ignore */ }
 
       ${import.meta.env?.DEV ? 'try{self.postMessage("[stockfish] bootstrap loaded");}catch(e){}' : ""}
       importScripts(${JSON.stringify(workerAbs)});
@@ -82,17 +86,8 @@ function createStockfishWorker(): {
       engine: worker as unknown as StockfishEngine,
       workerUrl: workerAbs,
       wasmUrl: wasmAbs,
-      cleanup: () => {
-        try {
-          URL.revokeObjectURL(blobUrl);
-        } catch {
-          // ignore
-        }
-      },
+      cleanup: () => { try { URL.revokeObjectURL(blobUrl); } catch { /* ignore */ } },
     };
-  } catch {
-    const worker = new Worker(directUrl, { type: "classic", name: "stockfish" });
-    return { engine: worker as unknown as StockfishEngine, workerUrl: workerAbs, wasmUrl: wasmAbs };
   }
 }
 
