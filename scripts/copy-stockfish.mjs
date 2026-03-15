@@ -42,10 +42,15 @@ async function main() {
   const wasmSrc = path.join(srcDir, WASM_FILE);
 
   if (!(await exists(workerSrc))) {
-    throw new Error(`Missing Stockfish worker JS at ${workerSrc}`);
+    // Stockfish is a devDependency used only by the frontend build.
+    // In server-only environments (e.g. Render deploying server/) the package
+    // is not installed — skip silently rather than failing the build.
+    console.log("[postinstall] Stockfish not found — skipping copy (server-only environment).");
+    return;
   }
   if (!(await exists(wasmSrc))) {
-    throw new Error(`Missing Stockfish WASM at ${wasmSrc}`);
+    console.log("[postinstall] Stockfish WASM not found — skipping copy (server-only environment).");
+    return;
   }
 
   await fs.mkdir(outDir, { recursive: true });
