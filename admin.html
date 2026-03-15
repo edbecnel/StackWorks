@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <title>Lasca — Admin</title>
+    <style>
+      :root {
+        --page-bg: #1b1b1b;
+
+        --error: #ff5a5a;
+        --error-bg: rgba(255, 90, 90, 0.16);
+        --ok: #42d07a;
+
+        --panel-text: rgba(255, 255, 255, 0.9);
+        --panel-subtext: rgba(255, 255, 255, 0.7);
+        --panel-border: rgba(255, 255, 255, 0.1);
+        --panel-radius: 12px;
+
+        --themeMenuBg: rgba(0, 0, 0, 0.88);
+        --themeMenuBorder: rgba(255, 255, 255, 0.18);
+        --themeMenuText: rgba(255, 255, 255, 0.92);
+        --themeMenuHoverBg: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--page-bg);
+        font-family:
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Arial,
+          sans-serif;
+        color: var(--panel-text);
+      }
+
+      .wrap {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 18px;
+      }
+
+      header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 750;
+        letter-spacing: 0.2px;
+      }
+
+      .subtle {
+        margin: 0;
+        color: var(--panel-subtext);
+        font-size: 12px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      a.panelBtn {
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      @media (min-width: 900px) {
+        .grid {
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        }
+      }
+
+      .panelSection {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.18);
+        border-radius: var(--panel-radius);
+        padding: 12px;
+        min-width: 0;
+      }
+
+      .panelSection h2 {
+        margin: 0 0 10px 0;
+        font-size: 12px;
+        font-weight: 800;
+        color: rgba(255, 255, 255, 0.86);
+        letter-spacing: 0.3px;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 120px minmax(0, 1fr);
+        gap: 8px 10px;
+        align-items: center;
+        font-size: 12px;
+      }
+
+      label {
+        color: rgba(255, 255, 255, 0.86);
+      }
+
+      .panelInput,
+      .panelSelect {
+        width: 100%;
+        min-width: 0;
+        color-scheme: dark;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(0, 0, 0, 0.18);
+        color: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        padding: 6px 9px;
+        font-size: 12px;
+        line-height: 1.2;
+      }
+
+      .panelInput:hover,
+      .panelSelect:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .panelBtn {
+        appearance: none;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(0, 0, 0, 0.18);
+        color: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 12px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .panelBtn:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .panelBtn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .checkRow {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .checkRow input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+      }
+
+      .checkRow label {
+        cursor: pointer;
+        user-select: none;
+        font-size: 13px;
+      }
+
+      .hint {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.6);
+        margin-top: 6px;
+        margin-left: 24px;
+      }
+
+      .status {
+        margin-top: 10px;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.75);
+      }
+
+      .status.isError {
+        color: var(--error);
+        font-weight: 750;
+      }
+
+      .status.isOk {
+        color: var(--ok);
+        font-weight: 750;
+      }
+
+      .mono {
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+      }
+
+      .lobbyList {
+        margin-top: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .lobbyItem {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.14);
+      }
+
+      .lobbyItemLeft {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+
+      .lobbyItemTitle {
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .lobbyItemSub {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.65);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .lobbyItemRight {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-shrink: 0;
+      }
+
+      .danger {
+        border-color: rgba(255, 90, 90, 0.22);
+      }
+
+      .danger h2 {
+        color: rgba(255, 90, 90, 0.9);
+      }
+
+      .confirmBar {
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 90, 90, 0.22);
+        background: rgba(255, 90, 90, 0.08);
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .confirmText {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.86);
+      }
+
+      .confirmActions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-shrink: 0;
+      }
+
+      .tokenRow {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        min-width: 0;
+      }
+
+      .tokenRow input {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/admin-Flfztz1y.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
+  <script>if("serviceWorker"in navigator)navigator.serviceWorker.register("/sw.js").catch(function(){});</script>
+</head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div>
+          <h1>Admin tools</h1>
+          <p class="subtle">
+            Danger zone: powerful operations. Token required.
+          </p>
+        </div>
+        <div class="actions">
+          <a class="panelBtn" href="./index.html">Start</a>
+          <a
+            class="panelBtn"
+            href="./admin-help.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Help</a
+          >
+        </div>
+      </header>
+
+      <div class="grid">
+        <section class="panelSection" aria-label="Connection">
+          <h2>Connection</h2>
+          <div class="row">
+            <label for="adminServerUrl">Server URL</label>
+            <input
+              id="adminServerUrl"
+              class="panelInput"
+              placeholder="http://localhost:8788"
+            />
+          </div>
+
+          <div class="row" style="margin-top: 8px">
+            <label for="adminToken">Admin token</label>
+            <div class="tokenRow">
+              <input
+                id="adminToken"
+                class="panelInput mono"
+                type="password"
+                placeholder="LASCA_ADMIN_TOKEN"
+                autocomplete="off"
+              />
+              <button class="panelBtn" id="adminTokenToggle" type="button">
+                Show
+              </button>
+            </div>
+          </div>
+
+          <div class="checkRow">
+            <input type="checkbox" id="adminRememberToken" />
+            <label for="adminRememberToken"
+              >Remember token on this device</label
+            >
+          </div>
+          <div class="hint">
+            Stores the token in localStorage (not recommended on shared
+            machines).
+          </div>
+
+          <div class="row" style="margin-top: 10px">
+            <label for="adminLobbyLimit">Lobby limit</label>
+            <input
+              id="adminLobbyLimit"
+              class="panelInput"
+              inputmode="numeric"
+            />
+          </div>
+
+          <div class="checkRow">
+            <input type="checkbox" id="adminIncludeFull" />
+            <label for="adminIncludeFull">Include full rooms</label>
+          </div>
+
+          <div
+            style="
+              margin-top: 10px;
+              display: flex;
+              gap: 8px;
+              align-items: center;
+            "
+          >
+            <button class="panelBtn" id="adminRefreshLobby">
+              Refresh lobby
+            </button>
+            <span class="subtle" id="adminLobbySummary">—</span>
+          </div>
+          <div class="status" id="adminStatus">—</div>
+        </section>
+
+        <section class="panelSection danger" aria-label="Delete room">
+          <h2>Delete room</h2>
+          <div class="row">
+            <label for="adminDeleteRoomId">Room ID</label>
+            <input
+              id="adminDeleteRoomId"
+              class="panelInput mono"
+              placeholder="e.g. 3dc1fd2f..."
+            />
+          </div>
+          <div
+            style="
+              margin-top: 10px;
+              display: flex;
+              gap: 8px;
+              align-items: center;
+            "
+          >
+            <button class="panelBtn" id="adminDeleteBtn">Delete room</button>
+            <button
+              class="panelBtn"
+              id="adminCopyRoomIdBtn"
+              title="Copy room ID"
+            >
+              Copy
+            </button>
+          </div>
+
+          <div id="adminDeleteConfirm" class="confirmBar" hidden>
+            <div id="adminDeleteConfirmText" class="confirmText">—</div>
+            <div class="confirmActions">
+              <button class="panelBtn" id="adminDeleteConfirmYes" type="button">
+                Confirm delete
+              </button>
+              <button class="panelBtn" id="adminDeleteConfirmNo" type="button">
+                Cancel
+              </button>
+            </div>
+          </div>
+          <div class="hint">
+            Calls DELETE /api/admin/room/:roomId and evicts the room
+            immediately.
+          </div>
+        </section>
+
+        <section
+          class="panelSection"
+          style="grid-column: 1 / -1"
+          aria-label="Lobby"
+        >
+          <h2>Lobby</h2>
+          <div
+            style="
+              margin-top: 8px;
+              display: flex;
+              gap: 8px;
+              align-items: center;
+            "
+          >
+            <button class="panelBtn" id="adminRefreshLobby2">
+              Refresh lobby
+            </button>
+            <span class="subtle">(same as the button in Connection)</span>
+          </div>
+          <div class="subtle">
+            Tip: refresh the lobby, then delete from a row.
+          </div>
+          <div class="lobbyList" id="adminLobbyList"></div>
+        </section>
+      </div>
+    </div>
+  </body>
+</html>
