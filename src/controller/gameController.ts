@@ -1851,6 +1851,16 @@ export class GameController {
       legal.map((m) => (m as any).from).filter((v) => typeof v === "string") as string[]
     );
 
+    // In analysis mode, pieces from the non-active side are also freely movable.
+    if (this.analysisMode && !this.lockedCaptureFrom) {
+      const otherSide: "W" | "B" = this.state.toMove === "W" ? "B" : "W";
+      const otherLegal = generateLegalMoves({ ...this.state, toMove: otherSide });
+      for (const m of otherLegal) {
+        const from = (m as any).from;
+        if (typeof from === "string") selectableFrom.add(from);
+      }
+    }
+
     for (const fromId of selectableFrom) {
       const g = this.piecesLayer.querySelector(`g.stack[data-node="${fromId}"]`) as SVGGElement | null;
       if (!g) continue;
@@ -3521,6 +3531,8 @@ export class GameController {
   private isOwnStack(nodeId: string): boolean {
     const stack = this.state.board.get(nodeId);
     if (!stack || stack.length === 0) return false;
+    // In analysis mode, allow selecting any piece (free-move for both sides).
+    if (this.analysisMode) return true;
     const top = stack[stack.length - 1];
     return top.owner === this.state.toMove;
   }
@@ -4456,7 +4468,8 @@ export class GameController {
     }
 
     // In online mode, ignore input when it's not your turn.
-    if (!this.isLocalPlayersTurn()) {
+    // Analysis mode is a local sandbox — always allow input regardless of turn or online state.
+    if (!this.analysisMode && !this.isLocalPlayersTurn()) {
       this.clearSelection();
       return;
     }
@@ -4499,8 +4512,20 @@ export class GameController {
       return;
     }
 
-    // Select only your own stack; clicking empty node clears selection
+    // Select only your own stack; clicking empty node clears selection.
+    // In analysis mode any piece is selectable; if the chosen piece belongs to the
+    // non-active side, flip toMove so legal-move generation and applyMove work correctly.
     if (this.isOwnStack(nodeId)) {
+      if (this.analysisMode) {
+        const stack = this.state.board.get(nodeId);
+        const top = stack?.[stack.length - 1];
+        if (top && top.owner !== this.state.toMove) {
+          // Quietly switch the active side so the whole move (selection → apply) is
+          // consistent without touching the sandboxed analysis history.
+          this.state = { ...this.state, toMove: top.owner };
+          this.updatePanel();
+        }
+      }
       this.selected = nodeId;
       this.playSfx("select");
       this.showSelection(nodeId);
