@@ -2,11 +2,18 @@
 #
 # Vite content-hashes all bundled assets (JS, CSS, SVGs imported via ?url), so
 # their filenames change whenever their content changes. These can be cached
-# forever with the `immutable` directive - the browser will never need to
+# forever with the immutable directive - the browser will never need to
 # revalidate them.
 #
 # HTML entry points are NOT hashed; they must always revalidate so users pick
 # up new deployments immediately.
+
+# Apply COOP + COEP to every response so clean URLs (/chess, /) are also
+# cross-origin isolated. These are required for SharedArrayBuffer / WASM threads
+# (Stockfish). More specific rules below override Cache-Control as needed.
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
 
 # Vite-bundled assets (JS chunks, CSS, imported SVG/image assets).
 /assets/*
@@ -35,13 +42,8 @@
   Cache-Control: no-store
 
 # HTML entry points - always revalidate.
-# COOP + COEP enable cross-origin isolation (required for SharedArrayBuffer / WASM threads).
 /*.html
   Cache-Control: no-cache, must-revalidate
-  Cross-Origin-Opener-Policy: same-origin
-  Cross-Origin-Embedder-Policy: require-corp
 
 /
   Cache-Control: no-cache, must-revalidate
-  Cross-Origin-Opener-Policy: same-origin
-  Cross-Origin-Embedder-Policy: require-corp
