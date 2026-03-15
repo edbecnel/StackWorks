@@ -16,12 +16,31 @@
 // GitHub Pages).
 const BASE = self.location.pathname.replace(/\/sw\.js$/, "/");
 
-const ASSET_CACHE = "sw-assets-v1";
+const ASSET_CACHE = "sw-assets-v2";
 const IMAGE_CACHE = "sw-images-v1";
 
 // Bump these cache names to force all clients to drop stale caches after a
 // breaking change to the SW caching strategy.
 const ALL_CACHES = new Set([ASSET_CACHE, IMAGE_CACHE]);
+
+// Stockfish (and other vendor scripts) are loaded via a blob: bootstrap worker whose
+// origin is opaque (null). Under COEP `require-corp`, any cross-origin fetch — including
+// blob→same-origin — must carry `Cross-Origin-Resource-Policy`. We inject the header on
+// every hashed-asset response so the SW-served copy always satisfies COEP regardless of
+// whether Cloudflare forwarded the header at the time the entry was originally cached.
+function withCorp(response) {
+  // Only touch successful responses; pass errors through unchanged.
+  if (!response || !response.ok) return response;
+  // If the header is already set (e.g. Cloudflare added it), leave it alone.
+  if (response.headers.get("cross-origin-resource-policy")) return response;
+  const headers = new Headers(response.headers);
+  headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
 
 // Content-hashed, immutable assets — safe to cache forever.
 function isHashedAsset(url) {
@@ -65,10 +84,11 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       caches.open(ASSET_CACHE).then((cache) =>
         cache.match(req).then((hit) => {
-          if (hit) return hit;
+          if (hit) return withCorp(hit);
           return fetch(req).then((res) => {
-            if (res.ok && res.status < 400) cache.put(req, res.clone());
-            return res;
+            const corpRes = withCorp(res.clone());
+            if (res.ok && res.status < 400) cache.put(req, corpRes.clone());
+            return corpRes;
           });
         }),
       ),
