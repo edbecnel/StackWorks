@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: stackworks-server
+    runtime: node
+    rootDir: server
+    buildCommand: npm ci
+    startCommand: npm start
+    envVars:
+      - key: LASCA_ADMIN_TOKEN
+        sync: false
