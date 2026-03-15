@@ -51,7 +51,7 @@ export function bindStartPageConfirm(controller: GameController, variantId: Vari
     "click",
     (e) => {
       const target = e.target as Element | null;
-      const a = (target?.closest?.('a[href="./index.html"]') as HTMLAnchorElement | null) ?? null;
+      const a = (target?.closest?.('a[href="./"]') as HTMLAnchorElement | null) ?? null;
       if (!a) return;
       if (!shouldConfirmLeave()) return;
       if (!(e instanceof MouseEvent) || !isPlainLeftClick(e)) return;

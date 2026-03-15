@@ -663,7 +663,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (leaveRoomBtn) {
     leaveRoomBtn.addEventListener("click", async () => {
       if (driver.mode !== "online") {
-        window.location.assign("./index.html");
+        window.location.assign("./");
         return;
       }
 
@@ -671,7 +671,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       const playerId = online.getPlayerId();
       if (!playerId) {
         // Spectator / not seated: leaving doesn't affect the game.
-        window.location.assign("./index.html");
+        window.location.assign("./");
         return;
       }
 
@@ -684,7 +684,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
       try {
         await online.resignRemote();
-        window.location.assign("./index.html");
+        window.location.assign("./");
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error("[ui] leave room failed", err);

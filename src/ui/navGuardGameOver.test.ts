@@ -27,7 +27,7 @@ describe("navigation guards", () => {
     } as unknown as GameController;
 
     // ---- Start Page confirm
-    document.body.innerHTML = `<a id="start" href="./index.html">Start Page</a>`;
+    document.body.innerHTML = `<a id="start" href="./">Start Page</a>`;
     // Ensure repeated runs don't no-op due to the "bound" flag.
     delete (document as unknown as Record<string, unknown>)["__lascaStartPageConfirmBound"];
 

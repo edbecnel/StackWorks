@@ -736,7 +736,7 @@ export function bindPanelLayoutMenuMode(): void {
 
     const startLink = document.createElement("a");
     startLink.className = "panelLayoutFlyoutItem";
-    startLink.href = "./index.html";
+    startLink.href = "./";
     startLink.textContent = "Start Page";
 
     const helpLink = document.createElement("a");
