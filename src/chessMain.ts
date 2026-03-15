@@ -403,7 +403,15 @@ window.addEventListener("DOMContentLoaded", async () => {
     return "(½-½)";  // PGN "1/2-1/2" — "/" is not valid in filenames
   };
 
-  applyBoardCoords();
+  // Call updatePlayerNameDisplay (not just applyBoardCoords) so that in
+  // playable-area viewport mode the reservedTop/reservedBottom are set to
+  // their name-absent minimums (52 / 12) right away, instead of the large
+  // per-square-step defaults that applyBoardViewportModeToSvg uses when
+  // called without explicit reserved values.  Names default to "" here, so
+  // no text is rendered; the viewport is just tightened up front.
+  // updatePlayerNameDisplay calls applyBoardCoords() at its end, so we
+  // do not need a separate applyBoardCoords() call here.
+  updatePlayerNameDisplay();
 
   const themeManager = createThemeManager(svg);
 
