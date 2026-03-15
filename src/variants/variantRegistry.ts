@@ -61,7 +61,7 @@ export const VARIANTS: readonly VariantSpec[] = [
     piecesPerSide: 12,
     startingPlayer: "B",
     svgAsset: checkersBoard8x8SvgUrl,
-    entryUrl: "./dama.html",
+    entryUrl: "./dama",
     defaultSaveName: "checkers_8_us-save.json",
     available: true,
   },
