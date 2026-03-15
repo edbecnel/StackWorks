@@ -1,70 +1,47 @@
-# Cloudflare Pages cache rules.
-
+# Cloudflare Pages response headers.
 #
-
 # Vite content-hashes all bundled assets (JS, CSS, SVGs imported via ?url), so
-
 # their filenames change whenever their content changes. These can be cached
-
-# forever with the `immutable` directive the browser will never need to
-
+# forever with the `immutable` directive - the browser will never need to
 # revalidate them.
-
 #
-
 # HTML entry points are NOT hashed; they must always revalidate so users pick
-
 # up new deployments immediately.
 
 # Vite-bundled assets (JS chunks, CSS, imported SVG/image assets).
-
-/assets/\*
-Cache-Control: public, max-age=31536000, immutable
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
 
 # Stockfish WASM + worker (large, rarely changes, versioned in filename).
-
 # Cross-Origin-Resource-Policy: cross-origin is required so that the Stockfish
-
 # blob: bootstrap worker (opaque/null origin) can fetch these files under COEP.
-
-/vendor/\*
-Cache-Control: public, max-age=31536000, immutable
-Cross-Origin-Resource-Policy: cross-origin
+/vendor/*
+  Cache-Control: public, max-age=31536000, immutable
+  Cross-Origin-Resource-Policy: cross-origin
 
 # Piece and icon images (not hashed, but change infrequently).
+/pieces/*
+  Cache-Control: public, max-age=2592000
 
-/pieces/\*
-Cache-Control: public, max-age=2592000
-
-/icons/\*
-Cache-Control: public, max-age=2592000
+/icons/*
+  Cache-Control: public, max-age=2592000
 
 # Splash screen (not hashed).
-
 /splash.png
-Cache-Control: public, max-age=2592000
+  Cache-Control: public, max-age=2592000
 
 # Service Worker file must never be cached aggressively.
-
-# Browsers check for SW updates every 24 h at most; no-store forces a check
-
-# on every navigation so deploys roll out quickly.
-
 /sw.js
-Cache-Control: no-store
+  Cache-Control: no-store
 
-# HTML entry points always revalidate.
-
+# HTML entry points - always revalidate.
 # COOP + COEP enable cross-origin isolation (required for SharedArrayBuffer / WASM threads).
-
-# CORP on the page itself is implied; JS/WASM assets under /vendor/\* set their own CORP header.
-
-/\*.html
-Cache-Control: no-cache, must-revalidate
-Cross-Origin-Opener-Policy: same-origin
-Cross-Origin-Embedder-Policy: require-corp
+/*.html
+  Cache-Control: no-cache, must-revalidate
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
 
 /
-Cache-Control: no-cache, must-revalidate
-Cross-Origin-Opener-Policy: same-origin
-Cross-Origin-Embedder-Policy: require-corp
+  Cache-Control: no-cache, must-revalidate
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
