@@ -245,6 +245,44 @@ class StockfishCli {
     const p = (this.queue = this.queue.then(job, job));
     return p;
   }
+
+  async evaluate({ fen, movetimeMs, timeoutMs }) {
+    const t = Math.max(10, Math.round(Number(movetimeMs)));
+    const timeout = Math.max(3_000, Math.round(Number(timeoutMs ?? t * 15)));
+
+    await this.getOrStartInit();
+
+    const job = async () => {
+      // Clear stale scored info and bestmove lines before sending a new search.
+      this.lines = this.lines.filter(
+        (l) => !l.startsWith("bestmove ") && !(l.startsWith("info ") && l.includes(" score "))
+      );
+
+      this.send(`position fen ${fen}`);
+      this.send(`go movetime ${t}`);
+
+      // Wait for the search to complete (bestmove signals end of search).
+      await this.waitForLine((l) => l.startsWith("bestmove "), timeout);
+
+      // Scan buffered lines for the last info line with a score.
+      let lastScore = null;
+      const scorePattern = /\bscore\s+(cp\s+(-?\d+)|mate\s+(-?\d+))/;
+      for (const l of this.lines) {
+        if (l.startsWith("info ")) {
+          const m = scorePattern.exec(l);
+          if (m) {
+            if (m[2] !== undefined) lastScore = { cp: parseInt(m[2], 10) };
+            else if (m[3] !== undefined) lastScore = { mate: parseInt(m[3], 10) };
+          }
+        }
+      }
+
+      return lastScore;
+    };
+
+    const p = (this.queue = this.queue.then(job, job));
+    return p;
+  }
 }
 
 const engine = new StockfishCli(ENGINE_JS);
@@ -304,6 +342,41 @@ const server = http.createServer(async (req, res) => {
         const msg = e instanceof Error ? e.message : String(e);
         const tookMs = nowMs() - startedAt;
         console.warn(`[stockfish-server] bestmove failed tookMs=${tookMs}: ${msg}`);
+        sendJson(res, 500, { ok: false, error: msg });
+      }
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/evaluate") {
+      const body = await readJsonBody(req);
+      const fen = body && typeof body.fen === "string" ? body.fen : null;
+      const movetimeMs = body && typeof body.movetimeMs === "number" ? body.movetimeMs : 200;
+      const timeoutMs = body && typeof body.timeoutMs === "number" ? body.timeoutMs : undefined;
+
+      if (!fen) {
+        sendJson(res, 400, { ok: false, error: "missing fen" });
+        return;
+      }
+
+      console.log(
+        `[stockfish-server] POST /evaluate ${req.socket.remoteAddress ?? "?"} movetimeMs=${movetimeMs}`,
+      );
+
+      try {
+        const score = await engine.evaluate({ fen, movetimeMs, timeoutMs });
+        const tookMs = nowMs() - startedAt;
+        if (score === null) {
+          console.warn(`[stockfish-server] evaluate returned null tookMs=${tookMs}`);
+          sendJson(res, 200, { ok: false, error: "no score" });
+        } else {
+          const desc = "cp" in score ? `cp=${score.cp}` : `mate=${score.mate}`;
+          console.log(`[stockfish-server] evaluate ${desc} tookMs=${tookMs}`);
+          sendJson(res, 200, { ok: true, ...score });
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        const tookMs = nowMs() - startedAt;
+        console.warn(`[stockfish-server] evaluate failed tookMs=${tookMs}: ${msg}`);
         sendJson(res, 500, { ok: false, error: msg });
       }
       return;

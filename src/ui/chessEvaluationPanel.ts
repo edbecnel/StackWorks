@@ -3,14 +3,58 @@ import type { GameState } from "../game/state";
 import type { Player, Piece } from "../types";
 import { generateLegalMoves } from "../game/movegen";
 import { isKingInCheckChess, isSquareAttackedChess } from "../game/movegenChess";
+import type { ChessBotManager, EvalScore } from "../bot/chessBotManager";
 
-type ChessEvaluationMode = "material" | "mobility" | "center" | "threats";
+type ChessEvaluationMode = "material" | "mobility" | "center" | "threats" | "engine";
 
 const LS_KEY_MODE = "lasca.chessEvaluation.mode";
 
 function clampMode(v: string | null): ChessEvaluationMode {
-  if (v === "material" || v === "mobility" || v === "center" || v === "threats") return v;
+  if (v === "material" || v === "mobility" || v === "center" || v === "threats" || v === "engine") return v;
   return "material";
+}
+
+/** Maps centipawns (White-perspective) to a 0–1 win-probability for the eval bar. */
+function cpToWinPct(cp: number): number {
+  return 1 / (1 + Math.exp(-0.004 * cp));
+}
+
+/**
+ * All score values stored in cachedEvalScore are already White-perspective
+ * (normalized in chessBotManager.runEval before being passed to listeners).
+ * cp > 0 → White ahead; mate > 0 → White wins.
+ */
+function fmtEvalScore(score: EvalScore): string {
+  if ("mate" in score) {
+    if (score.mate > 0) return `White M${score.mate}`;
+    if (score.mate < 0) return `Black M${Math.abs(score.mate)}`;
+    return "Mate";
+  }
+  const pawns = (score.cp / 100).toFixed(1);
+  if (score.cp > 0) return `+${pawns}`;
+  if (score.cp < 0) return `${pawns}`;
+  return "0.0";
+}
+
+/** Short numeric label for a specific player, already White-perspective. */
+function fmtLabelForPlayer(score: EvalScore, player: "W" | "B"): string {
+  if ("mate" in score) {
+    // mate > 0 → White wins; flip sign for Black's label.
+    const pm = player === "W" ? score.mate : -score.mate;
+    if (pm > 0) return `+M${pm}`;
+    if (pm < 0) return `-M${Math.abs(pm)}`;
+    return "M?";
+  }
+  const pcp = player === "W" ? score.cp : -score.cp;
+  const pawns = (pcp / 100).toFixed(1);
+  return pcp >= 0 ? `+${pawns}` : `${pawns}`;
+}
+
+function whitePerspectiveCp(score: EvalScore): number {
+  if ("mate" in score) {
+    return score.mate > 0 ? 3000 : -3000;
+  }
+  return score.cp;
 }
 
 function other(p: Player): Player {
@@ -292,11 +336,14 @@ function formatThreats(state: GameState): string {
   return `${line1}\n${line2}\n${line3}`;
 }
 
-export function bindChessEvaluationPanel(controller: GameController): void {
+export function bindChessEvaluationPanel(controller: GameController, bot?: ChessBotManager | null): void {
   const modeRootEl = document.getElementById("evaluationMode") as HTMLElement | null;
   const valueEl = document.getElementById("evaluationValue") as HTMLElement | null;
   const barWhiteEl = document.getElementById("evaluationBarWhite") as HTMLElement | null;
   const barBlackEl = document.getElementById("evaluationBarBlack") as HTMLElement | null;
+  const engNumsEl = document.getElementById("engineEvalNumbers") as HTMLElement | null;
+  const engNumWEl = document.getElementById("engineEvalNumW") as HTMLElement | null;
+  const engNumBEl = document.getElementById("engineEvalNumB") as HTMLElement | null;
   if (!modeRootEl || !valueEl) return;
 
   if (barWhiteEl?.parentElement) bindTouchHint(barWhiteEl.parentElement as HTMLElement);
@@ -307,12 +354,33 @@ export function bindChessEvaluationPanel(controller: GameController): void {
 
   let mode: ChessEvaluationMode = clampMode(localStorage.getItem(LS_KEY_MODE));
 
+  // Cached engine eval state — persists across re-renders triggered by history changes.
+  let cachedEvalScore: EvalScore | null = null;
+  let cachedEvalPending = false;
+
+  // Sync engine-button enabled state whenever availability changes.
+  const updateEngineButtonState = () => {
+    for (const btn of btnEls) {
+      if (btn.getAttribute("data-mode") === "engine") {
+        const available = Boolean(bot);
+        btn.disabled = !available;
+        btn.title = available
+          ? "Engine evaluation (Stockfish)"
+          : "Engine evaluation — requires offline Stockfish (not available in online mode)";
+      }
+    }
+  };
+
   const setMode = (next: ChessEvaluationMode) => {
     mode = next;
     localStorage.setItem(LS_KEY_MODE, mode);
     for (const btn of btnEls) {
       const m = clampMode(btn.getAttribute("data-mode"));
       btn.setAttribute("aria-pressed", String(m === mode));
+    }
+    if (next === "engine" && bot) {
+      cachedEvalPending = true;
+      bot.activateForEvaluation();
     }
   };
 
@@ -321,6 +389,57 @@ export function bindChessEvaluationPanel(controller: GameController): void {
     if (!isChessClassic(state)) return;
 
     const currentMode = mode;
+
+    if (currentMode === "engine") {
+      // Show the numeric score labels above bars.
+      if (engNumsEl) engNumsEl.style.visibility = "visible";
+
+      // Engine mode: render a single sigmoid eval bar spanning White/Black.
+      if (barWhiteEl && barBlackEl) {
+        const score = cachedEvalScore;
+        const pending = cachedEvalPending;
+
+        if (score !== null) {
+          const cp = whitePerspectiveCp(score);
+          const winPct = cpToWinPct(cp);
+          const wPct = winPct * 100;
+          const bPct = (1 - winPct) * 100;
+          const wLabel = fmtLabelForPlayer(score, "W");
+          const bLabel = fmtLabelForPlayer(score, "B");
+          setBar(barWhiteEl, wPct, `White ${wLabel}`);
+          setBar(barBlackEl, bPct, `Black ${bLabel}`);
+          setTrackHint(barWhiteEl, `White win% ${(winPct * 100).toFixed(0)}%`);
+          setTrackHint(barBlackEl, `Black win% ${((1 - winPct) * 100).toFixed(0)}%`);
+
+          if (engNumWEl) engNumWEl.textContent = `W ${wLabel}`;
+          if (engNumBEl) engNumBEl.textContent = `B ${bLabel}`;
+        } else {
+          const placeholder = pending ? "Evaluating\u2026" : "\u2014";
+          setBar(barWhiteEl, 50, placeholder);
+          setBar(barBlackEl, 50, placeholder);
+          setTrackHint(barWhiteEl, placeholder);
+          setTrackHint(barBlackEl, placeholder);
+          if (engNumWEl) engNumWEl.textContent = "W \u2014";
+          if (engNumBEl) engNumBEl.textContent = "B \u2014";
+        }
+      }
+
+      if (bot && !bot.isEngineReady()) {
+        valueEl.textContent = "Starting engine\u2026";
+      } else if (cachedEvalPending) {
+        valueEl.textContent = cachedEvalScore !== null
+          ? `Calculating\u2026 (last: ${fmtEvalScore(cachedEvalScore)})`
+          : "Calculating\u2026";
+      } else if (cachedEvalScore !== null) {
+        valueEl.textContent = `Engine eval: ${fmtEvalScore(cachedEvalScore)}`;
+      } else {
+        valueEl.textContent = "Engine eval: —";
+      }
+      return;
+    }
+
+    // Non-engine modes: hide the numeric score row.
+    if (engNumsEl) engNumsEl.style.visibility = "hidden";
 
     // Quantity bars reflect the primary value for the selected mode.
     if (barWhiteEl && barBlackEl) {
@@ -352,12 +471,31 @@ export function bindChessEvaluationPanel(controller: GameController): void {
   for (const btn of btnEls) {
     btn.addEventListener("click", () => {
       const next = clampMode(btn.getAttribute("data-mode"));
+      if (next === "engine" && !bot) return; // button should be disabled, but guard anyway
       setMode(next);
       render();
     });
   }
 
-  controller.addHistoryChangeCallback(render);
+  // Register eval change listener so engine-mode renders update live.
+  if (bot) {
+    bot.addEvalChangeListener((score, pending) => {
+      cachedEvalScore = score;
+      cachedEvalPending = pending;
+      if (mode === "engine") render();
+    });
+  }
+
+  // Clear cached eval score when the position changes, so we don't show a stale score.
+  controller.addHistoryChangeCallback(() => {
+    if (mode === "engine") {
+      cachedEvalPending = true; // position changed; score is now stale until engine responds
+    }
+    render();
+  });
+  updateEngineButtonState();
+  // Fall back from "engine" to "material" when no bot is present.
+  if (mode === "engine" && !bot) setMode("material");
   setMode(mode);
   render();
 }

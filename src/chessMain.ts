@@ -482,7 +482,16 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   bindStartPageConfirm(controller, ACTIVE_VARIANT_ID);
 
-  bindChessEvaluationPanel(controller);
+  // Offline-only: Bot controls (classic chess only).
+  // Create bot before eval panel so the panel can reference it for engine eval mode.
+  const bot = driver.mode !== "online" ? (() => {
+    const b = new ChessBotManager(controller);
+    b.bind();
+    controller.addAnalysisModeChangeCallback((enabled) => b.setAnalysisModeActive(enabled));
+    return b;
+  })() : null;
+
+  bindChessEvaluationPanel(controller, bot);
 
   // Classic Chess: theme select (2D / 3D / Neo) + Neo PNG availability hint.
   // Note: Neo is SVG-only and does not require external assets.
@@ -503,13 +512,6 @@ window.addEventListener("DOMContentLoaded", async () => {
         }
       });
     }
-  }
-
-  // Offline-only: Bot controls (classic chess only).
-  if (driver.mode !== "online") {
-    const bot = new ChessBotManager(controller);
-    bot.bind();
-    controller.addAnalysisModeChangeCallback((enabled) => bot.setAnalysisModeActive(enabled));
   }
 
   // Left panel status (rules/board is static per variant)

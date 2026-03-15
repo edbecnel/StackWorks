@@ -8,10 +8,12 @@ import { BOT_PRESETS } from "./presets.ts";
 import { adaptAfterGame, normalizeAdaptState, type AdaptState } from "./adaptive.ts";
 import { gameStateToFen } from "./fen.ts";
 import { uciToLegalMove } from "./chessMoveMap.ts";
-import type { UciEngine } from "./uciEngine.ts";
+import type { UciEngine, EvalScore } from "./uciEngine.ts";
 import { StockfishUciEngine } from "./stockfishEngine.ts";
 import { HttpUciEngine } from "./httpEngine.ts";
 import { pickFallbackMoveChess } from "./chessFallback.ts";
+
+export type { EvalScore };
 
 export type BotSideSetting = "human" | BotTier;
 
@@ -119,9 +121,145 @@ export class ChessBotManager {
   private engineBackoffUntilMs = 0;
   private engineFailureCount = 0;
 
+  // --- Engine evaluation (eval bar) -------------------------------------------
+  /** Last score Stockfish produced for the current position (side-to-move perspective). */
+  private lastEvalScore: EvalScore | null = null;
+  /** FEN the lastEvalScore was computed for. */
+  private lastEvalFen: string | null = null;
+  /** Whether an evaluation request is currently in-flight. */
+  private evalRunning = false;
+  /** Whether a new eval is needed but was deferred because the bot was busy. */
+  private evalDeferredWhileBusy = false;
+  /** Debounce timer for scheduleEval(). */
+  private evalDebounceTimer: number | null = null;
+  /** Listeners notified whenever the eval result changes. */
+  private evalListeners: Array<(score: EvalScore | null, pending: boolean) => void> = [];
+  // ---------------------------------------------------------------------------
+
   private engineLabel(): string {
     return this.serverEngineUrl ? "Stockfish server" : "Stockfish";
   }
+
+  // ── Public evaluation API ──────────────────────────────────────────────────
+
+  /** True once Stockfish has finished initialising and is ready to evaluate. */
+  isEngineReady(): boolean {
+    return this.engineReady;
+  }
+
+  /** Register a listener that is called whenever the eval score or pending state changes. */
+  addEvalChangeListener(cb: (score: EvalScore | null, pending: boolean) => void): void {
+    this.evalListeners.push(cb);
+  }
+
+  /** Remove a previously registered eval listener. */
+  removeEvalChangeListener(cb: (score: EvalScore | null, pending: boolean) => void): void {
+    const idx = this.evalListeners.indexOf(cb);
+    if (idx >= 0) this.evalListeners.splice(idx, 1);
+  }
+
+  /**
+   * Start the engine (if not already warming up) and schedule a position eval.
+   * Call this when the user activates the engine eval display mode.
+   */
+  activateForEvaluation(): void {
+    this.prewarmEngine({ showToast: false, serverFastFailToast: false });
+    this.scheduleEval();
+  }
+
+  /** Schedule a debounced eval for the current position. */
+  scheduleEval(): void {
+    if (this.evalDebounceTimer !== null) {
+      window.clearTimeout(this.evalDebounceTimer);
+    }
+    this.evalDebounceTimer = window.setTimeout(() => {
+      this.evalDebounceTimer = null;
+      void this.runEval();
+    }, 60);
+  }
+
+  private notifyEvalListeners(): void {
+    const pending = this.evalRunning || this.evalDeferredWhileBusy || !this.engineReady;
+    for (const cb of this.evalListeners) {
+      try { cb(this.lastEvalScore, pending); } catch { /* ignore */ }
+    }
+  }
+
+  private async runEval(): Promise<void> {
+    if (this.evalRunning) return;
+
+    if (!this.engineReady) {
+      // Engine not ready yet; mark deferred so we retry after prewarm finishes.
+      this.evalDeferredWhileBusy = true;
+      this.notifyEvalListeners();
+      return;
+    }
+
+    if (this.busy) {
+      // Bot is thinking; defer until maybeMove() finally block.
+      this.evalDeferredWhileBusy = true;
+      this.notifyEvalListeners();
+      return;
+    }
+
+    const state = this.controller.getState();
+    if (state.meta?.rulesetId !== "chess") {
+      this.lastEvalScore = null;
+      this.lastEvalFen = null;
+      this.notifyEvalListeners();
+      return;
+    }
+
+    let fen: string;
+    try {
+      fen = gameStateToFen(state);
+    } catch {
+      this.notifyEvalListeners();
+      return;
+    }
+
+    // Skip if position hasn't changed.
+    if (fen === this.lastEvalFen && this.lastEvalScore !== null) {
+      this.notifyEvalListeners();
+      return;
+    }
+
+    const engine = this.ensureEngine();
+    if (!engine.evaluate) {
+      this.notifyEvalListeners();
+      return;
+    }
+
+    this.evalRunning = true;
+    this.evalDeferredWhileBusy = false;
+    this.notifyEvalListeners(); // signal pending = true
+
+    try {
+      const score = await engine.evaluate(fen, { movetimeMs: 250, timeoutMs: 5000 });
+      if (score !== null) {
+        // Normalize to White-perspective before storing so the panel never
+        // needs to know what toMove was at eval time (avoids sign-flip after undo).
+        const toMove = state.toMove;
+        this.lastEvalScore = "mate" in score
+          ? { mate: toMove === "W" ? score.mate : -score.mate }
+          : { cp:   toMove === "W" ? score.cp   : -score.cp   };
+        this.lastEvalFen = fen;
+      } else {
+        // Engine returned no score (may be starting up or busy); keep last score.
+        // eslint-disable-next-line no-console
+        console.warn("[chessbot] eval returned null for", fen.slice(0, 40));
+      }
+    } catch (err) {
+      // Keep last score on error; log so issues are visible in the console.
+      // eslint-disable-next-line no-console
+      console.warn("[chessbot] eval error:", err);
+    } finally {
+      this.evalRunning = false;
+      this.notifyEvalListeners();
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
 
   private static readonly PAUSED_TURN_TOAST_KEY = "chessbot_paused_turn";
   private static readonly WARMUP_TOAST_KEY = "chessbot_warmup";
@@ -415,8 +553,15 @@ export class ChessBotManager {
         // If we are paused, keep UX paused; just update status.
         this.refreshUI();
 
+        // Notify eval listeners that the engine is now ready.
+        this.notifyEvalListeners();
+
         // If the bot is active, try again now that the engine is ready.
         if (!this.settings.paused) this.kick();
+        // If an eval was scheduled before the engine was ready, run it now.
+        if (this.evalDeferredWhileBusy || this.evalDebounceTimer !== null) {
+          void this.runEval();
+        }
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error("[chessbot] engine prewarm failed", err);
@@ -1048,6 +1193,7 @@ export class ChessBotManager {
 
     // Any position change can affect whether it's a bot turn.
     this.kick();
+    this.scheduleEval();
   }
 
   private onGameOver(): void {
@@ -1284,6 +1430,11 @@ export class ChessBotManager {
       this.setStatus(`Bot error: ${msg}`);
     } finally {
       this.busy = false;
+      // If an eval was deferred while the bot was busy, run it now.
+      if (this.evalDeferredWhileBusy) {
+        this.evalDeferredWhileBusy = false;
+        void this.runEval();
+      }
     }
   }
 }

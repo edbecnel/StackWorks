@@ -325,6 +325,23 @@
         gap: 6px;
       }
 
+      .engineEvalNumbers {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        margin-bottom: 4px;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .engineEvalNumW {
+        color: rgba(255, 255, 255, 0.95);
+      }
+      .engineEvalNumB {
+        color: rgba(180, 210, 255, 0.9);
+      }
+
       .chessEvalBarTrack {
         position: relative;
         width: 100%;
@@ -1773,12 +1790,22 @@
                   <button
                     type="button"
                     class="panelBtn iconToggleBtn evalModeBtn"
+                    data-mode="engine"
+                    aria-pressed="false"
+                    title="Engine evaluation (Stockfish)"
+                    aria-label="Engine evaluation (Stockfish)"
+                  >
+                    &#x26A1;
+                  </button>
+                  <button
+                    type="button"
+                    class="panelBtn iconToggleBtn evalModeBtn"
                     data-mode="material"
                     aria-pressed="false"
                     title="Material balance"
                     aria-label="Material balance"
                   >
-                    ⛀
+                    &#x26C0;
                   </button>
                   <button
                     type="button"
@@ -1788,7 +1815,7 @@
                     title="Mobility (legal moves)"
                     aria-label="Mobility (legal moves)"
                   >
-                    ⇄
+                    &#x21C4;
                   </button>
                   <button
                     type="button"
@@ -1798,7 +1825,7 @@
                     title="Center control"
                     aria-label="Center control"
                   >
-                    ⌖
+                    &#x2316;
                   </button>
                   <button
                     type="button"
@@ -1808,7 +1835,7 @@
                     title="Threats (attacked / hanging pieces)"
                     aria-label="Threats (attacked / hanging pieces)"
                   >
-                    ⚔
+                    &#x2694;
                   </button>
                 </div>
               </div>
@@ -1822,6 +1849,16 @@
                 "
               >
                 —
+              </div>
+
+              <div
+                id="engineEvalNumbers"
+                class="engineEvalNumbers"
+                style="visibility: hidden"
+                aria-label="Engine evaluation scores"
+              >
+                <span id="engineEvalNumW">W —</span>
+                <span id="engineEvalNumB">B —</span>
               </div>
 
               <div class="chessEvalBars" aria-label="Evaluation quantity bars">

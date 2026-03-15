@@ -1,4 +1,4 @@
-import type { UciEngine, UciBestMoveArgs } from "./uciEngine.ts";
+import type { UciEngine, UciBestMoveArgs, EvalScore } from "./uciEngine.ts";
 
 // NOTE:
 // Stockfish is loaded as a classic Worker + WASM. In Vite dev, URLs resolved
@@ -165,6 +165,8 @@ export class StockfishUciEngine implements UciEngine {
   private readonly cleanup: (() => void) | null;
   private lines: UciLine[] = [];
   private waiters: Array<{ pred: (line: string) => boolean; resolve: (line: string) => void }> = [];
+  /** Persistent line observers used by evaluate(). Return true to auto-remove. */
+  private lineObservers: Array<(line: string) => boolean> = [];
   private isReady = false;
   private initPromise: Promise<void> | null = null;
   private currentSkill: number | null = null;
@@ -242,6 +244,14 @@ export class StockfishUciEngine implements UciEngine {
             w.resolve(line);
             // Continue processing remaining emitted lines.
             continue;
+          }
+        }
+
+        // Notify line observers (used by evaluate()). Auto-remove those that return true.
+        for (let i = this.lineObservers.length - 1; i >= 0; i--) {
+          const obs = this.lineObservers[i];
+          if (obs && obs(line)) {
+            this.lineObservers.splice(i, 1);
           }
         }
 
@@ -406,5 +416,45 @@ export class StockfishUciEngine implements UciEngine {
       throw new Error("Stockfish returned no bestmove");
     }
     return move;
+  }
+
+  async evaluate(fen: string, opts?: { movetimeMs?: number; timeoutMs?: number }): Promise<EvalScore | null> {
+    const movetimeMs = Math.max(10, Math.round(opts?.movetimeMs ?? 200));
+    const timeoutMs = opts?.timeoutMs ?? Math.max(3000, movetimeMs * 15);
+
+    await this.init({ timeoutMs });
+
+    // Clear stale lines from previous engine activity.
+    this.lines = this.lines.filter(
+      (l) => !l.startsWith("bestmove ") && !(l.startsWith("info ") && l.includes(" score "))
+    );
+
+    // Register the observer BEFORE sending go so no lines can be missed.
+    let lastScore: EvalScore | null = null;
+    const scorePattern = /\bscore\s+(cp\s+(-?\d+)|mate\s+(-?\d+))/;
+
+    const promise = new Promise<EvalScore | null>((resolve) => {
+      const obs = (line: string): boolean => {
+        if (line.startsWith("info ")) {
+          const m = scorePattern.exec(line);
+          if (m) {
+            if (m[2] !== undefined) lastScore = { cp: parseInt(m[2], 10) };
+            else if (m[3] !== undefined) lastScore = { mate: parseInt(m[3], 10) };
+          }
+          return false; // Keep observing
+        }
+        if (line.startsWith("bestmove ")) {
+          resolve(lastScore);
+          return true; // Remove this observer
+        }
+        return false;
+      };
+      this.lineObservers.push(obs);
+    });
+
+    this.send(`position fen ${fen}`);
+    this.send(`go movetime ${movetimeMs}`);
+
+    return withTimeout(promise, timeoutMs, "evaluate").catch(() => lastScore);
   }
 }

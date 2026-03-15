@@ -1,4 +1,4 @@
-import type { UciBestMoveArgs, UciEngine } from "./uciEngine.ts";
+import type { UciBestMoveArgs, UciEngine, EvalScore } from "./uciEngine.ts";
 
 function withAbortTimeout<T>(args: {
   p: Promise<T>;
@@ -104,5 +104,32 @@ export class HttpUciEngine implements UciEngine {
       });
 
     return withAbortTimeout({ p, ms: timeoutMs + 500, label: "bestmove", ctrl });
+  }
+
+  async evaluate(fen: string, opts?: { movetimeMs?: number; timeoutMs?: number }): Promise<EvalScore | null> {
+    const movetimeMs = opts?.movetimeMs ?? 200;
+    const timeoutMs = opts?.timeoutMs ?? Math.max(3000, movetimeMs * 15);
+    try {
+      const ctrl = new AbortController();
+      const p = fetch(`${this.baseUrl}/evaluate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ fen, movetimeMs }),
+        signal: ctrl.signal,
+      })
+        .then(async (r) => {
+          const json = (await r.json().catch(() => null)) as any;
+          if (!r.ok || !json?.ok) return null;
+          if (typeof json.cp === "number") return { cp: json.cp } as EvalScore;
+          if (typeof json.mate === "number") return { mate: json.mate } as EvalScore;
+          return null;
+        })
+        .finally(() => {
+          try { ctrl.abort(); } catch { /* ignore */ }
+        });
+      return await withAbortTimeout({ p, ms: timeoutMs, label: "evaluate", ctrl });
+    } catch {
+      return null;
+    }
   }
 }
