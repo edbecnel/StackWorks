@@ -256,6 +256,10 @@ window.addEventListener("DOMContentLoaded", async () => {
   history.push(state);
 
   renderGameState(svg, piecesLayer, orientedInspector as any, state);
+  // Overlay groups must exist before the first paint so that the initial
+  // play-area zoom getBBox() sees the same DOM structure as subsequent frames,
+  // preventing a visible zoom jump on the first move.
+  ensureOverlayLayer(svg);
 
   // Board SVG + theme are now loaded; keep spinner until the first paint.
   await nextPaint();
@@ -265,7 +269,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   svg.addEventListener(THEME_WILL_CHANGE_EVENT, () => boardLoading.show());
   svg.addEventListener(THEME_DID_CHANGE_EVENT, () => boardLoading.hide());
 
-  ensureOverlayLayer(svg);
   const driver = await createDriverAsync({
     state,
     history,

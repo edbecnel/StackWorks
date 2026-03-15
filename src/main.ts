@@ -198,6 +198,10 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (elMsg) elMsg.textContent = "—";
 
   renderGameState(svg, piecesLayer, inspector, state);
+  // Overlay groups must exist before the first paint so that the initial
+  // play-area zoom getBBox() sees the same DOM structure as subsequent frames,
+  // preventing a visible zoom jump on the first move.
+  ensureOverlayLayer(svg);
 
   // Board SVG + theme are now loaded; keep spinner until the first paint.
   await nextPaint();
@@ -213,7 +217,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   // PR 4+5: interaction — controller binds selection and applies quiet moves
-  ensureOverlayLayer(svg);
   const driver = await createDriverAsync({
     state,
     history,

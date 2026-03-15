@@ -441,6 +441,13 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   renderGameState(svg, piecesLayer, inspector as any, state);
 
+  // Ensure the overlay layer exists before the first paint so the play-area zoom
+  // (syncBoardPlayAreaZoom, frame 1 of nextPaint) sees the same DOM state as
+  // subsequent calls triggered by moves.  Without this, the overlay's empty
+  // sublayers are absent during the initial bbox clamp computation, causing the
+  // board to appear slightly smaller at load and then "zoom in" on the first move.
+  ensureOverlayLayer(svg);
+
   // Board SVG + theme are now loaded; keep spinner until the first paint.
   await nextPaint();
   boardLoading.hide();
@@ -448,8 +455,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Theme switching can involve slow raster PNG loads; show spinner while themes apply.
   svg.addEventListener(THEME_WILL_CHANGE_EVENT, () => boardLoading.show());
   svg.addEventListener(THEME_DID_CHANGE_EVENT, () => boardLoading.hide());
-
-  ensureOverlayLayer(svg);
   const driver = await createDriverAsync({
     state,
     history,
