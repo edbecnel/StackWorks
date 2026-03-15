@@ -921,7 +921,16 @@ export function bindPanelLayoutMenuMode(): void {
     const anyWrap = boardWrap as any;
     if (boardWrap && typeof MutationObserver !== "undefined" && !anyWrap.__panelLayoutBoardWrapObserver) {
       const obs = new MutationObserver(() => {
-        scheduleBoardPlayAreaZoomSync();
+        // If #boardPlayArea doesn't exist yet, the SVG just arrived for the first time.
+        // Apply zoom synchronously so there's no visible 1-frame flash at un-zoomed size.
+        // MutationObserver callbacks do not recurse within the same delivery, so this
+        // is safe even though syncBoardPlayAreaZoom mutates child nodes.
+        const svg = boardWrap.querySelector("svg") as SVGSVGElement | null;
+        if (svg && !svg.querySelector("#boardPlayArea")) {
+          syncBoardPlayAreaZoom();
+        } else {
+          scheduleBoardPlayAreaZoomSync();
+        }
         scheduleBoardViewportFitSync();
       });
       // IMPORTANT: do NOT observe attributes. Our zoom implementation updates

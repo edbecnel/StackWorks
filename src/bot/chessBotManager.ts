@@ -1055,6 +1055,7 @@ export class ChessBotManager {
     if (!anyBot) {
       this.refreshUI();
       this.updateInputForCurrentTurn();
+      this.scheduleEval();
       return;
     }
 
@@ -1079,6 +1080,7 @@ export class ChessBotManager {
     this.refreshUI();
     this.updateInputForCurrentTurn();
     this.schedulePausedTurnToastSync();
+    this.scheduleEval();
   }
 
   private onLoadGame(): void {
