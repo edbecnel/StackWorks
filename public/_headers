@@ -1,43 +1,69 @@
 # Cloudflare Pages response headers.
+
 #
+
 # Vite content-hashes all bundled assets (JS, CSS, SVGs imported via ?url), so
+
 # their filenames change whenever their content changes. These can be cached
+
 # forever with the immutable directive - the browser will never need to
+
 # revalidate them.
+
 #
+
 # HTML entry points are NOT hashed; they must always revalidate so users pick
+
 # up new deployments immediately.
 
 # Apply COOP + COEP + no-cache to every response so all pages (including clean
+
 # URLs like /chess, /) are cross-origin isolated and never stale-cached by CDN.
+
 # More specific rules below override Cache-Control for assets.
-/*
-  Cross-Origin-Opener-Policy: same-origin
-  Cross-Origin-Embedder-Policy: require-corp
-  Cache-Control: no-cache, must-revalidate
+
+/\*
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+Cache-Control: no-cache, must-revalidate
 
 # Vite-bundled assets (JS chunks, CSS, imported SVG/image assets).
-/assets/*
-  Cache-Control: public, max-age=31536000, immutable
+
+# Must repeat COOP/COEP because specific path rules do not inherit from /\*.
+
+/assets/\*
+Cache-Control: public, max-age=31536000, immutable
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
 
 # Stockfish WASM + worker (large, rarely changes, versioned in filename).
-# Cross-Origin-Resource-Policy: cross-origin is required so that the Stockfish
-# worker can fetch these files under COEP.
-/vendor/*
-  Cache-Control: public, max-age=31536000, immutable
-  Cross-Origin-Resource-Policy: cross-origin
+
+# Cross-Origin-Resource-Policy: cross-origin — allows the page (under COEP) to
+
+# load these files. Cross-Origin-Embedder-Policy: require-corp — required for
+
+# Chrome to allow a dedicated Worker created from a cross-origin-isolated page.
+
+/vendor/\*
+Cache-Control: public, max-age=31536000, immutable
+Cross-Origin-Resource-Policy: cross-origin
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
 
 # Piece and icon images (not hashed, but change infrequently).
-/pieces/*
-  Cache-Control: public, max-age=2592000
 
-/icons/*
-  Cache-Control: public, max-age=2592000
+/pieces/\*
+Cache-Control: public, max-age=2592000
+
+/icons/\*
+Cache-Control: public, max-age=2592000
 
 # Splash screen (not hashed).
+
 /splash.png
-  Cache-Control: public, max-age=2592000
+Cache-Control: public, max-age=2592000
 
 # Service Worker file must never be cached aggressively.
+
 /sw.js
-  Cache-Control: no-store
+Cache-Control: no-store
