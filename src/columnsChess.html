@@ -163,6 +163,13 @@
         color: var(--panel-text);
       }
 
+      #touchAnnotationPalette
+        .touchAnnotationSwatch[data-annotation-type^="digit-"] {
+        background: rgba(0, 0, 0, 0.28);
+        font-size: 15px;
+        font-weight: 800;
+      }
+
       #touchAnnotationPalette .touchAnnotationSwatch[data-action="clear"] {
         background: rgba(0, 0, 0, 0.72);
         border-color: rgba(255, 255, 255, 0.65);
@@ -1495,6 +1502,109 @@
                   stroke-linejoin="round"
                 />
               </svg>
+            </button>
+
+            <div class="touchAnnotationDivider"></div>
+
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-annotation-type="digit-0"
+              aria-label="Number 0 annotation"
+              title="0"
+              aria-pressed="false"
+            >
+              0
+            </button>
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-annotation-type="digit-1"
+              aria-label="Number 1 annotation"
+              title="1"
+              aria-pressed="false"
+            >
+              1
+            </button>
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-annotation-type="digit-2"
+              aria-label="Number 2 annotation"
+              title="2"
+              aria-pressed="false"
+            >
+              2
+            </button>
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-annotation-type="digit-3"
+              aria-label="Number 3 annotation"
+              title="3"
+              aria-pressed="false"
+            >
+              3
+            </button>
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-annotation-type="digit-4"
+              aria-label="Number 4 annotation"
+              title="4"
+              aria-pressed="false"
+            >
+              4
+            </button>
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-annotation-type="digit-5"
+              aria-label="Number 5 annotation"
+              title="5"
+              aria-pressed="false"
+            >
+              5
+            </button>
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-annotation-type="digit-6"
+              aria-label="Number 6 annotation"
+              title="6"
+              aria-pressed="false"
+            >
+              6
+            </button>
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-annotation-type="digit-7"
+              aria-label="Number 7 annotation"
+              title="7"
+              aria-pressed="false"
+            >
+              7
+            </button>
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-annotation-type="digit-8"
+              aria-label="Number 8 annotation"
+              title="8"
+              aria-pressed="false"
+            >
+              8
+            </button>
+            <button
+              type="button"
+              class="touchAnnotationSwatch"
+              data-annotation-type="digit-9"
+              aria-label="Number 9 annotation"
+              title="9"
+              aria-pressed="false"
+            >
+              9
             </button>
           </div>
         </div>

@@ -130,4 +130,25 @@ describe("renderBoardAnnotations", () => {
     const head = ann?.querySelector("polygon") as SVGPolygonElement | null;
     expect(head).not.toBeNull();
   });
+
+  it("renders numbered annotations on top of other marks", () => {
+    const svg = makeSvg8x8();
+
+    const state: BoardAnnotationsState = {
+      squares: [{ kind: "square", at: "r0c0", color: "orange" }],
+      arrows: [],
+      numbers: [{ kind: "number", at: "r0c0", color: "blue", value: "7" }],
+    };
+
+    renderBoardAnnotations(svg, state);
+
+    const overlays = svg.querySelector("#overlays") as SVGGElement | null;
+    const ann = overlays?.querySelector("#overlaysAnnotations") as SVGGElement | null;
+    expect(ann).not.toBeNull();
+
+    const number = ann?.querySelector("text.board-annotation-number") as SVGTextElement | null;
+    expect(number).not.toBeNull();
+    expect(number?.textContent).toBe("7");
+    expect(number?.getAttribute("fill")).toContain("102, 204, 255");
+  });
 });

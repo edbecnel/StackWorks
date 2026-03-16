@@ -2,6 +2,10 @@ import type { GameController } from "../controller/gameController";
 import type { AnnotationColor } from "../render/boardAnnotations";
 import type { AnnotationType, BoardVisualizationToolsController } from "./boardVisualizationTools";
 
+function isNumberAnnotationType(raw: string | null): boolean {
+  return raw !== null && /^digit-[0-9]$/.test(raw);
+}
+
 function isTouchLikeEnvironment(): boolean {
   try {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
@@ -36,7 +40,7 @@ export function bindTouchAnnotationPalette(controller: GameController, tools: Bo
   };
 
   const clampType = (raw: string | null): AnnotationType => {
-    if (raw === "play" || raw === "square" || raw === "circle" || raw === "pin" || raw === "protect" || raw === "remove") return raw;
+    if (raw === "play" || raw === "square" || raw === "circle" || raw === "pin" || raw === "protect" || raw === "remove" || isNumberAnnotationType(raw)) return raw;
     return "square";
   };
 

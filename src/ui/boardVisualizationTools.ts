@@ -1,7 +1,8 @@
-import { clearBoardAnnotations, renderBoardAnnotations, type AnnotationColor, type BoardAnnotationsState } from "../render/boardAnnotations";
+import { clearBoardAnnotations, renderBoardAnnotations, type AnnotationColor, type AnnotationDigit, type BoardAnnotationsState } from "../render/boardAnnotations";
 import type { GameState } from "../game/state";
 
-export type AnnotationType = "play" | "square" | "circle" | "pin" | "protect" | "remove";
+export type NumberAnnotationType = `digit-${AnnotationDigit}`;
+export type AnnotationType = "play" | "square" | "circle" | "pin" | "protect" | "remove" | NumberAnnotationType;
 
 export type BoardVisualizationToolsController = {
   clear: () => void;
@@ -186,6 +187,48 @@ function toggleProtect(state: BoardAnnotationsState, at: string, color: Annotati
   state.protects.push({ kind: "protect", at, color });
 }
 
+function annotationDigitFromType(type: AnnotationType): AnnotationDigit | null {
+  const raw = type.startsWith("digit-") ? type.slice(6) : "";
+  return /^[0-9]$/.test(raw) ? (raw as AnnotationDigit) : null;
+}
+
+function annotationTypeFromKey(key: string): AnnotationType | null {
+  if (key === "s") return "square";
+  if (key === "c") return "circle";
+  if (key === "n") return "pin";
+  if (key === "p") return "protect";
+  if (key === "x") return "remove";
+  return /^[0-9]$/.test(key) ? (`digit-${key}` as NumberAnnotationType) : null;
+}
+
+function toggleNumber(state: BoardAnnotationsState, at: string, value: AnnotationDigit, color: AnnotationColor): void {
+  if (!state.numbers) state.numbers = [];
+  const idx = state.numbers.findIndex((n) => n.at === at);
+  if (idx >= 0) {
+    const existing = state.numbers[idx];
+    if (existing.value === value && existing.color === color) state.numbers.splice(idx, 1);
+    else state.numbers[idx] = { kind: "number", at, value, color };
+    return;
+  }
+  state.numbers.push({ kind: "number", at, value, color });
+}
+
+function applyNodeAnnotation(state: BoardAnnotationsState, at: string, type: AnnotationType, color: AnnotationColor): void {
+  const digit = annotationDigitFromType(type);
+  if (digit !== null) {
+    toggleNumber(state, at, digit, color);
+    return;
+  }
+
+  switch (type) {
+    case "circle":  toggleCircle(state, at, color);      break;
+    case "pin":     togglePin(state, at, color);         break;
+    case "protect": toggleProtect(state, at, color);     break;
+    case "remove":  eraseAtNodePriority(state, at);      break;
+    default:         toggleSquare(state, at, color);      break;
+  }
+}
+
 /**
  * Analyse the pointer path of a completed drag gesture to determine how a
  * knight-move arrow should bend.  Looks at the position at ~40 % of arc
@@ -254,6 +297,8 @@ function toggleArrow(
 function eraseAtNode(state: BoardAnnotationsState, at: string): boolean {
   // Erase all annotation types at this node.
   let erased = false;
+  const ni = (state.numbers ?? []).findIndex((n) => n.at === at);
+  if (ni >= 0) { state.numbers!.splice(ni, 1); erased = true; }
   const si = state.squares.findIndex((s) => s.at === at);
   if (si >= 0) { state.squares.splice(si, 1); erased = true; }
   const ci = state.circles.findIndex((c) => c.at === at);
@@ -267,6 +312,8 @@ function eraseAtNode(state: BoardAnnotationsState, at: string): boolean {
 
 // Priority erase: removes pin/protect before square/circle.
 function eraseAtNodePriority(state: BoardAnnotationsState, at: string): boolean {
+  const ni = (state.numbers ?? []).findIndex((n) => n.at === at);
+  if (ni >= 0) { state.numbers!.splice(ni, 1); return true; }
   const pi = (state.pins ?? []).findIndex((p) => p.at === at);
   if (pi >= 0) { state.pins!.splice(pi, 1); return true; }
   const ti = (state.protects ?? []).findIndex((t) => t.at === at);
@@ -289,7 +336,7 @@ export function installBoardVisualizationTools(
   svg: SVGSVGElement,
   opts?: BoardVisualizationToolsOptions
 ): BoardVisualizationToolsController {
-  const state: BoardAnnotationsState = { arrows: [], squares: [], circles: [], pins: [], protects: [] };
+  const state: BoardAnnotationsState = { arrows: [], squares: [], circles: [], pins: [], protects: [], numbers: [] };
 
   const rerender = () => renderBoardAnnotations(svg, state);
   const clear = () => {
@@ -298,6 +345,7 @@ export function installBoardVisualizationTools(
     state.circles = [];
     state.pins = [];
     state.protects = [];
+    state.numbers = [];
     clearBoardAnnotations(svg);
   };
   const hasAnyAnnotations = () =>
@@ -305,7 +353,8 @@ export function installBoardVisualizationTools(
     state.squares.length > 0 ||
     state.circles.length > 0 ||
     state.pins.length > 0 ||
-    state.protects.length > 0;
+    state.protects.length > 0 ||
+    (state.numbers?.length ?? 0) > 0;
 
   const getGameState = opts?.getState ?? null;
 
@@ -346,7 +395,7 @@ export function installBoardVisualizationTools(
   let eraseMode = false;
   let activePointerId: number | null = null;
 
-  // Track the last completed right-click node so c/p/t keys can act on it post-gesture.
+  // Track the last completed right-click node so annotation keys can act on it post-gesture.
   let lastRcNode: string | null = null;
   let lastRcColor: AnnotationColor = "orange";
   let lastRcAtMs = 0;
@@ -456,15 +505,8 @@ export function installBoardVisualizationTools(
     if (!dragged) {
       if (kind === "right") {
         if (activeAnnotationType === "play") return;
-        // Dispatch to the appropriate annotation type.
-        switch (activeAnnotationType) {
-          case "circle":  toggleCircle(state, from, color);  break;
-          case "pin":     togglePin(state, from, color);     break;
-          case "protect": toggleProtect(state, from, color); break;
-          case "remove":  eraseAtNodePriority(state, from);  break;
-          default:        toggleSquare(state, from, color);  break;
-        }
-        // Record for the s/c/n/p/x keyboard shortcut window.
+        applyNodeAnnotation(state, from, activeAnnotationType, color);
+        // Record for the annotation keyboard shortcut window.
         lastRcNode = from;
         lastRcColor = color;
         lastRcAtMs = Date.now();
@@ -479,12 +521,7 @@ export function installBoardVisualizationTools(
         } else if (eraseMode) {
           eraseAtNode(state, from);
         } else {
-          switch (activeAnnotationType) {
-            case "circle":  toggleCircle(state, from, color);  break;
-            case "pin":     togglePin(state, from, color);     break;
-            case "protect": toggleProtect(state, from, color); break;
-            default:       toggleSquare(state, from, color); break;
-          }
+          applyNodeAnnotation(state, from, activeAnnotationType, color);
         }
         rerender();
         suppressClickUntilMs = now + 600;
@@ -519,7 +556,7 @@ export function installBoardVisualizationTools(
     suppressClickUntilMs = Date.now() + 600;
   };
 
-  // Keyboard shortcuts: s=square, c=circle, n=pin, p=protect, x=remove.
+  // Keyboard shortcuts: s=square, c=circle, n=pin, p=protect, x=remove, 0-9=numbers.
   // During an active right-click gesture: changes active annotation type so the
   // upcoming pointerup uses the new type.
   // Within RC_KEY_WINDOW_MS after a completed right-click: acts on the last node.
@@ -551,12 +588,8 @@ export function installBoardVisualizationTools(
     if (!isPlainKey(ev)) return;
 
     const key = ev.key.toLowerCase();
-    if (key !== "s" && key !== "c" && key !== "n" && key !== "p" && key !== "x") return;
-
-    // Always update the active annotation type.
-    // s=square, c=circle, n=pin, p=protect, x=remove
-    const newType: AnnotationType =
-      key === "c" ? "circle" : key === "n" ? "pin" : key === "p" ? "protect" : key === "x" ? "remove" : "square";
+    const newType = annotationTypeFromKey(key);
+    if (!newType) return;
 
     if (gestureActive && gestureKind === "right") {
       // Gesture in progress: update for when pointerup fires.
@@ -570,11 +603,7 @@ export function installBoardVisualizationTools(
     if (node && Date.now() - lastRcAtMs <= RC_KEY_WINDOW_MS) {
       ev.preventDefault();
       activeAnnotationType = newType;
-      if (key === "s")      toggleSquare(state, node, lastRcColor);
-      else if (key === "c") toggleCircle(state, node, lastRcColor);
-      else if (key === "n") togglePin(state, node, lastRcColor);
-      else if (key === "p") toggleProtect(state, node, lastRcColor);
-      else                  eraseAtNodePriority(state, node); // x
+      applyNodeAnnotation(state, node, newType, lastRcColor);
       rerender();
       lastRcAtMs = 0; // consume window
     } else {

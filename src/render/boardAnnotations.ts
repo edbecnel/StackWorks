@@ -22,6 +22,8 @@ function isTouchLikeEnvironment(): boolean {
 
 export type AnnotationColor = "orange" | "green" | "red" | "blue";
 
+export type AnnotationDigit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
+
 export type BoardArrowMark = {
   kind: "arrow";
   from: string; // nodeId, e.g. r0c0
@@ -61,12 +63,20 @@ export type BoardProtectMark = {
   color: AnnotationColor;
 };
 
+export type BoardNumberMark = {
+  kind: "number";
+  at: string; // nodeId
+  color: AnnotationColor;
+  value: AnnotationDigit;
+};
+
 export type BoardAnnotationsState = {
   arrows: BoardArrowMark[];
   squares: BoardSquareMark[];
   circles?: BoardCircleMark[];
   pins?: BoardPinMark[];
   protects?: BoardProtectMark[];
+  numbers?: BoardNumberMark[];
 };
 
 function parseNodeIdFast(id: string): { r: number; c: number } | null {
@@ -331,6 +341,37 @@ function drawProtectMark(svg: SVGSVGElement, layer: SVGGElement, mark: BoardProt
   layer.appendChild(g);
 }
 
+function drawNumberMark(svg: SVGSVGElement, layer: SVGGElement, mark: BoardNumberMark): void {
+  const rect = computeSquareRect(svg, mark.at);
+  if (!rect) return;
+
+  const { stroke } = colorToStrokeFill(mark.color);
+
+  const cx = rect.x + rect.w / 2;
+  const cy = rect.y + rect.h / 2;
+  const size = Math.max(12.5, Math.min(rect.w, rect.h) * 0.325);
+  const outline = Math.max(1.875, Math.min(rect.w, rect.h) * 0.05);
+
+  const el = document.createElementNS(SVG_NS, "text") as SVGTextElement;
+  el.setAttribute("class", `board-annotation-number board-annotation-number--${mark.color}`);
+  el.setAttribute("x", String(cx));
+  el.setAttribute("y", String(cy));
+  el.setAttribute("text-anchor", "middle");
+  el.setAttribute("dominant-baseline", "central");
+  el.setAttribute("font-size", String(size));
+  el.setAttribute("font-weight", "800");
+  el.setAttribute("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif");
+  el.setAttribute("font-variant-numeric", "tabular-nums");
+  el.setAttribute("fill", stroke);
+  el.setAttribute("stroke", "rgba(0, 0, 0, 0.72)");
+  el.setAttribute("stroke-width", String(outline));
+  el.setAttribute("paint-order", "stroke fill");
+  el.setAttribute("stroke-linejoin", "round");
+  el.setAttribute("opacity", "0.96");
+  el.textContent = mark.value;
+  layer.appendChild(el);
+}
+
 
 function drawArrowMark(layer: SVGGElement, mark: BoardArrowMark): void {
   const a = getCircleCenter(mark.from);
@@ -467,12 +508,13 @@ export function renderBoardAnnotations(svg: SVGSVGElement, state: BoardAnnotatio
   clearLayer(layer);
 
   // Draw background highlights first (squares and circles), then arrows,
-  // then pin/protect symbols on top so they are never obscured by arrow lines.
+  // then pin/protect symbols, then numbers on top for readability.
   for (const s of state.squares)            drawSquareMark(svg, layer, s);
   for (const c of state.circles  ?? [])     drawCircleMark(svg, layer, c);
   for (const a of state.arrows)             drawArrowMark(layer, a);
   for (const p of state.pins     ?? [])     drawPinMark(svg, layer, p);
   for (const t of state.protects ?? [])     drawProtectMark(svg, layer, t);
+  for (const n of state.numbers  ?? [])     drawNumberMark(svg, layer, n);
 }
 
 export function clearBoardAnnotations(svg: SVGSVGElement): void {
