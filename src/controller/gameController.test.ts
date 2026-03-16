@@ -580,7 +580,7 @@ describe("GameController loadGame reconstructs last-move hints", () => {
       if (reason !== "loadGame") return;
       controller.showStickyToast(
         "chessbot_paused_turn",
-        "Black to Play. Tap here to resume bot",
+        "Black to Play. Tap here ore press spacebar to resume bot",
         { force: true }
       );
     });
@@ -588,7 +588,7 @@ describe("GameController loadGame reconstructs last-move hints", () => {
     controller.loadGame(loaded, { states: [s0, loaded], notation: ["", ""], currentIndex: 1 });
 
     const toast = document.querySelector(".lascaToast") as HTMLElement | null;
-    expect(toast?.textContent).toBe("Black to Play. Tap here to resume bot");
+    expect(toast?.textContent).toBe("Black to Play. Tap here ore press spacebar to resume bot");
   });
 });
 

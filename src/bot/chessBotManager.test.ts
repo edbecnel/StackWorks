@@ -110,7 +110,7 @@ describe("ChessBotManager loadGame paused toast", () => {
 
     expect(controller.sticky.key).toBe("chessbot_paused_turn");
     expect(controller.sticky.text).toContain("Black");
-    expect(controller.sticky.text).toContain("Tap here to resume bot");
+    expect(controller.sticky.text).toContain("Tap here ore press spacebar to resume bot");
     expect(controller.stickyActionKeys).toContain("chessbot_paused_turn");
   });
 });

@@ -979,7 +979,7 @@ export class ChessBotManager {
 
       this.controller.setInputEnabled(false);
       const sideLabel = toMove === "B" ? "Black" : "White";
-      const msg = `${sideLabel} to Play. Tap here to resume bot`;
+      const msg = `${sideLabel} to Play. Tap here ore press spacebar to resume bot`;
       this.controller.setStickyToastAction(ChessBotManager.PAUSED_TURN_TOAST_KEY, () => this.resumeBotFromPause());
       this.controller.showStickyToast(ChessBotManager.PAUSED_TURN_TOAST_KEY, msg, { force: true });
       return;

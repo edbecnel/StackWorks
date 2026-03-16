@@ -82,7 +82,7 @@ describe("AIManager paused-turn sticky toast", () => {
     vi.runAllTimers();
 
     expect(controller.sticky.key).toBe("aiPausedTapResume");
-    expect(controller.sticky.text).toBe("Light to Play. Tap here to resume bot");
+    expect(controller.sticky.text).toBe("Light to Play. Tap here ore press spacebar to resume bot");
   });
 
   it("auto-resumes after the timed turn toast once the game is no longer fresh (human moved first)", () => {
@@ -136,7 +136,7 @@ describe("AIManager paused-turn sticky toast", () => {
     vi.runAllTimers();
 
     expect(controller.sticky.key).toBe("aiPausedTapResume");
-    expect(controller.sticky.text).toBe("Light to Play. Tap here to resume bot");
+    expect(controller.sticky.text).toBe("Light to Play. Tap here ore press spacebar to resume bot");
   });
 
   it("shows sticky tap-to-resume after newGame for non-chess", () => {
@@ -157,7 +157,7 @@ describe("AIManager paused-turn sticky toast", () => {
     vi.runAllTimers();
 
     expect(controller.sticky.key).toBe("aiPausedTapResume");
-    expect(controller.sticky.text).toBe("Light to Play. Tap here to resume bot");
+    expect(controller.sticky.text).toBe("Light to Play. Tap here ore press spacebar to resume bot");
   });
 
   it("forces AI dropdowns to Human during analysis and restores after", () => {

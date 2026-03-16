@@ -24,6 +24,24 @@ function findCurrentIndex(controller: GameController): number {
   return current.index;
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el) return false;
+  const tag = el.tagName ? el.tagName.toLowerCase() : "";
+  return tag === "input" || tag === "textarea" || tag === "select" || Boolean((el as any).isContentEditable);
+}
+
+function toggleLiveBotPauseResume(): boolean {
+  const ids = ["botPauseBtn", "aiPauseBtn"];
+  for (const id of ids) {
+    const el = document.getElementById(id) as HTMLButtonElement | null;
+    if (!el || el.disabled) continue;
+    el.click();
+    return true;
+  }
+  return false;
+}
+
 export function bindPlaybackControls(controller: GameController): void {
   const elBtn = document.getElementById("playbackBtn") as HTMLButtonElement | null;
   const elDelay = document.getElementById("playbackDelay") as HTMLInputElement | null;
@@ -203,9 +221,7 @@ export function bindPlaybackControls(controller: GameController): void {
   window.addEventListener("keydown", (ev: KeyboardEvent) => {
     if (ev.defaultPrevented) return;
     if (ev.key !== " " || ev.ctrlKey || ev.metaKey || ev.altKey || ev.shiftKey) return;
-    const target = ev.target as Element | null;
-    const tag = target?.tagName?.toLowerCase() ?? "";
-    if (tag === "input" || tag === "textarea" || tag === "select" || (target as HTMLElement | null)?.isContentEditable) return;
+    if (isEditableTarget(ev.target)) return;
 
     if (playing) {
       ev.preventDefault();
@@ -216,6 +232,11 @@ export function bindPlaybackControls(controller: GameController): void {
     if (boardPaused || controller.canRedo()) {
       ev.preventDefault();
       start();
+      return;
+    }
+
+    if (toggleLiveBotPauseResume()) {
+      ev.preventDefault();
       return;
     }
   });

@@ -280,7 +280,7 @@ export class AIManager {
         AIManager.TAP_RESUME_TOAST_KEY,
         isPast && canRedo
           ? `${sideLabel(toMove)} to Play. Tap here to redo bot move`
-          : `${sideLabel(toMove)} to Play. Tap here to resume bot`,
+          : `${sideLabel(toMove)} to Play. Tap here ore press spacebar to resume bot`,
         { force: true }
       );
     } else {

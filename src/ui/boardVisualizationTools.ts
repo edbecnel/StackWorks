@@ -536,8 +536,8 @@ export function installBoardVisualizationTools(
   window.addEventListener("keydown", (ev: KeyboardEvent) => {
     if (isEditableEl(ev.target)) return;
 
-    const isSpace = ev.key === " " || ev.code === "Space";
-    if (isSpace && !ev.ctrlKey && !ev.metaKey && !ev.altKey && !ev.shiftKey && hasAnyAnnotations()) {
+    const isAltX = ev.key.toLowerCase() === "x" && ev.altKey && !ev.ctrlKey && !ev.metaKey && !ev.shiftKey;
+    if (isAltX && hasAnyAnnotations()) {
       ev.preventDefault();
       gestureActive = false;
       startNode = null;

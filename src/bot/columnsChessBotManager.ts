@@ -397,7 +397,7 @@ export class ColumnsChessBotManager {
     const side = state.toMove === "W" ? "White" : "Black";
     this.controller.showStickyToast(
       ColumnsChessBotManager.PAUSED_TURN_TOAST_KEY,
-      `${side}'s turn. Tap here to resume bot`,
+      `${side}'s turn. Tap here ore press spacebar to resume bot`,
       { force: true }
     );
   }
