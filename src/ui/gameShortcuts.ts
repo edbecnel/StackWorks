@@ -1,4 +1,5 @@
 import type { GameController } from "../controller/gameController.ts";
+import { togglePanelLayoutMode } from "./panelLayoutMode";
 
 function isChessLikeRulesetId(rulesetId: string | null | undefined): boolean {
   return rulesetId === "chess" || rulesetId === "columns_chess";
@@ -172,6 +173,7 @@ function openKeyboardShortcutsPopup(controller?: GameController): void {
       ${analysisShortcutRow}
       <li><b>Resign:</b> <code>Ctrl/Cmd+Shift+X</code></li>
       <li><b>Full Screen:</b> <code>Ctrl/Cmd+Shift+F</code></li>
+      <li><b>Toggle layout:</b> <code>Ctrl/Cmd+Shift+L</code> (Panels ↔ Menu)</li>
     </ul>
 
     <h2>Playback</h2>
@@ -507,6 +509,13 @@ export function bindGameHotkeys(controller: GameController): void {
 
       ev.preventDefault();
       controller.setAnalysisMode(!controller.isAnalysisMode());
+      return;
+    }
+
+    // Toggle layout (Panels ↔ Menu)
+    if (mod && !ev.altKey && key === "l" && ev.shiftKey) {
+      ev.preventDefault();
+      togglePanelLayoutMode();
       return;
     }
 

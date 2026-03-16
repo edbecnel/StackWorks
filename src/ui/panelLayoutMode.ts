@@ -39,6 +39,13 @@ export function writePanelLayoutMode(mode: PanelLayoutMode): void {
   }
 }
 
+export function togglePanelLayoutMode(): PanelLayoutMode {
+  const next: PanelLayoutMode = readPanelLayoutMode() === "menu" ? "panels" : "menu";
+  writePanelLayoutMode(next);
+  applyPanelLayoutMode(next);
+  return next;
+}
+
 function ensureInjectedStyles(): void {
   if (typeof document === "undefined") return;
   if (document.getElementById("panelLayoutModeStyles")) return;
