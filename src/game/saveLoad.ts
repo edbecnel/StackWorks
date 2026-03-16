@@ -194,7 +194,11 @@ export function deserializeGameState(data: SerializedGameState): GameState {
   };
 }
 
-export function serializeSaveData(state: GameState, history?: HistoryManager): SerializedSaveFile {
+export function serializeSaveData(
+  state: GameState,
+  history?: HistoryManager,
+  opts?: { includeTiming?: boolean }
+): SerializedSaveFile {
   const meta = getMetaForState(state);
 
   const base: SerializedSaveFileV3 = {
@@ -209,7 +213,8 @@ export function serializeSaveData(state: GameState, history?: HistoryManager): S
   if (!history) return base;
 
   const exported = history.exportSnapshots();
-  const hasTimingData = exported.emtMs.some((v) => v !== null);
+  const includeTiming = opts?.includeTiming ?? true;
+  const hasTimingData = includeTiming && exported.emtMs.some((v) => v !== null);
   return {
     ...base,
     history: {
@@ -411,8 +416,13 @@ export function deserializeSaveData(
 /**
  * Save game state to a JSON file download
  */
-export function saveGameToFile(state: GameState, history?: HistoryManager, filename = "lasca-game.json"): void {
-  const serialized = serializeSaveData(state, history);
+export function saveGameToFile(
+  state: GameState,
+  history?: HistoryManager,
+  filename = "lasca-game.json",
+  opts?: { includeTiming?: boolean }
+): void {
+  const serialized = serializeSaveData(state, history, opts);
   const json = JSON.stringify(serialized, null, 2);
   const blob = new Blob([json], { type: "application/json" });
 

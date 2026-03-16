@@ -80,6 +80,10 @@ export function bindPlaybackControls(controller: GameController): void {
     elUseRecorded.disabled = !hasData;
     if (elUseRecordedRow) elUseRecordedRow.style.opacity = hasData ? "" : "0.45";
     if (!hasData && elUseRecorded.checked) elUseRecorded.checked = false;
+
+    const useRecorded = hasData && elUseRecorded.checked;
+    elDelay.disabled = useRecorded;
+    elDelayReset.disabled = useRecorded;
   };
 
   const isAtEnd = () => !controller.canRedo() && controller.canUndo();
@@ -276,6 +280,10 @@ export function bindPlaybackControls(controller: GameController): void {
   elDelayReset.addEventListener("click", () => {
     delayMs = DEFAULT_DELAY_MS;
     updateSpeedUI();
+  });
+
+  elUseRecorded?.addEventListener("change", () => {
+    updateRecordedTimingUI();
   });
 
   controller.addHistoryChangeCallback((reason: HistoryChangeReason) => {

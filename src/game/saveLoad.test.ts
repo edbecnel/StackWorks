@@ -125,6 +125,27 @@ describe("saveLoad", () => {
     expect(loaded.state.meta!.variantId).toBeDefined();
   });
 
+  it("omits recorded move times when includeTiming is false", () => {
+    const s0: GameState = {
+      board: new Map([["r6c0", [{ owner: "W", rank: "S" }]]]),
+      toMove: "W",
+      phase: "idle",
+    };
+    const s1: GameState = {
+      board: new Map([["r5c1", [{ owner: "W", rank: "S" }]]]),
+      toMove: "B",
+      phase: "idle",
+    };
+
+    const history = new HistoryManager();
+    history.push(s0, "Start", null);
+    history.push(s1, "A1 → B2", 1234);
+
+    const save = serializeSaveData(s1, history, { includeTiming: false }) as any;
+    expect(save.history).toBeDefined();
+    expect(save.history.emtMs).toBeUndefined();
+  });
+
   it("should keep backward compatibility with v1 state-only saves", () => {
     const state: GameState = {
       board: new Map([["r3c3", [{ owner: "B", rank: "O" }]]]),

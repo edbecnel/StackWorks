@@ -827,6 +827,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   const saveGameBtn = document.getElementById("saveGameBtn") as HTMLButtonElement | null;
   const loadGameBtn = document.getElementById("loadGameBtn") as HTMLButtonElement | null;
   const loadGameInput = document.getElementById("loadGameInput") as HTMLInputElement | null;
+  const exportPgnTimingToggle = document.getElementById("exportPgnTimingToggle") as HTMLInputElement | null;
   if (saveGameBtn) {
     saveGameBtn.addEventListener("click", () => {
       const currentState = controller.getState();
@@ -835,7 +836,9 @@ window.addEventListener("DOMContentLoaded", async () => {
       const filename = namePart
         ? `chess -- ${namePart} -- ${ts}.json`
         : `chess -- ${ts}.json`;
-      saveGameToFile(currentState, history, filename);
+      saveGameToFile(currentState, history, filename, {
+        includeTiming: exportPgnTimingToggle?.checked ?? false,
+      });
     });
   }
   if (loadGameBtn && loadGameInput) {
@@ -850,6 +853,11 @@ window.addEventListener("DOMContentLoaded", async () => {
           boardSize: 8,
         });
         controller.loadGame(loaded.state, loaded.history);
+        try {
+          controller.jumpToHistory(0);
+        } catch {
+          // ignore
+        }
       } catch (error) {
         // eslint-disable-next-line no-console
         console.error("Failed to load game:", error);
@@ -1670,7 +1678,6 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   if (exportPgnBtn) {
     exportPgnBtn.addEventListener("click", () => {
-      const exportPgnTimingToggle = document.getElementById("exportPgnTimingToggle") as HTMLInputElement | null;
       const includeTiming = exportPgnTimingToggle?.checked ?? false;
       try {
         const pgn = exportCurrentLineToPgnText(includeTiming);

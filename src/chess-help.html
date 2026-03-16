@@ -267,7 +267,11 @@
           (Classic/Green/Blue/Stone/Burled Wood).
         </li>
         <li><b>Theme</b> changes the piece style (2D/3D/Neo).</li>
-        <li><b>Save/Load</b> lets you export or restore a game state.</li>
+        <li>
+          <b>Save/Load</b> lets you export or restore a game state. After
+          loading a Chess save, playback returns to <b>Start</b> so you can run
+          forward from the beginning of the saved line.
+        </li>
       </ul>
 
       <h3>Keyboard shortcuts</h3>
@@ -458,6 +462,12 @@
             for that side (<b>white</b> or <b>black</b>). If a human player has
             no name set, <b>human</b> is used.
           </li>
+          <li>
+            The <b>Include move times</b> checkbox applies to both
+            <b>Save Game</b> and <b>Export PGN</b>. When enabled, JSON saves
+            keep recorded move times and PGN exports include <code>[%emt]</code>
+            comments; when disabled, both exports omit move timing.
+          </li>
         </ul>
       </div>
 
@@ -499,6 +509,11 @@
         toast appears (for example:
         <i>“White’s turn. Tap here ore press spacebar to resume bot”</i>). Tap
         the toast itself to resume.
+      </div>
+      <div class="highlight">
+        <b>Playback timing:</b> If <b>Use recorded move times</b> is checked in
+        Playback, the fixed playback speed slider is disabled and replay uses
+        the saved per-move timing instead.
       </div>
       <div class="warning">
         <b>Local engine option:</b> If in-browser Stockfish doesn’t work well on
