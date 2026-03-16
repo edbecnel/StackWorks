@@ -106,6 +106,7 @@ function openKeyboardShortcutsPopup(controller?: GameController): void {
       <li><b>Arrow:</b> Right-click and drag to a target square</li>
       <li><b>Color:</b> Hold <code>Shift</code> (green), <code>Ctrl</code> (red), <code>Alt</code> (blue) while right-clicking</li>
       <li><b>Toggle:</b> Right-clicking an existing annotation of the same color removes it</li>
+      <li><b>Clear all annotations:</b> <code>Space</code></li>
     </ul>`
     : "";
 
@@ -175,7 +176,7 @@ function openKeyboardShortcutsPopup(controller?: GameController): void {
 
     <h2>Playback</h2>
     <ul>
-      <li><b>Play / Pause:</b> <code>Space</code></li>
+      <li><b>Play / Pause:</b> <code>Space</code> (when no annotations are visible)</li>
     </ul>
 
     <h2>Speed</h2>

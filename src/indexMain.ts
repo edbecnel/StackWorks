@@ -380,7 +380,7 @@ function readDelayMs(key: string, fallback: number): number {
   const raw = localStorage.getItem(key);
   const n = raw == null ? NaN : Number(raw);
   if (!Number.isFinite(n)) return fallback;
-  return clamp(Math.round(n), 0, 3000);
+  return clamp(Math.round(n), 0, 5000);
 }
 
 function readPlayMode(key: string, fallback: PlayMode): PlayMode {
@@ -409,7 +409,7 @@ function normalizeServerUrl(raw: string): string {
 function parseDelayMs(raw: string, fallback: number): number {
   const n = Number(raw);
   if (!Number.isFinite(n)) return fallback;
-  return clamp(Math.round(n), 0, 3000);
+  return clamp(Math.round(n), 0, 5000);
 }
 
 function isPlausibleRoomId(roomId: string): boolean {
@@ -1649,7 +1649,7 @@ window.addEventListener("DOMContentLoaded", () => {
     elAiBlack.value = chessBotSideToDifficulty(localStorage.getItem(CHESSBOT_LS_KEYS.black));
   }
 
-  const delay = readDelayMs(initialVariant === "columns_chess" ? LS_KEYS.columnsBotDelayMs : LS_KEYS.aiDelayMs, 500);
+  const delay = readDelayMs(initialVariant === "columns_chess" ? LS_KEYS.columnsBotDelayMs : LS_KEYS.aiDelayMs, 1000);
   elAiDelay.value = String(delay);
   elAiDelayLabel.textContent = `${delay} ms`;
 
@@ -1767,7 +1767,7 @@ window.addEventListener("DOMContentLoaded", () => {
         elAiWhite.value = readColumnsBotSide(LS_KEYS.columnsBotWhite, "human");
         elAiBlack.value = readColumnsBotSide(LS_KEYS.columnsBotBlack, "human");
 
-        const delayMs = readDelayMs(LS_KEYS.columnsBotDelayMs, 500);
+        const delayMs = readDelayMs(LS_KEYS.columnsBotDelayMs, 1000);
         elAiDelay.value = String(delayMs);
         syncDelayLabel();
       } else {

@@ -300,6 +300,12 @@ export function installBoardVisualizationTools(
     state.protects = [];
     clearBoardAnnotations(svg);
   };
+  const hasAnyAnnotations = () =>
+    state.arrows.length > 0 ||
+    state.squares.length > 0 ||
+    state.circles.length > 0 ||
+    state.pins.length > 0 ||
+    state.protects.length > 0;
 
   const getGameState = opts?.getState ?? null;
 
@@ -528,8 +534,21 @@ export function installBoardVisualizationTools(
   };
 
   window.addEventListener("keydown", (ev: KeyboardEvent) => {
-    if (!isPlainKey(ev)) return;
     if (isEditableEl(ev.target)) return;
+
+    const isSpace = ev.key === " " || ev.code === "Space";
+    if (isSpace && !ev.ctrlKey && !ev.metaKey && !ev.altKey && !ev.shiftKey && hasAnyAnnotations()) {
+      ev.preventDefault();
+      gestureActive = false;
+      startNode = null;
+      activePointerId = null;
+      lastRcNode = null;
+      lastRcAtMs = 0;
+      clear();
+      return;
+    }
+
+    if (!isPlainKey(ev)) return;
 
     const key = ev.key.toLowerCase();
     if (key !== "s" && key !== "c" && key !== "n" && key !== "p" && key !== "x") return;

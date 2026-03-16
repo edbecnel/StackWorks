@@ -19,7 +19,7 @@ const LS_KEYS = {
   paused: "lasca.columnsChessBot.paused",
 } as const;
 
-const DEFAULT_DELAY_MS = 500;
+const DEFAULT_DELAY_MS = 1000;
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
@@ -28,7 +28,7 @@ function clamp(n: number, lo: number, hi: number): number {
 function parseDelayMs(raw: string, fallback: number): number {
   const n = Number(raw);
   if (!Number.isFinite(n)) return fallback;
-  return clamp(Math.round(n), 0, 3000);
+  return clamp(Math.round(n), 0, 5000);
 }
 
 function parseSide(v: string | null): ColumnsBotSideSetting {
