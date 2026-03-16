@@ -172,12 +172,16 @@ export class StockfishUciEngine implements UciEngine {
     this.engine.onerror = (ev: any) => {
       const msg = String(ev?.message ?? ev?.error?.message ?? ev?.type ?? "worker error");
       this.lastWorkerError = `${msg} (workerUrl=${this.workerUrl})`;
+      this.isReady = false;
+      this.initPromise = null;
       // eslint-disable-next-line no-console
       console.error("[stockfish] worker error", ev);
     };
     this.engine.onmessageerror = (ev: any) => {
       const msg = String(ev?.message ?? ev?.type ?? "worker message error");
       this.lastWorkerError = `${msg} (workerUrl=${this.workerUrl})`;
+      this.isReady = false;
+      this.initPromise = null;
       // eslint-disable-next-line no-console
       console.error("[stockfish] worker messageerror", ev);
     };
@@ -363,7 +367,12 @@ export class StockfishUciEngine implements UciEngine {
     this.send(`position fen ${args.fen}`);
     this.send(`go movetime ${movetimeMs}`);
 
-    const line = await withTimeout(this.waitForLine((l) => l.startsWith("bestmove ")), timeoutMs, "bestmove");
+    const line = await withTimeout(this.waitForLine((l) => l.startsWith("bestmove ")), timeoutMs, "bestmove").catch((err) => {
+      if (this.lastWorkerError) {
+        throw new Error(`Stockfish worker failed: ${this.lastWorkerError}`);
+      }
+      throw err;
+    });
     const parts = line.trim().split(/\s+/);
     const move = parts[1];
     if (!move || move === "(none)") {

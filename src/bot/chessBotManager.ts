@@ -508,6 +508,21 @@ export class ChessBotManager {
     this.engineReady = false;
   }
 
+  private recoverEngineForRetry(): void {
+    this.resetEngine();
+    this.prewarmStarted = false;
+    this.engineReady = false;
+    this.evalDeferredWhileBusy = false;
+    if (this.warmupEscalationTimer !== null) {
+      window.clearTimeout(this.warmupEscalationTimer);
+      this.warmupEscalationTimer = null;
+    }
+    this.warmupToastStartMs = null;
+    this.warmupToastShown = false;
+    this.warmupToastShownError = false;
+    this.notifyEvalListeners();
+  }
+
   private prewarmEngine(opts?: { showToast?: boolean; serverFastFailToast?: boolean }): void {
     const showToast = opts?.showToast ?? true;
     const serverFastFailToast = opts?.serverFastFailToast ?? false;
@@ -1429,17 +1444,19 @@ export class ChessBotManager {
 
       // If Stockfish is just still coming up, retry a few times before giving up.
       // (Some environments take a long time to fetch/compile WASM on first run.)
-      const isInitTimeout =
+      const isRecoverableEngineFailure =
         msg.includes("Stockfish timeout: uciok") ||
         msg.includes("Stockfish timeout: readyok") ||
+        msg.includes("Stockfish timeout: bestmove") ||
         msg.includes("Stockfish worker failed:");
 
-      if (isInitTimeout && myRequestId === this.requestId - 1) {
+      if (isRecoverableEngineFailure && myRequestId === this.requestId - 1) {
         // Don't stall gameplay on engine init. Play a fallback move immediately.
         // Back off engine attempts for a bit to avoid repeated multi-second stalls.
         this.engineFailureCount++;
         const backoffMs = Math.min(90_000, 5_000 * this.engineFailureCount);
         this.engineBackoffUntilMs = Date.now() + backoffMs;
+        this.recoverEngineForRetry();
 
         this.setStatus(`Bot (fallback) — ${this.engineLabel()} still loading...`);
         try {
@@ -1460,8 +1477,8 @@ export class ChessBotManager {
           return;
         }
 
-        // Keep warming Stockfish in the background. Do NOT reset the engine on
-        // init timeouts; slow WASM compile/fetch should be allowed to finish.
+  // Keep warming Stockfish in the background after a crash/timeout so a
+  // later move can attempt to recover automatically.
         this.prewarmEngine();
 
         // After move, decide whether input should be enabled.

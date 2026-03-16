@@ -11,6 +11,7 @@ class FakeController {
   public sticky: { key: string | null; text: string | null } = { key: null, text: null };
   public stickyActionKeys: string[] = [];
   public inputEnabled: boolean | null = null;
+  public playedMoves: any[] = [];
 
   constructor(state: GameState, history: any[]) {
     this.state = state;
@@ -53,6 +54,15 @@ class FakeController {
     this.inputEnabled = enabled;
   }
 
+  getLegalMovesForTurn(): any[] {
+    return [{ kind: "move", from: "r6c0", to: "r5c0" }];
+  }
+
+  async playMove(move: any): Promise<void> {
+    this.playedMoves.push(move);
+    this.state = { ...this.state, toMove: "W" };
+  }
+
   toast(_text: string, _durationMs?: number): void {
     // ignore
   }
@@ -92,6 +102,7 @@ describe("ChessBotManager loadGame paused toast", () => {
     localStorage.setItem("lasca.chessbot.white", "human");
     localStorage.setItem("lasca.chessbot.black", "beginner");
     localStorage.setItem("lasca.chessbot.paused", "false");
+    localStorage.setItem("lasca.chessbot.delayMs", "0");
   });
 
   it("shows the sticky resume-bot toast after load even when viewing past in history", () => {
@@ -166,5 +177,47 @@ describe("ChessBotManager loadGame paused toast", () => {
     expect(pauseBtn.textContent).toBe("Resume bot");
     expect(controller.sticky.key).toBe("chessbot_paused_turn");
     expect(controller.sticky.text).toContain("White to Play");
+  });
+
+  it("falls back to a legal move after a Stockfish bestmove timeout", async () => {
+    document.body.innerHTML = `
+      <select id="botWhiteSelect"><option value="human">human</option><option value="beginner">beginner</option></select>
+      <select id="botBlackSelect"><option value="human">human</option><option value="beginner">beginner</option></select>
+      <input id="botDelay" />
+      <button id="botDelayReset"></button>
+      <span id="botDelayLabel"></span>
+      <button id="botPauseBtn"></button>
+      <button id="botResetLearningBtn"></button>
+      <span id="botStatus"></span>
+      <div id="boardWrap"></div>
+    `;
+
+    const terminate = vi.fn();
+    let engineCreates = 0;
+    const controller = new FakeController(mkChessState("B"), [{ index: 0, isCurrent: true }]);
+    const mgr = new ChessBotManager(controller as any, {
+      engineFactory: () => {
+        engineCreates++;
+        return {
+          init: async () => {},
+          terminate,
+          bestMove: async () => {
+            throw new Error("Stockfish timeout: bestmove");
+          },
+          evaluate: async () => null,
+        } as any;
+      },
+    });
+
+    mgr.bind();
+    await vi.runAllTimersAsync();
+
+    const pauseBtn = document.getElementById("botPauseBtn") as HTMLButtonElement;
+    pauseBtn.click();
+    await vi.runAllTimersAsync();
+
+    expect(controller.playedMoves.length).toBe(1);
+    expect(terminate).toHaveBeenCalled();
+    expect(engineCreates).toBeGreaterThanOrEqual(2);
   });
 });
