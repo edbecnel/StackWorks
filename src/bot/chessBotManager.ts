@@ -81,6 +81,13 @@ function fullmoveFromPly(ply: number): number {
   return Math.floor(ply / 2) + 1;
 }
 
+function normalizeEvalScoreToWhitePerspective(score: EvalScore, fen: string): EvalScore {
+  const toMoveToken = String(fen.split(/\s+/, 3)[1] ?? "w").toLowerCase();
+  const isWhiteToMove = toMoveToken !== "b";
+  if ("mate" in score) return { mate: isWhiteToMove ? score.mate : -score.mate };
+  return { cp: isWhiteToMove ? score.cp : -score.cp };
+}
+
 export class ChessBotManager {
   private controller: GameController;
   private engineFactory: () => UciEngine;
@@ -134,6 +141,8 @@ export class ChessBotManager {
   private evalDebounceTimer: number | null = null;
   /** Listeners notified whenever the eval result changes. */
   private evalListeners: Array<(score: EvalScore | null, pending: boolean) => void> = [];
+  /** Cached engine evaluations keyed by FEN, normalized to White perspective. */
+  private evalCache: Map<string, EvalScore> = new Map();
   // ---------------------------------------------------------------------------
 
   private engineLabel(): string {
@@ -156,6 +165,34 @@ export class ChessBotManager {
   removeEvalChangeListener(cb: (score: EvalScore | null, pending: boolean) => void): void {
     const idx = this.evalListeners.indexOf(cb);
     if (idx >= 0) this.evalListeners.splice(idx, 1);
+  }
+
+  getCachedEvalForFen(fen: string): EvalScore | null {
+    return this.evalCache.get(fen) ?? null;
+  }
+
+  async evaluateFen(fen: string, opts?: { movetimeMs?: number; timeoutMs?: number }): Promise<EvalScore | null> {
+    const cached = this.evalCache.get(fen);
+    if (cached) return cached;
+
+    this.prewarmEngine({ showToast: false, serverFastFailToast: false });
+    if (!this.engineReady || this.busy || this.evalRunning) return null;
+
+    const engine = this.ensureEngine();
+    if (!engine.evaluate) return null;
+
+    try {
+      const score = await engine.evaluate(fen, {
+        movetimeMs: opts?.movetimeMs ?? 120,
+        timeoutMs: opts?.timeoutMs ?? 3000,
+      });
+      if (!score) return null;
+      const normalized = normalizeEvalScoreToWhitePerspective(score, fen);
+      this.evalCache.set(fen, normalized);
+      return normalized;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -244,6 +281,7 @@ export class ChessBotManager {
           ? { mate: toMove === "W" ? score.mate : -score.mate }
           : { cp:   toMove === "W" ? score.cp   : -score.cp   };
         this.lastEvalFen = fen;
+        this.evalCache.set(fen, this.lastEvalScore);
       } else {
         // Engine returned no score (may be starting up or busy); keep last score.
         // eslint-disable-next-line no-console
@@ -1180,18 +1218,27 @@ export class ChessBotManager {
     // Auto-pause whenever a new game starts and a bot is enabled.
     // This covers first load, restart, and undo-back-to-start.
     if (this.isAtNewGame() && (this.settings.white !== "human" || this.settings.black !== "human")) {
-      if (!this.settings.paused) {
-        this.settings.paused = true;
-        this.autoPausedAtStart = true;
-        this.lastAutoPausedHumanFirstTurnToastSig = null;
-        try {
-          localStorage.setItem(LS_KEYS.paused, String(this.settings.paused));
-        } catch {
-          // ignore
-        }
-        this.refreshUI();
+      this.settings.paused = true;
+      this.autoPausedAtStart = true;
+      this.autoPausedFromHistoryNav = false;
+      this.autoResumeAfterHistoryNav = false;
+      this.allowPausedTurnToastWhileViewingPast = false;
+      this.lastAutoPausedHumanFirstTurnToastSig = null;
+      try {
+        localStorage.setItem(LS_KEYS.paused, String(this.settings.paused));
+      } catch {
+        // ignore
       }
+
+      // Refresh immediately so a previously-disabled Resume button from a
+      // finished game becomes usable again before any deferred bot work runs.
+      this.refreshUI();
+      this.updateInputForCurrentTurn();
+      this.syncPausedTurnToastNow();
     }
+
+    this.refreshUI();
+    this.updateInputForCurrentTurn();
 
     // Any position change can affect whether it's a bot turn.
     this.kick();

@@ -2036,6 +2036,99 @@
                   ></div>
                 </div>
               </div>
+
+              <div
+                id="evaluationGraphSection"
+                style="display: none; margin-top: 12px"
+              >
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 10px;
+                    font-size: 11px;
+                    color: rgba(255, 255, 255, 0.68);
+                    margin-bottom: 6px;
+                  "
+                >
+                  <span>Game graph</span>
+                  <span id="evaluationGraphStatus">—</span>
+                </div>
+                <svg
+                  id="evaluationGraphSvg"
+                  viewBox="0 0 320 120"
+                  preserveAspectRatio="none"
+                  aria-label="Engine evaluation graph"
+                  style="
+                    width: 100%;
+                    height: 120px;
+                    display: block;
+                    cursor: pointer;
+                    border-radius: 10px;
+                    background: rgba(255, 255, 255, 0.04);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                  "
+                >
+                  <line
+                    x1="8"
+                    y1="60"
+                    x2="312"
+                    y2="60"
+                    stroke="rgba(255,255,255,0.16)"
+                    stroke-width="1"
+                  />
+                  <path
+                    id="evaluationGraphPath"
+                    d=""
+                    fill="none"
+                    stroke="rgba(124, 196, 255, 0.95)"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  ></path>
+                  <circle
+                    id="evaluationGraphCurrent"
+                    cx="0"
+                    cy="0"
+                    r="4"
+                    fill="rgba(255, 214, 102, 0.98)"
+                    stroke="rgba(0, 0, 0, 0.85)"
+                    stroke-width="1.5"
+                    style="display: none"
+                  ></circle>
+                  <text
+                    x="10"
+                    y="16"
+                    fill="rgba(255,255,255,0.5)"
+                    font-size="10"
+                  >
+                    White
+                  </text>
+                  <text
+                    x="10"
+                    y="112"
+                    fill="rgba(255,255,255,0.5)"
+                    font-size="10"
+                  >
+                    Black
+                  </text>
+                </svg>
+                <div
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 10px;
+                    margin-top: 5px;
+                    font-size: 10px;
+                    color: rgba(255, 255, 255, 0.55);
+                  "
+                >
+                  <span>Start</span>
+                  <span>Click graph to jump</span>
+                  <span>Current</span>
+                </div>
+              </div>
             </div>
           </div>
 

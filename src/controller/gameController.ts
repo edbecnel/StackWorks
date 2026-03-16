@@ -39,7 +39,7 @@ import {
   ensureOpponentPresenceIndicatorLayer,
   renderOpponentPresenceIndicator,
 } from "../render/opponentPresenceIndicator.ts";
-import type { GameDriver } from "../driver/gameDriver.ts";
+import type { GameDriver, HistorySnapshots } from "../driver/gameDriver.ts";
 import type { OnlineGameDriver } from "../driver/gameDriver.ts";
 import { LocalDriver } from "../driver/localDriver.ts";
 import { deserializeWireGameState } from "../shared/wireState.ts";
@@ -2525,6 +2525,12 @@ export class GameController {
 
   getHistory(): ReturnType<HistoryManager["getHistory"]> {
     return this.analysisMode && this.analysisHistory ? this.analysisHistory.getHistory() : this.driver.getHistory();
+  }
+
+  getHistorySnapshots(): HistorySnapshots {
+    return this.analysisMode && this.analysisHistory
+      ? this.analysisHistory.exportSnapshots()
+      : this.driver.exportHistorySnapshots();
   }
 
   exportMoveHistory(): string {

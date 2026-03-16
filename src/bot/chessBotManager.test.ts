@@ -6,6 +6,7 @@ class FakeController {
   private historyCb: ((reason: any) => void) | null = null;
   private state: GameState;
   private history: any[];
+  private over = false;
 
   public sticky: { key: string | null; text: string | null } = { key: null, text: null };
   public stickyActionKeys: string[] = [];
@@ -40,8 +41,12 @@ class FakeController {
     this.history = h;
   }
 
+  setOver(v: boolean): void {
+    this.over = v;
+  }
+
   isOver(): boolean {
-    return false;
+    return this.over;
   }
 
   setInputEnabled(enabled: boolean): void {
@@ -112,5 +117,54 @@ describe("ChessBotManager loadGame paused toast", () => {
     expect(controller.sticky.text).toContain("Black");
     expect(controller.sticky.text).toContain("Tap here ore press spacebar to resume bot");
     expect(controller.stickyActionKeys).toContain("chessbot_paused_turn");
+  });
+
+  it("re-enables Resume bot and shows the paused toast on a fresh new game after game over", () => {
+    localStorage.setItem("lasca.chessbot.white", "beginner");
+    localStorage.setItem("lasca.chessbot.black", "beginner");
+
+    document.body.innerHTML = `
+      <select id="botWhiteSelect"><option value="human">human</option><option value="beginner">beginner</option></select>
+      <select id="botBlackSelect"><option value="human">human</option><option value="beginner">beginner</option></select>
+      <input id="botDelay" />
+      <button id="botDelayReset"></button>
+      <span id="botDelayLabel"></span>
+      <button id="botPauseBtn"></button>
+      <button id="botResetLearningBtn"></button>
+      <span id="botStatus"></span>
+      <div id="boardWrap"></div>
+    `;
+
+    const controller = new FakeController(mkChessState("W"), [{ index: 0, isCurrent: true }]);
+    const mgr = new ChessBotManager(controller as any, {
+      engineFactory: () => ({
+        init: async () => {},
+        terminate: () => {},
+        bestMove: async () => "",
+        evaluate: async () => null,
+      } as any),
+    });
+
+    mgr.bind();
+    vi.runAllTimers();
+
+    const pauseBtn = document.getElementById("botPauseBtn") as HTMLButtonElement;
+    expect(pauseBtn.disabled).toBe(false);
+
+    controller.setOver(true);
+    controller.fire("gameOver");
+    expect(pauseBtn.disabled).toBe(true);
+
+    controller.setOver(false);
+    controller.setState(mkChessState("W"));
+    controller.setHistory([{ index: 0, isCurrent: true }]);
+    controller.sticky = { key: null, text: null };
+    controller.fire("newGame");
+    vi.runAllTimers();
+
+    expect(pauseBtn.disabled).toBe(false);
+    expect(pauseBtn.textContent).toBe("Resume bot");
+    expect(controller.sticky.key).toBe("chessbot_paused_turn");
+    expect(controller.sticky.text).toContain("White to Play");
   });
 });

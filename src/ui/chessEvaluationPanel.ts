@@ -3,7 +3,9 @@ import type { GameState } from "../game/state";
 import type { Player, Piece } from "../types";
 import { generateLegalMoves } from "../game/movegen";
 import { isKingInCheckChess, isSquareAttackedChess } from "../game/movegenChess";
+import { checkCurrentPlayerLost } from "../game/gameOver";
 import type { ChessBotManager, EvalScore } from "../bot/chessBotManager";
+import { gameStateToFen } from "../bot/fen";
 
 type ChessEvaluationMode = "material" | "mobility" | "center" | "threats" | "engine";
 
@@ -69,6 +71,49 @@ function fmtEvalBarLabel(score: EvalScore): string {
   if (score.cp > 0) return `+${pawns}`;
   if (score.cp < 0) return `${pawns}`;
   return "0.0";
+}
+
+function scoreToGraphUnit(score: EvalScore): number {
+  if ("mate" in score) {
+    if (score.mate > 0) return 1;
+    if (score.mate < 0) return -1;
+    return 0;
+  }
+  return Math.max(-1, Math.min(1, Math.tanh(score.cp / 500)));
+}
+
+function terminalEvalScoreForState(state: GameState): EvalScore | null {
+  try {
+    const forced = (state as any)?.forcedGameOver;
+    if (forced) {
+      if (forced.winner === "W") return { mate: 1 };
+      if (forced.winner === "B") return { mate: -1 };
+      return { cp: 0 };
+    }
+
+    const rulesetId = state.meta?.rulesetId ?? "";
+    if (rulesetId !== "chess" && rulesetId !== "columns_chess") return null;
+
+    const terminal = checkCurrentPlayerLost(state);
+    if (!terminal.reason) return null;
+    if (terminal.winner === "W") return { mate: 1 };
+    if (terminal.winner === "B") return { mate: -1 };
+    return { cp: 0 };
+  } catch {
+    return null;
+  }
+}
+
+function graphScoreForState(state: GameState, bot?: ChessBotManager | null): EvalScore | null {
+  const terminal = terminalEvalScoreForState(state);
+  if (terminal) return terminal;
+
+  if (!bot) return null;
+  try {
+    return bot.getCachedEvalForFen(gameStateToFen(state));
+  } catch {
+    return null;
+  }
 }
 
 function other(p: Player): Player {
@@ -366,6 +411,11 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
   const showEvalBarToggleEl = document.getElementById("showEvalBarToggle") as HTMLInputElement | null;
   const evalBarToggleLabelEl = document.getElementById("evalBarToggleLabel") as HTMLElement | null;
   const evalBarToggleRowEl = document.getElementById("evalBarToggleRow") as HTMLElement | null;
+  const graphSectionEl = document.getElementById("evaluationGraphSection") as HTMLElement | null;
+  const graphStatusEl = document.getElementById("evaluationGraphStatus") as HTMLElement | null;
+  const graphSvgEl = document.getElementById("evaluationGraphSvg") as SVGSVGElement | null;
+  const graphPathEl = document.getElementById("evaluationGraphPath") as SVGPathElement | null;
+  const graphCurrentEl = document.getElementById("evaluationGraphCurrent") as SVGCircleElement | null;
   if (!modeRootEl || !valueEl) return;
 
   if (barWhiteEl?.parentElement) bindTouchHint(barWhiteEl.parentElement as HTMLElement);
@@ -375,11 +425,142 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
   if (btnEls.length === 0) return;
 
   let mode: ChessEvaluationMode = clampMode(localStorage.getItem(LS_KEY_MODE));
+  let graphStateCount = 0;
+  let graphEvalJobToken = 0;
+  let graphRetryTimer: number | null = null;
 
   // Restore eval bar toggle from localStorage.
   const savedShowEvalBar = localStorage.getItem(LS_KEY_EVAL_BAR);
   if (showEvalBarToggleEl && savedShowEvalBar !== null) {
     showEvalBarToggleEl.checked = savedShowEvalBar === "1";
+  }
+
+  const clearGraphRetry = () => {
+    if (graphRetryTimer !== null) {
+      window.clearTimeout(graphRetryTimer);
+      graphRetryTimer = null;
+    }
+  };
+
+  const graphVisible = () => mode === "engine" && Boolean(bot);
+
+  const renderGraph = () => {
+    if (!graphSectionEl || !graphStatusEl || !graphPathEl || !graphCurrentEl) return;
+
+    const visible = graphVisible();
+    graphSectionEl.style.display = visible ? "" : "none";
+    if (!visible || !bot) return;
+
+    const snap = controller.getHistorySnapshots();
+    const states = snap.states ?? [];
+    graphStateCount = states.length;
+
+    if (states.length === 0) {
+      graphStatusEl.textContent = "—";
+      graphPathEl.setAttribute("d", "");
+      graphCurrentEl.style.display = "none";
+      return;
+    }
+
+    const left = 8;
+    const right = 312;
+    const midY = 60;
+    const amplitude = 46;
+    const scores = states.map((state) => graphScoreForState(state as GameState, bot));
+    const ready = scores.filter((score) => score !== null).length;
+
+    if (!bot.isEngineReady()) graphStatusEl.textContent = "Starting engine…";
+    else if (ready < states.length) graphStatusEl.textContent = `Evaluating ${ready}/${states.length}…`;
+    else graphStatusEl.textContent = `${states.length} positions`;
+
+    let d = "";
+    for (let i = 0; i < scores.length; i++) {
+      const score = scores[i];
+      if (!score) continue;
+      const x = states.length <= 1 ? (left + right) / 2 : left + (i / (states.length - 1)) * (right - left);
+      const y = midY - scoreToGraphUnit(score) * amplitude;
+      d += d ? ` L ${x.toFixed(2)} ${y.toFixed(2)}` : `M ${x.toFixed(2)} ${y.toFixed(2)}`;
+    }
+    graphPathEl.setAttribute("d", d);
+
+    const currentIndex = Math.max(0, Math.min(snap.currentIndex, states.length - 1));
+    const currentScore = scores[currentIndex];
+    if (!currentScore) {
+      graphCurrentEl.style.display = "none";
+    } else {
+      const x = states.length <= 1 ? (left + right) / 2 : left + (currentIndex / (states.length - 1)) * (right - left);
+      const y = midY - scoreToGraphUnit(currentScore) * amplitude;
+      graphCurrentEl.setAttribute("cx", x.toFixed(2));
+      graphCurrentEl.setAttribute("cy", y.toFixed(2));
+      graphCurrentEl.style.display = "";
+    }
+  };
+
+  const queueGraphRetry = (token: number, delayMs: number) => {
+    clearGraphRetry();
+    graphRetryTimer = window.setTimeout(() => {
+      graphRetryTimer = null;
+      if (token !== graphEvalJobToken) return;
+      scheduleGraphEvaluation();
+    }, delayMs);
+  };
+
+  const scheduleGraphEvaluation = () => {
+    clearGraphRetry();
+    graphEvalJobToken += 1;
+    const token = graphEvalJobToken;
+    renderGraph();
+    if (!graphVisible() || !bot) return;
+
+    void (async () => {
+      const snap = controller.getHistorySnapshots();
+      const states = snap.states ?? [];
+      if (states.length === 0) return;
+
+      if (!bot.isEngineReady()) {
+        bot.activateForEvaluation();
+        queueGraphRetry(token, 700);
+        return;
+      }
+
+      for (const state of states) {
+        if (token !== graphEvalJobToken || !graphVisible()) return;
+
+        let fen = "";
+        try {
+          fen = gameStateToFen(state as GameState);
+        } catch {
+          continue;
+        }
+
+        if (graphScoreForState(state as GameState, bot)) continue;
+
+        const score = await bot.evaluateFen(fen, { movetimeMs: 120, timeoutMs: 3000 });
+        if (token !== graphEvalJobToken) return;
+        renderGraph();
+        if (score === null) {
+          queueGraphRetry(token, 700);
+          return;
+        }
+      }
+
+      renderGraph();
+    })();
+  };
+
+  if (graphSvgEl) {
+    graphSvgEl.addEventListener("click", (ev) => {
+      if (!graphVisible() || graphStateCount <= 0) return;
+      const rect = graphSvgEl.getBoundingClientRect();
+      if (!rect.width) return;
+      const left = 8;
+      const right = 312;
+      const x = ((ev.clientX - rect.left) / rect.width) * 320;
+      const clamped = Math.max(left, Math.min(right, x));
+      const ratio = graphStateCount <= 1 ? 0 : (clamped - left) / (right - left);
+      const targetIndex = graphStateCount <= 1 ? 0 : Math.round(ratio * (graphStateCount - 1));
+      controller.jumpToHistory(targetIndex);
+    });
   }
 
   const applyEvalBarVisibility = () => {
@@ -410,6 +591,7 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
     if (evalBarToggleLabelEl) evalBarToggleLabelEl.style.display = displayVal;
     if (evalBarToggleRowEl) evalBarToggleRowEl.style.display = isEngine ? "flex" : "none";
     applyEvalBarVisibility();
+    renderGraph();
   };
 
   const updateVerticalEvalBar = (score: EvalScore | null, pending: boolean) => {
@@ -468,6 +650,7 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
     if (next === "engine" && bot) {
       cachedEvalPending = true;
       bot.activateForEvaluation();
+      scheduleGraphEvaluation();
     }
     updateEvalBarToggleRow();
   };
@@ -481,12 +664,12 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
     if (currentMode === "engine") {
       // Show the numeric score labels above bars.
       if (engNumsEl) engNumsEl.style.visibility = "visible";
+      const terminalScore = terminalEvalScoreForState(state);
+      const score = terminalScore ?? cachedEvalScore;
+      const pending = terminalScore ? false : cachedEvalPending;
 
       // Engine mode: render a single sigmoid eval bar spanning White/Black.
       if (barWhiteEl && barBlackEl) {
-        const score = cachedEvalScore;
-        const pending = cachedEvalPending;
-
         if (score !== null) {
           const cp = whitePerspectiveCp(score);
           const winPct = cpToWinPct(cp);
@@ -514,19 +697,22 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
       }
 
       // Update the vertical eval bar (independent of horizontal bars).
-      updateVerticalEvalBar(cachedEvalScore, cachedEvalPending);
+      updateVerticalEvalBar(score, pending);
 
-      if (bot && !bot.isEngineReady()) {
+      if (terminalScore && "mate" in terminalScore) {
+        valueEl.textContent = `Engine eval: ${fmtEvalScore(terminalScore)}`;
+      } else if (bot && !bot.isEngineReady()) {
         valueEl.textContent = "Starting engine\u2026";
-      } else if (cachedEvalPending) {
-        valueEl.textContent = cachedEvalScore !== null
-          ? `Calculating\u2026 (last: ${fmtEvalScore(cachedEvalScore)})`
+      } else if (pending) {
+        valueEl.textContent = score !== null
+          ? `Calculating\u2026 (last: ${fmtEvalScore(score)})`
           : "Calculating\u2026";
-      } else if (cachedEvalScore !== null) {
-        valueEl.textContent = `Engine eval: ${fmtEvalScore(cachedEvalScore)}`;
+      } else if (score !== null) {
+        valueEl.textContent = `Engine eval: ${fmtEvalScore(score)}`;
       } else {
         valueEl.textContent = "Engine eval: —";
       }
+      renderGraph();
       return;
     }
 
@@ -559,6 +745,7 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
     else if (currentMode === "mobility") valueEl.textContent = formatMobility(state);
     else if (currentMode === "center") valueEl.textContent = formatCenter(state);
     else valueEl.textContent = formatThreats(state);
+    renderGraph();
   };
 
   for (const btn of btnEls) {
@@ -575,6 +762,7 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
     bot.addEvalChangeListener((score, pending) => {
       cachedEvalScore = score;
       cachedEvalPending = pending;
+      if (mode === "engine") scheduleGraphEvaluation();
       if (mode === "engine") render();
     });
   }
@@ -583,6 +771,7 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
   controller.addHistoryChangeCallback(() => {
     if (mode === "engine") {
       cachedEvalPending = true; // position changed; score is now stale until engine responds
+      scheduleGraphEvaluation();
     }
     render();
   });
