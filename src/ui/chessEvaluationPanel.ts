@@ -8,6 +8,7 @@ import type { ChessBotManager, EvalScore } from "../bot/chessBotManager";
 type ChessEvaluationMode = "material" | "mobility" | "center" | "threats" | "engine";
 
 const LS_KEY_MODE = "lasca.chessEvaluation.mode";
+const LS_KEY_EVAL_BAR = "lasca.chessEvaluation.showEvalBar";
 
 function clampMode(v: string | null): ChessEvaluationMode {
   if (v === "material" || v === "mobility" || v === "center" || v === "threats" || v === "engine") return v;
@@ -55,6 +56,19 @@ function whitePerspectiveCp(score: EvalScore): number {
     return score.mate > 0 ? 3000 : -3000;
   }
   return score.cp;
+}
+
+/** Short label for the vertical eval bar: +1.5, -1.5, 0.0, M3, -M3 */
+function fmtEvalBarLabel(score: EvalScore): string {
+  if ("mate" in score) {
+    if (score.mate > 0) return `M${score.mate}`;
+    if (score.mate < 0) return `-M${Math.abs(score.mate)}`;
+    return "M?";
+  }
+  const pawns = (score.cp / 100).toFixed(1);
+  if (score.cp > 0) return `+${pawns}`;
+  if (score.cp < 0) return `${pawns}`;
+  return "0.0";
 }
 
 function other(p: Player): Player {
@@ -344,6 +358,14 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
   const engNumsEl = document.getElementById("engineEvalNumbers") as HTMLElement | null;
   const engNumWEl = document.getElementById("engineEvalNumW") as HTMLElement | null;
   const engNumBEl = document.getElementById("engineEvalNumB") as HTMLElement | null;
+  // evalBarVerticalEl points to the *outer* wrapper so that toggling evalBarVisible
+  // on it also controls the flex-column width (display: none collapses the space).
+  const evalBarVerticalEl = document.getElementById("evalBarOuter") as HTMLElement | null;
+  const evalBarBlackFillEl = document.getElementById("evalBarBlackFill") as HTMLElement | null;
+  const evalBarLabelEl = document.getElementById("evalBarLabel") as HTMLElement | null;
+  const showEvalBarToggleEl = document.getElementById("showEvalBarToggle") as HTMLInputElement | null;
+  const evalBarToggleLabelEl = document.getElementById("evalBarToggleLabel") as HTMLElement | null;
+  const evalBarToggleRowEl = document.getElementById("evalBarToggleRow") as HTMLElement | null;
   if (!modeRootEl || !valueEl) return;
 
   if (barWhiteEl?.parentElement) bindTouchHint(barWhiteEl.parentElement as HTMLElement);
@@ -353,6 +375,71 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
   if (btnEls.length === 0) return;
 
   let mode: ChessEvaluationMode = clampMode(localStorage.getItem(LS_KEY_MODE));
+
+  // Restore eval bar toggle from localStorage.
+  const savedShowEvalBar = localStorage.getItem(LS_KEY_EVAL_BAR);
+  if (showEvalBarToggleEl && savedShowEvalBar !== null) {
+    showEvalBarToggleEl.checked = savedShowEvalBar === "1";
+  }
+
+  const applyEvalBarVisibility = () => {
+    const visible = mode === "engine" && Boolean(showEvalBarToggleEl?.checked);
+    if (evalBarVerticalEl) {
+      evalBarVerticalEl.classList.toggle("evalBarVisible", visible);
+      evalBarVerticalEl.setAttribute("aria-hidden", String(!visible));
+    }
+    try {
+      if (visible) {
+        document.body?.setAttribute("data-eval-bar-visible", "1");
+      } else {
+        document.body?.removeAttribute("data-eval-bar-visible");
+      }
+    } catch {
+      // ignore
+    }
+    try {
+      window.dispatchEvent(new Event("chessEvalBarVisibilityChanged"));
+    } catch {
+      // ignore
+    }
+  };
+
+  const updateEvalBarToggleRow = () => {
+    const isEngine = mode === "engine";
+    const displayVal = isEngine ? "" : "none";
+    if (evalBarToggleLabelEl) evalBarToggleLabelEl.style.display = displayVal;
+    if (evalBarToggleRowEl) evalBarToggleRowEl.style.display = isEngine ? "flex" : "none";
+    applyEvalBarVisibility();
+  };
+
+  const updateVerticalEvalBar = (score: EvalScore | null, pending: boolean) => {
+    if (!evalBarVerticalEl) return;
+    if (score !== null) {
+      const cp = whitePerspectiveCp(score);
+      const winPct = cpToWinPct(cp);
+      const blackPct = (1 - winPct) * 100;
+      // Clamp so label never goes fully off the bar edge.
+      const clampedPct = Math.max(2, Math.min(98, blackPct));
+      if (evalBarBlackFillEl) evalBarBlackFillEl.style.height = `${blackPct.toFixed(1)}%`;
+      if (evalBarLabelEl) {
+        evalBarLabelEl.style.top = `${clampedPct.toFixed(1)}%`;
+        evalBarLabelEl.textContent = fmtEvalBarLabel(score);
+      }
+    } else {
+      if (evalBarBlackFillEl) evalBarBlackFillEl.style.height = "50%";
+      if (evalBarLabelEl) {
+        evalBarLabelEl.style.top = "50%";
+        evalBarLabelEl.textContent = pending ? "\u2026" : "\u2014";
+      }
+    }
+  };
+
+  if (showEvalBarToggleEl) {
+    showEvalBarToggleEl.addEventListener("change", () => {
+      localStorage.setItem(LS_KEY_EVAL_BAR, showEvalBarToggleEl.checked ? "1" : "0");
+      applyEvalBarVisibility();
+    });
+  }
 
   // Cached engine eval state — persists across re-renders triggered by history changes.
   let cachedEvalScore: EvalScore | null = null;
@@ -382,6 +469,7 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
       cachedEvalPending = true;
       bot.activateForEvaluation();
     }
+    updateEvalBarToggleRow();
   };
 
   const render = () => {
@@ -422,7 +510,11 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
           if (engNumWEl) engNumWEl.textContent = "W \u2014";
           if (engNumBEl) engNumBEl.textContent = "B \u2014";
         }
+
       }
+
+      // Update the vertical eval bar (independent of horizontal bars).
+      updateVerticalEvalBar(cachedEvalScore, cachedEvalPending);
 
       if (bot && !bot.isEngineReady()) {
         valueEl.textContent = "Starting engine\u2026";
@@ -438,8 +530,9 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
       return;
     }
 
-    // Non-engine modes: hide the numeric score row.
+    // Non-engine modes: hide the numeric score row and vertical bar.
     if (engNumsEl) engNumsEl.style.visibility = "hidden";
+    updateVerticalEvalBar(null, false);
 
     // Quantity bars reflect the primary value for the selected mode.
     if (barWhiteEl && barBlackEl) {
@@ -497,5 +590,6 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
   // Fall back from "engine" to "material" when no bot is present.
   if (mode === "engine" && !bot) setMode("material");
   setMode(mode);
+  updateEvalBarToggleRow();
   render();
 }

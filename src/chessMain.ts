@@ -66,6 +66,10 @@ const LS_OPT_KEYS = {
   showPlayerNames: "lasca.opt.chess.showPlayerNames",
 } as const;
 
+const EVAL_BAR_GAP_PX = 3;
+const EVAL_BAR_PLAYABLE_SHIFT_LEFT_PX = 0;
+const EVAL_BAR_FRAMED_GAP_PX = 25;
+
 function readOptionalBoolPref(key: string): boolean | null {
   const raw = localStorage.getItem(key);
   if (raw == null) return null;
@@ -121,7 +125,9 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Apply viewport cropping early so the rest of the SVG overlays (turn indicator,
   // coords, player names) compute positions against the final viewBox.
-  applyBoardViewportModeToSvg(svg, boardViewportMode, { boardSize: variant.boardSize });
+  applyBoardViewportModeToSvg(svg, boardViewportMode, {
+    boardSize: variant.boardSize,
+  });
 
   // Checkerboard background theme (Classic/Green)
   const checkerboardThemeSelect = document.getElementById(
@@ -281,9 +287,18 @@ window.addEventListener("DOMContentLoaded", async () => {
   let playerBlackName = "";
   // Tracks whose turn it is so the active player's name can be rendered bold.
   let playerToMove: "W" | "B" = "W";
+  let evalBarGeometryFrame = 0;
 
   const hasPlayerNames = () =>
     Boolean(playerWhiteName || playerBlackName) && (showPlayerNamesToggle?.checked !== false);
+
+  const scheduleEvalBarGeometry = () => {
+    if (evalBarGeometryFrame !== 0) return;
+    evalBarGeometryFrame = window.requestAnimationFrame(() => {
+      evalBarGeometryFrame = 0;
+      applyEvalBarGeometry();
+    });
+  };
 
   const applyBoardCoords = () =>
     renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), variant.boardSize, {
@@ -359,13 +374,105 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     // Re-apply coords: may need to switch to/from inSquare mode.
     applyBoardCoords();
+    scheduleEvalBarGeometry();
   };
+
+  /**
+   * Positions the vertical eval bar to span only the checkerboard squares area.
+   * In framed mode the SVG viewBox includes player name strips; we use the stored
+   * BoardViewportMetrics to compute the fractions and apply them as inline styles.
+   * In playable mode the viewBox is already cropped to the squares, so no offset
+   * is needed (top: 0 / height: 100%).
+   */
+  function applyEvalBarGeometry() {
+    const boardWithEvalBarEl = document.getElementById("boardWithEvalBar") as HTMLElement | null;
+    const boardWrapEl = document.getElementById("boardWrap") as HTMLElement | null;
+    const barOuterEl = document.getElementById("evalBarOuter") as HTMLElement | null;
+    const barEl = document.getElementById("evalBarVertical") as HTMLElement | null;
+    if (!boardWithEvalBarEl || !boardWrapEl || !barEl || !barOuterEl) return;
+    const metrics = getBoardViewportMetrics(svg);
+    if (!metrics || !metrics.squares || !metrics.viewBox) {
+      barOuterEl.style.left = "";
+      barOuterEl.style.top = "";
+      barOuterEl.style.height = "";
+      barOuterEl.style.width = "";
+      barEl.style.top = "";
+      barEl.style.height = "";
+      return;
+    }
+    const sq = metrics.squares;
+    const hostRect = boardWithEvalBarEl.getBoundingClientRect();
+    const computedBarWidth = Number.parseFloat(window.getComputedStyle(barOuterEl).width);
+    const barWidth = Number.isFinite(computedBarWidth) && computedBarWidth > 0 ? computedBarWidth : 20;
+
+    if (hostRect.width <= 0 || hostRect.height <= 0) {
+      return;
+    }
+
+    const squareRects = Array.from(svg.querySelectorAll("#squares rect")) as SVGRectElement[];
+    let minLeft = Number.POSITIVE_INFINITY;
+    let minTop = Number.POSITIVE_INFINITY;
+    let maxBottom = Number.NEGATIVE_INFINITY;
+    for (const rect of squareRects) {
+      const r = rect.getBoundingClientRect();
+      if (!Number.isFinite(r.left) || !Number.isFinite(r.top) || !Number.isFinite(r.bottom)) continue;
+      minLeft = Math.min(minLeft, r.left);
+      minTop = Math.min(minTop, r.top);
+      maxBottom = Math.max(maxBottom, r.bottom);
+    }
+
+    if (!Number.isFinite(minLeft) || !Number.isFinite(minTop) || !Number.isFinite(maxBottom)) {
+      const ctm = svg.getScreenCTM();
+      if (!ctm) return;
+      const toScreenPoint = (x: number, y: number) => new DOMPoint(x, y).matrixTransform(ctm);
+      const squareTopLeftFallback = toScreenPoint(sq.x, sq.y);
+      const squareBottomLeftFallback = toScreenPoint(sq.x, sq.y + sq.h);
+      minLeft = squareTopLeftFallback.x;
+      minTop = squareTopLeftFallback.y;
+      maxBottom = squareBottomLeftFallback.y;
+    }
+
+    const squareTopLeft = { x: minLeft, y: minTop };
+    const squareBottomLeft = { x: minLeft, y: maxBottom };
+    let barLeft = squareTopLeft.x - hostRect.left - barWidth - EVAL_BAR_GAP_PX;
+
+    if (metrics.mode === "framed") {
+      barLeft = squareTopLeft.x - hostRect.left - barWidth - EVAL_BAR_FRAMED_GAP_PX;
+    } else {
+      barLeft -= EVAL_BAR_PLAYABLE_SHIFT_LEFT_PX;
+    }
+
+    barOuterEl.style.width = "";
+
+    // Place the bar a few pixels left of the actual playable squares.
+    barOuterEl.style.left = `${barLeft.toFixed(2)}px`;
+
+    // Vertical: match the playable squares exactly.
+    barOuterEl.style.top = `${(squareTopLeft.y - hostRect.top).toFixed(2)}px`;
+    barOuterEl.style.height = `${Math.max(0, squareBottomLeft.y - squareTopLeft.y).toFixed(2)}px`;
+
+    // #evalBarVertical fills #evalBarOuter entirely (top/height on outer cover it).
+    barEl.style.top = "";
+    barEl.style.height = "";
+  }
+
+  const evalBarResizeObserver = typeof ResizeObserver === "undefined"
+    ? null
+    : new ResizeObserver(() => {
+        scheduleEvalBarGeometry();
+      });
+  evalBarResizeObserver?.observe(boardWrap);
+  evalBarResizeObserver?.observe(svg);
+  window.addEventListener("resize", scheduleEvalBarGeometry);
+  window.visualViewport?.addEventListener("resize", scheduleEvalBarGeometry);
+  window.addEventListener("chessEvalBarVisibilityChanged", scheduleEvalBarGeometry);
 
   // React to viewport mode changes (re-crop SVG + reflow overlays).
   window.addEventListener(BOARD_VIEWPORT_MODE_CHANGED_EVENT, () => {
     boardViewportMode = readBoardViewportMode();
     applyBoardViewportMode(boardViewportMode);
     updatePlayerNameDisplay();
+    scheduleEvalBarGeometry();
     // Re-render HUD using the new viewBox (turn indicator is positioned in SVG coords).
     hudController?.refreshView();
   });
@@ -412,6 +519,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   // updatePlayerNameDisplay calls applyBoardCoords() at its end, so we
   // do not need a separate applyBoardCoords() call here.
   updatePlayerNameDisplay();
+  scheduleEvalBarGeometry();
 
   const themeManager = createThemeManager(svg);
 

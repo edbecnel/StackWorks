@@ -405,6 +405,83 @@
         box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
       }
 
+      /* ===== Vertical Engine Evaluation Bar (left of board) ===== */
+      #boardWithEvalBar {
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+        flex: 0 1 auto;
+        width: 100%;
+        max-width: 100%;
+        min-height: 0;
+        gap: 0;
+        position: relative;
+      }
+
+      /* #evalBarOuter is positioned against #boardWithEvalBar.
+         JS computes pixel offsets from the rendered SVG box so the bar stays
+         aligned with the checkerboard squares in both framed/playable modes. */
+      #evalBarOuter {
+        --eval-bar-w: 20px;
+        width: var(--eval-bar-w);
+        position: absolute;
+        /* left / top / height all set by JS */
+        left: 0;
+        top: 0;
+        height: 100%;
+        display: none;
+        pointer-events: none;
+        z-index: 3;
+      }
+
+      #evalBarOuter.evalBarVisible {
+        display: block;
+      }
+
+      /* Inner bar: fills #evalBarOuter 100% — all positioning is on the outer. */
+      #evalBarVertical {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 100%;
+        background: #f0ede8;
+        border-radius: 4px;
+        border: 1px solid rgba(0, 0, 0, 0.25);
+        overflow: visible;
+      }
+
+      #evalBarBlackFill {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 50%;
+        background: #1c1c1c;
+        border-radius: 3px 3px 0 0;
+        transition: height 300ms ease;
+      }
+
+      #evalBarLabel {
+        position: absolute;
+        right: calc(100% + 2px);
+        left: auto;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 10px;
+        font-weight: 700;
+        color: #111;
+        background: #fff;
+        border: 1px solid rgba(0, 0, 0, 0.22);
+        border-radius: 3px;
+        padding: 1px 3px;
+        white-space: nowrap;
+        pointer-events: none;
+        z-index: 10;
+        line-height: 1.3;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+      }
+
       /* Classic Chess: Piece Inspector currently unused */
       .panelSection[data-section="inspector"] {
         display: none !important;
@@ -645,17 +722,21 @@
       }
 
       #boardWrap {
-        width: 100%;
+        position: relative;
+        overflow: visible;
         height: auto;
         display: flex;
         align-items: center;
         justify-content: center;
-        flex: 0 0 100%;
+        flex: 1 1 auto;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
         min-height: 0;
       }
 
       #boardWrap svg {
-        width: min(100%, 980px);
+        width: 100%;
         height: auto;
         max-width: 100%;
         max-height: 100%;
@@ -736,8 +817,8 @@
         }
       }
 
-      /* Mobile & tablets (touch) — PORTRAIT: left panel on top, board in middle, right panel at bottom. */
-      @media (max-width: 1024px) and (orientation: portrait) and (any-pointer: coarse) {
+      /* Mobile portrait: left panel on top, board in middle, right panel at bottom. */
+      @media (max-width: 1024px) and (orientation: portrait) {
         #appRoot {
           flex-direction: column;
           height: 100dvh;
@@ -767,7 +848,35 @@
         #centerArea {
           min-width: 0;
           height: auto;
+          padding-left: max(8px, env(safe-area-inset-left));
+          padding-right: max(8px, env(safe-area-inset-right));
           padding-bottom: max(10px, env(safe-area-inset-bottom));
+        }
+
+        #boardWithEvalBar {
+          width: 100%;
+          margin-left: 0;
+        }
+
+        body[data-eval-bar-visible="1"] #centerArea {
+          padding-left: max(8px, env(safe-area-inset-left));
+        }
+
+        body[data-eval-bar-visible="1"] #boardWithEvalBar {
+          width: calc(100% - 24px);
+          margin-left: 24px;
+        }
+
+        #evalBarOuter {
+          --eval-bar-w: 12px;
+        }
+
+        #evalBarLabel {
+          left: 50%;
+          right: auto;
+          font-size: 9px;
+          padding: 1px 2px;
+          transform: translate(-50%, -50%);
         }
       }
     </style>
@@ -1534,7 +1643,20 @@
         >
           ↕️
         </button>
-        <div id="boardWrap"></div>
+        <div id="boardWithEvalBar">
+          <div
+            id="evalBarOuter"
+            aria-label="Engine evaluation"
+            role="img"
+            aria-hidden="true"
+          >
+            <div id="evalBarVertical">
+              <div id="evalBarBlackFill"></div>
+              <div id="evalBarLabel">0.0</div>
+            </div>
+          </div>
+          <div id="boardWrap"></div>
+        </div>
 
         <div id="touchAnnotationPalette" aria-label="Annotation color">
           <button
@@ -1837,6 +1959,33 @@
                   >
                     &#x2694;
                   </button>
+                </div>
+
+                <label
+                  id="evalBarToggleLabel"
+                  for="showEvalBarToggle"
+                  style="display: none"
+                  >Eval bar</label
+                >
+                <div
+                  id="evalBarToggleRow"
+                  style="display: none; align-items: center; gap: 6px"
+                >
+                  <input
+                    type="checkbox"
+                    id="showEvalBarToggle"
+                    style="
+                      width: 14px;
+                      height: 14px;
+                      cursor: pointer;
+                      accent-color: rgba(255, 255, 255, 0.75);
+                    "
+                  />
+                  <label
+                    for="showEvalBarToggle"
+                    style="font-size: 12px; cursor: pointer; user-select: none"
+                    >Show on board</label
+                  >
                 </div>
               </div>
               <div

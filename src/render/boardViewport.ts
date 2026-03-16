@@ -14,6 +14,8 @@ export type BoardSquaresBounds = {
 export type BoardViewportMetrics = {
   mode: BoardViewportMode;
   squares: BoardSquaresBounds | null;
+  extraLeft: number;
+  extraRight: number;
   extraTop: number;
   extraBottom: number;
   viewBox: { x: number; y: number; w: number; h: number } | null;
@@ -131,10 +133,10 @@ function hideOuterChrome(svg: SVGSVGElement, hide: boolean): void {
 export function applyBoardViewportModeToSvg(
   svg: SVGSVGElement,
   mode: BoardViewportMode,
-  opts?: { boardSize?: 7 | 8; reservedTop?: number; reservedBottom?: number }
+  opts?: { boardSize?: 7 | 8; reservedLeft?: number; reservedRight?: number; reservedTop?: number; reservedBottom?: number }
 ): BoardViewportMetrics {
   if (!svg) {
-    return { mode, squares: null, extraTop: 0, extraBottom: 0, viewBox: null };
+    return { mode, squares: null, extraLeft: 0, extraRight: 0, extraTop: 0, extraBottom: 0, viewBox: null };
   }
 
   const boardSize = opts?.boardSize ?? inferBoardSizeFromSquares(svg);
@@ -143,10 +145,17 @@ export function applyBoardViewportModeToSvg(
     // Restore original viewBox + chrome.
     restoreSvgViewBox(svg);
     hideOuterChrome(svg, false);
+    try {
+      svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    } catch {
+      // ignore
+    }
     const vb = parseViewBox(svg);
     const metrics: BoardViewportMetrics = {
       mode: "framed",
       squares: boardSize ? computeSquaresBounds(svg, boardSize) : null,
+      extraLeft: 0,
+      extraRight: 0,
       extraTop: 0,
       extraBottom: 0,
       viewBox: vb,
@@ -162,6 +171,8 @@ export function applyBoardViewportModeToSvg(
     const metrics: BoardViewportMetrics = {
       mode: "framed",
       squares: null,
+      extraLeft: 0,
+      extraRight: 0,
       extraTop: 0,
       extraBottom: 0,
       viewBox: vb,
@@ -179,7 +190,7 @@ export function applyBoardViewportModeToSvg(
   // Keep this tight to minimize whitespace.
   // With the playable-area HUD (turn + presence) positioned near the board edge
   // and laid out side-by-side, we can keep these strips small.
-  const minTop = 52;
+  const minTop = 48;
   const minBottom = 12;
 
   const defaultTop = Math.round(squares.step * 0.65);
@@ -187,13 +198,14 @@ export function applyBoardViewportModeToSvg(
 
   const requestedTop = Number.isFinite(opts?.reservedTop as number) ? (opts!.reservedTop as number) : null;
   const requestedBottom = Number.isFinite(opts?.reservedBottom as number) ? (opts!.reservedBottom as number) : null;
-
   const extraTop = Math.max(minTop, Math.round(requestedTop ?? defaultTop));
   const extraBottom = Math.max(minBottom, Math.round(requestedBottom ?? defaultBottom));
+  const extraLeft = 0;
+  const extraRight = 0;
 
-  const x = squares.x;
+  const x = squares.x - extraLeft;
   const y = squares.y - extraTop;
-  const w = squares.w;
+  const w = squares.w + extraLeft + extraRight;
   const h = squares.h + extraTop + extraBottom;
 
   svg.setAttribute("viewBox", `${x} ${y} ${w} ${h}`);
@@ -202,6 +214,8 @@ export function applyBoardViewportModeToSvg(
   const metrics: BoardViewportMetrics = {
     mode: "playable",
     squares,
+    extraLeft,
+    extraRight,
     extraTop,
     extraBottom,
     viewBox: { x, y, w, h },
@@ -210,7 +224,7 @@ export function applyBoardViewportModeToSvg(
 
   // Ensure the SVG itself remains a clean viewport.
   try {
-    svg.setAttribute("preserveAspectRatio", svg.getAttribute("preserveAspectRatio") ?? "xMidYMid meet");
+    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
   } catch {
     // ignore
   }
