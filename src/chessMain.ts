@@ -491,11 +491,18 @@ window.addEventListener("DOMContentLoaded", async () => {
   const toFileSlug = (name: string): string =>
     name.trim().replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "").slice(0, 24);
 
-  /** Build the "White vs. Black (result)" portion of a filename. Returns "" when no names are known. */
+  const resolvedPlayerNameForExport = (side: "W" | "B"): string => {
+    const explicitName = (side === "W" ? playerWhiteName : playerBlackName).trim();
+    const botSelectId = side === "W" ? "botWhiteSelect" : "botBlackSelect";
+    const botSetting = (document.getElementById(botSelectId) as HTMLSelectElement | null)?.value ?? "human";
+    if (botSetting !== "human") return side === "W" ? "white" : "black";
+    return explicitName || "human";
+  };
+
+  /** Build the "White vs. Black (result)" portion of a filename. */
   const playerNameFilePart = (resultSuffix?: string): string => {
-    const w = toFileSlug(playerWhiteName);
-    const b = toFileSlug(playerBlackName);
-    if (!w && !b) return "";
+    const w = toFileSlug(resolvedPlayerNameForExport("W"));
+    const b = toFileSlug(resolvedPlayerNameForExport("B"));
     const vsStr = w && b ? `${w} vs. ${b}` : (w || b);
     return resultSuffix ? `${vsStr} ${resultSuffix}` : vsStr;
   };
@@ -977,8 +984,8 @@ window.addEventListener("DOMContentLoaded", async () => {
       return "*";
     };
     const resultToken = deriveResultToken();
-    const whiteHeader = playerWhiteName || "?";
-    const blackHeader = playerBlackName || "?";
+    const whiteHeader = resolvedPlayerNameForExport("W");
+    const blackHeader = resolvedPlayerNameForExport("B");
 
     if (!hasTimingData) {
       // Fast path: no timing, let chess.js build the standard PGN.
@@ -1674,7 +1681,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         a.href = url;
         const pgnNamePart = playerNameFilePart(resultSuffixFromState(controller.getState()));
         a.download = pgnNamePart
-          ? `${pgnNamePart} -- ${timestamp}.pgn`
+          ? `chess -- ${pgnNamePart} -- ${timestamp}.pgn`
           : `chess -- ${timestamp}.pgn`;
         a.click();
         URL.revokeObjectURL(url);
