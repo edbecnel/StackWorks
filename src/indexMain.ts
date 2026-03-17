@@ -15,6 +15,7 @@ import {
 import { getSideLabelsForRuleset } from "./shared/sideTerminology";
 import { applyPanelLayoutMode, installPanelLayoutStartPageOptionUI, readPanelLayoutMode } from "./ui/panelLayoutMode";
 import { readBoardViewportMode, writeBoardViewportMode } from "./ui/boardViewportMode";
+import { initStartPageAppShell } from "./ui/shell/appShell";
 
 const LS_KEYS = {
   theme: "lasca.theme",
@@ -1768,6 +1769,16 @@ window.addEventListener("DOMContentLoaded", () => {
   elAiDelay.value = String(delay);
   elAiDelayLabel.textContent = `${delay} ms`;
 
+  const startPageWrap = document.querySelector(".wrap") as HTMLElement | null;
+  if (!startPageWrap) throw new Error("Missing start page root: .wrap");
+
+  const appShell = initStartPageAppShell({
+    contentRoot: startPageWrap,
+    initialVariantId,
+    initialPlayMode: (elPlayMode.value === "online" ? "online" : "local") as PlayMode,
+    helpHref: "./start-help",
+  });
+
   const syncDelayLabel = () => {
     const v = parseDelayMs(elAiDelay.value || "500", 500);
     elAiDelayLabel.textContent = `${v} ms`;
@@ -1787,6 +1798,9 @@ window.addEventListener("DOMContentLoaded", () => {
   const syncAvailability = () => {
     const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
     const v = getVariantById(vId);
+    const playMode = (elPlayMode.value === "online" ? "online" : "local") as PlayMode;
+
+    appShell.setSelectedGame(vId, { playMode });
 
     // Terminology:
     // - When using the Checkers (Red/Black) *pieces* (theme id: "checkers"): use Red/Black for disc games.
@@ -1962,7 +1976,6 @@ window.addEventListener("DOMContentLoaded", () => {
     }
     elPlayMode.disabled = isAiGame;
 
-    const playMode = (elPlayMode.value === "online" ? "online" : "local") as PlayMode;
     const serverUrl = resolveConfiguredServerUrl();
 
     if (elAccountSection) {

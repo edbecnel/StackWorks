@@ -56,6 +56,7 @@ import {
 } from "./ui/boardViewportMode";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
+import { initGameShell } from "./ui/shell/gameShell";
 
 const ACTIVE_VARIANT_ID: VariantId = "chess_classic";
 
@@ -132,6 +133,27 @@ function deriveLegacyChessMovePreviewMode(): ChessMovePreviewMode {
 
 window.addEventListener("DOMContentLoaded", async () => {
   const variant = getVariantById(ACTIVE_VARIANT_ID);
+  const appRoot = document.getElementById("appRoot") as HTMLElement | null;
+  if (!appRoot) throw new Error("Missing game root: #appRoot");
+
+  const shell = initGameShell({
+    appRoot,
+    breadcrumb: "Play / Chess",
+    title: variant.displayName,
+    subtitle: variant.subtitle,
+    meta: [rulesBoardLine(variant.rulesetId, variant.boardSize), `${variant.boardSize}x${variant.boardSize} board`],
+    backHref: "./",
+    helpHref: "./chess-help.html",
+    activeSectionId: "play",
+    navItems: [
+      { id: "play", label: "Play", targetSelector: "#boardWrap" },
+      { id: "status", label: "Status", targetSelector: '#leftSidebar .panelSection[data-section="status"]' },
+      { id: "tools", label: "Tools", targetSelector: '#leftSidebar .panelSection[data-section="optionsActions"]' },
+      { id: "bot", label: "Bot", targetSelector: '#leftSidebar .panelSection[data-section="bot"]' },
+      { id: "history", label: "History", targetSelector: '#rightSidebar .panelSection[data-section="moveHistory"]' },
+      { id: "rules", label: "Rules", targetSelector: '#rightSidebar .panelSection[data-section="rules"]' },
+    ],
+  });
 
   initSplitLayout();
   initCollapsibleSections();
@@ -626,6 +648,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   const controller = new GameController(svg, piecesLayer, inspector as any, state, history, driver);
   hudController = controller;
   controller.bind();
+  shell.bindController(controller);
 
   // Keep playerToMove in sync so the active player's name is always rendered bold.
   controller.addHistoryChangeCallback(() => {

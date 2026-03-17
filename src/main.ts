@@ -39,6 +39,7 @@ import { setStackWorksGameTitle } from "./ui/gameTitle";
 import { getSideLabelsForRuleset } from "./shared/sideTerminology";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
+import { initGameShell } from "./ui/shell/gameShell";
 import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
 import { applyBoardViewportModeToSvg } from "./render/boardViewport";
 import {
@@ -104,6 +105,25 @@ function updatePlayerColorBadge(driver: unknown, rulesetId: string, boardSize: n
 
 window.addEventListener("DOMContentLoaded", async () => {
   const activeVariant = getVariantById(ACTIVE_VARIANT_ID);
+  const appRoot = document.getElementById("appRoot") as HTMLElement | null;
+  if (!appRoot) throw new Error("Missing game root: #appRoot");
+
+  const shell = initGameShell({
+    appRoot,
+    breadcrumb: "Play / Lasca",
+    title: activeVariant.displayName,
+    subtitle: activeVariant.subtitle,
+    meta: [rulesBoardLine(activeVariant.rulesetId, activeVariant.boardSize), `${activeVariant.boardSize}x${activeVariant.boardSize} board`],
+    backHref: "./",
+    helpHref: "./help.html",
+    activeSectionId: "play",
+    navItems: [
+      { id: "play", label: "Play", targetSelector: "#boardWrap" },
+      { id: "status", label: "Status", targetSelector: '#leftSidebar .panelSection[data-section="status"]' },
+      { id: "tools", label: "Tools", targetSelector: '#leftSidebar .panelSection[data-section="optionsActions"]' },
+      { id: "history", label: "History", targetSelector: '#rightSidebar .panelSection[data-section="moveHistory"]' },
+    ],
+  });
 
   // Board viewport: Framed vs Playable area.
   installBoardViewportOptionUI();
@@ -267,6 +287,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   const controller = new GameController(svg, piecesLayer, inspector, state, history, driver);
   hudController = controller;
   controller.bind();
+  shell.bindController(controller);
 
   bindOfflineNavGuard(controller, activeVariant.variantId);
 

@@ -55,7 +55,7 @@ import { LocalDriver } from "../driver/localDriver.ts";
 import { deserializeWireGameState } from "../shared/wireState.ts";
 import type { GetRoomWatchTokenResponse, PostRoomDebugReportResponse } from "../shared/onlineProtocol.ts";
 import type { SfxManager, SfxName } from "../ui/sfx.ts";
-import type { Stack } from "../types.ts";
+import type { Player, PlayerIdentity, PlayerShellSnapshot, PresenceState, Stack } from "../types.ts";
 import { pieceToHref } from "../pieces/pieceToHref.ts";
 import { pieceTooltip } from "../pieces/pieceLabel.ts";
 import { makeUseWithTitle } from "../render/svgUse.ts";
@@ -2857,6 +2857,200 @@ export class GameController {
 
   getState(): GameState {
     return this.state;
+  }
+
+  private formatPresenceDeadline(raw: string | null | undefined): string | null {
+    if (typeof raw !== "string" || raw.trim().length === 0) return null;
+    try {
+      const date = new Date(raw);
+      if (!Number.isNaN(date.getTime())) return date.toLocaleTimeString();
+    } catch {
+      // ignore
+    }
+    return raw;
+  }
+
+  private getPresenceStatus(args: {
+    transportStatus?: "connected" | "reconnecting";
+    presenceEntry?: { connected?: boolean; inGrace?: boolean; graceUntil?: string } | null;
+    waiting?: boolean;
+    spectating?: boolean;
+  }): { status: PresenceState; text: string } {
+    if (args.spectating) return { status: "spectating", text: "Spectating" };
+    if (args.transportStatus === "reconnecting") return { status: "reconnecting", text: "Reconnecting" };
+    if (args.waiting) return { status: "waiting", text: "Waiting" };
+
+    const entry = args.presenceEntry;
+    if (!entry) return { status: "waiting", text: "Waiting" };
+    if (entry.connected) return { status: "connected", text: "Connected" };
+    if (entry.inGrace) return { status: "in_grace", text: "Rejoining" };
+    return { status: "disconnected", text: "Disconnected" };
+  }
+
+  private createShellPlayerIdentity(args: {
+    color: Player;
+    displayName: string;
+    roleLabel: string;
+    detailText: string;
+    status: PresenceState;
+    statusText: string;
+    isLocal: boolean;
+  }): PlayerIdentity {
+    return {
+      color: args.color,
+      displayName: args.displayName,
+      roleLabel: args.roleLabel,
+      detailText: args.detailText,
+      status: args.status,
+      statusText: args.statusText,
+      isLocal: args.isLocal,
+      isActiveTurn: this.state.toMove === args.color,
+    };
+  }
+
+  getPlayerShellSnapshot(): PlayerShellSnapshot {
+    const defaultPlayers: Record<Player, PlayerIdentity> = {
+      W: this.createShellPlayerIdentity({
+        color: "W",
+        displayName: this.sideLabel("W"),
+        roleLabel: "Local match",
+        detailText: this.state.toMove === "W" ? "To move." : "Waiting for the next turn.",
+        status: "offline",
+        statusText: "Local play",
+        isLocal: false,
+      }),
+      B: this.createShellPlayerIdentity({
+        color: "B",
+        displayName: this.sideLabel("B"),
+        roleLabel: "Local match",
+        detailText: this.state.toMove === "B" ? "To move." : "Waiting for the next turn.",
+        status: "offline",
+        statusText: "Local play",
+        isLocal: false,
+      }),
+    };
+
+    if (this.driver.mode !== "online") {
+      return {
+        mode: "local",
+        transportStatus: "connected",
+        viewerColor: null,
+        viewerRole: "offline",
+        players: defaultPlayers,
+      };
+    }
+
+    const remote = this.driver as OnlineGameDriver;
+    const selfId = remote.getPlayerId();
+    const localColor = remote.getPlayerColor();
+    const presence = remote.getPresence();
+    const identity = remote.getIdentity();
+    const viewerRole = selfId === "spectator" ? "spectator" : "player";
+
+    if (!selfId || selfId === "spectator" || !localColor) {
+      const seatCount = presence ? Object.keys(presence).length : 0;
+      const waitingText = seatCount === 0 ? "Waiting for players to join." : "Seat mapping is still loading.";
+      return {
+        mode: "online",
+        transportStatus: this.onlineTransportStatus,
+        viewerColor: null,
+        viewerRole: selfId === "spectator" ? "spectator" : "player",
+        players: {
+          W: this.createShellPlayerIdentity({
+            color: "W",
+            displayName: this.sideLabel("W"),
+            roleLabel: viewerRole === "spectator" ? "Spectator view" : "Seat pending",
+            detailText: waitingText,
+            ...this.getPresenceStatus({ waiting: true, spectating: selfId === "spectator" }),
+            isLocal: false,
+          }),
+          B: this.createShellPlayerIdentity({
+            color: "B",
+            displayName: this.sideLabel("B"),
+            roleLabel: viewerRole === "spectator" ? "Spectator view" : "Seat pending",
+            detailText: waitingText,
+            ...this.getPresenceStatus({ waiting: true, spectating: selfId === "spectator" }),
+            isLocal: false,
+          }),
+        },
+      };
+    }
+
+    const opponentColor: Player = localColor === "W" ? "B" : "W";
+    const selfPresence = presence?.[selfId] ?? null;
+    const opponentId = presence ? (Object.keys(presence).find((pid) => pid !== selfId) ?? null) : null;
+    const opponentPresence = opponentId ? (presence?.[opponentId] ?? null) : null;
+
+    const selfNameRaw = identity?.[selfId]?.displayName;
+    const selfName = typeof selfNameRaw === "string" && selfNameRaw.trim().length > 0
+      ? selfNameRaw.trim()
+      : "You";
+
+    const opponentNameRaw = opponentId ? identity?.[opponentId]?.displayName : null;
+    const opponentName = typeof opponentNameRaw === "string" && opponentNameRaw.trim().length > 0
+      ? opponentNameRaw.trim()
+      : this.sideLabel(opponentColor);
+
+    const selfStatus = this.getPresenceStatus({
+      transportStatus: this.onlineTransportStatus,
+      presenceEntry: selfPresence,
+    });
+    const opponentStatus = this.getPresenceStatus({
+      waiting: !opponentPresence,
+      presenceEntry: opponentPresence,
+    });
+
+    const selfGraceUntil = this.formatPresenceDeadline(selfPresence?.graceUntil);
+    const opponentGraceUntil = this.formatPresenceDeadline(opponentPresence?.graceUntil);
+
+    const selfDetail = this.onlineTransportStatus === "reconnecting"
+      ? "Re-establishing the room connection."
+      : this.state.toMove === localColor
+        ? "Your turn."
+        : "Waiting for the opponent move.";
+
+    let opponentDetail = this.state.toMove === opponentColor ? "Opponent to move." : "Watching for the next move.";
+    if (!opponentPresence) {
+      opponentDetail = "Waiting for opponent to join.";
+    } else if (opponentPresence.inGrace && opponentGraceUntil) {
+      opponentDetail = `Reconnect grace until ${opponentGraceUntil}.`;
+    } else if (!opponentPresence.connected) {
+      opponentDetail = "Opponent is currently disconnected.";
+    }
+
+    const selfStatusText = selfGraceUntil && selfStatus.status === "in_grace"
+      ? `Rejoining until ${selfGraceUntil}`
+      : selfStatus.text;
+    const opponentStatusText = opponentGraceUntil && opponentStatus.status === "in_grace"
+      ? `Rejoining until ${opponentGraceUntil}`
+      : opponentStatus.text;
+
+    return {
+      mode: "online",
+      transportStatus: this.onlineTransportStatus,
+      viewerColor: localColor,
+      viewerRole: "player",
+      players: {
+        [localColor]: this.createShellPlayerIdentity({
+          color: localColor,
+          displayName: selfName,
+          roleLabel: `You · ${this.sideLabel(localColor)}`,
+          detailText: selfDetail,
+          status: selfStatus.status,
+          statusText: selfStatusText,
+          isLocal: true,
+        }),
+        [opponentColor]: this.createShellPlayerIdentity({
+          color: opponentColor,
+          displayName: opponentName,
+          roleLabel: `Opponent · ${this.sideLabel(opponentColor)}`,
+          detailText: opponentDetail,
+          status: opponentStatus.status,
+          statusText: opponentStatusText,
+          isLocal: false,
+        }),
+      },
+    };
   }
 
   async resign(): Promise<void> {

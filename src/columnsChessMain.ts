@@ -42,6 +42,7 @@ import { setStackWorksGameTitle } from "./ui/gameTitle";
 import { bindTouchAnnotationPalette } from "./ui/touchAnnotationPalette";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
+import { initGameShell } from "./ui/shell/gameShell";
 import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
 import { applyBoardViewportModeToSvg } from "./render/boardViewport";
 import {
@@ -93,6 +94,27 @@ function writeStringPref(key: string, value: string): void {
 
 window.addEventListener("DOMContentLoaded", async () => {
   const variant = getVariantById(ACTIVE_VARIANT_ID);
+  const appRoot = document.getElementById("appRoot") as HTMLElement | null;
+  if (!appRoot) throw new Error("Missing game root: #appRoot");
+
+  const shell = initGameShell({
+    appRoot,
+    breadcrumb: "Play / Columns Chess",
+    title: variant.displayName,
+    subtitle: variant.subtitle,
+    meta: [rulesBoardLine(variant.rulesetId, variant.boardSize), `${variant.boardSize}x${variant.boardSize} board`],
+    backHref: "./",
+    helpHref: "./columnsChess-help.html",
+    activeSectionId: "play",
+    navItems: [
+      { id: "play", label: "Play", targetSelector: "#boardWrap" },
+      { id: "status", label: "Status", targetSelector: '#leftSidebar .panelSection[data-section="status"]' },
+      { id: "tools", label: "Tools", targetSelector: '#leftSidebar .panelSection[data-section="optionsActions"]' },
+      { id: "bot", label: "Bot", targetSelector: '#leftSidebar .panelSection[data-section="bot"]' },
+      { id: "history", label: "History", targetSelector: '#rightSidebar .panelSection[data-section="moveHistory"]' },
+      { id: "rules", label: "Rules", targetSelector: '#rightSidebar .panelSection[data-section="rules"]' },
+    ],
+  });
 
   initSplitLayout();
   initCollapsibleSections();
@@ -288,6 +310,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   const controller = new GameController(svg, piecesLayer, orientedInspector as any, state, history, driver);
   hudController = controller;
   controller.bind();
+  shell.bindController(controller);
 
   bindOfflineNavGuard(controller, ACTIVE_VARIANT_ID);
 
