@@ -230,7 +230,7 @@ function drawSquareMark(
   el.setAttribute("height", String(h));
   el.setAttribute("fill", style === "chesscom" ? colorToChessComSquareFill(mark.color) : fill);
   el.setAttribute("stroke", style === "chesscom" ? "none" : stroke);
-  el.setAttribute("stroke-width", style === "chesscom" ? "0" : "3");
+  el.setAttribute("stroke-width", style === "chesscom" ? "0" : "6");
   applyRectDefaults(el);
   layer.appendChild(el);
 }

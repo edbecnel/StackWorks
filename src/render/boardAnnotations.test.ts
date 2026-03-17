@@ -172,4 +172,24 @@ describe("renderBoardAnnotations", () => {
     expect(rect?.getAttribute("stroke-width")).toBe("0");
     expect(rect?.getAttribute("fill")).toBe("rgba(255, 159, 64, 0.28)");
   });
+
+  it("renders classic analysis square highlights with a thicker border", () => {
+    const svg = makeSvg8x8();
+
+    const state: BoardAnnotationsState = {
+      squares: [{ kind: "square", at: "r0c0", color: "orange" }],
+      arrows: [],
+    };
+
+    renderBoardAnnotations(svg, state, { squareStyle: "classic" });
+
+    const rect = svg.querySelector("rect.board-annotation-square") as SVGRectElement | null;
+    expect(rect).not.toBeNull();
+    expect(rect?.getAttribute("x")).toBe("104");
+    expect(rect?.getAttribute("y")).toBe("104");
+    expect(rect?.getAttribute("width")).toBe("92");
+    expect(rect?.getAttribute("height")).toBe("92");
+    expect(rect?.getAttribute("stroke-width")).toBe("6");
+    expect(rect?.getAttribute("stroke")).toContain("255, 159, 64");
+  });
 });

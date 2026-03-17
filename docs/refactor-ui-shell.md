@@ -1,6 +1,6 @@
 # StackWorks UI Shell Refactor
 
-> **Goal:** Refactor StackWorks UI into a professional product shell inspired by Chess.com, while preserving the current multi-page Vite architecture, shared game logic, and existing offline/online functionality.
+> **Goal:** Refactor StackWorks UI into a professional modern product shell, while preserving the current multi-page Vite architecture, shared game logic, and existing offline/online functionality.
 
 ---
 
@@ -25,7 +25,7 @@
 
 ## Primary UX Target
 
-Global product shell similar in feel to Chess.com:
+Global product shell with a polished competitive board-game feel:
 
 - [ ] Top-left branded logo
 - [ ] Left global nav

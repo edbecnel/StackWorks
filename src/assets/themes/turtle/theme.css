@@ -9,7 +9,7 @@
   --lastMoveFromFill: rgba(102, 204, 255, 0.22);
   --lastMoveToFill: rgba(102, 204, 255, 0.36);
   --lastMoveStroke: rgba(102, 204, 255, 0.72);
-  --lastMoveStrokeWidth: 3;
+  --lastMoveStrokeWidth: 6;
 }
 
 /* Board linework: slightly warm charcoal */

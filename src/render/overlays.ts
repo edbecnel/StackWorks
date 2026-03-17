@@ -12,12 +12,21 @@ const MIN_HIGHLIGHT_STROKE_W = 6;
 const DEFAULT_LAST_MOVE_FROM_FILL = "rgba(102, 204, 255, 0.22)";
 const DEFAULT_LAST_MOVE_TO_FILL = "rgba(102, 204, 255, 0.36)";
 const DEFAULT_LAST_MOVE_STROKE = "rgba(102, 204, 255, 0.72)";
-const DEFAULT_LAST_MOVE_STROKE_W = 3;
+const DEFAULT_LAST_MOVE_STROKE_W = 6;
+const CLASSIC_SQUARE_STROKE_W = 6;
 const CHESSCOM_TARGET_DOT_LIGHT_FILL = "rgba(28, 28, 28, 0.26)";
 const CHESSCOM_TARGET_DOT_DARK_FILL = "rgba(20, 20, 20, 0.22)";
 const CHESSCOM_TARGET_DOT_MIN_RADIUS = 13;
 const CHESSCOM_TARGET_DOT_MAX_RADIUS = 16;
 const CHESSCOM_TARGET_DOT_SCALE = 0.34;
+const CHESSCOM_TARGET_RING_LIGHT_STROKE = "rgba(28, 28, 28, 0.34)";
+const CHESSCOM_TARGET_RING_DARK_STROKE = "rgba(20, 20, 20, 0.30)";
+const CHESSCOM_TARGET_RING_LIGHT_FILL = "rgba(28, 28, 28, 0.08)";
+const CHESSCOM_TARGET_RING_DARK_FILL = "rgba(20, 20, 20, 0.06)";
+const CHESSCOM_TARGET_RING_STROKE_W = 10;
+
+const CHESSCOM_SELECTION_LIGHT_FILL = "rgba(126, 179, 255, 0.30)";
+const CHESSCOM_SELECTION_DARK_FILL = "rgba(78, 131, 213, 0.40)";
 
 const CHESSCOM_LAST_MOVE_LIGHT_FROM_FILL = "rgba(246, 246, 105, 0.42)";
 const CHESSCOM_LAST_MOVE_LIGHT_TO_FILL = "rgba(246, 246, 105, 0.6)";
@@ -210,8 +219,19 @@ export function drawSelectionSquare(layer: SVGGElement, nodeId: string): void {
     className: "squareHighlight squareHighlight--selection",
     stroke: "rgba(102, 204, 255, 0.92)",
     fill: "rgba(102, 204, 255, 0.10)",
-    strokeWidth: 3,
+    strokeWidth: CLASSIC_SQUARE_STROKE_W,
     inset: 2,
+  });
+}
+
+export function drawSelectionChessCom(layer: SVGGElement, nodeId: string): void {
+  const fill = squareToneFromNodeId(nodeId) === "light" ? CHESSCOM_SELECTION_LIGHT_FILL : CHESSCOM_SELECTION_DARK_FILL;
+  drawSquareOverlay(layer, nodeId, {
+    className: "squareHighlight squareHighlight--selection-chesscom",
+    stroke: "none",
+    fill,
+    strokeWidth: 0,
+    inset: 0,
   });
 }
 
@@ -228,15 +248,37 @@ export function drawTargets(layer: SVGGElement, nodeIds: string[]): void {
   }
 }
 
-export function drawTargetsChessCom(layer: SVGGElement, nodeIds: string[]): void {
+export function drawTargetsChessCom(layer: SVGGElement, nodeIds: string[], captureNodeIds: Iterable<string> = []): void {
   layer = fxLayerFromAny(layer);
   const svg = svgFromLayer(layer);
   if (!svg) return;
+  const captureNodes = new Set(captureNodeIds);
 
   for (const id of nodeIds) {
     const rect = computeSquareRect(svg, id);
     const node = circleForNode(id);
     if (!rect && !node) continue;
+
+    if (captureNodes.has(id)) {
+      const cx = rect ? rect.x + rect.w / 2 : parseFloat(node?.getAttribute("cx") || "0");
+      const cy = rect ? rect.y + rect.h / 2 : parseFloat(node?.getAttribute("cy") || "0");
+      const diameter = rect ? Math.min(rect.w, rect.h) : parseFloat(node?.getAttribute("r") || "0") * 2.8;
+      const radius = Math.max(22, Math.round(diameter * 0.36));
+      const tone = squareToneFromNodeId(id);
+
+      const ring = document.createElementNS(SVG_NS, "circle") as SVGCircleElement;
+      ring.setAttribute("class", "target-ring target-ring--chesscom");
+      ring.setAttribute("cx", String(cx));
+      ring.setAttribute("cy", String(cy));
+      ring.setAttribute("r", String(radius));
+      ring.setAttribute("fill", tone === "light" ? CHESSCOM_TARGET_RING_LIGHT_FILL : CHESSCOM_TARGET_RING_DARK_FILL);
+      ring.setAttribute("stroke", tone === "light" ? CHESSCOM_TARGET_RING_LIGHT_STROKE : CHESSCOM_TARGET_RING_DARK_STROKE);
+      ring.setAttribute("stroke-width", String(CHESSCOM_TARGET_RING_STROKE_W));
+      ring.setAttribute("pointer-events", "none");
+      applyStrokeDefaults(ring);
+      layer.appendChild(ring);
+      continue;
+    }
 
     const cx = rect ? rect.x + rect.w / 2 : parseFloat(node?.getAttribute("cx") || "0");
     const cy = rect ? rect.y + rect.h / 2 : parseFloat(node?.getAttribute("cy") || "0");
@@ -265,7 +307,7 @@ export function drawTargetsSquares(layer: SVGGElement, nodeIds: string[]): void 
       className: "squareHighlight squareHighlight--target",
       stroke: "rgba(0, 230, 118, 0.92)",
       fill: "rgba(0, 230, 118, 0.10)",
-      strokeWidth: 3,
+      strokeWidth: CLASSIC_SQUARE_STROKE_W,
       inset: 3,
     });
   }
@@ -297,7 +339,7 @@ export function drawHighlightSquare(layer: SVGGElement, nodeId: string, color = 
     className: "squareHighlight squareHighlight--highlight",
     stroke: color,
     fill: "rgba(255, 159, 64, 0.08)",
-    strokeWidth: Math.max(width, 3),
+    strokeWidth: Math.max(width, CLASSIC_SQUARE_STROKE_W),
     inset: 2,
   });
 }

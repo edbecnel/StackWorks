@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { drawLastMoveSquares, drawTargetsChessCom, ensureOverlayLayer } from "./overlays";
+import {
+  drawLastMoveSquares,
+  drawSelectionChessCom,
+  drawSelectionSquare,
+  drawTargetsChessCom,
+  drawTargetsSquares,
+  ensureOverlayLayer,
+} from "./overlays";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -57,6 +64,7 @@ describe("drawLastMoveSquares", () => {
     expect(rects).toHaveLength(2);
     expect(rects[0]?.getAttribute("fill")).toContain("--lastMoveFromFill");
     expect(rects[0]?.getAttribute("stroke")).toContain("--lastMoveStroke");
+    expect(rects[0]?.getAttribute("stroke-width")).toContain("6");
   });
 
   it("renders chess.com-style last-move highlights as full-square contrast fills", () => {
@@ -93,5 +101,55 @@ describe("drawTargetsChessCom", () => {
     expect(dots[0]?.getAttribute("fill")).toBe("rgba(28, 28, 28, 0.26)");
     expect(dots[1]?.getAttribute("fill")).toBe("rgba(20, 20, 20, 0.22)");
     expect(dots[0]?.getAttribute("stroke")).toBe("none");
+  });
+
+  it("renders occupied capture targets as rings instead of dots", () => {
+    const svg = makeSvg8x8();
+    const overlays = ensureOverlayLayer(svg);
+
+    drawTargetsChessCom(overlays, ["r0c0", "r0c1"], ["r0c1"]);
+
+    const ring = svg.querySelector(".target-ring--chesscom") as SVGCircleElement | null;
+    const dots = svg.querySelectorAll(".target-dot--chesscom");
+    expect(ring).not.toBeNull();
+    expect(ring?.getAttribute("cx")).toBe("250");
+    expect(ring?.getAttribute("cy")).toBe("150");
+    expect(ring?.getAttribute("stroke-width")).toBe("10");
+    expect(ring?.getAttribute("fill")).toBe("rgba(20, 20, 20, 0.06)");
+    expect(dots).toHaveLength(1);
+    expect(dots[0]?.getAttribute("cx")).toBe("150");
+  });
+});
+
+describe("drawSelectionChessCom", () => {
+  it("renders a full-square modern selection overlay", () => {
+    const svg = makeSvg8x8();
+    const overlays = ensureOverlayLayer(svg);
+
+    drawSelectionChessCom(overlays, "r0c0");
+
+    const selection = svg.querySelector(".squareHighlight--selection-chesscom") as SVGRectElement | null;
+    expect(selection).not.toBeNull();
+    expect(selection?.getAttribute("x")).toBe("100");
+    expect(selection?.getAttribute("width")).toBe("100");
+    expect(selection?.getAttribute("stroke")).toBe("none");
+    expect(selection?.getAttribute("fill")).toBe("rgba(126, 179, 255, 0.30)");
+  });
+});
+
+describe("classic square overlays", () => {
+  it("renders selection and target squares with a thicker Classic border", () => {
+    const svg = makeSvg8x8();
+    const overlays = ensureOverlayLayer(svg);
+
+    drawSelectionSquare(overlays, "r0c0");
+    drawTargetsSquares(overlays, ["r0c1"]);
+
+    const selection = svg.querySelector(".squareHighlight--selection") as SVGRectElement | null;
+    const target = svg.querySelector(".squareHighlight--target") as SVGRectElement | null;
+    expect(selection).not.toBeNull();
+    expect(target).not.toBeNull();
+    expect(selection?.getAttribute("stroke-width")).toBe("6");
+    expect(target?.getAttribute("stroke-width")).toBe("6");
   });
 });

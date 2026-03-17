@@ -482,8 +482,45 @@ describe("GameController move hint styles", () => {
     (controller as any).showSelection("r2c2");
 
     expect(mockSvg.querySelectorAll(".target-dot--chesscom").length).toBe(1);
+    expect(mockSvg.querySelectorAll(".squareHighlight--selection-chesscom").length).toBe(1);
     expect(mockSvg.querySelectorAll(".halo--target").length).toBe(0);
     expect(mockSvg.querySelectorAll(".halo--highlight").length).toBe(0);
+  });
+
+  it("uses a ring for occupied capture targets in Modern mode", () => {
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r7c4", [{ owner: "W", rank: "R" }]],
+        ["r7c0", [{ owner: "W", rank: "K" }]],
+        ["r0c4", [{ owner: "B", rank: "R" }]],
+        ["r0c0", [{ owner: "B", rank: "K" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+      meta: { variantId: "chess_classic", rulesetId: "chess", boardSize: 8 },
+      chess: {
+        castling: {
+          W: { kingSide: false, queenSide: false },
+          B: { kingSide: false, queenSide: false },
+        },
+      },
+    };
+    history.push(state);
+
+    mockSvg.appendChild(createNode("r7c4", 120, 120));
+    mockSvg.appendChild(createNode("r0c4", 120, 40));
+    mockSvg.appendChild(createNode("r7c0", 40, 120));
+    mockSvg.appendChild(createNode("r0c0", 40, 40));
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history);
+    controller.setMoveHints(true);
+    controller.setMoveHintStyle("chesscom");
+
+    (controller as any).showSelection("r7c4");
+
+    expect(mockSvg.querySelectorAll(".target-ring--chesscom").length).toBeGreaterThan(0);
+    expect(mockSvg.querySelectorAll(".squareHighlight--selection-chesscom").length).toBe(1);
   });
 });
 

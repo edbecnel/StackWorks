@@ -5,6 +5,7 @@ import {
   ensureOverlayLayer,
   clearOverlays,
   drawSelection,
+  drawSelectionChessCom,
   drawSelectionSquare,
   drawTargets,
   drawTargetsChessCom,
@@ -3770,7 +3771,8 @@ export class GameController {
     clearOverlays(this.overlayLayer);
 
     const useSquares = this.highlightSquaresEnabled && this.isChessLikeRuleset();
-    if (useSquares) drawSelectionSquare(this.overlayLayer, nodeId);
+    if (this.moveHintStyle === "chesscom") drawSelectionChessCom(this.overlayLayer, nodeId);
+    else if (useSquares) drawSelectionSquare(this.overlayLayer, nodeId);
     else drawSelection(this.overlayLayer, nodeId);
     let allLegal = generateLegalMoves(
       this.state,
@@ -3789,7 +3791,13 @@ export class GameController {
     this.currentMoves = movesForNode;
     this.currentTargets = this.currentMoves.map(m => m.to);
     if (this.moveHintsEnabled) {
-      if (this.moveHintStyle === "chesscom") drawTargetsChessCom(this.overlayLayer, this.currentTargets);
+      if (this.moveHintStyle === "chesscom") {
+        const occupiedCaptureTargets = this.currentMoves
+          .filter((move): move is Extract<Move, { kind: "capture" }> => move.kind === "capture")
+          .filter((move) => (this.state.board.get(move.to)?.length ?? 0) > 0)
+          .map((move) => move.to);
+        drawTargetsChessCom(this.overlayLayer, this.currentTargets, occupiedCaptureTargets);
+      }
       else if (useSquares) drawTargetsSquares(this.overlayLayer, this.currentTargets);
       else drawTargets(this.overlayLayer, this.currentTargets);
     }
