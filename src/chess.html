@@ -831,6 +831,8 @@
         #appRoot {
           flex-direction: column;
           height: var(--app-height);
+          justify-content: flex-start;
+          align-items: stretch;
         }
 
         /* Left panel on top, board in middle, right panel at bottom */
@@ -855,6 +857,12 @@
           height: auto;
         }
         #centerArea {
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-start;
+          align-items: stretch;
+          align-content: flex-start;
+          flex-wrap: nowrap;
           min-width: 0;
           height: auto;
           padding-left: max(8px, env(safe-area-inset-left));
@@ -865,6 +873,14 @@
         #boardWithEvalBar {
           width: 100%;
           margin-left: 0;
+          flex: 0 0 auto;
+          align-self: stretch;
+        }
+
+        #boardWrap {
+          align-items: flex-start;
+          justify-content: flex-start;
+          flex: 0 0 auto;
         }
 
         body[data-eval-bar-visible="1"] #centerArea {

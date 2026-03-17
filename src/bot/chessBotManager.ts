@@ -44,6 +44,15 @@ function parseDelayMs(raw: string, fallback: number): number {
   return clamp(Math.round(n), 0, 5000);
 }
 
+function isRecoverableStockfishFailureMessage(msg: string): boolean {
+  return (
+    msg.includes("Stockfish timeout: uciok") ||
+    msg.includes("Stockfish timeout: readyok") ||
+    msg.includes("Stockfish timeout: bestmove") ||
+    msg.includes("Stockfish worker failed:")
+  );
+}
+
 function parseSideSetting(v: string | null): BotSideSetting {
   if (v === "beginner" || v === "intermediate" || v === "strong" || v === "human") return v;
   return "human";
@@ -338,6 +347,10 @@ export class ChessBotManager {
       // Keep last score on error; log so issues are visible in the console.
       // eslint-disable-next-line no-console
       console.warn("[chessbot] eval error:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      if (isRecoverableStockfishFailureMessage(msg)) {
+        this.showWarmupToast(true);
+      }
     } finally {
       this.evalRunning = false;
       if (this.evalDeferredWhileBusy) {
@@ -1496,11 +1509,7 @@ export class ChessBotManager {
 
       // If Stockfish is just still coming up, retry a few times before giving up.
       // (Some environments take a long time to fetch/compile WASM on first run.)
-      const isRecoverableEngineFailure =
-        msg.includes("Stockfish timeout: uciok") ||
-        msg.includes("Stockfish timeout: readyok") ||
-        msg.includes("Stockfish timeout: bestmove") ||
-        msg.includes("Stockfish worker failed:");
+      const isRecoverableEngineFailure = isRecoverableStockfishFailureMessage(msg);
 
       if (isRecoverableEngineFailure && myRequestId === this.requestId - 1) {
         // Don't stall gameplay on engine init. Play a fallback move immediately.
@@ -1509,6 +1518,7 @@ export class ChessBotManager {
         const backoffMs = Math.min(90_000, 5_000 * this.engineFailureCount);
         this.engineBackoffUntilMs = Date.now() + backoffMs;
         this.recoverEngineForRetry();
+        this.showWarmupToast(true);
 
         this.setStatus(`Bot (fallback) — ${this.engineLabel()} still loading...`);
         try {

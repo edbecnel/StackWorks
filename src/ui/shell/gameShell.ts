@@ -83,7 +83,7 @@ function ensureGameShellStyles(): void {
     }
 
     .gameShellRoot {
-      height: 100vh;
+      height: var(--app-height, 100vh);
       display: grid;
       grid-template-rows: auto minmax(0, 1fr);
       gap: 12px;
@@ -695,14 +695,28 @@ function ensureGameShellStyles(): void {
 
       .gameShellCompactBar {
         display: grid;
-        padding-top: max(10px, env(safe-area-inset-top));
-        padding-right: max(12px, env(safe-area-inset-right));
-        padding-left: max(12px, env(safe-area-inset-left));
+        gap: 8px;
+        padding-top: max(6px, env(safe-area-inset-top));
+        padding-right: max(10px, env(safe-area-inset-right));
+        padding-bottom: 6px;
+        padding-left: max(10px, env(safe-area-inset-left));
         z-index: 71;
       }
 
       .gameShellCompactBarBrand {
         display: inline-flex;
+        width: 28px;
+        height: 28px;
+        border-radius: 9px;
+      }
+
+      .gameShellCompactBarBrand img {
+        width: 17px;
+        height: 17px;
+      }
+
+      .gameShellCompactBarTitle {
+        font-size: 14px;
       }
 
       .gameShellCompactTrigger {
@@ -710,7 +724,9 @@ function ensureGameShellStyles(): void {
         align-items: center;
         justify-content: center;
         position: static;
-        min-width: 72px;
+        min-width: 64px;
+        min-height: 34px;
+        padding: 7px 12px;
         box-shadow: none;
       }
 
@@ -723,7 +739,7 @@ function ensureGameShellStyles(): void {
         top: calc(max(10px, env(safe-area-inset-top)) + 58px);
         left: max(10px, env(safe-area-inset-left));
         right: max(10px, env(safe-area-inset-right));
-        max-height: calc(100dvh - max(20px, env(safe-area-inset-top)) - max(20px, env(safe-area-inset-bottom)) - 58px);
+        max-height: calc(var(--app-height, 100dvh) - max(20px, env(safe-area-inset-top)) - max(20px, env(safe-area-inset-bottom)) - 58px);
         overflow: auto;
         z-index: 72;
         opacity: 0;
@@ -757,6 +773,56 @@ function ensureGameShellStyles(): void {
 
       .gameShellHeaderTop {
         grid-template-columns: minmax(0, 1fr) auto;
+      }
+
+      .gameShellPlayerPanel {
+        gap: 4px;
+        padding: 6px 8px;
+        border-radius: 12px;
+      }
+
+      .gameShellPlayerIdentityRow {
+        gap: 8px;
+      }
+
+      .gameShellPlayerAvatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        font-size: 11px;
+      }
+
+      .gameShellPlayerText {
+        gap: 1px;
+      }
+
+      .gameShellPlayerRole,
+      .gameShellPlayerDetail {
+        display: none;
+      }
+
+      .gameShellPlayerName {
+        font-size: 13px;
+      }
+
+      .gameShellPlayerStatusBadge {
+        min-height: 22px;
+        padding: 4px 8px;
+        font-size: 10px;
+      }
+
+      .gameShellPlayerPanel[data-redundant-status="1"] .gameShellPlayerStatusBadge {
+        display: none;
+      }
+
+      .gameShellPlayerMeta {
+        gap: 4px;
+      }
+
+      .gameShellPlayerMetaChip {
+        min-height: 18px;
+        padding: 2px 7px;
+        font-size: 9px;
       }
 
       .gameShellAppSlot,

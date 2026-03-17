@@ -221,6 +221,60 @@ describe("ChessBotManager loadGame paused toast", () => {
     expect(engineCreates).toBeGreaterThanOrEqual(2);
   });
 
+  it("shows the existing Stockfish sticky toast even when toast notifications are disabled", async () => {
+    localStorage.setItem("lasca.opt.toasts", "0");
+
+    document.body.innerHTML = `
+      <select id="botWhiteSelect"><option value="human">human</option><option value="beginner">beginner</option></select>
+      <select id="botBlackSelect"><option value="human">human</option><option value="beginner">beginner</option></select>
+      <input id="botDelay" />
+      <button id="botDelayReset"></button>
+      <span id="botDelayLabel"></span>
+      <button id="botPauseBtn"></button>
+      <button id="botResetLearningBtn"></button>
+      <span id="botStatus"></span>
+      <div id="boardWrap"></div>
+    `;
+
+    const controller = new FakeController(mkChessState("B"), [{ index: 0, isCurrent: true }]);
+    let engineCreates = 0;
+    const mgr = new ChessBotManager(controller as any, {
+      engineFactory: () => {
+        engineCreates += 1;
+        if (engineCreates === 1) {
+          return {
+            init: async () => {},
+            terminate: () => {},
+            bestMove: async () => {
+              throw new Error("Stockfish worker failed: crashed");
+            },
+            evaluate: async () => null,
+          } as any;
+        }
+
+        return {
+          init: async () => {
+            throw new Error("Stockfish worker failed: still down");
+          },
+          terminate: () => {},
+          bestMove: async () => "",
+          evaluate: async () => null,
+        } as any;
+      },
+    });
+
+    mgr.bind();
+    await vi.runAllTimersAsync();
+
+    const pauseBtn = document.getElementById("botPauseBtn") as HTMLButtonElement;
+    pauseBtn.click();
+    await vi.runAllTimersAsync();
+
+    expect(controller.sticky.key).toBe("chessbot_warmup");
+    expect(controller.sticky.text).toContain("failed to start");
+    expect(controller.stickyActionKeys).toContain("chessbot_warmup");
+  });
+
   it("re-runs evaluation for the latest playback position after an in-flight eval finishes", async () => {
     let evalCallCount = 0;
     const evalResolvers: Array<(score: any) => void> = [];

@@ -39,6 +39,12 @@ type StockfishEngine = {
 };
 
 function prefersAsmStockfish(): boolean {
+  if (typeof location !== "undefined") {
+    const host = String(location.hostname || "").toLowerCase();
+    if (host === "stackworks.games" || host === "www.stackworks.games") {
+      return true;
+    }
+  }
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent ?? "";
   const platform = navigator.platform ?? "";
@@ -393,6 +399,10 @@ export class StockfishUciEngine implements UciEngine {
     const s = Math.max(0, Math.min(20, Math.round(skill)));
     if (this.currentSkill === s && this.isReady) return;
 
+    if (this.lastWorkerError && this.switchToFallbackArtifact(this.lastWorkerError)) {
+      return this.setSkillLevel(skill, opts);
+    }
+
     if (!this.isReady) await this.init({ timeoutMs: opts?.timeoutMs });
 
     this.send(`setoption name Skill Level value ${s}`);
@@ -404,6 +414,11 @@ export class StockfishUciEngine implements UciEngine {
       until: this.waitForLine((l) => l.trim() === "readyok"),
       timeoutMs,
       label: "readyok after setoption",
+    }).catch((err) => {
+      if (this.lastWorkerError && this.switchToFallbackArtifact(this.lastWorkerError)) {
+        return this.setSkillLevel(skill, opts);
+      }
+      throw err;
     });
 
     this.currentSkill = s;
@@ -412,6 +427,10 @@ export class StockfishUciEngine implements UciEngine {
   async bestMove(args: UciBestMoveArgs): Promise<string> {
     const movetimeMs = Math.max(10, Math.round(args.movetimeMs));
     const timeoutMs = args.timeoutMs ?? Math.max(2000, movetimeMs * 20);
+
+    if (this.lastWorkerError && this.switchToFallbackArtifact(this.lastWorkerError)) {
+      return this.bestMove(args);
+    }
 
     if (args.skill !== undefined) {
       await this.setSkillLevel(args.skill, { timeoutMs });
@@ -426,6 +445,9 @@ export class StockfishUciEngine implements UciEngine {
     this.send(`go movetime ${movetimeMs}`);
 
     const line = await withTimeout(this.waitForLine((l) => l.startsWith("bestmove ")), timeoutMs, "bestmove").catch((err) => {
+      if (this.lastWorkerError && this.switchToFallbackArtifact(this.lastWorkerError)) {
+        return this.bestMove(args);
+      }
       if (this.lastWorkerError) {
         throw new Error(`Stockfish worker failed: ${this.lastWorkerError}`);
       }
@@ -442,6 +464,10 @@ export class StockfishUciEngine implements UciEngine {
   async evaluate(fen: string, opts?: { movetimeMs?: number; timeoutMs?: number }): Promise<EvalScore | null> {
     const movetimeMs = Math.max(10, Math.round(opts?.movetimeMs ?? 200));
     const timeoutMs = opts?.timeoutMs ?? Math.max(3000, movetimeMs * 15);
+
+    if (this.lastWorkerError && this.switchToFallbackArtifact(this.lastWorkerError)) {
+      return this.evaluate(fen, opts);
+    }
 
     await this.init({ timeoutMs });
 
@@ -476,6 +502,11 @@ export class StockfishUciEngine implements UciEngine {
     this.send(`position fen ${fen}`);
     this.send(`go movetime ${movetimeMs}`);
 
-    return withTimeout(promise, timeoutMs, "evaluate").catch(() => lastScore);
+    return withTimeout(promise, timeoutMs, "evaluate").catch(() => {
+      if (this.lastWorkerError && this.switchToFallbackArtifact(this.lastWorkerError)) {
+        return this.evaluate(fen, opts);
+      }
+      return lastScore;
+    });
   }
 }

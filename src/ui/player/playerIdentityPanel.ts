@@ -11,6 +11,10 @@ export interface PlayerIdentityPanelController {
   update(identity: PlayerIdentity): void;
 }
 
+function isRedundantLocalStatus(identity: PlayerIdentity): boolean {
+  return identity.status === "offline" && identity.statusText.trim().toLowerCase() === "local play";
+}
+
 function countryCodeToFlagEmoji(countryCode: string | null | undefined): string {
   const code = typeof countryCode === "string" ? countryCode.trim().toUpperCase() : "";
   if (!/^[A-Z]{2}$/.test(code)) return "";
@@ -77,6 +81,7 @@ export function createPlayerIdentityPanel(opts: PlayerIdentityPanelOptions): Pla
     root.dataset.playerColor = identity.color;
     root.dataset.activeTurn = identity.isActiveTurn ? "1" : "0";
     root.dataset.playerStatus = identity.status;
+    root.dataset.redundantStatus = isRedundantLocalStatus(identity) ? "1" : "0";
 
     const nextAvatar = createPlayerAvatar({
       color: identity.color,
@@ -102,7 +107,7 @@ export function createPlayerIdentityPanel(opts: PlayerIdentityPanelOptions): Pla
     detail.textContent = identity.detailText;
     badge.setStatus({ status: identity.status, text: identity.statusText });
 
-    sideChip.textContent = identity.color === "W" ? "White side" : "Black side";
+    sideChip.textContent = identity.color === "W" ? "White" : "Black";
     localChip.hidden = !identity.isLocal;
     localChip.textContent = "You";
     activeChip.hidden = !identity.isActiveTurn;
