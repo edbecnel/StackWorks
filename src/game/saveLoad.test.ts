@@ -146,6 +146,29 @@ describe("saveLoad", () => {
     expect(save.history.emtMs).toBeUndefined();
   });
 
+  it("preserves optional evaluation scores in save history", () => {
+    const s0: GameState = {
+      board: new Map([["r6c0", [{ owner: "W", rank: "S" }]]]),
+      toMove: "W",
+      phase: "idle",
+    };
+    const s1: GameState = {
+      board: new Map([["r5c1", [{ owner: "W", rank: "S" }]]]),
+      toMove: "B",
+      phase: "idle",
+    };
+
+    const history = new HistoryManager();
+    history.push(s0, "Start", null, null);
+    history.push(s1, "A1 → B2", 1234, { cp: 80 });
+
+    const save = serializeSaveData(s1, history) as any;
+    expect(save.history?.evals).toEqual([null, { cp: 80 }]);
+
+    const loaded = deserializeSaveData(save);
+    expect(loaded.history?.evals).toEqual([null, { cp: 80 }]);
+  });
+
   it("should keep backward compatibility with v1 state-only saves", () => {
     const state: GameState = {
       board: new Map([["r3c3", [{ owner: "B", rank: "O" }]]]),

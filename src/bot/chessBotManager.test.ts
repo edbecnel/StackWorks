@@ -220,4 +220,77 @@ describe("ChessBotManager loadGame paused toast", () => {
     expect(terminate).toHaveBeenCalled();
     expect(engineCreates).toBeGreaterThanOrEqual(2);
   });
+
+  it("re-runs evaluation for the latest playback position after an in-flight eval finishes", async () => {
+    let evalCallCount = 0;
+    const evalResolvers: Array<(score: any) => void> = [];
+    const observed: Array<{ score: any; pending: boolean }> = [];
+
+    const controller = new FakeController(mkChessState("W"), [{ index: 0, isCurrent: true }]);
+    const mgr = new ChessBotManager(controller as any, {
+      engineFactory: () => ({
+        init: async () => {},
+        terminate: () => {},
+        bestMove: async () => "",
+        evaluate: vi.fn(
+          () =>
+            new Promise((resolve) => {
+              evalCallCount += 1;
+              evalResolvers.push(resolve);
+            })
+        ),
+      } as any),
+    });
+
+    mgr.addEvalChangeListener((score, pending) => {
+      observed.push({ score, pending });
+    });
+
+    mgr.activateForEvaluation();
+    await vi.runAllTimersAsync();
+    expect(evalCallCount).toBe(1);
+
+    controller.setState(mkChessState("B"));
+    controller.fire("jump");
+    await vi.runAllTimersAsync();
+    expect(evalCallCount).toBe(1);
+    expect(observed.at(-1)?.pending).toBe(true);
+
+    evalResolvers.shift()?.({ cp: 25 });
+    await vi.runAllTimersAsync();
+    expect(evalCallCount).toBe(2);
+    expect(observed.at(-1)?.pending).toBe(true);
+
+    evalResolvers.shift()?.({ cp: 60 });
+    await vi.runAllTimersAsync();
+
+    expect(evalCallCount).toBe(2);
+    expect(observed.at(-1)?.pending).toBe(false);
+    expect(observed.at(-1)?.score).toEqual({ cp: -60 });
+  });
+
+  it("uses an imported cached eval immediately even before the engine is ready", async () => {
+    const observed: Array<{ score: any; pending: boolean }> = [];
+    const evaluate = vi.fn(async () => ({ cp: 10 }));
+    const controller = new FakeController(mkChessState("W"), [{ index: 0, isCurrent: true }]);
+    const mgr = new ChessBotManager(controller as any, {
+      engineFactory: () => ({
+        init: async () => new Promise(() => {}),
+        terminate: () => {},
+        bestMove: async () => "",
+        evaluate,
+      } as any),
+    });
+
+    mgr.addEvalChangeListener((score, pending) => {
+      observed.push({ score, pending });
+    });
+
+    mgr.setCachedEvalForFen("8/8/8/8/8/8/8/8 w - - 0 1", { cp: 55 });
+    mgr.activateForEvaluation();
+    await vi.runAllTimersAsync();
+
+    expect(observed.at(-1)).toEqual({ score: { cp: 55 }, pending: false });
+    expect(evaluate).not.toHaveBeenCalled();
+  });
 });

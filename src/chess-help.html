@@ -493,6 +493,14 @@
             keep recorded move times and PGN exports include <code>[%emt]</code>
             comments; when disabled, both exports omit move timing.
           </li>
+          <li>
+            The <b>Include engine evals</b> checkbox applies to
+            <b>Export PGN</b>. When enabled, exported PGNs include cached engine
+            comments as <code>[%eval]</code>. When importing a PGN that already
+            contains <code>[%eval]</code> comments, the evaluation panel and
+            graph replay those embedded values first and only fall back to
+            Stockfish for positions that do not have them.
+          </li>
         </ul>
       </div>
 

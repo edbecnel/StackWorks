@@ -1,6 +1,7 @@
 import type { GameState } from "./state.ts";
 import type { Stack } from "../types.ts";
 import type { HistoryManager } from "./historyManager.ts";
+import type { EvalScore } from "../bot/uciEngine.ts";
 import type { DamaCaptureRemoval, GameMeta, RulesetId, VariantId } from "../variants/variantTypes";
 import { DEFAULT_VARIANT_ID, getVariantById, isVariantId } from "../variants/variantRegistry";
 
@@ -30,6 +31,8 @@ export interface SerializedHistory {
   currentIndex: number;
   /** Per-move elapsed time in milliseconds (null = not recorded). Index-aligned with states[]. */
   emtMs?: Array<number | null>;
+  /** Per-position evaluation score aligned with states[]. */
+  evals?: Array<EvalScore | null>;
 }
 
 export interface SerializedSaveFileV2 {
@@ -215,6 +218,7 @@ export function serializeSaveData(
   const exported = history.exportSnapshots();
   const includeTiming = opts?.includeTiming ?? true;
   const hasTimingData = includeTiming && exported.emtMs.some((v) => v !== null);
+  const hasEvalData = exported.evals.some((score) => score !== null);
   return {
     ...base,
     history: {
@@ -222,6 +226,7 @@ export function serializeSaveData(
       notation: exported.notation,
       currentIndex: exported.currentIndex,
       ...(hasTimingData ? { emtMs: exported.emtMs } : {}),
+      ...(hasEvalData ? { evals: exported.evals } : {}),
     },
   };
 }
@@ -231,7 +236,13 @@ export function deserializeSaveData(
   expected?: GameMeta
 ): {
   state: GameState;
-  history?: { states: GameState[]; notation: string[]; currentIndex: number; emtMs?: Array<number | null> };
+  history?: {
+    states: GameState[];
+    notation: string[];
+    currentIndex: number;
+    emtMs?: Array<number | null>;
+    evals?: Array<EvalScore | null>;
+  };
 } {
   const stableBoardForCompare = (s: GameState): string => {
     const entries = Array.from(s.board.entries())
@@ -298,6 +309,9 @@ export function deserializeSaveData(
     const states = (v3.history.states || []).map((s: SerializedGameState) => ({ ...deserializeGameState(s), meta }));
     const notation = Array.isArray(v3.history.notation) ? v3.history.notation : [];
     const emtMs: Array<number | null> | undefined = Array.isArray(v3.history.emtMs) ? v3.history.emtMs : undefined;
+    const evals: Array<EvalScore | null> | undefined = Array.isArray(v3.history.evals)
+      ? v3.history.evals.map((score) => (score && typeof score === "object" ? { ...(score as EvalScore) } : null))
+      : undefined;
 
     if (states.length === 0) {
       // History is missing/invalid; fall back to the current position.
@@ -332,7 +346,7 @@ export function deserializeSaveData(
 
     return {
       state: states[currentIndex],
-      history: { states, notation, currentIndex, ...(emtMs ? { emtMs } : {}) },
+      history: { states, notation, currentIndex, ...(emtMs ? { emtMs } : {}), ...(evals ? { evals } : {}) },
     };
   }
 

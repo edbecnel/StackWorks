@@ -1,5 +1,6 @@
 import type { GameState } from "../core/index.ts";
 import type { Move } from "../core/index.ts";
+import type { EvalScore } from "../bot/uciEngine.ts";
 
 export type DriverMode = "local" | "online";
 
@@ -9,6 +10,8 @@ export interface HistorySnapshots {
   currentIndex: number;
   /** Elapsed move time in ms per entry (null = not recorded). */
   emtMs?: Array<number | null>;
+  /** Per-position evaluation score (White perspective) aligned with states[]. */
+  evals?: Array<EvalScore | null>;
 }
 
 export interface GameDriver {

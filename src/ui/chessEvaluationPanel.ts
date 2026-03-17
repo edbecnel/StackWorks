@@ -104,9 +104,11 @@ function terminalEvalScoreForState(state: GameState): EvalScore | null {
   }
 }
 
-function graphScoreForState(state: GameState, bot?: ChessBotManager | null): EvalScore | null {
+function graphScoreForState(state: GameState, importedScore?: EvalScore | null, bot?: ChessBotManager | null): EvalScore | null {
   const terminal = terminalEvalScoreForState(state);
   if (terminal) return terminal;
+
+  if (importedScore) return importedScore;
 
   if (!bot) return null;
   try {
@@ -453,6 +455,7 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
 
     const snap = controller.getHistorySnapshots();
     const states = snap.states ?? [];
+    const importedEvals = snap.evals ?? [];
     graphStateCount = states.length;
 
     if (states.length === 0) {
@@ -466,12 +469,12 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
     const right = 312;
     const midY = 60;
     const amplitude = 46;
-    const scores = states.map((state) => graphScoreForState(state as GameState, bot));
+    const scores = states.map((state, index) => graphScoreForState(state as GameState, importedEvals[index] ?? null, bot));
     const ready = scores.filter((score) => score !== null).length;
 
-    if (!bot.isEngineReady()) graphStatusEl.textContent = "Starting engine…";
-    else if (ready < states.length) graphStatusEl.textContent = `Evaluating ${ready}/${states.length}…`;
-    else graphStatusEl.textContent = `${states.length} positions`;
+    if (ready >= states.length) graphStatusEl.textContent = `${states.length} positions`;
+    else if (!bot.isEngineReady()) graphStatusEl.textContent = "Starting engine…";
+    else graphStatusEl.textContent = `Evaluating ${ready}/${states.length}…`;
 
     let d = "";
     for (let i = 0; i < scores.length; i++) {
@@ -515,7 +518,16 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
     void (async () => {
       const snap = controller.getHistorySnapshots();
       const states = snap.states ?? [];
+      const importedEvals = snap.evals ?? [];
       if (states.length === 0) return;
+
+      const missingCount = states.filter(
+        (state, index) => !graphScoreForState(state as GameState, importedEvals[index] ?? null, bot)
+      ).length;
+      if (missingCount === 0) {
+        renderGraph();
+        return;
+      }
 
       if (!bot.isEngineReady()) {
         bot.activateForEvaluation();
@@ -523,7 +535,8 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
         return;
       }
 
-      for (const state of states) {
+      for (let index = 0; index < states.length; index++) {
+        const state = states[index]!;
         if (token !== graphEvalJobToken || !graphVisible()) return;
 
         let fen = "";
@@ -533,7 +546,7 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
           continue;
         }
 
-        if (graphScoreForState(state as GameState, bot)) continue;
+        if (graphScoreForState(state as GameState, importedEvals[index] ?? null, bot)) continue;
 
         const score = await bot.evaluateFen(fen, { movetimeMs: 120, timeoutMs: 3000 });
         if (token !== graphEvalJobToken) return;
@@ -658,6 +671,8 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
   const render = () => {
     const state = controller.getState();
     if (!isChessClassic(state)) return;
+    const snap = controller.getHistorySnapshots();
+    const importedCurrentScore = snap.evals?.[snap.currentIndex] ?? null;
 
     const currentMode = mode;
 
@@ -665,8 +680,8 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
       // Show the numeric score labels above bars.
       if (engNumsEl) engNumsEl.style.visibility = "visible";
       const terminalScore = terminalEvalScoreForState(state);
-      const score = terminalScore ?? cachedEvalScore;
-      const pending = terminalScore ? false : cachedEvalPending;
+      const score = terminalScore ?? importedCurrentScore ?? cachedEvalScore;
+      const pending = terminalScore || importedCurrentScore ? false : cachedEvalPending;
 
       // Engine mode: render a single sigmoid eval bar spanning White/Black.
       if (barWhiteEl && barBlackEl) {
@@ -701,14 +716,14 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
 
       if (terminalScore && "mate" in terminalScore) {
         valueEl.textContent = `Engine eval: ${fmtEvalScore(terminalScore)}`;
+      } else if (score !== null && !pending) {
+        valueEl.textContent = `Engine eval: ${fmtEvalScore(score)}`;
       } else if (bot && !bot.isEngineReady()) {
         valueEl.textContent = "Starting engine\u2026";
       } else if (pending) {
         valueEl.textContent = score !== null
           ? `Calculating\u2026 (last: ${fmtEvalScore(score)})`
           : "Calculating\u2026";
-      } else if (score !== null) {
-        valueEl.textContent = `Engine eval: ${fmtEvalScore(score)}`;
       } else {
         valueEl.textContent = "Engine eval: —";
       }

@@ -171,6 +171,25 @@ export class ChessBotManager {
     return this.evalCache.get(fen) ?? null;
   }
 
+  setCachedEvalForFen(fen: string, score: EvalScore): void {
+    const normalized = "mate" in score ? { mate: score.mate } : { cp: score.cp };
+    this.evalCache.set(fen, normalized);
+
+    let currentFen: string | null = null;
+    try {
+      currentFen = gameStateToFen(this.controller.getState());
+    } catch {
+      currentFen = null;
+    }
+
+    if (this.lastEvalFen === fen || currentFen === fen) {
+      this.lastEvalScore = normalized;
+      this.lastEvalFen = fen;
+      this.evalDeferredWhileBusy = false;
+      this.notifyEvalListeners();
+    }
+  }
+
   async evaluateFen(fen: string, opts?: { movetimeMs?: number; timeoutMs?: number }): Promise<EvalScore | null> {
     const cached = this.evalCache.get(fen);
     if (cached) return cached;
@@ -204,8 +223,23 @@ export class ChessBotManager {
     this.scheduleEval();
   }
 
+  private hasResolvedEvalForCurrentPosition(): boolean {
+    if (!this.lastEvalScore || !this.lastEvalFen) return false;
+    try {
+      return gameStateToFen(this.controller.getState()) === this.lastEvalFen;
+    } catch {
+      return false;
+    }
+  }
+
   /** Schedule a debounced eval for the current position. */
   scheduleEval(): void {
+    if (this.evalRunning) {
+      this.evalDeferredWhileBusy = true;
+      this.notifyEvalListeners();
+      return;
+    }
+
     if (this.evalDebounceTimer !== null) {
       window.clearTimeout(this.evalDebounceTimer);
     }
@@ -216,24 +250,14 @@ export class ChessBotManager {
   }
 
   private notifyEvalListeners(): void {
-    const pending = this.evalRunning || this.evalDeferredWhileBusy || !this.engineReady;
+    const pending = this.evalRunning || this.evalDeferredWhileBusy || (!this.engineReady && !this.hasResolvedEvalForCurrentPosition());
     for (const cb of this.evalListeners) {
       try { cb(this.lastEvalScore, pending); } catch { /* ignore */ }
     }
   }
 
   private async runEval(): Promise<void> {
-    if (this.evalRunning) return;
-
-    if (!this.engineReady) {
-      // Engine not ready yet; mark deferred so we retry after prewarm finishes.
-      this.evalDeferredWhileBusy = true;
-      this.notifyEvalListeners();
-      return;
-    }
-
-    if (this.busy) {
-      // Bot is thinking; defer until maybeMove() finally block.
+    if (this.evalRunning) {
       this.evalDeferredWhileBusy = true;
       this.notifyEvalListeners();
       return;
@@ -257,6 +281,29 @@ export class ChessBotManager {
 
     // Skip if position hasn't changed.
     if (fen === this.lastEvalFen && this.lastEvalScore !== null) {
+      this.notifyEvalListeners();
+      return;
+    }
+
+    const cached = this.evalCache.get(fen) ?? null;
+    if (cached !== null) {
+      this.lastEvalScore = cached;
+      this.lastEvalFen = fen;
+      this.evalDeferredWhileBusy = false;
+      this.notifyEvalListeners();
+      return;
+    }
+
+    if (!this.engineReady) {
+      // Engine not ready yet; mark deferred so we retry after prewarm finishes.
+      this.evalDeferredWhileBusy = true;
+      this.notifyEvalListeners();
+      return;
+    }
+
+    if (this.busy) {
+      // Bot is thinking; defer until maybeMove() finally block.
+      this.evalDeferredWhileBusy = true;
       this.notifyEvalListeners();
       return;
     }
@@ -293,6 +340,11 @@ export class ChessBotManager {
       console.warn("[chessbot] eval error:", err);
     } finally {
       this.evalRunning = false;
+      if (this.evalDeferredWhileBusy) {
+        this.notifyEvalListeners();
+        this.scheduleEval();
+        return;
+      }
       this.notifyEvalListeners();
     }
   }

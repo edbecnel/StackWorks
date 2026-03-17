@@ -79,7 +79,7 @@ export class LocalDriver implements GameDriver {
   }
 
   replaceHistory(snap: HistorySnapshots): void {
-    this.history.replaceAll(snap.states, snap.notation, snap.currentIndex, snap.emtMs);
+    this.history.replaceAll(snap.states, snap.notation, snap.currentIndex, snap.emtMs, snap.evals);
     const current = this.history.getCurrent();
     if (current) this.state = current;
   }

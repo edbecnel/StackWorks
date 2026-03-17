@@ -204,7 +204,7 @@ export class GameController {
           snap.states[snap.currentIndex] = this.state;
         }
         const hm = new HistoryManager();
-        hm.replaceAll(snap.states, snap.notation, snap.currentIndex);
+        hm.replaceAll(snap.states, snap.notation, snap.currentIndex, snap.emtMs, snap.evals);
         this.analysisHistory = hm;
       } catch {
         this.analysisHistory = null;
@@ -2947,7 +2947,13 @@ export class GameController {
 
   loadGame(
     loadedState: GameState,
-    historyData?: { states: GameState[]; notation: string[]; currentIndex: number; emtMs?: Array<number | null> }
+    historyData?: {
+      states: GameState[];
+      notation: string[];
+      currentIndex: number;
+      emtMs?: Array<number | null>;
+      evals?: Array<import("../bot/uciEngine.ts").EvalScore | null>;
+    }
   ): void {
     if (historyData && historyData.states && historyData.states.length > 0) {
       this.driver.replaceHistory(historyData);

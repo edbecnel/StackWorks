@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { HistoryManager } from "./historyManager";
 import type { GameState } from "./state";
+import type { EvalScore } from "../bot/uciEngine";
 
 describe("HistoryManager", () => {
   let history: HistoryManager;
@@ -206,5 +207,22 @@ describe("HistoryManager", () => {
     expect(history.getCurrentIndex()).toBe(-1);
     expect(history.canUndo()).toBe(false);
     expect(history.canRedo()).toBe(false);
+  });
+
+  it("preserves per-position evaluation scores in snapshots", () => {
+    const eval1: EvalScore = { cp: 42 };
+    const eval2: EvalScore = { mate: -3 };
+
+    history.push(state1, "Start", null, null);
+    history.push(state2, "A1 → B2", 1200, eval1);
+    history.push(state3, "B2 → C3", 900, eval2);
+
+    const snap = history.exportSnapshots();
+    expect(snap.evals).toEqual([null, eval1, eval2]);
+
+    const restored = new HistoryManager();
+    restored.replaceAll(snap.states, snap.notation, snap.currentIndex, snap.emtMs, snap.evals);
+    expect(restored.exportSnapshots().evals).toEqual([null, eval1, eval2]);
+    expect(restored.getHistory()[2]?.evalScore).toEqual(eval2);
   });
 });

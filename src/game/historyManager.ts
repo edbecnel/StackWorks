@@ -1,4 +1,5 @@
 import type { GameState } from "./state.ts";
+import type { EvalScore } from "../bot/uciEngine.ts";
 
 /**
  * Manages game history for undo/redo functionality.
@@ -9,27 +10,47 @@ export class HistoryManager {
   private moveNotation: string[] = []; // Parallel array storing move notation
   /** Elapsed move time in ms per entry (null = not recorded). */
   private moveEmtMs: Array<number | null> = [];
+  /** Imported or cached evaluation score for each entry (White perspective). */
+  private moveEvalScores: Array<EvalScore | null> = [];
   private currentIndex: number = -1;
 
-  exportSnapshots(): { states: GameState[]; notation: string[]; currentIndex: number; emtMs: Array<number | null> } {
+  exportSnapshots(): {
+    states: GameState[];
+    notation: string[];
+    currentIndex: number;
+    emtMs: Array<number | null>;
+    evals: Array<EvalScore | null>;
+  } {
     return {
       states: this.history.map((s) => this.cloneState(s)),
       notation: [...this.moveNotation],
       currentIndex: this.currentIndex,
       emtMs: [...this.moveEmtMs],
+      evals: this.moveEvalScores.map((score) => (score ? { ...score } : null)),
     };
   }
 
-  replaceAll(states: GameState[], notation: string[], currentIndex: number, emtMs?: Array<number | null>): void {
+  replaceAll(
+    states: GameState[],
+    notation: string[],
+    currentIndex: number,
+    emtMs?: Array<number | null>,
+    evals?: Array<EvalScore | null>
+  ): void {
     const clonedStates = states.map((s) => this.cloneState(s));
     const clonedNotation = [...notation];
     const clonedEmtMs: Array<number | null> = emtMs ? [...emtMs] : clonedStates.map(() => null);
+    const clonedEvals: Array<EvalScore | null> = evals
+      ? evals.map((score) => (score ? { ...score } : null))
+      : clonedStates.map(() => null);
 
     // Keep arrays aligned.
     while (clonedNotation.length < clonedStates.length) clonedNotation.push("");
     if (clonedNotation.length > clonedStates.length) clonedNotation.length = clonedStates.length;
     while (clonedEmtMs.length < clonedStates.length) clonedEmtMs.push(null);
     if (clonedEmtMs.length > clonedStates.length) clonedEmtMs.length = clonedStates.length;
+    while (clonedEvals.length < clonedStates.length) clonedEvals.push(null);
+    if (clonedEvals.length > clonedStates.length) clonedEvals.length = clonedStates.length;
 
     const nextIndex = Number.isInteger(currentIndex)
       ? Math.max(-1, Math.min(currentIndex, clonedStates.length - 1))
@@ -38,6 +59,7 @@ export class HistoryManager {
     this.history = clonedStates;
     this.moveNotation = clonedNotation;
     this.moveEmtMs = clonedEmtMs;
+    this.moveEvalScores = clonedEvals;
     this.currentIndex = nextIndex;
   }
 
@@ -45,16 +67,18 @@ export class HistoryManager {
    * Record a new state (called after a complete turn).
    * This clears any future history if we're not at the end.
    */
-  push(state: GameState, notation?: string, emtMs?: number | null): void {
+  push(state: GameState, notation?: string, emtMs?: number | null, evalScore?: EvalScore | null): void {
     // Remove any states after current index (user made a new move after undoing)
     this.history = this.history.slice(0, this.currentIndex + 1);
     this.moveNotation = this.moveNotation.slice(0, this.currentIndex + 1);
     this.moveEmtMs = this.moveEmtMs.slice(0, this.currentIndex + 1);
+    this.moveEvalScores = this.moveEvalScores.slice(0, this.currentIndex + 1);
 
     // Add the new state, notation, and elapsed time
     this.history.push(this.cloneState(state));
     this.moveNotation.push(notation || "");
     this.moveEmtMs.push(emtMs ?? null);
+    this.moveEvalScores.push(evalScore ? { ...evalScore } : null);
     this.currentIndex = this.history.length - 1;
   }
 
@@ -123,13 +147,21 @@ export class HistoryManager {
    * Get all history states for display (e.g., move list).
    * Returns array with move information including notation.
    */
-  getHistory(): Array<{ index: number; toMove: "B" | "W"; isCurrent: boolean; notation: string; emtMs: number | null }> {
+  getHistory(): Array<{
+    index: number;
+    toMove: "B" | "W";
+    isCurrent: boolean;
+    notation: string;
+    emtMs: number | null;
+    evalScore: EvalScore | null;
+  }> {
     return this.history.map((state, idx) => ({
       index: idx,
       toMove: state.toMove,
       isCurrent: idx === this.currentIndex,
       notation: this.moveNotation[idx] || "",
       emtMs: this.moveEmtMs[idx] ?? null,
+      evalScore: this.moveEvalScores[idx] ? { ...(this.moveEvalScores[idx] as EvalScore) } : null,
     }));
   }
 
@@ -154,6 +186,7 @@ export class HistoryManager {
     this.history = [];
     this.moveNotation = [];
     this.moveEmtMs = [];
+    this.moveEvalScores = [];
     this.currentIndex = -1;
   }
 

@@ -537,7 +537,7 @@ export class RemoteDriver implements GameDriver {
 
     const nextState = deserializeWireGameState(snapshot.state) as GameState & { didPromote?: boolean };
     const h = deserializeWireHistory(snapshot.history);
-    this.history.replaceAll(h.states as any, h.notation, h.currentIndex, (h as any).emtMs);
+    this.history.replaceAll(h.states as any, h.notation, h.currentIndex, (h as any).emtMs, (h as any).evals);
     this.state = nextState;
     this.lastStateHash = hashGameState(nextState as any);
 
@@ -821,7 +821,7 @@ export class RemoteDriver implements GameDriver {
   }
 
   replaceHistory(snap: HistorySnapshots): void {
-    this.history.replaceAll(snap.states as any, snap.notation, snap.currentIndex, snap.emtMs);
+    this.history.replaceAll(snap.states as any, snap.notation, snap.currentIndex, snap.emtMs, snap.evals);
   }
 
   exportHistorySnapshots(): HistorySnapshots {

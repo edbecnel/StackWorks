@@ -33,6 +33,7 @@ import { Chess } from "chess.js";
 import { gameStateToFen, uciSquareToNodeId } from "./bot/fen.ts";
 import { applyMove } from "./game/applyMove.ts";
 import { nodeIdToA1 } from "./game/coordFormat.ts";
+import { buildPgnMoveComment, parsePgnMoveAnnotations } from "./chessPgnAnnotations.ts";
 import { createBoardLoadingOverlay } from "./ui/boardLoadingOverlay";
 import { nextPaint } from "./ui/nextPaint";
 import { bindChessEvaluationPanel } from "./ui/chessEvaluationPanel.ts";
@@ -912,6 +913,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   const loadGameBtn = document.getElementById("loadGameBtn") as HTMLButtonElement | null;
   const loadGameInput = document.getElementById("loadGameInput") as HTMLInputElement | null;
   const exportPgnTimingToggle = document.getElementById("exportPgnTimingToggle") as HTMLInputElement | null;
+  const exportPgnEvalToggle = document.getElementById("exportPgnEvalToggle") as HTMLInputElement | null;
   if (saveGameBtn) {
     saveGameBtn.addEventListener("click", () => {
       const currentState = controller.getState();
@@ -1056,13 +1058,14 @@ window.addEventListener("DOMContentLoaded", async () => {
     return out;
   };
 
-  const exportCurrentLineToPgnText = (includeTiming: boolean): string => {
+  const exportCurrentLineToPgnText = (includeTiming: boolean, includeEval: boolean): string => {
     const snap = driver.exportHistorySnapshots();
     const moves = deriveChessJsMovesFromHistory();
     const chess = new Chess();
 
     // Determine if we have any per-move elapsed times to embed.
     const hasTimingData = includeTiming && (snap.emtMs?.some((v) => v !== null) ?? false);
+    const hasEvalData = includeEval && (snap.evals?.some((score, index) => index > 0 && score !== null) ?? false);
 
     // Derive PGN result token from the current history position.
     const deriveResultToken = (): string => {
@@ -1079,7 +1082,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     const whiteHeader = resolvedPlayerNameForExport("W");
     const blackHeader = resolvedPlayerNameForExport("B");
 
-    if (!hasTimingData) {
+    if (!hasTimingData && !hasEvalData) {
       // Fast path: no timing, let chess.js build the standard PGN.
       for (const m of moves) {
         const ok = chess.move(m as any);
@@ -1093,23 +1096,22 @@ window.addEventListener("DOMContentLoaded", async () => {
       return chess.pgn({ newline_char: "\n" } as any);
     }
 
-    // Slow path: build PGN with [%emt H:MM:SS] comments after each move.
-    const formatEmtForPgn = (ms: number): string => {
-      const total = Math.max(0, Math.round(ms / 1000));
-      const h = Math.floor(total / 3600);
-      const min = Math.floor((total % 3600) / 60);
-      const s = total % 60;
-      return `${h}:${String(min).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-    };
-
-    const sanMoves: Array<{ san: string; emtMs: number | null }> = [];
+    const sanMoves: Array<{
+      san: string;
+      emtMs: number | null;
+      evalScore: import("./bot/chessBotManager.ts").EvalScore | null;
+    }> = [];
     for (let i = 0; i < moves.length; i++) {
       const result = chess.move(moves[i] as any) as any;
       if (!result) {
         throw new Error(`Failed to convert history to PGN at move ${moves[i]!.from}-${moves[i]!.to}`);
       }
       // History index i+1 corresponds to the state after move i.
-      sanMoves.push({ san: result.san as string, emtMs: snap.emtMs?.[i + 1] ?? null });
+      sanMoves.push({
+        san: result.san as string,
+        emtMs: snap.emtMs?.[i + 1] ?? null,
+        evalScore: snap.evals?.[i + 1] ?? null,
+      });
     }
 
     const dateStr = new Date().toISOString().split("T")[0]!.replace(/-/g, ".");
@@ -1117,9 +1119,13 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     let movetext = "";
     for (let i = 0; i < sanMoves.length; i++) {
-      const { san, emtMs } = sanMoves[i]!;
+      const { san, emtMs, evalScore } = sanMoves[i]!;
       if (i % 2 === 0) movetext += `${Math.floor(i / 2) + 1}. `;
-      movetext += emtMs !== null ? `${san} { [%emt ${formatEmtForPgn(emtMs)}] } ` : `${san} `;
+      const comment = buildPgnMoveComment({
+        emtMs: includeTiming ? emtMs : null,
+        evalScore: includeEval ? evalScore : null,
+      });
+      movetext += comment ? `${san} ${comment} ` : `${san} `;
     }
     movetext += resultToken;
 
@@ -1206,91 +1212,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    // Parse per-move timing comments from the raw PGN text.
-    // Each move SAN in the movetext may be followed by a { comment }.
-    // We extract them in order so they align with chess.js verboseMoves.
-    const parsePgnEmtMs = (rawPgn: string): Array<number | null> => {
-      // Strip only PGN header lines (lines of the form [Tag "value"]) so that
-      // [%emt] and [%clk] annotations inside { } comments are preserved.
-      const movetext = rawPgn.replace(/^\[.+\]\s*$/gm, "").replace(/\s+/g, " ").trim();
-
-      type Tok = { type: "move" | "comment" | "num"; text: string };
-      const tokens: Tok[] = [];
-      let rem = movetext;
-      while (rem.length > 0) {
-        rem = rem.trimStart();
-        if (rem.startsWith("{")) {
-          const end = rem.indexOf("}");
-          if (end < 0) break;
-          tokens.push({ type: "comment", text: rem.slice(1, end) });
-          rem = rem.slice(end + 1);
-        } else {
-          const nextBrace = rem.indexOf("{");
-          const nextSpace = rem.search(/\s/);
-          const end =
-            nextBrace >= 0 && (nextSpace < 0 || nextBrace < nextSpace)
-              ? nextBrace
-              : nextSpace >= 0
-              ? nextSpace
-              : rem.length;
-          const tok = rem.slice(0, end).trim();
-          rem = rem.slice(end);
-          if (!tok) continue;
-          if (/^\d+\.+$/.test(tok)) {
-            tokens.push({ type: "num", text: tok });
-          } else if (tok !== "*" && tok !== "1-0" && tok !== "0-1" && tok !== "1/2-1/2") {
-            tokens.push({ type: "move", text: tok });
-          }
-        }
-      }
-
-      // For each SAN token, the immediately following comment (if any) belongs to it.
-      const extractMs = (comment: string): number | null => {
-        // Prefer [%emt H:MM:SS] — directly gives elapsed time.
-        const emt = comment.match(/\[%emt\s+(\d+):(\d+):(\d+)\]/i);
-        if (emt) return (parseInt(emt[1]!) * 3600 + parseInt(emt[2]!) * 60 + parseInt(emt[3]!)) * 1000;
-        // Fall back to [%clk H:MM:SS] — derive elapsed from clock delta.
-        // We return a special sentinel object pair; caller resolves deltas.
-        return null;
-      };
-
-      // Also gather [%clk] for delta computation.
-      const extractClkMs = (comment: string): number | null => {
-        const clk = comment.match(/\[%clk\s+(\d+):(\d+):(\d+)\]/i);
-        if (!clk) return null;
-        return (parseInt(clk[1]!) * 3600 + parseInt(clk[2]!) * 60 + parseInt(clk[3]!)) * 1000;
-      };
-
-      const result: Array<number | null> = [];
-      // Track clock per side for delta computation: [whiteClkMs, blackClkMs]
-      const prevClk: [number | null, number | null] = [null, null];
-
-      let moveCount = 0;
-      for (let i = 0; i < tokens.length; i++) {
-        if (tokens[i]!.type !== "move") continue;
-        const commentText = tokens[i + 1]?.type === "comment" ? tokens[i + 1]!.text : null;
-        let ms = commentText ? extractMs(commentText) : null;
-        if (ms === null && commentText) {
-          // Try deriving from [%clk] delta.
-          const clkMs = extractClkMs(commentText);
-          if (clkMs !== null) {
-            const sideIdx = moveCount % 2 as 0 | 1;
-            const prev = prevClk[sideIdx];
-            if (prev !== null && prev >= clkMs) ms = prev - clkMs;
-            prevClk[sideIdx] = clkMs;
-          }
-        } else if (commentText) {
-          // Update prevClk for any [%clk] also present alongside [%emt].
-          const clkMs = extractClkMs(commentText);
-          if (clkMs !== null) prevClk[moveCount % 2 as 0 | 1] = clkMs;
-        }
-        result.push(ms);
-        moveCount++;
-      }
-      return result;
-    };
-
-    const emtMsPerMove = parsePgnEmtMs(gamePgn);
+    const moveAnnotations = parsePgnMoveAnnotations(gamePgn);
     const verboseMoves = chess.history({ verbose: true } as any) as any[];
 
     // Build an internal history by applying the parsed moves.
@@ -1313,7 +1235,15 @@ window.addEventListener("DOMContentLoaded", async () => {
       const sep = internal.kind === "capture" ? " × " : " → ";
       const fromA1 = nodeIdToA1(internal.from, 8);
       const toA1 = nodeIdToA1(internal.to, 8);
-      hm.push(s, `${fromA1}${sep}${toA1}`, emtMsPerMove[idx] ?? null);
+      const annotation = moveAnnotations[idx] ?? { emtMs: null, evalScore: null };
+      hm.push(s, `${fromA1}${sep}${toA1}`, annotation.emtMs, annotation.evalScore);
+      if (annotation.evalScore && bot) {
+        try {
+          bot.setCachedEvalForFen(gameStateToFen(s), annotation.evalScore);
+        } catch {
+          // ignore
+        }
+      }
     }
 
     // Parse player names and result directly from the raw PGN header lines —
@@ -1763,8 +1693,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (exportPgnBtn) {
     exportPgnBtn.addEventListener("click", () => {
       const includeTiming = exportPgnTimingToggle?.checked ?? false;
+      const includeEval = exportPgnEvalToggle?.checked ?? false;
       try {
-        const pgn = exportCurrentLineToPgnText(includeTiming);
+        const pgn = exportCurrentLineToPgnText(includeTiming, includeEval);
         const timestamp = new Date().toISOString().replace(/:/g, "-").split(".")[0];
         const blob = new Blob([pgn], { type: "application/x-chess-pgn" });
         const url = URL.createObjectURL(blob);
