@@ -16,10 +16,12 @@ import {
   clearLastMoveSquares,
 } from "../render/overlays.ts";
 import {
+  DEFAULT_SELECTION_STYLE,
   DEFAULT_MOVE_HINT_STYLE,
   DEFAULT_LAST_MOVE_HIGHLIGHT_STYLE,
   type MoveHintStyle,
   type LastMoveHighlightStyle,
+  type SelectionStyle,
 } from "../render/highlightStyles";
 import { generateLegalMoves } from "../game/movegen.ts";
 import { renderGameState } from "../render/renderGameState.ts";
@@ -80,6 +82,7 @@ export class GameController {
   private lastMoveHighlightsEnabled: boolean = true;
   private lastMoveHighlightStyle: LastMoveHighlightStyle = DEFAULT_LAST_MOVE_HIGHLIGHT_STYLE;
   private moveHintStyle: MoveHintStyle = DEFAULT_MOVE_HINT_STYLE;
+  private selectionStyle: SelectionStyle = DEFAULT_SELECTION_STYLE;
   private highlightSquaresEnabled: boolean = false;
 
   private didBindOpponentStatusClicks: boolean = false;
@@ -1698,6 +1701,11 @@ export class GameController {
 
   public setMoveHintStyle(style: MoveHintStyle): void {
     this.moveHintStyle = style;
+    if (this.selected) this.showSelection(this.selected);
+  }
+
+  public setSelectionStyle(style: SelectionStyle): void {
+    this.selectionStyle = style;
     if (this.selected) this.showSelection(this.selected);
   }
 
@@ -3771,8 +3779,11 @@ export class GameController {
     clearOverlays(this.overlayLayer);
 
     const useSquares = this.highlightSquaresEnabled && this.isChessLikeRuleset();
-    if (this.moveHintStyle === "chesscom") drawSelectionChessCom(this.overlayLayer, nodeId);
-    else if (useSquares) drawSelectionSquare(this.overlayLayer, nodeId);
+    const selectionStyle: SelectionStyle = this.moveHintsEnabled
+      ? (this.moveHintStyle === "chesscom" ? "chesscom" : useSquares ? "classic-squares" : "classic")
+      : this.selectionStyle;
+    if (selectionStyle === "chesscom") drawSelectionChessCom(this.overlayLayer, nodeId);
+    else if (selectionStyle === "classic-squares") drawSelectionSquare(this.overlayLayer, nodeId);
     else drawSelection(this.overlayLayer, nodeId);
     let allLegal = generateLegalMoves(
       this.state,

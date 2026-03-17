@@ -22,6 +22,7 @@ import {
   normalizeAnalysisSquareHighlightStyle,
   normalizeLastMoveHighlightStyle,
   normalizeMoveHintStyle,
+  normalizeSelectionStyle,
 } from "./render/highlightStyles";
 import { saveGameToFile, loadGameFromFile } from "./game/saveLoad";
 import { createSfxManager } from "./ui/sfx";
@@ -72,6 +73,7 @@ const LS_OPT_KEYS = {
   moveHints: "lasca.opt.moveHints",
   moveHintStyle: "lasca.opt.moveHintStyle",
   analysisSquareHighlightStyle: "lasca.opt.chess.analysisSquareHighlightStyle",
+  selectionStyle: "lasca.opt.chess.selectionStyle",
   showPlayerNames: "lasca.opt.chess.showPlayerNames",
 } as const;
 
@@ -746,9 +748,15 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Options: combined move preview mode
   const movePreviewModeSelect = document.getElementById("movePreviewModeSelect") as HTMLSelectElement | null;
+  const selectionStyleSelect = document.getElementById("selectionStyleSelect") as HTMLSelectElement | null;
+  const selectionStyleHint = document.getElementById("selectionStyleHint") as HTMLElement | null;
+  const selectionStyleRow = selectionStyleSelect?.closest("div[style]") as HTMLElement | null;
   const initialMovePreviewMode = normalizeChessMovePreviewMode(
     readOptionalStringPref(LS_OPT_KEYS.movePreviewMode) ?? deriveLegacyChessMovePreviewMode(),
   );
+  const initialSelectionStyle = normalizeSelectionStyle(readOptionalStringPref(LS_OPT_KEYS.selectionStyle));
+  const currentSelectionStyle = (): ReturnType<typeof normalizeSelectionStyle> =>
+    normalizeSelectionStyle(selectionStyleSelect ? selectionStyleSelect.value : readOptionalStringPref(LS_OPT_KEYS.selectionStyle));
   const applyMovePreviewMode = (mode: ChessMovePreviewMode): void => {
     const moveHintsEnabled = mode !== "off";
     const moveHintStyle = mode === "chesscom" ? "chesscom" : "classic";
@@ -757,8 +765,12 @@ window.addEventListener("DOMContentLoaded", async () => {
     controller.setMoveHints(moveHintsEnabled);
     controller.setMoveHintStyle(moveHintStyle);
     controller.setHighlightSquaresEnabled(highlightSquaresEnabled);
+    controller.setSelectionStyle(currentSelectionStyle());
+    if (selectionStyleRow) selectionStyleRow.style.display = mode === "off" ? "flex" : "none";
+    if (selectionStyleHint) selectionStyleHint.style.display = mode === "off" ? "" : "none";
   };
   if (movePreviewModeSelect) movePreviewModeSelect.value = initialMovePreviewMode;
+  if (selectionStyleSelect) selectionStyleSelect.value = initialSelectionStyle;
   applyMovePreviewMode(initialMovePreviewMode);
   if (movePreviewModeSelect) {
     movePreviewModeSelect.addEventListener("change", () => {
@@ -772,6 +784,13 @@ window.addEventListener("DOMContentLoaded", async () => {
       writeStringPref(LS_OPT_KEYS.moveHintStyle, moveHintStyle);
       writeBoolPref(LS_OPT_KEYS.highlightSquares, highlightSquaresEnabled);
       applyMovePreviewMode(nextMode);
+    });
+  }
+  if (selectionStyleSelect) {
+    selectionStyleSelect.addEventListener("change", () => {
+      const nextStyle = normalizeSelectionStyle(selectionStyleSelect.value);
+      writeStringPref(LS_OPT_KEYS.selectionStyle, nextStyle);
+      controller.setSelectionStyle(nextStyle);
     });
   }
 

@@ -1281,7 +1281,7 @@
                 "
               >
                 Off, Classic rings, Classic square highlights, or Modern
-                destination dots
+                selected-square, dot, and ring previews
               </div>
 
               <div
@@ -1294,9 +1294,50 @@
                 "
               >
                 <label
-                  for="analysisSquareHighlightStyleSelect"
+                  for="selectionStyleSelect"
                   style="
                     font-size: 12px;
+                    min-width: 112px;
+                    color: rgba(255, 255, 255, 0.82);
+                  "
+                  >Selection</label
+                >
+                <select
+                  id="selectionStyleSelect"
+                  class="panelSelect"
+                  style="flex: 1; min-width: 0"
+                >
+                  <option value="classic">Classic</option>
+                  <option value="classic-squares">Classic square</option>
+                  <option value="chesscom">Modern</option>
+                </select>
+              </div>
+
+              <div
+                id="selectionStyleHint"
+                style="
+                  font-size: 11px;
+                  color: rgba(255, 255, 255, 0.6);
+                  margin-top: 6px;
+                  margin-left: 24px;
+                "
+              >
+                When Move preview is Off, use a Classic ring, Classic square, or
+                Modern selected-square highlight
+              </div>
+
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-top: 10px;
+                "
+              >
+                <label
+                  for="analysisSquareHighlightStyleSelect"
+                  style="
+                    font-size: 13px;
                     min-width: 112px;
                     color: rgba(255, 255, 255, 0.82);
                   "

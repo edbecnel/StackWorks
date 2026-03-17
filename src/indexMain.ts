@@ -10,6 +10,7 @@ import {
   normalizeAnalysisSquareHighlightStyle,
   normalizeLastMoveHighlightStyle,
   normalizeMoveHintStyle,
+  normalizeSelectionStyle,
 } from "./render/highlightStyles";
 import { getSideLabelsForRuleset } from "./shared/sideTerminology";
 import { applyPanelLayoutMode, installPanelLayoutStartPageOptionUI, readPanelLayoutMode } from "./ui/panelLayoutMode";
@@ -49,6 +50,7 @@ const LS_KEYS = {
   optCheckerboardTheme: "lasca.opt.checkerboardTheme",
   optLastMoveHighlights: "lasca.opt.lastMoveHighlights",
   optChessMovePreviewMode: "lasca.opt.chess.movePreviewMode",
+  optChessSelectionStyle: "lasca.opt.chess.selectionStyle",
   optChessLastMoveHighlightStyle: "lasca.opt.chess.lastMoveHighlightStyle",
   optColumnsLastMoveHighlightStyle: "lasca.opt.columnsChess.lastMoveHighlightStyle",
   optChessAnalysisSquareHighlightStyle: "lasca.opt.chess.analysisSquareHighlightStyle",
@@ -604,6 +606,9 @@ window.addEventListener("DOMContentLoaded", () => {
   const elLastMoveStyleRow = (document.getElementById("launchLastMoveStyleRow") as HTMLElement | null) ?? null;
   const elLastMoveStyleHint = (document.getElementById("launchLastMoveStyleHint") as HTMLElement | null) ?? null;
   const elLastMoveStyle = (document.getElementById("launchLastMoveStyle") as HTMLSelectElement | null) ?? null;
+  const elSelectionStyleRow = (document.getElementById("launchSelectionStyleRow") as HTMLElement | null) ?? null;
+  const elSelectionStyleHint = (document.getElementById("launchSelectionStyleHint") as HTMLElement | null) ?? null;
+  const elSelectionStyle = (document.getElementById("launchSelectionStyle") as HTMLSelectElement | null) ?? null;
   const elMoveHints = byId<HTMLInputElement>("launchMoveHints");
   const elMoveHintsRow = (elMoveHints.closest(".checkRow") as HTMLElement | null) ?? null;
   const elMoveHintsHint = (elMoveHintsRow?.nextElementSibling as HTMLElement | null) ?? null;
@@ -1086,6 +1091,9 @@ window.addEventListener("DOMContentLoaded", () => {
       localStorage.setItem(LS_KEYS.optMoveHintStyle, moveHintStyle);
       writeBool(LS_KEYS.optMoveHints, moveHintsEnabled);
       writeBool(LS_KEYS.optChessHighlightSquares, highlightSquaresEnabled);
+      if (elSelectionStyle) {
+        localStorage.setItem(LS_KEYS.optChessSelectionStyle, normalizeSelectionStyle(elSelectionStyle.value));
+      }
       if (elLastMoveStyle) {
         localStorage.setItem(LS_KEYS.optChessLastMoveHighlightStyle, normalizeLastMoveHighlightStyle(elLastMoveStyle.value));
       }
@@ -1720,6 +1728,9 @@ window.addEventListener("DOMContentLoaded", () => {
       localStorage.getItem(LS_KEYS.optChessMovePreviewMode) ?? deriveLegacyChessMovePreviewMode(),
     );
   }
+  if (elSelectionStyle) {
+    elSelectionStyle.value = normalizeSelectionStyle(localStorage.getItem(LS_KEYS.optChessSelectionStyle));
+  }
   if (elMoveHintStyle) {
     elMoveHintStyle.value = normalizeMoveHintStyle(localStorage.getItem(LS_KEYS.optMoveHintStyle));
   }
@@ -1852,12 +1863,15 @@ window.addEventListener("DOMContentLoaded", () => {
 
     {
       const showChessMovePreview = isClassicChess;
+      const showSelectionStyle = isClassicChess && (elChessMovePreviewMode?.value ?? "stackworks") === "off";
       const showMoveHints = !isClassicChess;
       const showMoveHintStyle = showMoveHints && Boolean(elMoveHints.checked);
       const showLastMoveStyle = supportsModernLastMoveStyle && Boolean(elLastMoveHighlights.checked);
 
       if (elChessMovePreviewModeRow) elChessMovePreviewModeRow.style.display = showChessMovePreview ? "" : "none";
       if (elChessMovePreviewModeHint) elChessMovePreviewModeHint.style.display = showChessMovePreview ? "" : "none";
+      if (elSelectionStyleRow) elSelectionStyleRow.style.display = showSelectionStyle ? "" : "none";
+      if (elSelectionStyleHint) elSelectionStyleHint.style.display = showSelectionStyle ? "" : "none";
 
       if (elMoveHintsRow) elMoveHintsRow.style.display = showMoveHints ? "" : "none";
       if (elMoveHintsHint) elMoveHintsHint.style.display = showMoveHints ? "" : "none";
@@ -2127,6 +2141,11 @@ window.addEventListener("DOMContentLoaded", () => {
     writeBool(LS_KEYS.optMoveHints, moveHintsEnabled);
     localStorage.setItem(LS_KEYS.optMoveHintStyle, moveHintStyle);
     writeBool(LS_KEYS.optChessHighlightSquares, highlightSquaresEnabled);
+    syncAvailability();
+  });
+
+  elSelectionStyle?.addEventListener("change", () => {
+    localStorage.setItem(LS_KEYS.optChessSelectionStyle, normalizeSelectionStyle(elSelectionStyle.value));
   });
 
   elMoveHintStyle?.addEventListener("change", () => {

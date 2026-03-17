@@ -522,6 +522,75 @@ describe("GameController move hint styles", () => {
     expect(mockSvg.querySelectorAll(".target-ring--chesscom").length).toBeGreaterThan(0);
     expect(mockSvg.querySelectorAll(".squareHighlight--selection-chesscom").length).toBe(1);
   });
+
+  it("uses classic circle selection when previews are off and selection style is Classic", () => {
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "B", rank: "S" }]],
+        ["r3c3", [{ owner: "W", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+    history.push(state);
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history);
+    controller.setMoveHints(false);
+    controller.setSelectionStyle("classic");
+
+    (controller as any).showSelection("r2c2");
+
+    expect(mockSvg.querySelectorAll(".halo--selection").length).toBe(1);
+    expect(mockSvg.querySelectorAll(".squareHighlight--selection").length).toBe(0);
+    expect(mockSvg.querySelectorAll(".squareHighlight--selection-chesscom").length).toBe(0);
+  });
+
+  it("uses square selection when previews are off and selection style is Classic square", () => {
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "B", rank: "S" }]],
+        ["r3c3", [{ owner: "W", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+    history.push(state);
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history);
+    controller.setMoveHints(false);
+    controller.setSelectionStyle("classic-squares");
+
+    (controller as any).showSelection("r2c2");
+
+    expect(mockSvg.querySelectorAll(".halo--selection").length).toBe(0);
+    expect(mockSvg.querySelectorAll(".squareHighlight--selection").length).toBe(1);
+    expect(mockSvg.querySelectorAll(".squareHighlight--selection-chesscom").length).toBe(0);
+  });
+
+  it("uses modern square selection when previews are off and selection style is Modern", () => {
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "B", rank: "S" }]],
+        ["r3c3", [{ owner: "W", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+    history.push(state);
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history);
+    controller.setMoveHints(false);
+    controller.setSelectionStyle("chesscom");
+
+    (controller as any).showSelection("r2c2");
+
+    expect(mockSvg.querySelectorAll(".halo--selection").length).toBe(0);
+    expect(mockSvg.querySelectorAll(".squareHighlight--selection").length).toBe(0);
+    expect(mockSvg.querySelectorAll(".squareHighlight--selection-chesscom").length).toBe(1);
+  });
 });
 
 describe("GameController forced check toasts", () => {
