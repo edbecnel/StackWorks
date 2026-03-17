@@ -104,7 +104,7 @@ function openKeyboardShortcutsPopup(controller?: GameController): void {
       <li><b>Push pin:</b> Press <code>N</code> while / after right-clicking</li>
       <li><b>Protect:</b> Press <code>P</code> while / after right-clicking</li>
       <li><b>Number labels:</b> Press <code>0</code>-<code>9</code>, then right-click a square</li>
-      <li><b>Remove:</b> Press <code>X</code> while / after right-clicking — removes number first, then pin/protect, then square/circle</li>
+      <li><b>Remove:</b> Press <code>X</code> on desktop to arm selective erase, then right-click a square — removes number first, then pin/protect, then square/circle</li>
       <li><b>Arrow:</b> Right-click and drag to a target square</li>
       <li><b>Color:</b> Hold <code>Shift</code> (green), <code>Ctrl</code> (red), <code>Alt</code> (blue) while right-clicking</li>
       <li><b>Toggle:</b> Right-clicking an existing annotation of the same color removes it</li>

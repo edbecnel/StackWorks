@@ -56,6 +56,11 @@ function rightClick(node: Element): void {
   node.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, cancelable: true, button: 2, clientX: 150, clientY: 150 }));
 }
 
+function leftClick(node: Element): void {
+  node.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, clientX: 150, clientY: 150 }));
+  node.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, cancelable: true, button: 0, clientX: 150, clientY: 150 }));
+}
+
 describe("installBoardVisualizationTools", () => {
   it("removes number annotations before other marks when X is active", () => {
     const { svg, node } = makeSvg8x8();
@@ -91,5 +96,17 @@ describe("installBoardVisualizationTools", () => {
     expect(svg.querySelector(".board-annotation-circle")).toBeNull();
     expect(svg.querySelector(".board-annotation-pin")).toBeNull();
     expect(svg.querySelector("text.board-annotation-number")).toBeNull();
+  });
+
+  it("does not clear annotations on left click", () => {
+    const { svg, node } = makeSvg8x8();
+    installBoardVisualizationTools(svg);
+
+    rightClick(node);
+    expect(svg.querySelector(".board-annotation-square")).not.toBeNull();
+
+    leftClick(node);
+
+    expect(svg.querySelector(".board-annotation-square")).not.toBeNull();
   });
 });

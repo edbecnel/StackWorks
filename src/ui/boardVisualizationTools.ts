@@ -441,13 +441,6 @@ export function installBoardVisualizationTools(
       const isTouch = ev.pointerType === "touch";
       const touchEnabled = isTouch && Boolean(isTouchInputEnabled?.());
 
-      // Chess.com behavior: any *mouse* left click clears markings.
-      // On touch devices, clearing on tap makes double-tap highlights unusable.
-      if (ev.button === 0 && !isTouch) {
-        clear();
-        return;
-      }
-
       if (ev.button === 2) {
         const node = resolveNodeIdFromTarget(ev.target);
         if (!node) return;
