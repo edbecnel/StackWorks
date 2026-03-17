@@ -9,8 +9,26 @@ import type { UciEngine, UciBestMoveArgs, EvalScore } from "./uciEngine.ts";
 // install time and load them from stable, base-aware URLs.
 
 const STOCKFISH_PUBLIC_DIR = "vendor/stockfish";
-const STOCKFISH_WORKER_FILE = "stockfish-17.1-lite-single-03e3232.js";
-const STOCKFISH_WASM_FILE = "stockfish-17.1-lite-single-03e3232.wasm";
+
+type StockfishArtifact = {
+  key: "lite-single" | "asm";
+  workerFile: string;
+  wasmFile?: string;
+  label: string;
+};
+
+const STOCKFISH_LITE_SINGLE: StockfishArtifact = {
+  key: "lite-single",
+  workerFile: "stockfish-17.1-lite-single-03e3232.js",
+  wasmFile: "stockfish-17.1-lite-single-03e3232.wasm",
+  label: "Stockfish WASM",
+};
+
+const STOCKFISH_ASM: StockfishArtifact = {
+  key: "asm",
+  workerFile: "stockfish-17.1-asm-341ff22.js",
+  label: "Stockfish asm.js",
+};
 
 type StockfishEngine = {
   postMessage(command: string): void;
@@ -20,32 +38,40 @@ type StockfishEngine = {
   onmessageerror?: ((ev: unknown) => void) | null;
 };
 
-function createStockfishWorker(): {
+function prefersAsmStockfish(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent ?? "";
+  const platform = navigator.platform ?? "";
+  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
+  return /iPad|iPhone|iPod/i.test(ua) || (platform === "MacIntel" && maxTouchPoints > 1);
+}
+
+function fallbackArtifactFor(current: StockfishArtifact): StockfishArtifact | null {
+  return current.key === STOCKFISH_LITE_SINGLE.key ? STOCKFISH_ASM : null;
+}
+
+function formatArtifactUrls(workerUrl: string, wasmUrl: string | null): string {
+  return wasmUrl ? ` workerUrl=${workerUrl} wasmUrl=${wasmUrl}` : ` workerUrl=${workerUrl}`;
+}
+
+function createStockfishWorker(artifact: StockfishArtifact): {
   engine: StockfishEngine;
   workerUrl: string;
-  wasmUrl: string;
+  wasmUrl: string | null;
   cleanup?: () => void;
 } {
   if (typeof Worker === "undefined") {
     throw new Error("Stockfish requires Web Worker support in this environment");
   }
-  // The Stockfish worker script expects the WASM URL to be provided via the location hash.
-  // If omitted, it guesses by swapping `.js` -> `.wasm`, but Vite fingerprints assets,
-  // so the guessed name will not match in production builds.
 
   // IMPORTANT: Make URLs absolute. Also make them base-aware (prod uses a repo-scoped BASE_URL on GitHub Pages).
   const base = import.meta.env?.BASE_URL ?? "/";
-  const workerRel = `${base}${STOCKFISH_PUBLIC_DIR}/${STOCKFISH_WORKER_FILE}`;
-  const wasmRel = `${base}${STOCKFISH_PUBLIC_DIR}/${STOCKFISH_WASM_FILE}`;
+  const workerRel = `${base}${STOCKFISH_PUBLIC_DIR}/${artifact.workerFile}`;
+  const wasmRel = artifact.wasmFile ? `${base}${STOCKFISH_PUBLIC_DIR}/${artifact.wasmFile}` : null;
 
   const workerAbs = new URL(workerRel, window.location.href).toString();
-  const wasmAbs = new URL(wasmRel, window.location.href).toString();
+  const wasmAbs = wasmRel ? new URL(wasmRel, window.location.href).toString() : null;
 
-  // No hash needed: when loaded from its own https:// URL, Stockfish auto-derives
-  // the WASM URL via:
-  //   location.origin + location.pathname.replace(/\.js$/i, ".wasm")
-  // which resolves to the correct same-directory .wasm file.
-  // Avoiding a blob: bootstrap worker eliminates null-origin COEP issues.
   const worker = new Worker(workerAbs, { type: "classic", name: "stockfish" });
   return { engine: worker as unknown as StockfishEngine, workerUrl: workerAbs, wasmUrl: wasmAbs };
 }
@@ -113,10 +139,11 @@ function retryKickUntil<T>(args: {
 }
 
 export class StockfishUciEngine implements UciEngine {
-  private engine: StockfishEngine;
-  private readonly workerUrl: string;
-  private readonly wasmUrl: string;
-  private readonly cleanup: (() => void) | null;
+  private engine!: StockfishEngine;
+  private workerUrl = "";
+  private wasmUrl: string | null = null;
+  private cleanup: (() => void) | null = null;
+  private artifact: StockfishArtifact;
   private lines: UciLine[] = [];
   private waiters: Array<{ pred: (line: string) => boolean; resolve: (line: string) => void }> = [];
   /** Persistent line observers used by evaluate(). Return true to auto-remove. */
@@ -128,14 +155,30 @@ export class StockfishUciEngine implements UciEngine {
   private readonly lastOutput: string[] = [];
 
   constructor() {
-    const created = createStockfishWorker();
+    this.artifact = prefersAsmStockfish() ? STOCKFISH_ASM : STOCKFISH_LITE_SINGLE;
+    this.bootWorker(this.artifact);
+  }
+
+  terminate(): void {
+    this.disposeCurrentWorker();
+  }
+
+  private bootWorker(artifact: StockfishArtifact): void {
+    const created = createStockfishWorker(artifact);
+    this.artifact = artifact;
     this.engine = created.engine;
     this.workerUrl = created.workerUrl;
     this.wasmUrl = created.wasmUrl;
     this.cleanup = created.cleanup ?? null;
+    this.lines = [];
+    this.waiters = [];
+    this.lineObservers = [];
+    this.isReady = false;
+    this.initPromise = null;
+    this.currentSkill = null;
+    this.lastWorkerError = null;
+    this.lastOutput.length = 0;
 
-    // Best-effort preflight diagnostics in dev: confirm the URLs are reachable
-    // *and* are the correct content type.
     if (import.meta.env?.DEV) {
       void fetch(this.workerUrl, { method: "GET" })
         .then(async (r) => {
@@ -147,42 +190,43 @@ export class StockfishUciEngine implements UciEngine {
               contentType: ct,
               url: this.workerUrl,
               peek,
+              artifact: this.artifact.label,
             });
           }
         })
         .catch((e) => console.warn("[stockfish] worker fetch failed", e));
 
-      void fetch(this.wasmUrl, { method: "GET" })
-        .then(async (r) => {
-          const ct = r.headers.get("content-type") ?? "";
-          if (!r.ok || !(ct.includes("application/wasm") || ct.includes("wasm"))) {
-            const peek = await r.text().then((t) => t.slice(0, 80)).catch(() => "");
-            console.warn("[stockfish] wasm served unexpected response", {
-              status: r.status,
-              contentType: ct,
-              url: this.wasmUrl,
-              peek,
-            });
-          }
-        })
-        .catch((e) => console.warn("[stockfish] wasm fetch failed", e));
+      if (this.wasmUrl) {
+        void fetch(this.wasmUrl, { method: "GET" })
+          .then(async (r) => {
+            const ct = r.headers.get("content-type") ?? "";
+            if (!r.ok || !(ct.includes("application/wasm") || ct.includes("wasm"))) {
+              const peek = await r.text().then((t) => t.slice(0, 80)).catch(() => "");
+              console.warn("[stockfish] wasm served unexpected response", {
+                status: r.status,
+                contentType: ct,
+                url: this.wasmUrl,
+                peek,
+                artifact: this.artifact.label,
+              });
+            }
+          })
+          .catch((e) => console.warn("[stockfish] wasm fetch failed", e));
+      }
     }
 
-    // Surface worker-level failures (bad URL, WASM load error, CSP, etc.).
     this.engine.onerror = (ev: any) => {
       const msg = String(ev?.message ?? ev?.error?.message ?? ev?.type ?? "worker error");
-      this.lastWorkerError = `${msg} (workerUrl=${this.workerUrl})`;
+      this.lastWorkerError = `${msg} (${this.artifact.label}; workerUrl=${this.workerUrl})`;
       this.isReady = false;
       this.initPromise = null;
-      // eslint-disable-next-line no-console
       console.error("[stockfish] worker error", ev);
     };
     this.engine.onmessageerror = (ev: any) => {
       const msg = String(ev?.message ?? ev?.type ?? "worker message error");
-      this.lastWorkerError = `${msg} (workerUrl=${this.workerUrl})`;
+      this.lastWorkerError = `${msg} (${this.artifact.label}; workerUrl=${this.workerUrl})`;
       this.isReady = false;
       this.initPromise = null;
-      // eslint-disable-next-line no-console
       console.error("[stockfish] worker messageerror", ev);
     };
 
@@ -194,18 +238,15 @@ export class StockfishUciEngine implements UciEngine {
         this.lastOutput.push(line);
         if (this.lastOutput.length > 50) this.lastOutput.splice(0, this.lastOutput.length - 50);
 
-        // Drain waiters first.
         for (let i = 0; i < this.waiters.length; i++) {
           const w = this.waiters[i];
           if (w && w.pred(line)) {
             this.waiters.splice(i, 1);
             w.resolve(line);
-            // Continue processing remaining emitted lines.
             continue;
           }
         }
 
-        // Notify line observers (used by evaluate()). Auto-remove those that return true.
         for (let i = this.lineObservers.length - 1; i >= 0; i--) {
           const obs = this.lineObservers[i];
           if (obs && obs(line)) {
@@ -217,8 +258,6 @@ export class StockfishUciEngine implements UciEngine {
       }
     };
 
-    // DEV liveness probe: if we never see even __sf_pong, the worker isn't running
-    // or can't post messages back to the main thread.
     try {
       this.send("__sf_ping");
     } catch {
@@ -226,9 +265,9 @@ export class StockfishUciEngine implements UciEngine {
     }
   }
 
-  terminate(): void {
+  private disposeCurrentWorker(): void {
     try {
-      this.engine.terminate?.();
+      this.engine?.terminate?.();
     } catch {
       // ignore
     }
@@ -237,6 +276,16 @@ export class StockfishUciEngine implements UciEngine {
     } catch {
       // ignore
     }
+    this.cleanup = null;
+  }
+
+  private switchToFallbackArtifact(reason: string): boolean {
+    const fallback = fallbackArtifactFor(this.artifact);
+    if (!fallback) return false;
+    console.warn(`[stockfish] switching from ${this.artifact.label} to ${fallback.label}: ${reason}`);
+    this.disposeCurrentWorker();
+    this.bootWorker(fallback);
+    return true;
   }
 
   private getOrStartInitPromise(): Promise<void> {
@@ -277,6 +326,9 @@ export class StockfishUciEngine implements UciEngine {
     if (this.isReady) return;
 
     if (this.lastWorkerError) {
+      if (this.switchToFallbackArtifact(this.lastWorkerError)) {
+        return this.initInternal(opts);
+      }
       throw new Error(`Stockfish worker failed: ${this.lastWorkerError}`);
     }
 
@@ -291,10 +343,13 @@ export class StockfishUciEngine implements UciEngine {
         label: "uciok",
       });
     } catch {
+      if (this.lastWorkerError && this.switchToFallbackArtifact(this.lastWorkerError)) {
+        return this.initInternal(opts);
+      }
       const tail = this.lastOutput.slice(-10).join(" | ");
       const extra = this.lastWorkerError
         ? ` workerError=${this.lastWorkerError}`
-        : ` workerUrl=${this.workerUrl} wasmUrl=${this.wasmUrl} tail=${tail || "<no output>"}`;
+        : `${formatArtifactUrls(this.workerUrl, this.wasmUrl)} tail=${tail || "<no output>"}`;
       throw new Error(`Stockfish timeout: uciok (${extra})`);
     }
 
@@ -306,10 +361,13 @@ export class StockfishUciEngine implements UciEngine {
         label: "readyok",
       });
     } catch {
+      if (this.lastWorkerError && this.switchToFallbackArtifact(this.lastWorkerError)) {
+        return this.initInternal(opts);
+      }
       const tail = this.lastOutput.slice(-10).join(" | ");
       const extra = this.lastWorkerError
         ? ` workerError=${this.lastWorkerError}`
-        : ` workerUrl=${this.workerUrl} wasmUrl=${this.wasmUrl} tail=${tail || "<no output>"}`;
+        : `${formatArtifactUrls(this.workerUrl, this.wasmUrl)} tail=${tail || "<no output>"}`;
       throw new Error(`Stockfish timeout: readyok (${extra})`);
     }
 
@@ -326,7 +384,7 @@ export class StockfishUciEngine implements UciEngine {
       const tail = this.lastOutput.slice(-10).join(" | ");
       const extra = this.lastWorkerError
         ? ` workerError=${this.lastWorkerError}`
-        : ` workerUrl=${this.workerUrl} wasmUrl=${this.wasmUrl} tail=${tail || "<no output>"}`;
+        : `${formatArtifactUrls(this.workerUrl, this.wasmUrl)} tail=${tail || "<no output>"}`;
       throw new Error(`Stockfish timeout: uciok (${extra})`);
     }
   }

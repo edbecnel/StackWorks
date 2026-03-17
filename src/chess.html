@@ -22,6 +22,7 @@
         --panel-bg: rgba(255, 255, 255, 0.06);
         --panel-border: rgba(255, 255, 255, 0.1);
         --panel-text: rgba(255, 255, 255, 0.9);
+        --app-height: 100vh;
 
         /* Theme dropdown popup colors (match other games) */
         --themeMenuBg: rgba(0, 0, 0, 0.88);
@@ -41,7 +42,8 @@
 
       body {
         margin: 0;
-        height: 100vh;
+        height: var(--app-height);
+        min-height: var(--app-height);
         width: 100vw;
         overflow: hidden;
         background: var(--page-bg);
@@ -814,7 +816,7 @@
       @media (max-width: 1024px) and (orientation: landscape) and (any-pointer: coarse) {
         #appRoot {
           flex-direction: row;
-          height: 100dvh;
+          height: var(--app-height);
         }
 
         #centerArea {
@@ -828,7 +830,7 @@
       @media (max-width: 1024px) and (orientation: portrait) {
         #appRoot {
           flex-direction: column;
-          height: 100dvh;
+          height: var(--app-height);
         }
 
         /* Left panel on top, board in middle, right panel at bottom */
@@ -914,6 +916,32 @@
       }
     </style>
     <script>
+      (function () {
+        var root = document.documentElement;
+        if (!root) return;
+
+        var setAppHeight = function () {
+          var vv = window.visualViewport;
+          var height = vv && vv.height ? vv.height : window.innerHeight;
+          if (!height || !isFinite(height)) return;
+          root.style.setProperty("--app-height", Math.round(height) + "px");
+        };
+
+        setAppHeight();
+        window.addEventListener("resize", setAppHeight, { passive: true });
+        window.addEventListener("orientationchange", function () {
+          window.setTimeout(setAppHeight, 120);
+        });
+        if (window.visualViewport) {
+          window.visualViewport.addEventListener("resize", setAppHeight, {
+            passive: true,
+          });
+          window.visualViewport.addEventListener("scroll", setAppHeight, {
+            passive: true,
+          });
+        }
+      })();
+
       document.addEventListener("DOMContentLoaded", function () {
         var e = document.getElementById("gameLoadScreen");
         if (e) e.remove();

@@ -2,8 +2,11 @@ import { defineConfig } from "vite";
 import path from "node:path";
 import fs from "node:fs/promises";
 
-const STOCKFISH_WORKER_FILE = "stockfish-17.1-lite-single-03e3232.js";
-const STOCKFISH_WASM_FILE = "stockfish-17.1-lite-single-03e3232.wasm";
+const STOCKFISH_FILES = [
+  "stockfish-17.1-lite-single-03e3232.js",
+  "stockfish-17.1-lite-single-03e3232.wasm",
+  "stockfish-17.1-asm-341ff22.js",
+];
 
 function normalizeViteBase(raw: string): string {
   let s = (raw || "").trim();
@@ -18,18 +21,12 @@ async function copyStockfishToPublic(): Promise<void> {
   const srcDir = path.join(repoRoot, "node_modules", "stockfish", "src");
   const outDir = path.join(repoRoot, "public", "vendor", "stockfish");
 
-  const workerSrc = path.join(srcDir, STOCKFISH_WORKER_FILE);
-  const wasmSrc = path.join(srcDir, STOCKFISH_WASM_FILE);
-  const workerOut = path.join(outDir, STOCKFISH_WORKER_FILE);
-  const wasmOut = path.join(outDir, STOCKFISH_WASM_FILE);
-
   await fs.mkdir(outDir, { recursive: true });
 
   // Copy every time (fast enough; avoids flaky mtime checks across filesystems).
-  await Promise.all([
-    fs.copyFile(workerSrc, workerOut),
-    fs.copyFile(wasmSrc, wasmOut),
-  ]);
+  await Promise.all(
+    STOCKFISH_FILES.map((file) => fs.copyFile(path.join(srcDir, file), path.join(outDir, file))),
+  );
 }
 
 function stockfishPublicCopyPlugin() {

@@ -5,6 +5,7 @@ import {
 } from "./highlightStyles";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
+const CLASSIC_ANALYSIS_SQUARE_STROKE_W = 4;
 
 function isTouchLikeEnvironment(): boolean {
   try {
@@ -248,7 +249,7 @@ function drawSquareMark(
   el.setAttribute("height", String(h));
   el.setAttribute("fill", style === "chesscom" ? colorToChessComSquareFill(mark.color) : fill);
   el.setAttribute("stroke", style === "chesscom" ? "none" : stroke);
-  el.setAttribute("stroke-width", style === "chesscom" ? "0" : "6");
+  el.setAttribute("stroke-width", style === "chesscom" ? "0" : String(CLASSIC_ANALYSIS_SQUARE_STROKE_W));
   applyRectDefaults(el);
   layer.appendChild(el);
 }

@@ -10,8 +10,11 @@ const srcDir = path.join(REPO_ROOT, "node_modules", "stockfish", "src");
 const publicDir = path.join(REPO_ROOT, "public");
 const outDir = path.join(publicDir, "vendor", "stockfish");
 
-const WORKER_FILE = "stockfish-17.1-lite-single-03e3232.js";
-const WASM_FILE = "stockfish-17.1-lite-single-03e3232.wasm";
+const FILES_TO_COPY = [
+  "stockfish-17.1-lite-single-03e3232.js",
+  "stockfish-17.1-lite-single-03e3232.wasm",
+  "stockfish-17.1-asm-341ff22.js",
+];
 
 async function exists(filePath) {
   try {
@@ -38,32 +41,36 @@ async function copyIfChanged(srcPath, destPath) {
 }
 
 async function main() {
-  const workerSrc = path.join(srcDir, WORKER_FILE);
-  const wasmSrc = path.join(srcDir, WASM_FILE);
+  const available = await Promise.all(
+    FILES_TO_COPY.map(async (file) => ({ file, exists: await exists(path.join(srcDir, file)) })),
+  );
 
-  if (!(await exists(workerSrc))) {
+  if (!available.find((entry) => entry.file === "stockfish-17.1-lite-single-03e3232.js")?.exists) {
     // Stockfish is a devDependency used only by the frontend build.
     // In server-only environments (e.g. Render deploying server/) the package
     // is not installed — skip silently rather than failing the build.
     console.log("[postinstall] Stockfish not found — skipping copy (server-only environment).");
     return;
   }
-  if (!(await exists(wasmSrc))) {
+  if (!available.find((entry) => entry.file === "stockfish-17.1-lite-single-03e3232.wasm")?.exists) {
     console.log("[postinstall] Stockfish WASM not found — skipping copy (server-only environment).");
     return;
   }
 
+  const missingFiles = available.filter((entry) => !entry.exists).map((entry) => entry.file);
+  if (missingFiles.length > 0) {
+    throw new Error(`Missing Stockfish assets: ${missingFiles.join(", ")}`);
+  }
+
   await fs.mkdir(outDir, { recursive: true });
 
-  const workerOut = path.join(outDir, WORKER_FILE);
-  const wasmOut = path.join(outDir, WASM_FILE);
+  const copied = await Promise.all(
+    FILES_TO_COPY.map((file) =>
+      copyIfChanged(path.join(srcDir, file), path.join(outDir, file)),
+    ),
+  );
 
-  const [workerCopied, wasmCopied] = await Promise.all([
-    copyIfChanged(workerSrc, workerOut),
-    copyIfChanged(wasmSrc, wasmOut),
-  ]);
-
-  if (workerCopied || wasmCopied) {
+  if (copied.some(Boolean)) {
     // eslint-disable-next-line no-console
     console.log(`[postinstall] Copied Stockfish to ${path.relative(REPO_ROOT, outDir)}`);
   }

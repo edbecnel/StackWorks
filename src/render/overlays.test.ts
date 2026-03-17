@@ -149,7 +149,7 @@ describe("classic square overlays", () => {
     const target = svg.querySelector(".squareHighlight--target") as SVGRectElement | null;
     expect(selection).not.toBeNull();
     expect(target).not.toBeNull();
-    expect(selection?.getAttribute("stroke-width")).toBe("6");
-    expect(target?.getAttribute("stroke-width")).toBe("6");
+    expect(selection?.getAttribute("stroke-width")).toBe("4");
+    expect(target?.getAttribute("stroke-width")).toBe("4");
   });
 });
