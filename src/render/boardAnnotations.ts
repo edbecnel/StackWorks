@@ -161,15 +161,33 @@ function colorToStrokeFill(color: AnnotationColor): { stroke: string; fill: stri
 function colorToChessComSquareFill(color: AnnotationColor): string {
   switch (color) {
     case "green":
-      return "rgba(0, 230, 118, 0.28)";
+      return "rgba(0, 230, 118, 0.72)";
     case "red":
-      return "rgba(255, 77, 79, 0.26)";
+      return "rgba(255, 77, 79, 0.72)";
     case "blue":
-      return "rgba(102, 204, 255, 0.28)";
+      return "rgba(102, 204, 255, 0.72)";
     case "orange":
     default:
-      return "rgba(255, 159, 64, 0.28)";
+      return "rgba(255, 159, 64, 0.72)";
   }
+}
+
+function ensureBackgroundAnnotationsLayer(svg: SVGSVGElement): SVGGElement {
+  const existing = svg.querySelector("#underPieceAnnotations") as SVGGElement | null;
+  if (existing) return existing;
+
+  const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  g.id = "underPieceAnnotations";
+  g.setAttribute("pointer-events", "none");
+
+  const pieces = svg.querySelector("#pieces") as SVGGElement | null;
+  if (pieces && pieces.parentNode) {
+    pieces.parentNode.insertBefore(g, pieces);
+  } else {
+    svg.appendChild(g);
+  }
+
+  return g;
 }
 
 function ensureAnnotationsLayer(svg: SVGSVGElement): SVGGElement {
@@ -535,23 +553,29 @@ export function renderBoardAnnotations(
   state: BoardAnnotationsState,
   options?: RenderBoardAnnotationsOptions,
 ): void {
-  const layer = ensureAnnotationsLayer(svg);
-  clearLayer(layer);
+  const overlayLayer = ensureAnnotationsLayer(svg);
+  const backgroundLayer = ensureBackgroundAnnotationsLayer(svg);
+  clearLayer(overlayLayer);
+  clearLayer(backgroundLayer);
   const squareStyle = options?.squareStyle ?? DEFAULT_ANALYSIS_SQUARE_HIGHLIGHT_STYLE;
 
   // Draw background highlights first (squares and circles), then arrows,
   // then pin/protect symbols, then numbers on top for readability.
-  for (const s of state.squares)            drawSquareMark(svg, layer, s, squareStyle);
-  for (const c of state.circles  ?? [])     drawCircleMark(svg, layer, c);
-  for (const a of state.arrows)             drawArrowMark(layer, a);
-  for (const p of state.pins     ?? [])     drawPinMark(svg, layer, p);
-  for (const t of state.protects ?? [])     drawProtectMark(svg, layer, t);
-  for (const n of state.numbers  ?? [])     drawNumberMark(svg, layer, n);
+  for (const s of state.squares) {
+    drawSquareMark(svg, squareStyle === "chesscom" ? backgroundLayer : overlayLayer, s, squareStyle);
+  }
+  for (const c of state.circles  ?? [])     drawCircleMark(svg, overlayLayer, c);
+  for (const a of state.arrows)             drawArrowMark(overlayLayer, a);
+  for (const p of state.pins     ?? [])     drawPinMark(svg, overlayLayer, p);
+  for (const t of state.protects ?? [])     drawProtectMark(svg, overlayLayer, t);
+  for (const n of state.numbers  ?? [])     drawNumberMark(svg, overlayLayer, n);
 }
 
 export function clearBoardAnnotations(svg: SVGSVGElement): void {
   const overlays = ensureOverlayLayer(svg);
   const layer = overlays.querySelector("#overlaysAnnotations") as SVGGElement | null;
-  if (!layer) return;
-  clearLayer(layer);
+  if (layer) clearLayer(layer);
+
+  const backgroundLayer = svg.querySelector("#underPieceAnnotations") as SVGGElement | null;
+  if (backgroundLayer) clearLayer(backgroundLayer);
 }

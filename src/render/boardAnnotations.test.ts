@@ -7,10 +7,6 @@ function makeSvg8x8(): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, "svg") as SVGSVGElement;
   svg.setAttribute("viewBox", "0 0 1000 1000");
 
-  const pieces = document.createElementNS(SVG_NS, "g") as SVGGElement;
-  pieces.id = "pieces";
-  svg.appendChild(pieces);
-
   const squares = document.createElementNS(SVG_NS, "g") as SVGGElement;
   squares.id = "squares";
   for (let r = 0; r < 8; r++) {
@@ -50,6 +46,10 @@ function makeSvg8x8(): SVGSVGElement {
   nodes.appendChild(n12);
 
   svg.appendChild(nodes);
+
+  const pieces = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  pieces.id = "pieces";
+  svg.appendChild(pieces);
 
   document.body.appendChild(svg);
   return svg;
@@ -162,7 +162,8 @@ describe("renderBoardAnnotations", () => {
 
     renderBoardAnnotations(svg, state, { squareStyle: "chesscom" });
 
-    const rect = svg.querySelector("rect.board-annotation-square") as SVGRectElement | null;
+    const layer = svg.querySelector("#underPieceAnnotations") as SVGGElement | null;
+    const rect = layer?.querySelector("rect.board-annotation-square") as SVGRectElement | null;
     expect(rect).not.toBeNull();
     expect(rect?.getAttribute("x")).toBe("100");
     expect(rect?.getAttribute("y")).toBe("100");
@@ -170,7 +171,13 @@ describe("renderBoardAnnotations", () => {
     expect(rect?.getAttribute("height")).toBe("100");
     expect(rect?.getAttribute("stroke")).toBe("none");
     expect(rect?.getAttribute("stroke-width")).toBe("0");
-    expect(rect?.getAttribute("fill")).toBe("rgba(255, 159, 64, 0.28)");
+    expect(rect?.getAttribute("fill")).toBe("rgba(255, 159, 64, 0.72)");
+
+    const pieces = svg.querySelector("#pieces") as SVGGElement | null;
+    expect(layer).not.toBeNull();
+    expect(pieces).not.toBeNull();
+    expect(layer?.nextElementSibling).toBe(pieces);
+    expect(svg.querySelector("#overlaysAnnotations rect.board-annotation-square")).toBeNull();
   });
 
   it("renders classic analysis square highlights with a thicker border", () => {
