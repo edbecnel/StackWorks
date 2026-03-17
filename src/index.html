@@ -586,14 +586,6 @@
         >
           <summary class="panelSectionSummary">Startup options</summary>
 
-          <div class="checkRow">
-            <input type="checkbox" id="launchShowResizeIcon" />
-            <label for="launchShowResizeIcon">Show resize icon</label>
-          </div>
-          <div class="hint">
-            Show the ↕️ board-height button (also in-game: left panel → Options)
-          </div>
-
           <div class="checkRow" id="launchShowPlayerNamesRow">
             <input type="checkbox" id="launchShowPlayerNames" checked />
             <label for="launchShowPlayerNames">Show player names</label>
@@ -643,13 +635,61 @@
             Shows translucent squares on the board after each move
           </div>
 
+          <div class="row" id="launchLastMoveStyleRow">
+            <label for="launchLastMoveStyle">Last-move style</label>
+            <select id="launchLastMoveStyle" class="panelSelect">
+              <option value="classic">Classic</option>
+              <option value="chesscom">Modern</option>
+            </select>
+          </div>
+          <div class="hint" id="launchLastMoveStyleHint">
+            Classic bordered squares or Modern full-square highlights
+          </div>
+
+          <div class="row" id="launchChessMovePreviewModeRow">
+            <label for="launchChessMovePreviewMode">Move preview</label>
+            <select id="launchChessMovePreviewMode" class="panelSelect">
+              <option value="off">Off</option>
+              <option value="stackworks">Classic</option>
+              <option value="stackworks-squares">Classic squares</option>
+              <option value="chesscom">Modern</option>
+            </select>
+          </div>
+          <div class="hint" id="launchChessMovePreviewModeHint">
+            Off, Classic rings, Classic square highlights, or Modern
+            selected-square, dot, and ring previews
+          </div>
+
           <div class="checkRow">
             <input type="checkbox" id="launchMoveHints" />
             <label for="launchMoveHints">Move preview hints</label>
           </div>
           <div class="hint">
-            Shows candidate destinations while selecting a piece. Modern style
-            can be selected in-game.
+            Shows candidate destinations while selecting a piece.
+          </div>
+
+          <div class="row" id="launchMoveHintStyleRow">
+            <label for="launchMoveHintStyle">Move hint style</label>
+            <select id="launchMoveHintStyle" class="panelSelect">
+              <option value="classic">Classic</option>
+              <option value="chesscom">Modern</option>
+            </select>
+          </div>
+          <div class="hint" id="launchMoveHintStyleHint">
+            Classic capture previews or Modern selected-square, dot, and ring
+            previews
+          </div>
+
+          <div class="row" id="launchAnalysisSquareStyleRow">
+            <label for="launchAnalysisSquareStyle">Analysis square style</label>
+            <select id="launchAnalysisSquareStyle" class="panelSelect">
+              <option value="classic">Classic</option>
+              <option value="chesscom">Modern</option>
+            </select>
+          </div>
+          <div class="hint" id="launchAnalysisSquareStyleHint">
+            Classic bordered analysis squares or Modern full-square analysis
+            fills
           </div>
 
           <div class="checkRow">

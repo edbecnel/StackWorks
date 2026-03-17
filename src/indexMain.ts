@@ -6,6 +6,11 @@ import { getGuestDisplayName, setGuestDisplayName } from "./shared/guestIdentity
 import { createSfxManager } from "./ui/sfx";
 import type { AuthMeResponse, AuthOkResponse, AuthErrorResponse } from "./shared/authProtocol.ts";
 import { normalizeCheckerboardThemeId } from "./render/checkerboardTheme";
+import {
+  normalizeAnalysisSquareHighlightStyle,
+  normalizeLastMoveHighlightStyle,
+  normalizeMoveHintStyle,
+} from "./render/highlightStyles";
 import { getSideLabelsForRuleset } from "./shared/sideTerminology";
 import { applyPanelLayoutMode, installPanelLayoutStartPageOptionUI, readPanelLayoutMode } from "./ui/panelLayoutMode";
 import { readBoardViewportMode, writeBoardViewportMode } from "./ui/boardViewportMode";
@@ -33,14 +38,21 @@ const LS_KEYS = {
   variantId: "lasca.variantId",
 
   optMoveHints: "lasca.opt.moveHints",
+  optMoveHintStyle: "lasca.opt.moveHintStyle",
   optAnimations: "lasca.opt.animations",
   optShowResizeIcon: "lasca.opt.showResizeIcon",
   optBoardCoords: "lasca.opt.boardCoords",
   optBoardCoordsInSquares: "lasca.opt.boardCoordsInSquares",
   optFlipBoard: "lasca.opt.flipBoard",
+  optChessHighlightSquares: "lasca.opt.chess.highlightSquares",
   optBoard8x8Checkered: "lasca.opt.board8x8Checkered",
   optCheckerboardTheme: "lasca.opt.checkerboardTheme",
   optLastMoveHighlights: "lasca.opt.lastMoveHighlights",
+  optChessMovePreviewMode: "lasca.opt.chess.movePreviewMode",
+  optChessLastMoveHighlightStyle: "lasca.opt.chess.lastMoveHighlightStyle",
+  optColumnsLastMoveHighlightStyle: "lasca.opt.columnsChess.lastMoveHighlightStyle",
+  optChessAnalysisSquareHighlightStyle: "lasca.opt.chess.analysisSquareHighlightStyle",
+  optColumnsAnalysisSquareHighlightStyle: "lasca.opt.columnsChess.analysisSquareHighlightStyle",
   optThreefold: "lasca.opt.threefold",
   optToasts: "lasca.opt.toasts",
   optSfx: "lasca.opt.sfx",
@@ -57,6 +69,31 @@ const LS_KEYS = {
 } as const;
 
 const START_SPLASH_MS = 3500;
+
+type ChessMovePreviewMode = "off" | "stackworks" | "stackworks-squares" | "chesscom";
+
+function normalizeChessMovePreviewMode(value: string | null | undefined): ChessMovePreviewMode {
+  switch (value) {
+    case "off":
+    case "stackworks":
+    case "stackworks-squares":
+    case "chesscom":
+      return value;
+    default:
+      return "stackworks";
+  }
+}
+
+function deriveLegacyChessMovePreviewMode(): ChessMovePreviewMode {
+  const moveHintsEnabled = readBool(LS_KEYS.optMoveHints, true);
+  if (!moveHintsEnabled) return "off";
+
+  const moveHintStyle = normalizeMoveHintStyle(localStorage.getItem(LS_KEYS.optMoveHintStyle));
+  if (moveHintStyle === "chesscom") return "chesscom";
+
+  const highlightSquaresEnabled = readBool(LS_KEYS.optChessHighlightSquares, false);
+  return highlightSquaresEnabled ? "stackworks-squares" : "stackworks";
+}
 
 type StartSectionOpenMap = Record<string, boolean>;
 
@@ -553,7 +590,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const elAccountUploadAvatar = (document.getElementById("accountUploadAvatar") as HTMLButtonElement | null) ?? null;
   const elAccountLogout = (document.getElementById("accountLogout") as HTMLButtonElement | null) ?? null;
 
-  const elShowResizeIcon = byId<HTMLInputElement>("launchShowResizeIcon");
+  const elShowResizeIcon = (document.getElementById("launchShowResizeIcon") as HTMLInputElement | null) ?? null;
   const elShowPlayerNames = (document.getElementById("launchShowPlayerNames") as HTMLInputElement | null) ?? null;
   const elShowPlayerNamesRow = (document.getElementById("launchShowPlayerNamesRow") as HTMLElement | null) ?? null;
   const elShowPlayerNamesHint = (document.getElementById("launchShowPlayerNamesHint") as HTMLElement | null) ?? null;
@@ -564,7 +601,21 @@ window.addEventListener("DOMContentLoaded", () => {
   const elBoardCoordsInSquaresHint = (elBoardCoordsInSquaresRow?.nextElementSibling as HTMLElement | null) ?? null;
   const elFlipBoard = byId<HTMLInputElement>("launchFlipBoard");
   const elLastMoveHighlights = byId<HTMLInputElement>("launchLastMoveHighlights");
+  const elLastMoveStyleRow = (document.getElementById("launchLastMoveStyleRow") as HTMLElement | null) ?? null;
+  const elLastMoveStyleHint = (document.getElementById("launchLastMoveStyleHint") as HTMLElement | null) ?? null;
+  const elLastMoveStyle = (document.getElementById("launchLastMoveStyle") as HTMLSelectElement | null) ?? null;
   const elMoveHints = byId<HTMLInputElement>("launchMoveHints");
+  const elMoveHintsRow = (elMoveHints.closest(".checkRow") as HTMLElement | null) ?? null;
+  const elMoveHintsHint = (elMoveHintsRow?.nextElementSibling as HTMLElement | null) ?? null;
+  const elChessMovePreviewModeRow = (document.getElementById("launchChessMovePreviewModeRow") as HTMLElement | null) ?? null;
+  const elChessMovePreviewModeHint = (document.getElementById("launchChessMovePreviewModeHint") as HTMLElement | null) ?? null;
+  const elChessMovePreviewMode = (document.getElementById("launchChessMovePreviewMode") as HTMLSelectElement | null) ?? null;
+  const elMoveHintStyleRow = (document.getElementById("launchMoveHintStyleRow") as HTMLElement | null) ?? null;
+  const elMoveHintStyleHint = (document.getElementById("launchMoveHintStyleHint") as HTMLElement | null) ?? null;
+  const elMoveHintStyle = (document.getElementById("launchMoveHintStyle") as HTMLSelectElement | null) ?? null;
+  const elAnalysisSquareStyleRow = (document.getElementById("launchAnalysisSquareStyleRow") as HTMLElement | null) ?? null;
+  const elAnalysisSquareStyleHint = (document.getElementById("launchAnalysisSquareStyleHint") as HTMLElement | null) ?? null;
+  const elAnalysisSquareStyle = (document.getElementById("launchAnalysisSquareStyle") as HTMLSelectElement | null) ?? null;
   const elBoard8x8Checkered = byId<HTMLInputElement>("launchBoard8x8Checkered");
   const elBoard8x8CheckeredRow = (elBoard8x8Checkered.closest(".checkRow") as HTMLElement | null) ?? null;
   const elBoard8x8CheckeredHint = (elBoard8x8CheckeredRow?.nextElementSibling as HTMLElement | null) ?? null;
@@ -1015,7 +1066,7 @@ window.addEventListener("DOMContentLoaded", () => {
     // Force these UI prefs.
     writeBool(LS_KEYS.optMoveHints, elMoveHints.checked);
     writeBool(LS_KEYS.optAnimations, true);
-    writeBool(LS_KEYS.optShowResizeIcon, elShowResizeIcon.checked);
+    writeBool(LS_KEYS.optShowResizeIcon, elShowResizeIcon?.checked ?? false);
     if (isClassicChess && elShowPlayerNames) writeBool(LS_KEYS.optShowPlayerNames, elShowPlayerNames.checked);
     const boardViewportMode = elBoardViewport.value === "playable" ? "playable" : "framed";
     writeBoardViewportMode(boardViewportMode);
@@ -1026,6 +1077,38 @@ window.addEventListener("DOMContentLoaded", () => {
     }
     writeBool(LS_KEYS.optFlipBoard, elFlipBoard.checked);
     writeBool(LS_KEYS.optLastMoveHighlights, elLastMoveHighlights.checked);
+    if (isClassicChess) {
+      const nextMovePreviewMode = normalizeChessMovePreviewMode(elChessMovePreviewMode?.value ?? deriveLegacyChessMovePreviewMode());
+      const moveHintsEnabled = nextMovePreviewMode !== "off";
+      const moveHintStyle = nextMovePreviewMode === "chesscom" ? "chesscom" : "classic";
+      const highlightSquaresEnabled = nextMovePreviewMode === "stackworks-squares" || nextMovePreviewMode === "chesscom";
+      localStorage.setItem(LS_KEYS.optChessMovePreviewMode, nextMovePreviewMode);
+      localStorage.setItem(LS_KEYS.optMoveHintStyle, moveHintStyle);
+      writeBool(LS_KEYS.optMoveHints, moveHintsEnabled);
+      writeBool(LS_KEYS.optChessHighlightSquares, highlightSquaresEnabled);
+      if (elLastMoveStyle) {
+        localStorage.setItem(LS_KEYS.optChessLastMoveHighlightStyle, normalizeLastMoveHighlightStyle(elLastMoveStyle.value));
+      }
+      if (elAnalysisSquareStyle) {
+        localStorage.setItem(
+          LS_KEYS.optChessAnalysisSquareHighlightStyle,
+          normalizeAnalysisSquareHighlightStyle(elAnalysisSquareStyle.value),
+        );
+      }
+    } else if (isColumnsChess) {
+      if (elMoveHintStyle) localStorage.setItem(LS_KEYS.optMoveHintStyle, normalizeMoveHintStyle(elMoveHintStyle.value));
+      if (elLastMoveStyle) {
+        localStorage.setItem(LS_KEYS.optColumnsLastMoveHighlightStyle, normalizeLastMoveHighlightStyle(elLastMoveStyle.value));
+      }
+      if (elAnalysisSquareStyle) {
+        localStorage.setItem(
+          LS_KEYS.optColumnsAnalysisSquareHighlightStyle,
+          normalizeAnalysisSquareHighlightStyle(elAnalysisSquareStyle.value),
+        );
+      }
+    } else {
+      if (elMoveHintStyle) localStorage.setItem(LS_KEYS.optMoveHintStyle, normalizeMoveHintStyle(elMoveHintStyle.value));
+    }
     if ((isColumnsChess || isClassicChess || isCheckers) && elColumnsChessBoardTheme) {
       const next = normalizeCheckerboardThemeId(elColumnsChessBoardTheme.value);
       localStorage.setItem(LS_KEYS.optCheckerboardTheme, next);
@@ -1618,7 +1701,7 @@ window.addEventListener("DOMContentLoaded", () => {
   elOnlinePrefColor.value = readPreferredColor(LS_KEYS.onlinePrefColor, "auto");
   elOnlineName.value = getGuestDisplayName() ?? "";
 
-  elShowResizeIcon.checked = readBool(LS_KEYS.optShowResizeIcon, false);
+  if (elShowResizeIcon) elShowResizeIcon.checked = readBool(LS_KEYS.optShowResizeIcon, false);
   if (elShowPlayerNames) elShowPlayerNames.checked = readBool(LS_KEYS.optShowPlayerNames, true);
   elBoardViewport.value = readBoardViewportMode();
   elBoardCoords.checked = readBool(LS_KEYS.optBoardCoords, false);
@@ -1626,6 +1709,27 @@ window.addEventListener("DOMContentLoaded", () => {
   elFlipBoard.checked = readBool(LS_KEYS.optFlipBoard, false);
   elLastMoveHighlights.checked = readBool(LS_KEYS.optLastMoveHighlights, true);
   elMoveHints.checked = readBool(LS_KEYS.optMoveHints, true);
+  if (elLastMoveStyle) {
+    const initialLastMoveStyle = normalizeLastMoveHighlightStyle(
+      localStorage.getItem(LS_KEYS.optChessLastMoveHighlightStyle) ?? localStorage.getItem(LS_KEYS.optColumnsLastMoveHighlightStyle),
+    );
+    elLastMoveStyle.value = initialLastMoveStyle;
+  }
+  if (elChessMovePreviewMode) {
+    elChessMovePreviewMode.value = normalizeChessMovePreviewMode(
+      localStorage.getItem(LS_KEYS.optChessMovePreviewMode) ?? deriveLegacyChessMovePreviewMode(),
+    );
+  }
+  if (elMoveHintStyle) {
+    elMoveHintStyle.value = normalizeMoveHintStyle(localStorage.getItem(LS_KEYS.optMoveHintStyle));
+  }
+  if (elAnalysisSquareStyle) {
+    const initialAnalysisSquareStyle = normalizeAnalysisSquareHighlightStyle(
+      localStorage.getItem(LS_KEYS.optChessAnalysisSquareHighlightStyle)
+        ?? localStorage.getItem(LS_KEYS.optColumnsAnalysisSquareHighlightStyle),
+    );
+    elAnalysisSquareStyle.value = initialAnalysisSquareStyle;
+  }
   elBoard8x8Checkered.checked = readBool(LS_KEYS.optBoard8x8Checkered, false);
   elToasts.checked = readBool(LS_KEYS.optToasts, true);
   elSfx.checked = readBool(LS_KEYS.optSfx, false);
@@ -1703,6 +1807,8 @@ window.addEventListener("DOMContentLoaded", () => {
     const isClassicChess = vId === "chess_classic";
     const isCheckers = v.rulesetId === "checkers_us";
     const usesColumnsChessBoard = isColumnsChess || isClassicChess;
+    const supportsModernLastMoveStyle = isColumnsChess || isClassicChess;
+    const supportsAnalysisSquareStyle = isColumnsChess || isClassicChess;
 
     // "Show player names" only applies to Classic Chess (the only game with SVG name rendering).
     {
@@ -1742,6 +1848,40 @@ window.addEventListener("DOMContentLoaded", () => {
       if (elBoard8x8CheckeredRow) elBoard8x8CheckeredRow.style.display = show ? "" : "none";
       if (elBoard8x8CheckeredHint) elBoard8x8CheckeredHint.style.display = show ? "" : "none";
       elBoard8x8Checkered.disabled = !show;
+    }
+
+    {
+      const showChessMovePreview = isClassicChess;
+      const showMoveHints = !isClassicChess;
+      const showMoveHintStyle = showMoveHints && Boolean(elMoveHints.checked);
+      const showLastMoveStyle = supportsModernLastMoveStyle && Boolean(elLastMoveHighlights.checked);
+
+      if (elChessMovePreviewModeRow) elChessMovePreviewModeRow.style.display = showChessMovePreview ? "" : "none";
+      if (elChessMovePreviewModeHint) elChessMovePreviewModeHint.style.display = showChessMovePreview ? "" : "none";
+
+      if (elMoveHintsRow) elMoveHintsRow.style.display = showMoveHints ? "" : "none";
+      if (elMoveHintsHint) elMoveHintsHint.style.display = showMoveHints ? "" : "none";
+      if (elMoveHintStyleRow) elMoveHintStyleRow.style.display = showMoveHintStyle ? "" : "none";
+      if (elMoveHintStyleHint) elMoveHintStyleHint.style.display = showMoveHintStyle ? "" : "none";
+
+      if (elLastMoveStyleRow) elLastMoveStyleRow.style.display = showLastMoveStyle ? "" : "none";
+      if (elLastMoveStyleHint) elLastMoveStyleHint.style.display = showLastMoveStyle ? "" : "none";
+
+      if (elAnalysisSquareStyleRow) elAnalysisSquareStyleRow.style.display = supportsAnalysisSquareStyle ? "" : "none";
+      if (elAnalysisSquareStyleHint) elAnalysisSquareStyleHint.style.display = supportsAnalysisSquareStyle ? "" : "none";
+
+      if (elLastMoveStyle) {
+        const variantLastMoveKey = isClassicChess ? LS_KEYS.optChessLastMoveHighlightStyle : LS_KEYS.optColumnsLastMoveHighlightStyle;
+        elLastMoveStyle.value = normalizeLastMoveHighlightStyle(localStorage.getItem(variantLastMoveKey));
+      }
+      if (elAnalysisSquareStyle) {
+        const variantAnalysisKey = isClassicChess
+          ? LS_KEYS.optChessAnalysisSquareHighlightStyle
+          : LS_KEYS.optColumnsAnalysisSquareHighlightStyle;
+        if (supportsAnalysisSquareStyle) {
+          elAnalysisSquareStyle.value = normalizeAnalysisSquareHighlightStyle(localStorage.getItem(variantAnalysisKey));
+        }
+      }
     }
 
     // Variant-specific bot dropdown options.
@@ -1941,9 +2081,11 @@ window.addEventListener("DOMContentLoaded", () => {
     syncAvailability();
   });
 
-  elShowResizeIcon.addEventListener("change", () => {
-    writeBool(LS_KEYS.optShowResizeIcon, elShowResizeIcon.checked);
-  });
+  if (elShowResizeIcon) {
+    elShowResizeIcon.addEventListener("change", () => {
+      writeBool(LS_KEYS.optShowResizeIcon, elShowResizeIcon.checked);
+    });
+  }
 
   elBoardViewport.addEventListener("change", () => {
     writeBoardViewportMode(elBoardViewport.value === "playable" ? "playable" : "framed");
@@ -1962,10 +2104,41 @@ window.addEventListener("DOMContentLoaded", () => {
 
   elLastMoveHighlights.addEventListener("change", () => {
     writeBool(LS_KEYS.optLastMoveHighlights, elLastMoveHighlights.checked);
+    syncAvailability();
   });
 
   elMoveHints.addEventListener("change", () => {
     writeBool(LS_KEYS.optMoveHints, elMoveHints.checked);
+    syncAvailability();
+  });
+
+  elLastMoveStyle?.addEventListener("change", () => {
+    const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
+    const key = vId === "chess_classic" ? LS_KEYS.optChessLastMoveHighlightStyle : LS_KEYS.optColumnsLastMoveHighlightStyle;
+    localStorage.setItem(key, normalizeLastMoveHighlightStyle(elLastMoveStyle.value));
+  });
+
+  elChessMovePreviewMode?.addEventListener("change", () => {
+    const nextMode = normalizeChessMovePreviewMode(elChessMovePreviewMode.value);
+    const moveHintsEnabled = nextMode !== "off";
+    const moveHintStyle = nextMode === "chesscom" ? "chesscom" : "classic";
+    const highlightSquaresEnabled = nextMode === "stackworks-squares" || nextMode === "chesscom";
+    localStorage.setItem(LS_KEYS.optChessMovePreviewMode, nextMode);
+    writeBool(LS_KEYS.optMoveHints, moveHintsEnabled);
+    localStorage.setItem(LS_KEYS.optMoveHintStyle, moveHintStyle);
+    writeBool(LS_KEYS.optChessHighlightSquares, highlightSquaresEnabled);
+  });
+
+  elMoveHintStyle?.addEventListener("change", () => {
+    localStorage.setItem(LS_KEYS.optMoveHintStyle, normalizeMoveHintStyle(elMoveHintStyle.value));
+  });
+
+  elAnalysisSquareStyle?.addEventListener("change", () => {
+    const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
+    const key = vId === "chess_classic"
+      ? LS_KEYS.optChessAnalysisSquareHighlightStyle
+      : LS_KEYS.optColumnsAnalysisSquareHighlightStyle;
+    localStorage.setItem(key, normalizeAnalysisSquareHighlightStyle(elAnalysisSquareStyle.value));
   });
 
   elColumnsChessBoardTheme?.addEventListener("change", () => {
