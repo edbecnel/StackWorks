@@ -41,6 +41,30 @@ Global product shell with a polished competitive board-game feel:
 - [ ] Fullscreen mode on laptop, tablet, and larger displays must hide the new shell header entirely so no top chrome reduces board height
 - [ ] After game selection, show that game's own navigation/options
 
+### Reference Translation
+
+When using chess.com play screens as visual references, translate them into StackWorks goals using the categories below instead of copying product structure literally.
+
+**Replicate directly**
+
+- [ ] Board-first composition: keep the board centered and avoid sacrificing vertical space to a persistent top game header on desktop
+- [ ] Board-adjacent player identifiers: opponent attached to the top edge of the board and local player attached to the bottom edge of the board
+- [ ] A clear right-side mode/context panel that explains the current play surface at a glance
+
+**Mimic structurally**
+
+- [ ] Use a thin, integrated player-bar treatment similar to chess.com's top/bottom player identifiers rather than detached floating cards
+- [ ] Use a left-side current-game identity area analogous to chess.com's bottom-left `Play Chess` label, but adapt the wording to the active StackWorks variant and mode
+- [ ] Use a right-panel composition similar to chess.com's mode panel: current context at the top, selectable options in the middle, primary action anchored clearly
+
+**StackWorks equivalent, not literal copy**
+
+- [ ] Do not copy chess.com's product taxonomy (`Play`, `Puzzles`, `Learn`, etc.); keep StackWorks-specific navigation and variant structure
+- [ ] Replace chess.com's exact mode labels with StackWorks equivalents such as `Play <Variant>`, `Bot Match`, `Online Room`, `Local Game`, `Spectating`, or `Replay`
+- [ ] Populate side panels with StackWorks-specific content: rules/help, bot level, online room state, variant actions, history/replay, and account/community shortcuts where relevant
+- [ ] Treat ratings, flags, profile polish, and other account metadata as future-ready optional slots rather than baseline requirements for the first UI pass
+- [ ] Use uploaded profile avatars plus sensible defaults/fallbacks, rather than introducing a custom avatar creator flow
+
 ---
 
 ## Deliverable 1 — File-by-File Implementation Plan
@@ -99,11 +123,13 @@ Global product shell with a polished competitive board-game feel:
 - [ ] Define `GlobalSection` enum: `Home | Games | Community | Account | Settings`
 - [ ] Define `GameSection` enum: `Play | Learn | Watch | History | Rules | Customize | Online`
 - [ ] Define `PlaySubSection` enum: `Online | Bots | Coach | Friend | Tournaments | Variants`
-- [ ] Define `PlayerIdentity` type: `{ id: string, displayName: string, avatarUrl: string | null, side: 'local' | 'remote' | 'spectator', presenceState: PresenceState, rating?: number, isBot?: boolean, isFallback?: boolean }`
+- [ ] Define `PlayerIdentity` type: `{ id: string, displayName: string, avatarUrl: string | null, side: 'local' | 'remote' | 'spectator', presenceState: PresenceState, countryCode?: string | null, countryName?: string | null, rating?: number, isBot?: boolean, isFallback?: boolean }`
 - [ ] Define `PresenceState` enum: `Online | Offline | Reconnecting | Waiting`
 - [ ] Wire `ShellState` to `localStorage` for persistence across page navigations
 - [x] Feed `PlayerIdentity` from current match/session state (not hardcoded labels)
 - [ ] Do NOT use "White"/"Black" as primary player labels — use actual display names first, side/color secondarily
+- [ ] Feed player country into `PlayerIdentity` when available so the shell can render a country flag next to the player name in the board-edge identifiers
+- [ ] Define avatar-profile metadata needed by the shell/account UI so player identity can reference an uploaded profile image with fallback/default behavior
 
 ---
 
@@ -120,6 +146,7 @@ Global product shell with a polished competitive board-game feel:
 - [x] `gameShell.ts` should prefer paired side-panel modes on desktop so shell navigation/actions live in left/right panels instead of a top header
 - [x] Player identity panels are injected above/below the board container by `gameShell.ts`
   - [x] Panel order updates dynamically when the board flips so the player cards stay attached to the correct board edge
+  - [ ] Player identifiers should show a country flag beside the display name when `PlayerIdentity.countryCode` is available
   - [ ] Expand the board-adjacent identity cards into full left/right landscape rails if the desktop shell direction needs that richer treatment later
 - [ ] Right-side action panel slot is populated by each page's own logic (preserving existing settings/online UI)
 
@@ -170,11 +197,13 @@ Global product shell with a polished competitive board-game feel:
 
 - [x] Create `src/ui/player/playerAvatar.ts`
   - [ ] Guest/default avatar fallback
+  - [ ] Support uploaded profile avatars as the primary avatar source
   - [ ] Bot identity avatar/card
 - [x] Create `src/ui/player/playerStatusBadge.ts`
   - [ ] States: Online, Offline, Reconnecting, Waiting for opponent
 - [x] Create `src/ui/player/playerIdentityPanel.ts`
-  - [ ] Shows: avatar, display name, side/color indicator (secondary), presence badge
+  - [ ] Shows: avatar, display name, country flag when available, side/color indicator (secondary), presence badge
+  - [ ] Visual target is the chess.com-style top/bottom player identifier pattern: thin board-edge bars with identity first and gameplay/session state second
   - [ ] **Portrait / narrow viewport:** stack one panel above the board, one below
   - [ ] **Landscape / wide viewport:** place one panel to the left of the board, one to the right (mirrors laptop/monitor layout)
   - [ ] Switch triggered by CSS `@media (orientation: landscape)` / `(orientation: portrait)` or container query on the board wrapper
@@ -182,9 +211,11 @@ Global product shell with a polished competitive board-game feel:
   - [ ] Orientation-aware: panels stay visually attached to correct board side when board flips
   - [ ] Clocks, captured pieces, and status indicators align with same player panel in both orientations
   - [ ] Empty/fallback states: "Waiting for opponent", guest avatar, bot card
-  - [ ] Future-ready slots: rating, country flag, verification/premium badge, profile card click
+  - [ ] Country metadata is part of the core player identity contract for the shell, not just a future enhancement
+  - [ ] Future-ready slots: rating, verification/premium badge, profile card click
 - [ ] Integrate `playerIdentityPanel.ts` into `gameShell.ts`
   - [x] Feed from current match/session state for all game types
+  - [ ] Pull country/profile metadata from the existing account/identity sources when available and expose it to the board-edge player identifiers
   - [ ] Works for: live online games, play-vs-friend, bot games, spectating, replay/history
   - [ ] Rendering is independent from game rules (works for Chess, Columns Chess, Dama, Lasca, Damasca, etc.)
 
@@ -196,6 +227,7 @@ Global product shell with a polished competitive board-game feel:
   - [ ] Breadcrumb / game title
   - [ ] Per-game left nav section (Play, Learn, Watch, History, Rules, Customize, Online)
   - [ ] Right-side action panel slot
+  - [ ] Right-side panel should act as a StackWorks-equivalent mode/context panel, not a literal copy of chess.com's `Play Chess` or bot-category menu
   - [x] Desktop/laptop layout uses left/right pair switching instead of a persistent top game-shell header
   - [x] One left/right pair exposes the existing legacy sidebars
   - [x] One left/right pair exposes the new shell-style navigation and play/action panels
@@ -211,6 +243,14 @@ Global product shell with a polished competitive board-game feel:
   - [ ] Preserve all current online options (lobby, create room, join room, guest flow)
 - [ ] Keep existing `localStorage` data sources and behavior working
 - [ ] Wire `ShellState.activeGame` on game card selection
+
+### Phase 2.5 — Profile Identity
+
+- [ ] Add uploaded-avatar profile support for account/profile setup
+- [ ] Keep direct avatar image upload as the primary profile-avatar path, aligned with the expected chess.com-style profile model
+- [ ] Persist uploaded avatar metadata in the existing account/identity model used by online play
+- [ ] Ensure uploaded avatars feed the top/bottom board player identifiers, account/profile surfaces, and any future lobby/player cards
+- [ ] Define fallback behavior for missing, invalid, or removed uploaded avatars
 
 ---
 
@@ -242,6 +282,8 @@ Global product shell with a polished competitive board-game feel:
 - [ ] Verify browser fullscreen removes shell header chrome and preserves the board-first layout on larger displays
 - [ ] Verify desktop layouts keep the board vertically unconstrained by avoiding persistent top game-shell chrome
 - [ ] Review and align player identity panel styling across all game pages
+- [ ] Verify country flags render cleanly and align consistently inside the top/bottom player identifiers across all supported games and breakpoints
+- [ ] Verify uploaded avatars render cleanly and consistently in board-edge player identifiers, side panels, and profile/account surfaces
 - [ ] Confirm no regressions in board/game renderer visual output
 
 ---
@@ -281,6 +323,8 @@ Global product shell with a polished competitive board-game feel:
 - [ ] No game engine, renderer, or server code has been modified
 - [ ] All game entry points (`chess.html`, `dama.html`, etc.) still launch correctly as standalone Vite entries
 - [ ] Player identity panels display correctly in online, bot, friend, and spectate modes for all supported games
+- [ ] Player identity panels display country flags correctly when country metadata is available, and degrade cleanly when it is missing
+- [ ] Player identity panels and account/profile surfaces use uploaded avatars correctly, with sensible fallback behavior for missing or invalid avatar data
 - [ ] Shell is responsive on both desktop and mobile without covering board content
 - [ ] In portrait mobile layouts, shell navigation does not sit as a persistent tall header above the board
 - [ ] In browser fullscreen, the shell header is hidden and does not consume top screen space

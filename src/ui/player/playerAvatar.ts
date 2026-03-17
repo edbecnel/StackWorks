@@ -4,6 +4,7 @@ export interface PlayerAvatarOptions {
   color: Player;
   displayName: string;
   isLocal: boolean;
+  avatarUrl?: string | null;
 }
 
 function initialsForName(displayName: string): string {
@@ -23,6 +24,29 @@ export function createPlayerAvatar(opts: PlayerAvatarOptions): HTMLDivElement {
   avatar.dataset.playerColor = opts.color;
   if (opts.isLocal) avatar.dataset.isLocal = "1";
   avatar.setAttribute("aria-hidden", "true");
-  avatar.textContent = initialsForName(opts.displayName);
+
+  const fallback = document.createElement("span");
+  fallback.className = "gameShellPlayerAvatarFallback";
+  fallback.textContent = initialsForName(opts.displayName);
+  avatar.appendChild(fallback);
+
+  const rawAvatarUrl = typeof opts.avatarUrl === "string" ? opts.avatarUrl.trim() : "";
+  if (rawAvatarUrl) {
+    const image = document.createElement("img");
+    image.className = "gameShellPlayerAvatarImage";
+    image.src = rawAvatarUrl;
+    image.alt = "";
+    image.decoding = "async";
+    image.loading = "eager";
+    image.addEventListener("load", () => {
+      avatar.dataset.hasImage = "1";
+    });
+    image.addEventListener("error", () => {
+      avatar.dataset.hasImage = "0";
+      image.remove();
+    });
+    avatar.appendChild(image);
+  }
+
   return avatar;
 }

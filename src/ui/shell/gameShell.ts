@@ -3,6 +3,7 @@ import { createTabs } from "../navigation/tabs";
 import { isBoardFlipped } from "../../render/boardFlip";
 import { createPlayerIdentityPanel } from "../player/playerIdentityPanel";
 import type { GameController } from "../../controller/gameController";
+import type { Player, PlayerIdentity, PlayerShellSnapshot } from "../../types";
 
 export interface GameShellNavItem {
   id: string;
@@ -35,6 +36,14 @@ const DESKTOP_PANEL_MODE_LS_KEY = "stackworks.gameShell.desktopPanelMode";
 
 type DesktopPanelMode = "legacy" | "shell";
 
+type AuthMeResponse = {
+  ok: true;
+  user: {
+    displayName: string;
+    avatarUrl?: string;
+  } | null;
+};
+
 function readDesktopPanelMode(): DesktopPanelMode {
   try {
     const raw = localStorage.getItem(DESKTOP_PANEL_MODE_LS_KEY);
@@ -49,6 +58,14 @@ function writeDesktopPanelMode(mode: DesktopPanelMode): void {
     localStorage.setItem(DESKTOP_PANEL_MODE_LS_KEY, mode);
   } catch {
     // ignore
+  }
+}
+
+function resolveServerAssetUrl(serverUrl: string, assetUrl: string): string {
+  try {
+    return new URL(assetUrl, serverUrl).toString();
+  } catch {
+    return assetUrl;
   }
 }
 
@@ -350,14 +367,14 @@ function ensureGameShellStyles(): void {
 
     .gameShellPlayerPanel {
       display: grid;
-      gap: 8px;
-      padding: 10px 12px;
-      border-radius: 16px;
+      gap: 6px;
+      padding: 8px 10px;
+      border-radius: 14px;
       border: 1px solid rgba(255, 255, 255, 0.08);
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03)),
         rgba(0, 0, 0, 0.22);
-      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
     }
 
     .gameShellPlayerPanel[data-active-turn="1"] {
@@ -374,13 +391,15 @@ function ensureGameShellStyles(): void {
     }
 
     .gameShellPlayerAvatar {
-      width: 42px;
-      height: 42px;
-      border-radius: 14px;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      position: relative;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      font-size: 13px;
+      overflow: hidden;
+      font-size: 12px;
       font-weight: 800;
       color: rgba(255, 255, 255, 0.96);
       background: linear-gradient(135deg, rgba(111, 136, 199, 0.68), rgba(57, 73, 145, 0.76));
@@ -395,6 +414,20 @@ function ensureGameShellStyles(): void {
     .gameShellPlayerAvatar[data-is-local="1"] {
       outline: 2px solid rgba(231, 191, 110, 0.32);
       outline-offset: 2px;
+    }
+
+    .gameShellPlayerAvatarFallback {
+      position: relative;
+      z-index: 1;
+    }
+
+    .gameShellPlayerAvatarImage {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 2;
     }
 
     .gameShellPlayerText {
@@ -420,12 +453,26 @@ function ensureGameShellStyles(): void {
     }
 
     .gameShellPlayerDetail {
-      font-size: 12px;
-      line-height: 1.4;
+      font-size: 11px;
+      line-height: 1.35;
       color: rgba(255, 255, 255, 0.68);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .gameShellPlayerNameRow {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .gameShellPlayerFlag {
+      flex: 0 0 auto;
+      font-size: 14px;
+      line-height: 1;
+      filter: saturate(0.95);
     }
 
     .gameShellPlayerStatusBadge {
@@ -945,11 +992,43 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     const topPanel = createPlayerIdentityPanel({ identity: initialSnapshot.players.B });
     const bottomPanel = createPlayerIdentityPanel({ identity: initialSnapshot.players.W });
 
+    const localIdentityOverrides: Partial<Record<Player, Partial<PlayerIdentity>>> = {};
+
     boardAnchor.insertAdjacentElement("beforebegin", topPanel.element);
     boardAnchor.insertAdjacentElement("afterend", bottomPanel.element);
 
+    const buildSnapshotWithOverrides = (snapshot: PlayerShellSnapshot): PlayerShellSnapshot => {
+      const nextPlayers = { ...snapshot.players };
+      for (const color of ["W", "B"] as const) {
+        const override = localIdentityOverrides[color];
+        if (!override) continue;
+        nextPlayers[color] = { ...nextPlayers[color], ...override };
+      }
+      return { ...snapshot, players: nextPlayers };
+    };
+
+    const loadLocalAvatarOverride = async (snapshot: PlayerShellSnapshot): Promise<void> => {
+      if (snapshot.mode !== "online" || snapshot.viewerRole !== "player" || !snapshot.viewerColor || !snapshot.serverUrl) return;
+      try {
+        const res = await fetch(`${snapshot.serverUrl.replace(/\/$/, "")}/api/auth/me`, {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const body = await res.json() as AuthMeResponse;
+        const rawAvatarUrl = typeof body?.user?.avatarUrl === "string" ? body.user.avatarUrl.trim() : "";
+        if (!rawAvatarUrl) return;
+        localIdentityOverrides[snapshot.viewerColor] = {
+          ...(localIdentityOverrides[snapshot.viewerColor] ?? {}),
+          avatarUrl: resolveServerAssetUrl(snapshot.serverUrl, rawAvatarUrl),
+        };
+        syncPanels();
+      } catch {
+        // ignore profile lookup failures
+      }
+    };
+
     const syncPanels = (): void => {
-      const snapshot = controller.getPlayerShellSnapshot();
+      const snapshot = buildSnapshotWithOverrides(controller.getPlayerShellSnapshot());
       const boardSvg = opts.appRoot.querySelector("#boardWrap svg") as SVGSVGElement | null;
       const flipped = boardSvg ? isBoardFlipped(boardSvg) : false;
       const topColor = flipped ? "W" : "B";
@@ -961,6 +1040,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
 
     controller.addHistoryChangeCallback(() => syncPanels());
     controller.addAnalysisModeChangeCallback(() => syncPanels());
+    void loadLocalAvatarOverride(initialSnapshot);
     window.setInterval(syncPanels, 1000);
     syncPanels();
     didBindController = true;

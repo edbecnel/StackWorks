@@ -34,6 +34,11 @@ import { gameStateToFen, uciSquareToNodeId } from "./bot/fen.ts";
 import { applyMove } from "./game/applyMove.ts";
 import { nodeIdToA1 } from "./game/coordFormat.ts";
 import { buildPgnMoveComment, parsePgnMoveAnnotations } from "./chessPgnAnnotations.ts";
+import {
+  buildStandardAlgebraicHistory,
+  deriveChessJsMovesFromHistory,
+  type ChessMoveHistoryNotationMode,
+} from "./chessMoveHistoryNotation.ts";
 import { createBoardLoadingOverlay } from "./ui/boardLoadingOverlay";
 import { nextPaint } from "./ui/nextPaint";
 import { bindChessEvaluationPanel } from "./ui/chessEvaluationPanel.ts";
@@ -77,6 +82,7 @@ const LS_OPT_KEYS = {
   analysisSquareHighlightStyle: "lasca.opt.chess.analysisSquareHighlightStyle",
   selectionStyle: "lasca.opt.chess.selectionStyle",
   showPlayerNames: "lasca.opt.chess.showPlayerNames",
+  moveHistoryNotation: "lasca.opt.chess.moveHistoryNotation",
 } as const;
 
 const EVAL_BAR_GAP_PX = 3;
@@ -95,6 +101,10 @@ function normalizeChessMovePreviewMode(value: string | null | undefined): ChessM
     default:
       return "stackworks";
   }
+}
+
+function normalizeChessMoveHistoryNotation(value: string | null | undefined): ChessMoveHistoryNotationMode {
+  return value === "standard" ? "standard" : "coordinate";
 }
 
 function readOptionalBoolPref(key: string): boolean | null {
@@ -1008,82 +1018,9 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   };
 
-  const parseSquaresFromNotation = (notation: string): Array<string> => {
-    const raw = String(notation ?? "").match(/[A-H][1-8]/gi);
-    if (!raw) return [];
-    return raw.map((s) => s.toLowerCase());
-  };
-
-  const nodeToUci = (nodeId: string): string => {
-    // nodeIdToA1 yields A..H + 1..8.
-    return nodeIdToA1(nodeId, 8).toLowerCase();
-  };
-
-  const inferPromotion = (prev: import("./game/state.ts").GameState, next: import("./game/state.ts").GameState, from: string, to: string): "q" | undefined => {
-    try {
-      const prevPiece = prev.board.get(from)?.[0];
-      const nextPiece = next.board.get(to)?.[0];
-      if (!prevPiece || !nextPiece) return undefined;
-      if (prevPiece.rank !== "P") return undefined;
-      if (nextPiece.owner !== prevPiece.owner) return undefined;
-      if (nextPiece.rank === "Q") return "q";
-    } catch {
-      // ignore
-    }
-    return undefined;
-  };
-
-  const deriveChessJsMovesFromHistory = (): Array<{ from: string; to: string; promotion?: "q" }> => {
-    const snap = driver.exportHistorySnapshots();
-    const idxMax = Math.max(0, Math.min(snap.currentIndex, snap.states.length - 1));
-    const out: Array<{ from: string; to: string; promotion?: "q" }> = [];
-
-    for (let i = 1; i <= idxMax; i++) {
-      const prev = snap.states[i - 1];
-      const next = snap.states[i];
-
-      // Skip forced-game-over entries (resign, timeout, etc.) — these push a copy
-      // of the current state onto history with no actual board move.
-      if ((next as any).forcedGameOver) continue;
-
-      let fromNode: string | null = null;
-      let toNode: string | null = null;
-
-      // Prefer authoritative last-move hints when present.
-      const lm = next.ui?.lastMove;
-      if (lm?.from && lm?.to) {
-        fromNode = lm.from;
-        toNode = lm.to;
-      } else {
-        // Fallback to parsing the displayed notation (older histories / some imports).
-        const squares = parseSquaresFromNotation(snap.notation[i] ?? "");
-        if (squares.length >= 2) {
-          try {
-            fromNode = uciSquareToNodeId(squares[0]!);
-            toNode = uciSquareToNodeId(squares[squares.length - 1]!);
-          } catch {
-            // ignore
-          }
-        }
-      }
-
-      if (!fromNode || !toNode) {
-        // Skip entries we can't reconstruct.
-        continue;
-      }
-
-      const from = nodeToUci(fromNode);
-      const to = nodeToUci(toNode);
-      const promotion = inferPromotion(prev, next, fromNode, toNode);
-      out.push(promotion ? { from, to, promotion } : { from, to });
-    }
-
-    return out;
-  };
-
   const exportCurrentLineToPgnText = (includeTiming: boolean, includeEval: boolean): string => {
     const snap = driver.exportHistorySnapshots();
-    const moves = deriveChessJsMovesFromHistory();
+    const moves = deriveChessJsMovesFromHistory(snap);
     const chess = new Chess();
 
     // Determine if we have any per-move elapsed times to embed.
@@ -1743,6 +1680,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   const redoBtn = document.getElementById("redoBtn") as HTMLButtonElement | null;
   const moveHistoryEl = document.getElementById("moveHistory") as HTMLElement | null;
   const moveHistoryLayoutSel = document.getElementById("moveHistoryLayout") as HTMLSelectElement | null;
+  const moveHistoryNotationSel = document.getElementById("moveHistoryNotation") as HTMLSelectElement | null;
 
   type MoveHistoryLayout = "single" | "two";
   const MOVE_HISTORY_LAYOUT_KEY = "lasca.moveHistoryLayout";
@@ -1765,6 +1703,18 @@ window.addEventListener("DOMContentLoaded", async () => {
       const v = String(moveHistoryLayoutSel.value);
       moveHistoryLayout = v === "two" ? "two" : "single";
       writeMoveHistoryLayout(moveHistoryLayout);
+      updateHistoryUI("jump");
+    });
+  }
+
+  let moveHistoryNotation: ChessMoveHistoryNotationMode = normalizeChessMoveHistoryNotation(
+    readOptionalStringPref(LS_OPT_KEYS.moveHistoryNotation)
+  );
+  if (moveHistoryNotationSel) {
+    moveHistoryNotationSel.value = moveHistoryNotation;
+    moveHistoryNotationSel.addEventListener("change", () => {
+      moveHistoryNotation = normalizeChessMoveHistoryNotation(moveHistoryNotationSel.value);
+      writeStringPref(LS_OPT_KEYS.moveHistoryNotation, moveHistoryNotation);
       updateHistoryUI("jump");
     });
   }
@@ -1936,16 +1886,19 @@ window.addEventListener("DOMContentLoaded", async () => {
       moveHistoryEl.textContent = "No moves yet";
     } else {
       const snap = driver.exportHistorySnapshots();
+      const displayedNotation =
+        moveHistoryNotation === "standard" ? buildStandardAlgebraicHistory(snap) : snap.notation;
 
       const pawnSvg = (who: "W" | "B") =>
         `<svg aria-hidden="true" focusable="false" viewBox="0 0 100 100" style="width: 1.05em; height: 1.05em; vertical-align: -0.18em; margin-right: 6px;"><use href="#${who}_P"></use></svg>`;
 
       const renderMoveCell = (entry: (typeof historyData)[number], idx: number) => {
+        const displayNotation = displayedNotation[idx] ?? entry.notation;
         const whoMoved = entry.toMove === "B" ? "W" : "B";
         const prev = snap.states[idx - 1];
         const next = snap.states[idx];
-        const symId = inferMovedPieceSymbolId(prev, next, whoMoved, entry.notation);
-        const captureTooltip = inferCaptureTooltip(prev, next, whoMoved, symId, entry.notation);
+        const symId = inferMovedPieceSymbolId(prev, next, whoMoved, displayNotation);
+        const captureTooltip = inferCaptureTooltip(prev, next, whoMoved, symId, displayNotation);
         const pieceTooltip = symId
           ? pieceTooltipFromSymbolId(symId, whoMoved)
           : (whoMoved === "W" ? "White" : "Black");
@@ -1955,7 +1908,7 @@ window.addEventListener("DOMContentLoaded", async () => {
           : (whoMoved === "B" ? "⚫" : "⚪");
         const pieceIcon = `<span title="${pieceTooltipEsc}" style="display: inline-flex; align-items: center;">${pieceSvg}</span>`;
         let label = `${pieceIcon}`;
-        if (entry.notation) label += ` ${entry.notation}`;
+        if (displayNotation) label += ` ${displayNotation}`;
         const cls = `cell clickable${entry.isCurrent ? " current" : ""}`;
         const currentAttr = entry.isCurrent ? ' data-is-current="1"' : "";
         const titleAttr = captureTooltip ? ` title="${escapeHtmlAttr(captureTooltip)}"` : "";
@@ -2015,8 +1968,9 @@ window.addEventListener("DOMContentLoaded", async () => {
 
             const prev = snap.states[idx - 1];
             const next = snap.states[idx];
-            const symId = inferMovedPieceSymbolId(prev, next, whoMoved, entry.notation);
-            const captureTooltip = inferCaptureTooltip(prev, next, whoMoved, symId, entry.notation);
+            const displayNotation = displayedNotation[idx] ?? entry.notation;
+            const symId = inferMovedPieceSymbolId(prev, next, whoMoved, displayNotation);
+            const captureTooltip = inferCaptureTooltip(prev, next, whoMoved, symId, displayNotation);
             const pieceTooltip = symId
               ? pieceTooltipFromSymbolId(symId, whoMoved)
               : (whoMoved === "W" ? "White" : "Black");
@@ -2027,7 +1981,7 @@ window.addEventListener("DOMContentLoaded", async () => {
             const pieceIcon = `<span title=\"${pieceTooltipEsc}\" style=\"display: inline-flex; align-items: center;\">${pieceSvg}</span>`;
 
             let label = `${moveNum}. ${pieceIcon}`;
-            if (entry.notation) label += ` ${entry.notation}`;
+            if (displayNotation) label += ` ${displayNotation}`;
 
             const baseStyle = entry.isCurrent
               ? "font-weight: bold; color: rgba(255, 255, 255, 0.95);"

@@ -2543,6 +2543,7 @@
                   display: flex;
                   gap: 8px;
                   align-items: center;
+                  flex-wrap: wrap;
                   margin-bottom: 8px;
                 "
               >
@@ -2567,6 +2568,28 @@
                 >
                   <option value="single">Single column</option>
                   <option value="two">Two columns</option>
+                </select>
+                <label
+                  for="moveHistoryNotation"
+                  style="
+                    font-size: 12px;
+                    color: rgba(255, 255, 255, 0.7);
+                    white-space: nowrap;
+                  "
+                  >Notation</label
+                >
+                <select
+                  id="moveHistoryNotation"
+                  class="panelSelect"
+                  style="
+                    width: auto;
+                    flex: 1 1 180px;
+                    padding: 4px 10px;
+                    font-size: 12px;
+                  "
+                >
+                  <option value="coordinate">Coordinates</option>
+                  <option value="standard">Standard algebraic</option>
                 </select>
               </div>
               <div

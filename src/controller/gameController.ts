@@ -2894,6 +2894,9 @@ export class GameController {
     detailText: string;
     status: PresenceState;
     statusText: string;
+    avatarUrl?: string | null;
+    countryCode?: string | null;
+    countryName?: string | null;
     isLocal: boolean;
   }): PlayerIdentity {
     return {
@@ -2903,6 +2906,9 @@ export class GameController {
       detailText: args.detailText,
       status: args.status,
       statusText: args.statusText,
+      avatarUrl: args.avatarUrl ?? null,
+      countryCode: args.countryCode ?? null,
+      countryName: args.countryName ?? null,
       isLocal: args.isLocal,
       isActiveTurn: this.state.toMove === args.color,
     };
@@ -2934,6 +2940,7 @@ export class GameController {
       return {
         mode: "local",
         transportStatus: "connected",
+        serverUrl: null,
         viewerColor: null,
         viewerRole: "offline",
         players: defaultPlayers,
@@ -2953,6 +2960,7 @@ export class GameController {
       return {
         mode: "online",
         transportStatus: this.onlineTransportStatus,
+        serverUrl: remote.getServerUrl(),
         viewerColor: null,
         viewerRole: selfId === "spectator" ? "spectator" : "player",
         players: {
@@ -3028,6 +3036,7 @@ export class GameController {
     return {
       mode: "online",
       transportStatus: this.onlineTransportStatus,
+      serverUrl: remote.getServerUrl(),
       viewerColor: localColor,
       viewerRole: "player",
       players: {

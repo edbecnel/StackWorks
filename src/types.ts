@@ -11,6 +11,9 @@ export interface PlayerIdentity {
 	detailText: string;
 	status: PresenceState;
 	statusText: string;
+	avatarUrl?: string | null;
+	countryCode?: string | null;
+	countryName?: string | null;
 	isLocal: boolean;
 	isActiveTurn: boolean;
 }
@@ -18,6 +21,7 @@ export interface PlayerIdentity {
 export interface PlayerShellSnapshot {
 	mode: "local" | "online";
 	transportStatus: "connected" | "reconnecting";
+	serverUrl?: string | null;
 	viewerColor: Player | null;
 	viewerRole: "offline" | "player" | "spectator";
 	players: Record<Player, PlayerIdentity>;

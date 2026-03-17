@@ -11,6 +11,13 @@ export interface PlayerIdentityPanelController {
   update(identity: PlayerIdentity): void;
 }
 
+function countryCodeToFlagEmoji(countryCode: string | null | undefined): string {
+  const code = typeof countryCode === "string" ? countryCode.trim().toUpperCase() : "";
+  if (!/^[A-Z]{2}$/.test(code)) return "";
+  const base = 0x1f1e6;
+  return String.fromCodePoint(...code.split("").map((ch) => base + ch.charCodeAt(0) - 65));
+}
+
 export function createPlayerIdentityPanel(opts: PlayerIdentityPanelOptions): PlayerIdentityPanelController {
   const root = document.createElement("div");
   root.className = "gameShellPlayerPanel";
@@ -30,13 +37,20 @@ export function createPlayerIdentityPanel(opts: PlayerIdentityPanelOptions): Pla
   const role = document.createElement("div");
   role.className = "gameShellPlayerRole";
 
+  const nameRow = document.createElement("div");
+  nameRow.className = "gameShellPlayerNameRow";
+
+  const flag = document.createElement("span");
+  flag.className = "gameShellPlayerFlag";
+
   const name = document.createElement("div");
   name.className = "gameShellPlayerName";
 
   const detail = document.createElement("div");
   detail.className = "gameShellPlayerDetail";
 
-  textBlock.append(role, name, detail);
+  nameRow.append(flag, name);
+  textBlock.append(role, nameRow, detail);
 
   const badge = createPlayerStatusBadge({
     status: opts.identity.status,
@@ -68,11 +82,22 @@ export function createPlayerIdentityPanel(opts: PlayerIdentityPanelOptions): Pla
       color: identity.color,
       displayName: identity.displayName,
       isLocal: identity.isLocal,
+      avatarUrl: identity.avatarUrl,
     });
     avatar.replaceWith(nextAvatar);
     avatar = nextAvatar;
 
     role.textContent = identity.roleLabel;
+    const flagEmoji = countryCodeToFlagEmoji(identity.countryCode);
+    flag.hidden = !flagEmoji;
+    flag.textContent = flagEmoji;
+    if (identity.countryName) {
+      flag.title = identity.countryName;
+      flag.setAttribute("aria-label", identity.countryName);
+    } else {
+      flag.removeAttribute("title");
+      flag.removeAttribute("aria-label");
+    }
     name.textContent = identity.displayName;
     detail.textContent = identity.detailText;
     badge.setStatus({ status: identity.status, text: identity.statusText });
