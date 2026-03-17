@@ -860,6 +860,7 @@ function ensureGameShellStyles(): void {
       }
 
       .gameShellPlayerIdentityRow {
+        grid-template-columns: auto minmax(0, 1fr) auto auto;
         gap: 8px;
       }
 
@@ -894,7 +895,10 @@ function ensureGameShellStyles(): void {
       }
 
       .gameShellPlayerMeta {
+        flex-wrap: nowrap;
         gap: 4px;
+        justify-self: end;
+        align-self: center;
       }
 
       .gameShellPlayerMetaChip {
@@ -919,18 +923,38 @@ function ensureGameShellStyles(): void {
         padding: 9px 10px;
       }
 
-      .gameShellPlayerIdentityRow {
-        grid-template-columns: auto minmax(0, 1fr);
+      @media (orientation: portrait) {
+        .gameShellPlayerIdentityRow {
+          grid-template-columns: auto minmax(0, 1fr) auto auto;
+        }
+
+        .gameShellPlayerMeta {
+          grid-column: auto;
+          justify-self: end;
+          align-self: center;
+          flex-wrap: nowrap;
+        }
+
+        .gameShellPlayerStatusBadge {
+          grid-column: auto;
+          justify-self: end;
+        }
       }
 
-      .gameShellPlayerMeta {
-        grid-column: 1 / -1;
-        justify-self: flex-start;
-      }
+      @media not all and (orientation: portrait) {
+        .gameShellPlayerIdentityRow {
+          grid-template-columns: auto minmax(0, 1fr);
+        }
 
-      .gameShellPlayerStatusBadge {
-        grid-column: 1 / -1;
-        justify-self: flex-start;
+        .gameShellPlayerMeta {
+          grid-column: 1 / -1;
+          justify-self: flex-start;
+        }
+
+        .gameShellPlayerStatusBadge {
+          grid-column: 1 / -1;
+          justify-self: flex-start;
+        }
       }
     }
   `;
