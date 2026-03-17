@@ -583,8 +583,6 @@ export class ChessBotManager {
       this.warmupEscalationTimer = null;
     }
     this.warmupToastStartMs = null;
-    this.warmupToastShown = false;
-    this.warmupToastShownError = false;
     this.notifyEvalListeners();
   }
 
@@ -667,6 +665,8 @@ export class ChessBotManager {
           window.clearTimeout(serverErrorToastTimer);
           serverErrorToastTimer = null;
         }
+        this.warmupToastShown = false;
+        this.warmupToastShownError = false;
         this.clearWarmupToast();
         // If we are paused, keep UX paused; just update status.
         this.refreshUI();
@@ -754,6 +754,10 @@ export class ChessBotManager {
       // Avoid the old "Warming up Stockfish" wording entirely.
       return `${engineWarmupLabel} is starting… first load can take a while${lanHint}. Tap to allow fallback moves.`;
     })();
+
+    if (isError) {
+      this.controller.clearStickyToast(ChessBotManager.PAUSED_TURN_TOAST_KEY);
+    }
 
     this.controller.setStickyToastAction(ChessBotManager.WARMUP_TOAST_KEY, () => {
       this.allowFallbackDuringWarmup = true;
@@ -966,6 +970,11 @@ export class ChessBotManager {
   }
 
   private syncPausedTurnToastNow(): void {
+    if (this.warmupToastShownError && !this.engineReady) {
+      this.controller.clearStickyToast(ChessBotManager.PAUSED_TURN_TOAST_KEY);
+      return;
+    }
+
     if (this.isViewingPastInHistory() && !this.allowPausedTurnToastWhileViewingPast) {
       this.controller.clearStickyToast(ChessBotManager.PAUSED_TURN_TOAST_KEY);
       return;

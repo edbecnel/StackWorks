@@ -385,7 +385,7 @@ function ensureGameShellStyles(): void {
     .gameShellPlayerIdentityRow {
       min-width: 0;
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-columns: auto minmax(0, 1fr) auto auto;
       gap: 10px;
       align-items: center;
     }
@@ -517,6 +517,8 @@ function ensureGameShellStyles(): void {
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
+      align-items: center;
+      justify-self: center;
     }
 
     .gameShellPlayerMetaChip {
@@ -658,6 +660,82 @@ function ensureGameShellStyles(): void {
 
       .gameShellHeader {
         display: none !important;
+      }
+
+      .gameShellAppSlot > #appRoot > #centerArea.gameShellCenterArea {
+        justify-content: flex-start;
+        align-items: stretch;
+        align-content: stretch;
+        flex-wrap: nowrap;
+        overflow: hidden;
+      }
+
+      .gameShellBoardStage {
+        height: 100%;
+        max-height: 100%;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        gap: 6px;
+        align-items: stretch;
+      }
+
+      .gameShellBoardStage > #boardWithEvalBar,
+      .gameShellBoardStage > #boardWrap {
+        min-height: 0;
+        max-width: 100%;
+        justify-self: center;
+      }
+
+      .gameShellBoardStage > .gameShellPlayerPanel {
+        gap: 4px;
+        padding: 6px 10px;
+        border-radius: 12px;
+      }
+
+      .gameShellBoardStage > .gameShellPlayerPanel .gameShellPlayerIdentityRow {
+        gap: 8px;
+      }
+
+      .gameShellBoardStage > .gameShellPlayerPanel .gameShellPlayerAvatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        font-size: 11px;
+      }
+
+      .gameShellBoardStage > .gameShellPlayerPanel .gameShellPlayerText {
+        gap: 1px;
+      }
+
+      .gameShellBoardStage > .gameShellPlayerPanel .gameShellPlayerRole {
+        font-size: 9px;
+      }
+
+      .gameShellBoardStage > .gameShellPlayerPanel .gameShellPlayerName {
+        font-size: 13px;
+      }
+
+      .gameShellBoardStage > .gameShellPlayerPanel .gameShellPlayerDetail {
+        font-size: 10px;
+        line-height: 1.2;
+      }
+
+      .gameShellBoardStage > .gameShellPlayerPanel .gameShellPlayerStatusBadge {
+        min-height: 22px;
+        padding: 4px 8px;
+        font-size: 10px;
+      }
+
+      .gameShellBoardStage > .gameShellPlayerPanel .gameShellPlayerMeta {
+        gap: 4px;
+        justify-self: center;
+        align-self: center;
+        flex-wrap: nowrap;
+      }
+
+      .gameShellBoardStage > .gameShellPlayerPanel .gameShellPlayerMetaChip {
+        min-height: 18px;
+        padding: 2px 7px;
+        font-size: 9px;
       }
 
       .gameShellCompactBar,
@@ -843,6 +921,11 @@ function ensureGameShellStyles(): void {
 
       .gameShellPlayerIdentityRow {
         grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      .gameShellPlayerMeta {
+        grid-column: 1 / -1;
+        justify-self: flex-start;
       }
 
       .gameShellPlayerStatusBadge {
@@ -1046,6 +1129,8 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     const boardAnchor = (opts.appRoot.querySelector("#boardWithEvalBar") ?? opts.appRoot.querySelector("#boardWrap")) as HTMLElement | null;
     if (!centerArea || !boardAnchor) return;
 
+    centerArea.classList.add("gameShellCenterArea");
+
     let boardStage = boardAnchor.parentElement;
     if (!boardStage || !boardStage.classList.contains("gameShellBoardStage")) {
       boardStage = document.createElement("div");
@@ -1059,6 +1144,49 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     const bottomPanel = createPlayerIdentityPanel({ identity: initialSnapshot.players.W });
 
     const localIdentityOverrides: Partial<Record<Player, Partial<PlayerIdentity>>> = {};
+    let boardFitFrame: number | null = null;
+
+    const fitBoardStage = (): void => {
+      const isDesktop = desktopMedia?.matches ?? (typeof window !== "undefined" ? window.innerWidth >= 821 : false);
+      if (!isDesktop) {
+        boardAnchor.style.width = "";
+        boardAnchor.style.margin = "";
+        return;
+      }
+
+      const boardSvg = opts.appRoot.querySelector("#boardWrap svg") as SVGSVGElement | null;
+      if (!boardSvg) return;
+
+      const viewBoxParts = (boardSvg.getAttribute("viewBox") ?? "")
+        .trim()
+        .split(/[\s,]+/)
+        .map((value) => Number(value));
+      const viewBoxW = Number.isFinite(viewBoxParts[2]) && viewBoxParts[2] > 0 ? viewBoxParts[2] : 1;
+      const viewBoxH = Number.isFinite(viewBoxParts[3]) && viewBoxParts[3] > 0 ? viewBoxParts[3] : 1;
+      const aspectRatio = viewBoxW / viewBoxH;
+
+      const stageHeight = boardStage.clientHeight;
+      const stageWidth = boardStage.clientWidth;
+      if (stageHeight <= 0 || stageWidth <= 0) return;
+
+      const computedStage = window.getComputedStyle(boardStage);
+      const rowGap = parseFloat(computedStage.rowGap || computedStage.gap || "0") || 0;
+      const topHeight = topPanel.element.offsetHeight;
+      const bottomHeight = bottomPanel.element.offsetHeight;
+      const availableBoardHeight = Math.max(120, stageHeight - topHeight - bottomHeight - rowGap * 2);
+      const fittedWidth = Math.max(120, Math.min(stageWidth, availableBoardHeight * aspectRatio));
+
+      boardAnchor.style.width = `${Math.floor(fittedWidth)}px`;
+      boardAnchor.style.margin = "0 auto";
+    };
+
+    const scheduleBoardFit = (): void => {
+      if (boardFitFrame !== null) return;
+      boardFitFrame = window.requestAnimationFrame(() => {
+        boardFitFrame = null;
+        fitBoardStage();
+      });
+    };
 
     boardAnchor.insertAdjacentElement("beforebegin", topPanel.element);
     boardAnchor.insertAdjacentElement("afterend", bottomPanel.element);
@@ -1102,10 +1230,20 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
 
       topPanel.update(snapshot.players[topColor]);
       bottomPanel.update(snapshot.players[bottomColor]);
+      scheduleBoardFit();
     };
 
     controller.addHistoryChangeCallback(() => syncPanels());
     controller.addAnalysisModeChangeCallback(() => syncPanels());
+    window.addEventListener("resize", scheduleBoardFit);
+    window.visualViewport?.addEventListener("resize", scheduleBoardFit);
+    const fitResizeObserver = typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver(() => scheduleBoardFit());
+    fitResizeObserver?.observe(centerArea);
+    fitResizeObserver?.observe(boardStage);
+    fitResizeObserver?.observe(topPanel.element);
+    fitResizeObserver?.observe(bottomPanel.element);
     void loadLocalAvatarOverride(initialSnapshot);
     window.setInterval(syncPanels, 1000);
     syncPanels();
@@ -1258,6 +1396,39 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     const rightTabs = createPairTabs();
     const leftShellBody = createShellLeftBody();
     const rightShellBody = createShellRightBody();
+    const optionsHost = leftLegacyBody.querySelector('.panelSection[data-section="options"] .sectionContent') as HTMLElement | null;
+    let desktopModeSelect: HTMLSelectElement | null = null;
+
+    if (optionsHost && !optionsHost.querySelector('[data-ui="desktopShellMode"]')) {
+      const row = document.createElement("div");
+      row.dataset.ui = "desktopShellMode";
+      row.style.display = "grid";
+      row.style.gridTemplateColumns = "52px minmax(0, 1fr)";
+      row.style.gap = "8px 2px";
+      row.style.alignItems = "center";
+      row.style.justifyItems = "start";
+      row.style.fontSize = "12px";
+      row.style.marginTop = "10px";
+
+      const label = document.createElement("label");
+      label.textContent = "UI";
+
+      desktopModeSelect = document.createElement("select");
+      desktopModeSelect.className = "panelSelect";
+      desktopModeSelect.setAttribute("aria-label", "Desktop panel UI");
+
+      const oldOption = document.createElement("option");
+      oldOption.value = "legacy";
+      oldOption.textContent = "Old";
+
+      const newOption = document.createElement("option");
+      newOption.value = "shell";
+      newOption.textContent = "New";
+
+      desktopModeSelect.append(oldOption, newOption);
+      row.append(label, desktopModeSelect);
+      optionsHost.insertBefore(row, optionsHost.firstChild);
+    }
 
     leftSidebar.classList.add("gameShellSidebarEnhanced");
     rightSidebar.classList.add("gameShellSidebarEnhanced");
@@ -1275,6 +1446,9 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
       writeDesktopPanelMode(mode);
       leftSidebar.dataset.gameShellPanelMode = mode;
       rightSidebar.dataset.gameShellPanelMode = mode;
+      if (desktopModeSelect) {
+        desktopModeSelect.value = mode;
+      }
       for (const button of allButtons) {
         const isShell = button === leftTabs.shellBtn || button === rightTabs.shellBtn;
         const isActive = mode === (isShell ? "shell" : "legacy");
@@ -1289,11 +1463,19 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     for (const button of [leftTabs.shellBtn, rightTabs.shellBtn]) {
       button.addEventListener("click", () => applyMode("shell"));
     }
+    desktopModeSelect?.addEventListener("change", () => {
+      applyMode(desktopModeSelect?.value === "shell" ? "shell" : "legacy");
+    });
 
     const syncDesktopMode = (): void => {
       if (desktopMedia?.matches) {
+        if (desktopModeSelect) desktopModeSelect.disabled = false;
         applyMode(readDesktopPanelMode());
       } else {
+        if (desktopModeSelect) {
+          desktopModeSelect.disabled = true;
+          desktopModeSelect.value = "legacy";
+        }
         leftSidebar.dataset.gameShellPanelMode = "legacy";
         rightSidebar.dataset.gameShellPanelMode = "legacy";
       }

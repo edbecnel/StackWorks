@@ -53,9 +53,6 @@ export function createPlayerIdentityPanel(opts: PlayerIdentityPanelOptions): Pla
   const detail = document.createElement("div");
   detail.className = "gameShellPlayerDetail";
 
-  nameRow.append(flag, name);
-  textBlock.append(role, nameRow, detail);
-
   const badge = createPlayerStatusBadge({
     status: opts.identity.status,
     text: opts.identity.statusText,
@@ -74,8 +71,10 @@ export function createPlayerIdentityPanel(opts: PlayerIdentityPanelOptions): Pla
   activeChip.className = "gameShellPlayerMetaChip";
 
   meta.append(sideChip, localChip, activeChip);
-  identityRow.append(avatar, textBlock, badge.element);
-  root.append(identityRow, meta);
+  nameRow.append(flag, name);
+  textBlock.append(role, nameRow, detail);
+  identityRow.append(avatar, textBlock, meta, badge.element);
+  root.append(identityRow);
 
   const update = (identity: PlayerIdentity): void => {
     root.dataset.playerColor = identity.color;

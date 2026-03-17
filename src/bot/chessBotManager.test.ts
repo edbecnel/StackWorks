@@ -10,6 +10,7 @@ class FakeController {
 
   public sticky: { key: string | null; text: string | null } = { key: null, text: null };
   public stickyActionKeys: string[] = [];
+  public stickyShowCounts: Record<string, number> = {};
   public inputEnabled: boolean | null = null;
   public playedMoves: any[] = [];
 
@@ -68,6 +69,7 @@ class FakeController {
   }
 
   showStickyToast(key: string, text: string): void {
+    this.stickyShowCounts[key] = (this.stickyShowCounts[key] ?? 0) + 1;
     this.sticky.key = key;
     this.sticky.text = text;
   }
@@ -130,7 +132,7 @@ describe("ChessBotManager loadGame paused toast", () => {
     expect(controller.stickyActionKeys).toContain("chessbot_paused_turn");
   });
 
-  it("re-enables Resume bot and shows the paused toast on a fresh new game after game over", () => {
+  it("re-enables Resume bot and shows the paused toast on a fresh new game after game over", async () => {
     localStorage.setItem("lasca.chessbot.white", "beginner");
     localStorage.setItem("lasca.chessbot.black", "beginner");
 
@@ -171,7 +173,7 @@ describe("ChessBotManager loadGame paused toast", () => {
     controller.setHistory([{ index: 0, isCurrent: true }]);
     controller.sticky = { key: null, text: null };
     controller.fire("newGame");
-    vi.runAllTimers();
+    await vi.runAllTimersAsync();
 
     expect(pauseBtn.disabled).toBe(false);
     expect(pauseBtn.textContent).toBe("Resume bot");
@@ -273,6 +275,48 @@ describe("ChessBotManager loadGame paused toast", () => {
     expect(controller.sticky.key).toBe("chessbot_warmup");
     expect(controller.sticky.text).toContain("failed to start");
     expect(controller.stickyActionKeys).toContain("chessbot_warmup");
+  });
+
+  it("keeps the Stockfish failure toast visible when paused-turn toast sync runs afterward", async () => {
+    const controller = new FakeController(mkChessState("B"), [{ index: 0, isCurrent: true }]);
+    const mgr = new ChessBotManager(controller as any, {
+      engineFactory: () => ({
+        init: async () => {
+          throw new Error("Stockfish timeout: uciok");
+        },
+        terminate: () => {},
+        bestMove: async () => "",
+        evaluate: async () => null,
+      } as any),
+    });
+
+    (mgr as any).showWarmupToast(true);
+    expect(controller.sticky.key).toBe("chessbot_warmup");
+
+    (mgr as any).syncPausedTurnToastNow();
+    expect(controller.sticky.key).toBe("chessbot_warmup");
+    expect(controller.sticky.text).toContain("failed to start");
+  });
+
+  it("shows the Stockfish failure toast only once across retry attempts until recovery", () => {
+    const controller = new FakeController(mkChessState("B"), [{ index: 0, isCurrent: true }]);
+    const mgr = new ChessBotManager(controller as any, {
+      engineFactory: () => ({
+        init: async () => {
+          throw new Error("Stockfish timeout: uciok");
+        },
+        terminate: () => {},
+        bestMove: async () => "",
+        evaluate: async () => null,
+      } as any),
+    });
+
+    (mgr as any).showWarmupToast(true);
+    expect(controller.stickyShowCounts.chessbot_warmup).toBe(1);
+
+    (mgr as any).recoverEngineForRetry();
+    (mgr as any).showWarmupToast(true);
+    expect(controller.stickyShowCounts.chessbot_warmup).toBe(1);
   });
 
   it("re-runs evaluation for the latest playback position after an in-flight eval finishes", async () => {
