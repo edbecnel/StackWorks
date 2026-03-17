@@ -19,6 +19,11 @@ import {
   normalizeCheckerboardThemeId,
   type CheckerboardThemeId,
 } from "./render/checkerboardTheme";
+import {
+  normalizeAnalysisSquareHighlightStyle,
+  normalizeLastMoveHighlightStyle,
+  normalizeMoveHintStyle,
+} from "./render/highlightStyles";
 import { saveGameToFile, loadGameFromFile } from "./game/saveLoad";
 import { createSfxManager } from "./ui/sfx";
 import type { Stack } from "./types";
@@ -57,7 +62,10 @@ const LS_OPT_KEYS = {
   sfx: "lasca.opt.sfx",
   checkerboardTheme: "lasca.opt.checkerboardTheme",
   lastMoveHighlights: "lasca.opt.lastMoveHighlights",
+  lastMoveHighlightStyle: "lasca.opt.columnsChess.lastMoveHighlightStyle",
   moveHints: "lasca.opt.moveHints",
+  moveHintStyle: "lasca.opt.moveHintStyle",
+  analysisSquareHighlightStyle: "lasca.opt.columnsChess.analysisSquareHighlightStyle",
 } as const;
 
 function readOptionalBoolPref(key: string): boolean | null {
@@ -288,6 +296,19 @@ window.addEventListener("DOMContentLoaded", async () => {
     isTouchInputEnabled: () => controller.isAnalysisMode(),
     getState: () => controller.getState(),
   });
+  const analysisSquareHighlightStyleSelect = document.getElementById("analysisSquareHighlightStyleSelect") as HTMLSelectElement | null;
+  const initialAnalysisSquareHighlightStyle = normalizeAnalysisSquareHighlightStyle(
+    readOptionalStringPref(LS_OPT_KEYS.analysisSquareHighlightStyle),
+  );
+  boardVizTools.setSquareStyle(initialAnalysisSquareHighlightStyle);
+  if (analysisSquareHighlightStyleSelect) {
+    analysisSquareHighlightStyleSelect.value = initialAnalysisSquareHighlightStyle;
+    analysisSquareHighlightStyleSelect.addEventListener("change", () => {
+      const next = normalizeAnalysisSquareHighlightStyle(analysisSquareHighlightStyleSelect.value);
+      writeStringPref(LS_OPT_KEYS.analysisSquareHighlightStyle, next);
+      boardVizTools.setSquareStyle(next);
+    });
+  }
   bindTouchAnnotationPalette(controller, boardVizTools);
   controller.addAnalysisModeChangeCallback((enabled) => {
     if (!enabled) boardVizTools.clear();
@@ -364,10 +385,23 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Options: last move highlight
   const lastMoveHighlightsToggle = document.getElementById("lastMoveHighlightsToggle") as HTMLInputElement | null;
+  const lastMoveHighlightStyleSelect = document.getElementById("lastMoveHighlightStyleSelect") as HTMLSelectElement | null;
   const savedLastMoveHighlights = readOptionalBoolPref(LS_OPT_KEYS.lastMoveHighlights);
   const initialLastMoveHighlights = savedLastMoveHighlights ?? true;
+  const initialLastMoveHighlightStyle = normalizeLastMoveHighlightStyle(
+    readOptionalStringPref(LS_OPT_KEYS.lastMoveHighlightStyle),
+  );
   if (lastMoveHighlightsToggle) lastMoveHighlightsToggle.checked = initialLastMoveHighlights;
+  controller.setLastMoveHighlightStyle(initialLastMoveHighlightStyle);
   controller.setLastMoveHighlightsEnabled(lastMoveHighlightsToggle?.checked ?? initialLastMoveHighlights);
+  if (lastMoveHighlightStyleSelect) {
+    lastMoveHighlightStyleSelect.value = initialLastMoveHighlightStyle;
+    lastMoveHighlightStyleSelect.addEventListener("change", () => {
+      const next = normalizeLastMoveHighlightStyle(lastMoveHighlightStyleSelect.value);
+      writeStringPref(LS_OPT_KEYS.lastMoveHighlightStyle, next);
+      controller.setLastMoveHighlightStyle(next);
+    });
+  }
   if (lastMoveHighlightsToggle) {
     lastMoveHighlightsToggle.addEventListener("change", () => {
       writeBoolPref(LS_OPT_KEYS.lastMoveHighlights, lastMoveHighlightsToggle.checked);
@@ -377,14 +411,25 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Options: move preview hints
   const moveHintsToggle = document.getElementById("moveHintsToggle") as HTMLInputElement | null;
+  const moveHintStyleSelect = document.getElementById("moveHintStyleSelect") as HTMLSelectElement | null;
   const savedMoveHints = readOptionalBoolPref(LS_OPT_KEYS.moveHints);
+  const savedMoveHintStyle = normalizeMoveHintStyle(readOptionalStringPref(LS_OPT_KEYS.moveHintStyle));
   const initialMoveHints = savedMoveHints ?? true;
   if (moveHintsToggle) moveHintsToggle.checked = initialMoveHints;
+  if (moveHintStyleSelect) moveHintStyleSelect.value = savedMoveHintStyle;
   controller.setMoveHints(moveHintsToggle?.checked ?? initialMoveHints);
+  controller.setMoveHintStyle(moveHintStyleSelect ? normalizeMoveHintStyle(moveHintStyleSelect.value) : savedMoveHintStyle);
   if (moveHintsToggle) {
     moveHintsToggle.addEventListener("change", () => {
       writeBoolPref(LS_OPT_KEYS.moveHints, moveHintsToggle.checked);
       controller.setMoveHints(moveHintsToggle.checked);
+    });
+  }
+  if (moveHintStyleSelect) {
+    moveHintStyleSelect.addEventListener("change", () => {
+      const nextStyle = normalizeMoveHintStyle(moveHintStyleSelect.value);
+      writeStringPref(LS_OPT_KEYS.moveHintStyle, nextStyle);
+      controller.setMoveHintStyle(nextStyle);
     });
   }
 

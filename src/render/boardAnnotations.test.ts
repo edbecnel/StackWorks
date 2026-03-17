@@ -151,4 +151,25 @@ describe("renderBoardAnnotations", () => {
     expect(number?.textContent).toBe("7");
     expect(number?.getAttribute("fill")).toContain("102, 204, 255");
   });
+
+  it("renders chess.com-style analysis square highlights across the full tile", () => {
+    const svg = makeSvg8x8();
+
+    const state: BoardAnnotationsState = {
+      squares: [{ kind: "square", at: "r0c0", color: "orange" }],
+      arrows: [],
+    };
+
+    renderBoardAnnotations(svg, state, { squareStyle: "chesscom" });
+
+    const rect = svg.querySelector("rect.board-annotation-square") as SVGRectElement | null;
+    expect(rect).not.toBeNull();
+    expect(rect?.getAttribute("x")).toBe("100");
+    expect(rect?.getAttribute("y")).toBe("100");
+    expect(rect?.getAttribute("width")).toBe("100");
+    expect(rect?.getAttribute("height")).toBe("100");
+    expect(rect?.getAttribute("stroke")).toBe("none");
+    expect(rect?.getAttribute("stroke-width")).toBe("0");
+    expect(rect?.getAttribute("fill")).toBe("rgba(255, 159, 64, 0.28)");
+  });
 });

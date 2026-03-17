@@ -1,11 +1,17 @@
 import { clearBoardAnnotations, renderBoardAnnotations, type AnnotationColor, type AnnotationDigit, type BoardAnnotationsState } from "../render/boardAnnotations";
 import type { GameState } from "../game/state";
+import {
+  DEFAULT_ANALYSIS_SQUARE_HIGHLIGHT_STYLE,
+  type AnalysisSquareHighlightStyle,
+} from "../render/highlightStyles";
 
 export type NumberAnnotationType = `digit-${AnnotationDigit}`;
 export type AnnotationType = "play" | "square" | "circle" | "pin" | "protect" | "remove" | NumberAnnotationType;
 
 export type BoardVisualizationToolsController = {
   clear: () => void;
+  setSquareStyle: (style: AnalysisSquareHighlightStyle) => void;
+  getSquareStyle: () => AnalysisSquareHighlightStyle;
   /** Active color used for touch annotations (drag arrows / double-tap highlights). */
   setActiveColor: (color: AnnotationColor) => void;
   getActiveColor: () => AnnotationColor;
@@ -110,7 +116,7 @@ function resolveNodeIdFromTarget(target: EventTarget | null): string | null {
     if (id) return id;
   }
 
-  if (target instanceof SVGCircleElement) {
+  if (target instanceof Element && target.tagName.toLowerCase() === "circle") {
     const id = target.getAttribute("id");
     if (id) return id;
   }
@@ -337,8 +343,9 @@ export function installBoardVisualizationTools(
   opts?: BoardVisualizationToolsOptions
 ): BoardVisualizationToolsController {
   const state: BoardAnnotationsState = { arrows: [], squares: [], circles: [], pins: [], protects: [], numbers: [] };
+  let squareStyle: AnalysisSquareHighlightStyle = DEFAULT_ANALYSIS_SQUARE_HIGHLIGHT_STYLE;
 
-  const rerender = () => renderBoardAnnotations(svg, state);
+  const rerender = () => renderBoardAnnotations(svg, state, { squareStyle });
   const clear = () => {
     state.arrows = [];
     state.squares = [];
@@ -570,10 +577,15 @@ export function installBoardVisualizationTools(
       (target as HTMLElement).isContentEditable;
   };
 
+  const isPhysicalKeyX = (ev: KeyboardEvent): boolean => {
+    const key = ev.key.toLowerCase();
+    return key === "x" || ev.code === "KeyX";
+  };
+
   window.addEventListener("keydown", (ev: KeyboardEvent) => {
     if (isEditableEl(ev.target)) return;
 
-    const isAltX = ev.key.toLowerCase() === "x" && ev.altKey && !ev.ctrlKey && !ev.metaKey && !ev.shiftKey;
+    const isAltX = isPhysicalKeyX(ev) && ev.altKey && !ev.ctrlKey && !ev.metaKey && !ev.shiftKey;
     if (isAltX && hasAnyAnnotations()) {
       ev.preventDefault();
       gestureActive = false;
@@ -624,6 +636,11 @@ export function installBoardVisualizationTools(
 
   return {
     clear,
+    setSquareStyle: (style: AnalysisSquareHighlightStyle) => {
+      squareStyle = style;
+      rerender();
+    },
+    getSquareStyle: () => squareStyle,
     setActiveColor: (color: AnnotationColor) => {
       activeColor = color;
     },

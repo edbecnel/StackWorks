@@ -407,6 +407,86 @@ describe("GameController forced game-over toasts", () => {
   });
 });
 
+describe("GameController move hint styles", () => {
+  let mockSvg: SVGSVGElement;
+  let mockPiecesLayer: SVGGElement;
+
+  function createNode(id: string, cx: number, cy: number): SVGCircleElement {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", "circle") as SVGCircleElement;
+    node.id = id;
+    node.setAttribute("cx", String(cx));
+    node.setAttribute("cy", String(cy));
+    node.setAttribute("r", "18");
+    return node;
+  }
+
+  beforeEach(() => {
+    document.body.innerHTML = '<div id="statusTurn"></div><div id="statusPhase"></div><div id="statusMessage"></div>';
+    document.head.innerHTML = "";
+
+    mockSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg") as SVGSVGElement;
+    mockPiecesLayer = document.createElementNS("http://www.w3.org/2000/svg", "g") as SVGGElement;
+    mockPiecesLayer.id = "pieces";
+
+    mockSvg.appendChild(createNode("r2c2", 20, 20));
+    mockSvg.appendChild(createNode("r3c3", 40, 40));
+    mockSvg.appendChild(createNode("r4c4", 60, 60));
+    mockSvg.appendChild(mockPiecesLayer);
+    document.body.appendChild(mockSvg);
+
+    (mockSvg as any).addEventListener = () => {};
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("keeps capture preview treatment in StackWorks style", () => {
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "B", rank: "S" }]],
+        ["r3c3", [{ owner: "W", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+    history.push(state);
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history);
+    controller.setMoveHints(true);
+    controller.setMoveHintStyle("classic");
+
+    (controller as any).showSelection("r2c2");
+
+    expect(mockSvg.querySelectorAll(".halo--target").length).toBe(1);
+    expect(mockSvg.querySelectorAll(".halo--highlight").length).toBe(2);
+  });
+
+  it("uses destination-only hints in Chess.com-style mode", () => {
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "B", rank: "S" }]],
+        ["r3c3", [{ owner: "W", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+    history.push(state);
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history);
+    controller.setMoveHints(true);
+    controller.setMoveHintStyle("chesscom");
+
+    (controller as any).showSelection("r2c2");
+
+    expect(mockSvg.querySelectorAll(".target-dot--chesscom").length).toBe(1);
+    expect(mockSvg.querySelectorAll(".halo--target").length).toBe(0);
+    expect(mockSvg.querySelectorAll(".halo--highlight").length).toBe(0);
+  });
+});
+
 describe("GameController forced check toasts", () => {
   let mockSvg: SVGSVGElement;
   let mockPiecesLayer: SVGGElement;

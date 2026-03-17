@@ -1,4 +1,8 @@
 import { ensureOverlayLayer } from "./overlays";
+import {
+  DEFAULT_ANALYSIS_SQUARE_HIGHLIGHT_STYLE,
+  type AnalysisSquareHighlightStyle,
+} from "./highlightStyles";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -79,6 +83,10 @@ export type BoardAnnotationsState = {
   numbers?: BoardNumberMark[];
 };
 
+export type RenderBoardAnnotationsOptions = {
+  squareStyle?: AnalysisSquareHighlightStyle;
+};
+
 function parseNodeIdFast(id: string): { r: number; c: number } | null {
   const m = /^r(\d+)c(\d+)$/.exec(id);
   if (!m) return null;
@@ -150,6 +158,20 @@ function colorToStrokeFill(color: AnnotationColor): { stroke: string; fill: stri
   }
 }
 
+function colorToChessComSquareFill(color: AnnotationColor): string {
+  switch (color) {
+    case "green":
+      return "rgba(0, 230, 118, 0.28)";
+    case "red":
+      return "rgba(255, 77, 79, 0.26)";
+    case "blue":
+      return "rgba(102, 204, 255, 0.28)";
+    case "orange":
+    default:
+      return "rgba(255, 159, 64, 0.28)";
+  }
+}
+
 function ensureAnnotationsLayer(svg: SVGSVGElement): SVGGElement {
   const overlays = ensureOverlayLayer(svg);
   const existing = overlays.querySelector("#overlaysAnnotations") as SVGGElement | null;
@@ -182,13 +204,18 @@ function getCircleCenter(nodeId: string): { cx: number; cy: number } | null {
   return { cx, cy };
 }
 
-function drawSquareMark(svg: SVGSVGElement, layer: SVGGElement, mark: BoardSquareMark): void {
+function drawSquareMark(
+  svg: SVGSVGElement,
+  layer: SVGGElement,
+  mark: BoardSquareMark,
+  style: AnalysisSquareHighlightStyle,
+): void {
   const rect = computeSquareRect(svg, mark.at);
   if (!rect) return;
 
   const { stroke, fill } = colorToStrokeFill(mark.color);
 
-  const inset = 4;
+  const inset = style === "chesscom" ? 0 : 4;
   const x = rect.x + inset;
   const y = rect.y + inset;
   const w = Math.max(0, rect.w - inset * 2);
@@ -201,9 +228,9 @@ function drawSquareMark(svg: SVGSVGElement, layer: SVGGElement, mark: BoardSquar
   el.setAttribute("y", String(y));
   el.setAttribute("width", String(w));
   el.setAttribute("height", String(h));
-  el.setAttribute("fill", fill);
-  el.setAttribute("stroke", stroke);
-  el.setAttribute("stroke-width", "3");
+  el.setAttribute("fill", style === "chesscom" ? colorToChessComSquareFill(mark.color) : fill);
+  el.setAttribute("stroke", style === "chesscom" ? "none" : stroke);
+  el.setAttribute("stroke-width", style === "chesscom" ? "0" : "3");
   applyRectDefaults(el);
   layer.appendChild(el);
 }
@@ -503,13 +530,18 @@ function drawArrowMark(layer: SVGGElement, mark: BoardArrowMark): void {
   layer.appendChild(g);
 }
 
-export function renderBoardAnnotations(svg: SVGSVGElement, state: BoardAnnotationsState): void {
+export function renderBoardAnnotations(
+  svg: SVGSVGElement,
+  state: BoardAnnotationsState,
+  options?: RenderBoardAnnotationsOptions,
+): void {
   const layer = ensureAnnotationsLayer(svg);
   clearLayer(layer);
+  const squareStyle = options?.squareStyle ?? DEFAULT_ANALYSIS_SQUARE_HIGHLIGHT_STYLE;
 
   // Draw background highlights first (squares and circles), then arrows,
   // then pin/protect symbols, then numbers on top for readability.
-  for (const s of state.squares)            drawSquareMark(svg, layer, s);
+  for (const s of state.squares)            drawSquareMark(svg, layer, s, squareStyle);
   for (const c of state.circles  ?? [])     drawCircleMark(svg, layer, c);
   for (const a of state.arrows)             drawArrowMark(layer, a);
   for (const p of state.pins     ?? [])     drawPinMark(svg, layer, p);

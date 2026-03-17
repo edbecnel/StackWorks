@@ -1388,8 +1388,35 @@
                   margin-left: 24px;
                 "
               >
-                Shows extra capture preview rings (jumped piece + landing
-                square)
+                Shows candidate destinations while selecting a piece
+              </div>
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-top: 10px;
+                  margin-left: 24px;
+                "
+              >
+                <label
+                  for="moveHintStyleSelect"
+                  style="
+                    font-size: 12px;
+                    min-width: 112px;
+                    color: rgba(255, 255, 255, 0.82);
+                  "
+                >
+                  Move hint style
+                </label>
+                <select
+                  id="moveHintStyleSelect"
+                  class="panelSelect"
+                  style="flex: 1; min-width: 0"
+                >
+                  <option value="classic">StackWorks</option>
+                  <option value="chesscom">Chess.com-style</option>
+                </select>
               </div>
             </div>
           </div>

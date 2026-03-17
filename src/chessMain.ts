@@ -18,6 +18,11 @@ import {
   normalizeCheckerboardThemeId,
   type CheckerboardThemeId,
 } from "./render/checkerboardTheme";
+import {
+  normalizeAnalysisSquareHighlightStyle,
+  normalizeLastMoveHighlightStyle,
+  normalizeMoveHintStyle,
+} from "./render/highlightStyles";
 import { saveGameToFile, loadGameFromFile } from "./game/saveLoad";
 import { createSfxManager } from "./ui/sfx";
 import type { Stack } from "./types";
@@ -58,17 +63,35 @@ const LS_OPT_KEYS = {
   boardCoordsInSquares: "lasca.opt.boardCoordsInSquares",
   flipBoard: "lasca.opt.flipBoard",
   highlightSquares: "lasca.opt.chess.highlightSquares",
+  movePreviewMode: "lasca.opt.chess.movePreviewMode",
   toasts: "lasca.opt.toasts",
   sfx: "lasca.opt.sfx",
   checkerboardTheme: "lasca.opt.checkerboardTheme",
   lastMoveHighlights: "lasca.opt.lastMoveHighlights",
+  lastMoveHighlightStyle: "lasca.opt.chess.lastMoveHighlightStyle",
   moveHints: "lasca.opt.moveHints",
+  moveHintStyle: "lasca.opt.moveHintStyle",
+  analysisSquareHighlightStyle: "lasca.opt.chess.analysisSquareHighlightStyle",
   showPlayerNames: "lasca.opt.chess.showPlayerNames",
 } as const;
 
 const EVAL_BAR_GAP_PX = 3;
 const EVAL_BAR_PLAYABLE_SHIFT_LEFT_PX = 0;
 const EVAL_BAR_FRAMED_GAP_PX = 25;
+
+type ChessMovePreviewMode = "off" | "stackworks" | "stackworks-squares" | "chesscom";
+
+function normalizeChessMovePreviewMode(value: string | null | undefined): ChessMovePreviewMode {
+  switch (value) {
+    case "off":
+    case "stackworks":
+    case "stackworks-squares":
+    case "chesscom":
+      return value;
+    default:
+      return "stackworks";
+  }
+}
 
 function readOptionalBoolPref(key: string): boolean | null {
   const raw = localStorage.getItem(key);
@@ -91,6 +114,17 @@ function readOptionalStringPref(key: string): string | null {
 
 function writeStringPref(key: string, value: string): void {
   localStorage.setItem(key, value);
+}
+
+function deriveLegacyChessMovePreviewMode(): ChessMovePreviewMode {
+  const moveHintsEnabled = readOptionalBoolPref(LS_OPT_KEYS.moveHints) ?? true;
+  if (!moveHintsEnabled) return "off";
+
+  const moveHintStyle = normalizeMoveHintStyle(readOptionalStringPref(LS_OPT_KEYS.moveHintStyle));
+  if (moveHintStyle === "chesscom") return "chesscom";
+
+  const highlightSquaresEnabled = readOptionalBoolPref(LS_OPT_KEYS.highlightSquares) ?? false;
+  return highlightSquaresEnabled ? "stackworks-squares" : "stackworks";
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
@@ -603,6 +637,19 @@ window.addEventListener("DOMContentLoaded", async () => {
     isTouchInputEnabled: () => controller.isAnalysisMode(),
     getState: () => controller.getState(),
   });
+  const analysisSquareHighlightStyleSelect = document.getElementById("analysisSquareHighlightStyleSelect") as HTMLSelectElement | null;
+  const initialAnalysisSquareHighlightStyle = normalizeAnalysisSquareHighlightStyle(
+    readOptionalStringPref(LS_OPT_KEYS.analysisSquareHighlightStyle),
+  );
+  boardVizTools.setSquareStyle(initialAnalysisSquareHighlightStyle);
+  if (analysisSquareHighlightStyleSelect) {
+    analysisSquareHighlightStyleSelect.value = initialAnalysisSquareHighlightStyle;
+    analysisSquareHighlightStyleSelect.addEventListener("change", () => {
+      const next = normalizeAnalysisSquareHighlightStyle(analysisSquareHighlightStyleSelect.value);
+      writeStringPref(LS_OPT_KEYS.analysisSquareHighlightStyle, next);
+      boardVizTools.setSquareStyle(next);
+    });
+  }
   bindTouchAnnotationPalette(controller, boardVizTools);
   controller.addAnalysisModeChangeCallback((enabled) => {
     if (!enabled) boardVizTools.clear();
@@ -673,10 +720,23 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Options: last move highlight
   const lastMoveHighlightsToggle = document.getElementById("lastMoveHighlightsToggle") as HTMLInputElement | null;
+  const lastMoveHighlightStyleSelect = document.getElementById("lastMoveHighlightStyleSelect") as HTMLSelectElement | null;
   const savedLastMoveHighlights = readOptionalBoolPref(LS_OPT_KEYS.lastMoveHighlights);
   const initialLastMoveHighlights = savedLastMoveHighlights ?? true;
+  const initialLastMoveHighlightStyle = normalizeLastMoveHighlightStyle(
+    readOptionalStringPref(LS_OPT_KEYS.lastMoveHighlightStyle),
+  );
   if (lastMoveHighlightsToggle) lastMoveHighlightsToggle.checked = initialLastMoveHighlights;
+  controller.setLastMoveHighlightStyle(initialLastMoveHighlightStyle);
   controller.setLastMoveHighlightsEnabled(lastMoveHighlightsToggle?.checked ?? initialLastMoveHighlights);
+  if (lastMoveHighlightStyleSelect) {
+    lastMoveHighlightStyleSelect.value = initialLastMoveHighlightStyle;
+    lastMoveHighlightStyleSelect.addEventListener("change", () => {
+      const next = normalizeLastMoveHighlightStyle(lastMoveHighlightStyleSelect.value);
+      writeStringPref(LS_OPT_KEYS.lastMoveHighlightStyle, next);
+      controller.setLastMoveHighlightStyle(next);
+    });
+  }
   if (lastMoveHighlightsToggle) {
     lastMoveHighlightsToggle.addEventListener("change", () => {
       writeBoolPref(LS_OPT_KEYS.lastMoveHighlights, lastMoveHighlightsToggle.checked);
@@ -684,29 +744,34 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // Options: move preview hints
-  const moveHintsToggle = document.getElementById("moveHintsToggle") as HTMLInputElement | null;
-  const savedMoveHints = readOptionalBoolPref(LS_OPT_KEYS.moveHints);
-  const initialMoveHints = savedMoveHints ?? true;
-  if (moveHintsToggle) moveHintsToggle.checked = initialMoveHints;
-  controller.setMoveHints(moveHintsToggle?.checked ?? initialMoveHints);
-  if (moveHintsToggle) {
-    moveHintsToggle.addEventListener("change", () => {
-      writeBoolPref(LS_OPT_KEYS.moveHints, moveHintsToggle.checked);
-      controller.setMoveHints(moveHintsToggle.checked);
-    });
-  }
+  // Options: combined move preview mode
+  const movePreviewModeSelect = document.getElementById("movePreviewModeSelect") as HTMLSelectElement | null;
+  const initialMovePreviewMode = normalizeChessMovePreviewMode(
+    readOptionalStringPref(LS_OPT_KEYS.movePreviewMode) ?? deriveLegacyChessMovePreviewMode(),
+  );
+  const applyMovePreviewMode = (mode: ChessMovePreviewMode): void => {
+    const moveHintsEnabled = mode !== "off";
+    const moveHintStyle = mode === "chesscom" ? "chesscom" : "classic";
+    const highlightSquaresEnabled = mode === "stackworks-squares" || mode === "chesscom";
 
-  // Options: highlight squares (Chess-only subtle selection/hints)
-  const highlightSquaresToggle = document.getElementById("highlightSquaresToggle") as HTMLInputElement | null;
-  const savedHighlightSquares = readOptionalBoolPref(LS_OPT_KEYS.highlightSquares);
-  const initialHighlightSquares = savedHighlightSquares ?? false;
-  if (highlightSquaresToggle) highlightSquaresToggle.checked = initialHighlightSquares;
-  controller.setHighlightSquaresEnabled(highlightSquaresToggle?.checked ?? initialHighlightSquares);
-  if (highlightSquaresToggle) {
-    highlightSquaresToggle.addEventListener("change", () => {
-      writeBoolPref(LS_OPT_KEYS.highlightSquares, highlightSquaresToggle.checked);
-      controller.setHighlightSquaresEnabled(highlightSquaresToggle.checked);
+    controller.setMoveHints(moveHintsEnabled);
+    controller.setMoveHintStyle(moveHintStyle);
+    controller.setHighlightSquaresEnabled(highlightSquaresEnabled);
+  };
+  if (movePreviewModeSelect) movePreviewModeSelect.value = initialMovePreviewMode;
+  applyMovePreviewMode(initialMovePreviewMode);
+  if (movePreviewModeSelect) {
+    movePreviewModeSelect.addEventListener("change", () => {
+      const nextMode = normalizeChessMovePreviewMode(movePreviewModeSelect.value);
+      const moveHintsEnabled = nextMode !== "off";
+      const moveHintStyle = nextMode === "chesscom" ? "chesscom" : "classic";
+      const highlightSquaresEnabled = nextMode === "stackworks-squares" || nextMode === "chesscom";
+
+      writeStringPref(LS_OPT_KEYS.movePreviewMode, nextMode);
+      writeBoolPref(LS_OPT_KEYS.moveHints, moveHintsEnabled);
+      writeStringPref(LS_OPT_KEYS.moveHintStyle, moveHintStyle);
+      writeBoolPref(LS_OPT_KEYS.highlightSquares, highlightSquaresEnabled);
+      applyMovePreviewMode(nextMode);
     });
   }
 

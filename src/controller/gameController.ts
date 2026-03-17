@@ -7,12 +7,19 @@ import {
   drawSelection,
   drawSelectionSquare,
   drawTargets,
+  drawTargetsChessCom,
   drawTargetsSquares,
   drawHighlightRing,
   drawHighlightSquare,
   drawLastMoveSquares,
   clearLastMoveSquares,
 } from "../render/overlays.ts";
+import {
+  DEFAULT_MOVE_HINT_STYLE,
+  DEFAULT_LAST_MOVE_HIGHLIGHT_STYLE,
+  type MoveHintStyle,
+  type LastMoveHighlightStyle,
+} from "../render/highlightStyles";
 import { generateLegalMoves } from "../game/movegen.ts";
 import { renderGameState } from "../render/renderGameState.ts";
 import { RULES } from "../game/ruleset.ts";
@@ -70,6 +77,8 @@ export class GameController {
   private lastOpponentDisconnectedBlockToastAt: number = 0;
 
   private lastMoveHighlightsEnabled: boolean = true;
+  private lastMoveHighlightStyle: LastMoveHighlightStyle = DEFAULT_LAST_MOVE_HIGHLIGHT_STYLE;
+  private moveHintStyle: MoveHintStyle = DEFAULT_MOVE_HINT_STYLE;
   private highlightSquaresEnabled: boolean = false;
 
   private didBindOpponentStatusClicks: boolean = false;
@@ -1651,7 +1660,7 @@ export class GameController {
         clearLastMoveSquares(this.overlayLayer);
       } else {
         const lm = this.state.ui?.lastMove;
-        if (lm?.from && lm?.to) drawLastMoveSquares(this.overlayLayer, lm.from, lm.to);
+        if (lm?.from && lm?.to) drawLastMoveSquares(this.overlayLayer, lm.from, lm.to, this.lastMoveHighlightStyle);
         else clearLastMoveSquares(this.overlayLayer);
       }
     } catch {
@@ -1679,6 +1688,16 @@ export class GameController {
   public setLastMoveHighlightsEnabled(enabled: boolean): void {
     this.lastMoveHighlightsEnabled = enabled;
     this.refreshView();
+  }
+
+  public setLastMoveHighlightStyle(style: LastMoveHighlightStyle): void {
+    this.lastMoveHighlightStyle = style;
+    if (this.lastMoveHighlightsEnabled) this.refreshView();
+  }
+
+  public setMoveHintStyle(style: MoveHintStyle): void {
+    this.moveHintStyle = style;
+    if (this.selected) this.showSelection(this.selected);
   }
 
   public setHighlightSquaresEnabled(enabled: boolean): void {
@@ -2351,7 +2370,7 @@ export class GameController {
           try {
             if (this.lastMoveHighlightsEnabled) {
               clearLastMoveSquares(this.overlayLayer);
-              drawLastMoveSquares(this.overlayLayer, from, to);
+              drawLastMoveSquares(this.overlayLayer, from, to, this.lastMoveHighlightStyle);
             }
           } catch {
             // ignore
@@ -3770,7 +3789,8 @@ export class GameController {
     this.currentMoves = movesForNode;
     this.currentTargets = this.currentMoves.map(m => m.to);
     if (this.moveHintsEnabled) {
-      if (useSquares) drawTargetsSquares(this.overlayLayer, this.currentTargets);
+      if (this.moveHintStyle === "chesscom") drawTargetsChessCom(this.overlayLayer, this.currentTargets);
+      else if (useSquares) drawTargetsSquares(this.overlayLayer, this.currentTargets);
       else drawTargets(this.overlayLayer, this.currentTargets);
     }
 
@@ -3779,7 +3799,7 @@ export class GameController {
     this.drawPendingDamaCapturedMarks();
     
     // Draw move hints if enabled
-    if (this.moveHintsEnabled) {
+    if (this.moveHintsEnabled && this.moveHintStyle === "classic") {
       for (const move of this.currentMoves) {
         if (move.kind === "capture") {
           // Red circle for the piece being jumped over

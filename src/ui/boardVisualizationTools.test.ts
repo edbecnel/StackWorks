@@ -47,6 +47,10 @@ function pressKey(key: string): void {
   window.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
 }
 
+function pressAltKeyWithCode(key: string, code: string): void {
+  window.dispatchEvent(new KeyboardEvent("keydown", { key, code, altKey: true, bubbles: true }));
+}
+
 function rightClick(node: Element): void {
   node.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, cancelable: true, button: 2, clientX: 150, clientY: 150 }));
   node.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, cancelable: true, button: 2, clientX: 150, clientY: 150 }));
@@ -62,7 +66,6 @@ describe("installBoardVisualizationTools", () => {
     expect(svg.querySelector("text.board-annotation-number")?.textContent).toBe("5");
 
     pressKey("n");
-    rightClick(node);
     expect(svg.querySelector(".board-annotation-pin")).not.toBeNull();
     expect(svg.querySelector("text.board-annotation-number")?.textContent).toBe("5");
 
@@ -73,5 +76,20 @@ describe("installBoardVisualizationTools", () => {
 
     rightClick(node);
     expect(svg.querySelector(".board-annotation-pin")).toBeNull();
+  });
+
+  it("clears all annotations on Alt+X even when Alt changes the emitted key value", () => {
+    const { svg, node } = makeSvg8x8();
+    installBoardVisualizationTools(svg);
+
+    rightClick(node);
+    expect(svg.querySelector(".board-annotation-square")).not.toBeNull();
+
+    pressAltKeyWithCode("≈", "KeyX");
+
+    expect(svg.querySelector(".board-annotation-square")).toBeNull();
+    expect(svg.querySelector(".board-annotation-circle")).toBeNull();
+    expect(svg.querySelector(".board-annotation-pin")).toBeNull();
+    expect(svg.querySelector("text.board-annotation-number")).toBeNull();
   });
 });

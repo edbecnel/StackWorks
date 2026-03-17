@@ -31,6 +31,7 @@ import { createDriverAsync, consumeStartupMessage } from "./driver/createDriver.
 import type { OnlineGameDriver } from "./driver/gameDriver.ts";
 import { createSfxManager } from "./ui/sfx";
 import { createPrng } from "./shared/prng.ts";
+import { normalizeMoveHintStyle } from "./render/highlightStyles";
 import { createBoardLoadingOverlay } from "./ui/boardLoadingOverlay";
 import { nextPaint } from "./ui/nextPaint";
 import { setBoardFlipped } from "./render/boardFlip";
@@ -49,6 +50,7 @@ import {
 
 const LS_OPT_KEYS = {
   moveHints: "lasca.opt.moveHints",
+  moveHintStyle: "lasca.opt.moveHintStyle",
   animations: "lasca.opt.animations",
   lastMoveHighlights: "lasca.opt.lastMoveHighlights",
   showResizeIcon: "lasca.opt.showResizeIcon",
@@ -69,6 +71,17 @@ function readOptionalBoolPref(key: string): boolean | null {
 
 function writeBoolPref(key: string, value: boolean): void {
   localStorage.setItem(key, value ? "1" : "0");
+}
+
+function readOptionalStringPref(key: string): string | null {
+  const raw = localStorage.getItem(key);
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  return s.length > 0 ? s : null;
+}
+
+function writeStringPref(key: string, value: string): void {
+  localStorage.setItem(key, value);
 }
 
 function updatePlayerColorBadge(driver: unknown, rulesetId: string, boardSize: number): void {
@@ -300,14 +313,25 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Options: move preview hints
   const moveHintsToggle = document.getElementById("moveHintsToggle") as HTMLInputElement | null;
+  const moveHintStyleSelect = document.getElementById("moveHintStyleSelect") as HTMLSelectElement | null;
   const savedMoveHints = readOptionalBoolPref(LS_OPT_KEYS.moveHints);
+  const savedMoveHintStyle = normalizeMoveHintStyle(readOptionalStringPref(LS_OPT_KEYS.moveHintStyle));
   const initialMoveHints = savedMoveHints ?? true;
   if (moveHintsToggle) moveHintsToggle.checked = initialMoveHints;
+  if (moveHintStyleSelect) moveHintStyleSelect.value = savedMoveHintStyle;
   controller.setMoveHints(moveHintsToggle?.checked ?? initialMoveHints);
+  controller.setMoveHintStyle(moveHintStyleSelect ? normalizeMoveHintStyle(moveHintStyleSelect.value) : savedMoveHintStyle);
   if (moveHintsToggle) {
     moveHintsToggle.addEventListener("change", () => {
       writeBoolPref(LS_OPT_KEYS.moveHints, moveHintsToggle.checked);
       controller.setMoveHints(moveHintsToggle.checked);
+    });
+  }
+  if (moveHintStyleSelect) {
+    moveHintStyleSelect.addEventListener("change", () => {
+      const nextStyle = normalizeMoveHintStyle(moveHintStyleSelect.value);
+      writeStringPref(LS_OPT_KEYS.moveHintStyle, nextStyle);
+      controller.setMoveHintStyle(nextStyle);
     });
   }
 

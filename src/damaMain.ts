@@ -35,6 +35,7 @@ import {
   normalizeCheckerboardThemeId,
   type CheckerboardThemeId,
 } from "./render/checkerboardTheme";
+import { normalizeMoveHintStyle } from "./render/highlightStyles";
 import { createBoardLoadingOverlay } from "./ui/boardLoadingOverlay";
 import { nextPaint } from "./ui/nextPaint";
 import { setBoardFlipped } from "./render/boardFlip";
@@ -67,6 +68,7 @@ const ACTIVE_VARIANT_ID: VariantId = getActiveDamaVariantId();
 
 const LS_OPT_KEYS = {
   moveHints: "lasca.opt.moveHints",
+  moveHintStyle: "lasca.opt.moveHintStyle",
   animations: "lasca.opt.animations",
   lastMoveHighlights: "lasca.opt.lastMoveHighlights",
   showResizeIcon: "lasca.opt.showResizeIcon",
@@ -519,14 +521,25 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Options: move preview hints
   const moveHintsToggle = document.getElementById("moveHintsToggle") as HTMLInputElement | null;
+  const moveHintStyleSelect = document.getElementById("moveHintStyleSelect") as HTMLSelectElement | null;
   const savedMoveHints = readOptionalBoolPref(LS_OPT_KEYS.moveHints);
+  const savedMoveHintStyle = normalizeMoveHintStyle(readOptionalStringPref(LS_OPT_KEYS.moveHintStyle));
   const initialMoveHints = savedMoveHints ?? true;
   if (moveHintsToggle) moveHintsToggle.checked = initialMoveHints;
+  if (moveHintStyleSelect) moveHintStyleSelect.value = savedMoveHintStyle;
   controller.setMoveHints(moveHintsToggle?.checked ?? initialMoveHints);
+  controller.setMoveHintStyle(moveHintStyleSelect ? normalizeMoveHintStyle(moveHintStyleSelect.value) : savedMoveHintStyle);
   if (moveHintsToggle) {
     moveHintsToggle.addEventListener("change", () => {
       writeBoolPref(LS_OPT_KEYS.moveHints, moveHintsToggle.checked);
       controller.setMoveHints(moveHintsToggle.checked);
+    });
+  }
+  if (moveHintStyleSelect) {
+    moveHintStyleSelect.addEventListener("change", () => {
+      const nextStyle = normalizeMoveHintStyle(moveHintStyleSelect.value);
+      writeStringPref(LS_OPT_KEYS.moveHintStyle, nextStyle);
+      controller.setMoveHintStyle(nextStyle);
     });
   }
 

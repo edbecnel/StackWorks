@@ -1,3 +1,8 @@
+import {
+  DEFAULT_LAST_MOVE_HIGHLIGHT_STYLE,
+  type LastMoveHighlightStyle,
+} from "./highlightStyles";
+
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 const SELECTION_STROKE_W = 5;
@@ -8,8 +13,19 @@ const DEFAULT_LAST_MOVE_FROM_FILL = "rgba(102, 204, 255, 0.22)";
 const DEFAULT_LAST_MOVE_TO_FILL = "rgba(102, 204, 255, 0.36)";
 const DEFAULT_LAST_MOVE_STROKE = "rgba(102, 204, 255, 0.72)";
 const DEFAULT_LAST_MOVE_STROKE_W = 3;
+const CHESSCOM_TARGET_DOT_LIGHT_FILL = "rgba(28, 28, 28, 0.26)";
+const CHESSCOM_TARGET_DOT_DARK_FILL = "rgba(20, 20, 20, 0.22)";
+const CHESSCOM_TARGET_DOT_MIN_RADIUS = 13;
+const CHESSCOM_TARGET_DOT_MAX_RADIUS = 16;
+const CHESSCOM_TARGET_DOT_SCALE = 0.34;
+
+const CHESSCOM_LAST_MOVE_LIGHT_FROM_FILL = "rgba(246, 246, 105, 0.42)";
+const CHESSCOM_LAST_MOVE_LIGHT_TO_FILL = "rgba(246, 246, 105, 0.6)";
+const CHESSCOM_LAST_MOVE_DARK_FROM_FILL = "rgba(187, 203, 43, 0.5)";
+const CHESSCOM_LAST_MOVE_DARK_TO_FILL = "rgba(187, 203, 43, 0.68)";
 
 type SquareRect = { x: number; y: number; w: number; h: number };
+type SquareTone = "light" | "dark";
 
 function resolveOverlayRoot(layer: SVGGElement): SVGGElement {
   if (layer.id === "overlays") return layer;
@@ -212,6 +228,37 @@ export function drawTargets(layer: SVGGElement, nodeIds: string[]): void {
   }
 }
 
+export function drawTargetsChessCom(layer: SVGGElement, nodeIds: string[]): void {
+  layer = fxLayerFromAny(layer);
+  const svg = svgFromLayer(layer);
+  if (!svg) return;
+
+  for (const id of nodeIds) {
+    const rect = computeSquareRect(svg, id);
+    const node = circleForNode(id);
+    if (!rect && !node) continue;
+
+    const cx = rect ? rect.x + rect.w / 2 : parseFloat(node?.getAttribute("cx") || "0");
+    const cy = rect ? rect.y + rect.h / 2 : parseFloat(node?.getAttribute("cy") || "0");
+    const baseRadius = node ? parseFloat(node.getAttribute("r") || "0") : 0;
+    const radius = Math.max(
+      CHESSCOM_TARGET_DOT_MIN_RADIUS,
+      Math.min(CHESSCOM_TARGET_DOT_MAX_RADIUS, Math.round(baseRadius * CHESSCOM_TARGET_DOT_SCALE)),
+    );
+    const fill = squareToneFromNodeId(id) === "light" ? CHESSCOM_TARGET_DOT_LIGHT_FILL : CHESSCOM_TARGET_DOT_DARK_FILL;
+
+    const dot = document.createElementNS(SVG_NS, "circle") as SVGCircleElement;
+    dot.setAttribute("class", "target-dot target-dot--chesscom");
+    dot.setAttribute("cx", String(cx));
+    dot.setAttribute("cy", String(cy));
+    dot.setAttribute("r", String(radius));
+    dot.setAttribute("fill", fill);
+    dot.setAttribute("stroke", "none");
+    dot.setAttribute("pointer-events", "none");
+    layer.appendChild(dot);
+  }
+}
+
 export function drawTargetsSquares(layer: SVGGElement, nodeIds: string[]): void {
   for (const id of nodeIds) {
     drawSquareOverlay(layer, id, {
@@ -264,6 +311,37 @@ function parseNodeIdFast(id: string): { r: number; c: number } | null {
   return { r, c };
 }
 
+function squareToneFromNodeId(id: string): SquareTone {
+  const rc = parseNodeIdFast(id);
+  if (!rc) return "light";
+  return (rc.r + rc.c) % 2 === 0 ? "light" : "dark";
+}
+
+function lastMoveFillForStyle(
+  style: LastMoveHighlightStyle,
+  nodeId: string,
+  kind: "from" | "to",
+): { fill: string; stroke: string; strokeWidth: string } {
+  if (style !== "chesscom") {
+    return {
+      fill: kind === "from" ? `var(--lastMoveFromFill, ${DEFAULT_LAST_MOVE_FROM_FILL})` : `var(--lastMoveToFill, ${DEFAULT_LAST_MOVE_TO_FILL})`,
+      stroke: `var(--lastMoveStroke, ${DEFAULT_LAST_MOVE_STROKE})`,
+      strokeWidth: `var(--lastMoveStrokeWidth, ${DEFAULT_LAST_MOVE_STROKE_W})`,
+    };
+  }
+
+  const tone = squareToneFromNodeId(nodeId);
+  const fill = tone === "light"
+    ? (kind === "from" ? CHESSCOM_LAST_MOVE_LIGHT_FROM_FILL : CHESSCOM_LAST_MOVE_LIGHT_TO_FILL)
+    : (kind === "from" ? CHESSCOM_LAST_MOVE_DARK_FROM_FILL : CHESSCOM_LAST_MOVE_DARK_TO_FILL);
+
+  return {
+    fill,
+    stroke: "none",
+    strokeWidth: "0",
+  };
+}
+
 function computeSquareRect(svg: SVGSVGElement, nodeId: string): SquareRect | null {
   const rc = parseNodeIdFast(nodeId);
   if (!rc) return null;
@@ -311,7 +389,12 @@ export function clearLastMoveSquares(layer: SVGGElement): void {
   while (last.firstChild) last.removeChild(last.firstChild);
 }
 
-export function drawLastMoveSquares(layer: SVGGElement, fromNodeId: string, toNodeId: string): void {
+export function drawLastMoveSquares(
+  layer: SVGGElement,
+  fromNodeId: string,
+  toNodeId: string,
+  style: LastMoveHighlightStyle = DEFAULT_LAST_MOVE_HIGHLIGHT_STYLE,
+): void {
   const root = resolveOverlayRoot(layer);
   const svg = (root.ownerSVGElement ?? root.closest?.("svg")) as SVGSVGElement | null;
   if (!svg) return;
@@ -322,6 +405,8 @@ export function drawLastMoveSquares(layer: SVGGElement, fromNodeId: string, toNo
   const fromRect = computeSquareRect(svg, fromNodeId);
   const toRect = computeSquareRect(svg, toNodeId);
   if (!fromRect || !toRect) return;
+  const fromStyle = lastMoveFillForStyle(style, fromNodeId, "from");
+  const toStyle = lastMoveFillForStyle(style, toNodeId, "to");
 
   const fromEl = document.createElementNS(SVG_NS, "rect") as SVGRectElement;
   fromEl.setAttribute("class", "last-move-square last-move-square--from");
@@ -329,9 +414,9 @@ export function drawLastMoveSquares(layer: SVGGElement, fromNodeId: string, toNo
   fromEl.setAttribute("y", String(fromRect.y));
   fromEl.setAttribute("width", String(fromRect.w));
   fromEl.setAttribute("height", String(fromRect.h));
-  fromEl.setAttribute("fill", `var(--lastMoveFromFill, ${DEFAULT_LAST_MOVE_FROM_FILL})`);
-  fromEl.setAttribute("stroke", `var(--lastMoveStroke, ${DEFAULT_LAST_MOVE_STROKE})`);
-  fromEl.setAttribute("stroke-width", `var(--lastMoveStrokeWidth, ${DEFAULT_LAST_MOVE_STROKE_W})`);
+  fromEl.setAttribute("fill", fromStyle.fill);
+  fromEl.setAttribute("stroke", fromStyle.stroke);
+  fromEl.setAttribute("stroke-width", fromStyle.strokeWidth);
   applyRectDefaults(fromEl);
   last.appendChild(fromEl);
 
@@ -341,9 +426,9 @@ export function drawLastMoveSquares(layer: SVGGElement, fromNodeId: string, toNo
   toEl.setAttribute("y", String(toRect.y));
   toEl.setAttribute("width", String(toRect.w));
   toEl.setAttribute("height", String(toRect.h));
-  toEl.setAttribute("fill", `var(--lastMoveToFill, ${DEFAULT_LAST_MOVE_TO_FILL})`);
-  toEl.setAttribute("stroke", `var(--lastMoveStroke, ${DEFAULT_LAST_MOVE_STROKE})`);
-  toEl.setAttribute("stroke-width", `var(--lastMoveStrokeWidth, ${DEFAULT_LAST_MOVE_STROKE_W})`);
+  toEl.setAttribute("fill", toStyle.fill);
+  toEl.setAttribute("stroke", toStyle.stroke);
+  toEl.setAttribute("stroke-width", toStyle.strokeWidth);
   applyRectDefaults(toEl);
   last.appendChild(toEl);
 }

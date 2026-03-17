@@ -1251,29 +1251,27 @@
                   display: flex;
                   align-items: center;
                   gap: 8px;
-                  margin-top: 12px;
-                "
-              >
-                <input
-                  type="checkbox"
-                  id="moveHintsToggle"
-                  style="width: 16px; height: 16px; cursor: pointer"
-                />
-                <label
-                  for="moveHintsToggle"
-                  style="font-size: 13px; cursor: pointer; user-select: none"
-                  >Move preview hints</label
-                >
-              </div>
-              <div
-                style="
-                  font-size: 11px;
-                  color: rgba(255, 255, 255, 0.6);
-                  margin-top: 6px;
+                  margin-top: 10px;
                   margin-left: 24px;
                 "
               >
-                Shows extra capture preview rings when selecting a piece
+                <label
+                  for="lastMoveHighlightStyleSelect"
+                  style="
+                    font-size: 12px;
+                    min-width: 112px;
+                    color: rgba(255, 255, 255, 0.82);
+                  "
+                  >Last-move style</label
+                >
+                <select
+                  id="lastMoveHighlightStyleSelect"
+                  class="panelSelect"
+                  style="flex: 1; min-width: 0"
+                >
+                  <option value="classic">StackWorks</option>
+                  <option value="chesscom">Chess.com-style</option>
+                </select>
               </div>
 
               <div
@@ -1284,26 +1282,64 @@
                   margin-top: 12px;
                 "
               >
-                <input
-                  type="checkbox"
-                  id="highlightSquaresToggle"
-                  style="width: 16px; height: 16px; cursor: pointer"
-                />
                 <label
-                  for="highlightSquaresToggle"
-                  style="font-size: 13px; cursor: pointer; user-select: none"
-                  >Highlight squares</label
+                  for="movePreviewModeSelect"
+                  style="
+                    font-size: 13px;
+                    min-width: 112px;
+                    color: rgba(255, 255, 255, 0.82);
+                  "
+                  >Move preview</label
                 >
+                <select
+                  id="movePreviewModeSelect"
+                  class="panelSelect"
+                  style="flex: 1; min-width: 0"
+                >
+                  <option value="off">Off</option>
+                  <option value="stackworks">StackWorks</option>
+                  <option value="stackworks-squares">StackWorks squares</option>
+                  <option value="chesscom">Chess.com-style</option>
+                </select>
               </div>
+
               <div
                 style="
                   font-size: 11px;
                   color: rgba(255, 255, 255, 0.6);
                   margin-top: 6px;
+                "
+              >
+                Off, StackWorks rings, StackWorks square highlights, or
+                Chess.com-style destination dots
+              </div>
+
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-top: 10px;
                   margin-left: 24px;
                 "
               >
-                Uses subtle square highlights instead of animated rings
+                <label
+                  for="analysisSquareHighlightStyleSelect"
+                  style="
+                    font-size: 12px;
+                    min-width: 112px;
+                    color: rgba(255, 255, 255, 0.82);
+                  "
+                  >Analysis square style</label
+                >
+                <select
+                  id="analysisSquareHighlightStyleSelect"
+                  class="panelSelect"
+                  style="flex: 1; min-width: 0"
+                >
+                  <option value="classic">StackWorks</option>
+                  <option value="chesscom">Chess.com-style</option>
+                </select>
               </div>
             </div>
           </div>
