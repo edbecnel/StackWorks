@@ -114,6 +114,22 @@ describe("drawLastMoveSquares", () => {
     expect(from?.getAttribute("fill")).toBe("rgba(246, 246, 105, 0.42)");
     expect(to?.getAttribute("fill")).toBe("rgba(187, 203, 43, 0.68)");
   });
+
+  it("renders last-move highlights below the pieces layer", () => {
+    const svg = makeSvg8x8();
+    const overlays = ensureOverlayLayer(svg);
+
+    drawLastMoveSquares(overlays, "r0c0", "r0c1", "chesscom");
+
+    const underPiece = svg.querySelector("#underPieceLastMove") as SVGGElement | null;
+    const pieces = svg.querySelector("#pieces") as SVGGElement | null;
+    const from = svg.querySelector(".last-move-square--from") as SVGRectElement | null;
+
+    expect(underPiece).not.toBeNull();
+    expect(pieces).not.toBeNull();
+    expect(from?.parentElement?.id).toBe("overlaysLastMove");
+    expect(underPiece?.compareDocumentPosition(pieces as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });
 
 describe("drawTargetsChessCom", () => {

@@ -4,6 +4,8 @@ import {
 } from "./highlightStyles";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
+const FX_OVERLAY_ROOT_ID = "overlays";
+const LAST_MOVE_BACKGROUND_ROOT_ID = "underPieceLastMove";
 
 const SELECTION_STROKE_W = 5;
 const TARGET_STROKE_W = 5;
@@ -37,9 +39,27 @@ type SquareRect = { x: number; y: number; w: number; h: number };
 type SquareTone = "light" | "dark";
 
 function resolveOverlayRoot(layer: SVGGElement): SVGGElement {
-  if (layer.id === "overlays") return layer;
-  const root = layer.closest?.("#overlays") as SVGGElement | null;
+  if (layer.id === FX_OVERLAY_ROOT_ID) return layer;
+  const root = layer.closest?.(`#${FX_OVERLAY_ROOT_ID}`) as SVGGElement | null;
   return root ?? layer;
+}
+
+function ensureLastMoveBackgroundRoot(svg: SVGSVGElement): SVGGElement {
+  const existing = svg.querySelector(`#${LAST_MOVE_BACKGROUND_ROOT_ID}`) as SVGGElement | null;
+  if (existing) return existing;
+
+  const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  g.id = LAST_MOVE_BACKGROUND_ROOT_ID;
+  g.setAttribute("pointer-events", "none");
+
+  const pieces = svg.querySelector("#pieces") as SVGGElement | null;
+  if (pieces && pieces.parentNode) {
+    pieces.parentNode.insertBefore(g, pieces);
+  } else {
+    svg.appendChild(g);
+  }
+
+  return g;
 }
 
 function ensureOverlaySubLayer(root: SVGGElement, id: string): SVGGElement {
@@ -61,13 +81,10 @@ function fxLayerFromAny(layer: SVGGElement): SVGGElement {
 }
 
 function lastMoveLayerFromAny(layer: SVGGElement): SVGGElement {
-  const root = resolveOverlayRoot(layer);
+  const svg = svgFromLayer(layer);
+  if (!svg) return ensureOverlaySubLayer(resolveOverlayRoot(layer), "overlaysLastMove");
+  const root = ensureLastMoveBackgroundRoot(svg);
   const last = ensureOverlaySubLayer(root, "overlaysLastMove");
-  // Ensure FX exists and is on top.
-  ensureOverlaySubLayer(root, "overlaysFx");
-  // If both exist, enforce order by appending FX last.
-  const fx = root.querySelector("#overlaysFx") as SVGGElement | null;
-  if (fx) root.appendChild(fx);
   return last;
 }
 
@@ -121,10 +138,10 @@ function applyStrokeDefaults(el: SVGElement): void {
 }
 
 export function ensureOverlayLayer(svg: SVGSVGElement): SVGGElement {
-  const existing = svg.querySelector("#overlays") as SVGGElement | null;
+  ensureLastMoveBackgroundRoot(svg);
+
+  const existing = svg.querySelector(`#${FX_OVERLAY_ROOT_ID}`) as SVGGElement | null;
   if (existing) {
-    // Ensure sublayers exist even if created by older builds.
-    ensureOverlaySubLayer(existing, "overlaysLastMove");
     ensureOverlaySubLayer(existing, "overlaysFx");
     // Keep FX on top.
     const fx = existing.querySelector("#overlaysFx") as SVGGElement | null;
@@ -132,7 +149,7 @@ export function ensureOverlayLayer(svg: SVGSVGElement): SVGGElement {
     return existing;
   }
   const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
-  g.id = "overlays";
+  g.id = FX_OVERLAY_ROOT_ID;
   // Make overlays purely visual; clicks pass through to underlying nodes
   g.setAttribute("pointer-events", "none");
   const pieces = svg.querySelector("#pieces") as SVGGElement | null;
@@ -147,8 +164,7 @@ export function ensureOverlayLayer(svg: SVGSVGElement): SVGGElement {
     svg.appendChild(g);
   }
 
-  // Sublayers: persistent (last move) + transient FX (selection/targets).
-  ensureOverlaySubLayer(g, "overlaysLastMove");
+  // Sublayer: transient FX (selection/targets); persistent last-move squares live below pieces.
   ensureOverlaySubLayer(g, "overlaysFx");
 
   return g;
