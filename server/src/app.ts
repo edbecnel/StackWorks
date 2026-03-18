@@ -1400,13 +1400,20 @@ export function createLascaApp(opts: ServerOpts = {}): {
     res.json({ ok: true });
   });
 
-  app.get("/api/stockfish/health", (_req, res) => {
-    const health = stockfish.getHealth();
-    if (!health.ok) {
-      res.status(503).json(health);
-      return;
+  app.get("/api/stockfish/health", async (_req, res) => {
+    try {
+      await stockfish.init(60_000);
+      const health = stockfish.getHealth();
+      if (!health.ok) {
+        res.status(503).json(health);
+        return;
+      }
+      res.json(health);
+    } catch (err) {
+      const health = stockfish.getHealth();
+      const msg = err instanceof Error ? err.message : "Stockfish health failed";
+      res.status(503).json({ ...health, ok: false, error: msg });
     }
-    res.json(health);
   });
 
   app.post("/api/stockfish/bestmove", async (req, res) => {

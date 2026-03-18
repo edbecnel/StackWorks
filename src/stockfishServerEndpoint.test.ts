@@ -30,6 +30,8 @@ describe("server stockfish endpoint", () => {
       expect(healthRes.ok).toBe(true);
       const healthJson = await healthRes.json() as any;
       expect(healthJson.ok).toBe(true);
+      expect(healthJson.ready).toBe(true);
+      expect(healthJson.running).toBe(true);
 
       const bestmoveRes = await fetch(`${s.url}/api/stockfish/bestmove`, {
         method: "POST",
