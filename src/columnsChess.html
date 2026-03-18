@@ -131,12 +131,19 @@
         display: none;
         margin-top: 10px;
         justify-content: center;
+        align-content: flex-start;
         flex-direction: row;
         flex-wrap: wrap;
         gap: 10px;
         flex: 0 0 100%;
         width: 100%;
         padding-bottom: max(0px, env(safe-area-inset-bottom));
+      }
+
+      @media (orientation: portrait) and (pointer: coarse) {
+        #touchAnnotationPalette {
+          row-gap: 4px;
+        }
       }
 
       #touchAnnotationPalette .touchAnnotationDivider {
