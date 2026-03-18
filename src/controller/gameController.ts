@@ -2890,6 +2890,7 @@ export class GameController {
   private createShellPlayerIdentity(args: {
     color: Player;
     displayName: string;
+    sideLabel: string;
     roleLabel: string;
     detailText: string;
     status: PresenceState;
@@ -2902,6 +2903,7 @@ export class GameController {
     return {
       color: args.color,
       displayName: args.displayName,
+      sideLabel: args.sideLabel,
       roleLabel: args.roleLabel,
       detailText: args.detailText,
       status: args.status,
@@ -2919,6 +2921,7 @@ export class GameController {
       W: this.createShellPlayerIdentity({
         color: "W",
         displayName: this.sideLabel("W"),
+        sideLabel: this.sideLabel("W"),
         roleLabel: "Local match",
         detailText: this.state.toMove === "W" ? "To move." : "Waiting for the next turn.",
         status: "offline",
@@ -2928,6 +2931,7 @@ export class GameController {
       B: this.createShellPlayerIdentity({
         color: "B",
         displayName: this.sideLabel("B"),
+        sideLabel: this.sideLabel("B"),
         roleLabel: "Local match",
         detailText: this.state.toMove === "B" ? "To move." : "Waiting for the next turn.",
         status: "offline",
@@ -2967,6 +2971,7 @@ export class GameController {
           W: this.createShellPlayerIdentity({
             color: "W",
             displayName: this.sideLabel("W"),
+            sideLabel: this.sideLabel("W"),
             roleLabel: viewerRole === "spectator" ? "Spectator view" : "Seat pending",
             detailText: waitingText,
             ...this.getPresenceStatus({ waiting: true, spectating: selfId === "spectator" }),
@@ -2975,6 +2980,7 @@ export class GameController {
           B: this.createShellPlayerIdentity({
             color: "B",
             displayName: this.sideLabel("B"),
+            sideLabel: this.sideLabel("B"),
             roleLabel: viewerRole === "spectator" ? "Spectator view" : "Seat pending",
             detailText: waitingText,
             ...this.getPresenceStatus({ waiting: true, spectating: selfId === "spectator" }),
@@ -3043,6 +3049,7 @@ export class GameController {
         [localColor]: this.createShellPlayerIdentity({
           color: localColor,
           displayName: selfName,
+          sideLabel: this.sideLabel(localColor),
           roleLabel: `You · ${this.sideLabel(localColor)}`,
           detailText: selfDetail,
           status: selfStatus.status,
@@ -3052,6 +3059,7 @@ export class GameController {
         [opponentColor]: this.createShellPlayerIdentity({
           color: opponentColor,
           displayName: opponentName,
+          sideLabel: this.sideLabel(opponentColor),
           roleLabel: `Opponent · ${this.sideLabel(opponentColor)}`,
           detailText: opponentDetail,
           status: opponentStatus.status,

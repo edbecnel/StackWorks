@@ -8,6 +8,12 @@ export type AuthUser = {
   displayName: string;
   /** Optional avatar URL (purely decorative). */
   avatarUrl?: string;
+  /** Optional ISO 3166-1 alpha-2 profile country. */
+  countryCode?: string;
+  /** Optional display name derived from countryCode. */
+  countryName?: string;
+  /** Optional IANA time zone selected for the profile. */
+  timeZone?: string;
   createdAtIso: string;
 };
 
@@ -15,6 +21,8 @@ export type RegisterRequest = {
   email: string;
   password: string;
   displayName?: string;
+  countryCode?: string;
+  timeZone?: string;
 };
 
 export type LoginRequest = {
@@ -25,6 +33,8 @@ export type LoginRequest = {
 export type UpdateProfileRequest = {
   displayName?: string;
   avatarUrl?: string;
+  countryCode?: string;
+  timeZone?: string;
 };
 
 export type AuthOkResponse = {

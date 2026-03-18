@@ -2,6 +2,7 @@ import { START_PAGE_SHELL_NAV, getAppShellGame, type AppShellSectionId } from ".
 import { GlobalSection, readShellState, updateShellState } from "../../config/shellState";
 import { renderLogo } from "../branding/logo";
 import { attachHoverFlyoutMenu } from "../navigation/flyoutMenu";
+import { createAccountRailCard, type AccountRailCardState } from "../account/accountRailCard";
 import type { VariantId } from "../../variants/variantTypes";
 
 type StartPagePlayMode = "local" | "online";
@@ -13,6 +14,7 @@ type StartPageAppShellOptions = {
   helpHref?: string;
   onSelectGame?: (variantId: VariantId) => void;
   onSelectPlayMode?: (playMode: StartPagePlayMode) => void;
+  onRequestAccountAction?: (action: "signup" | "login" | "manage" | "logout") => void;
 };
 
 type UpdateSelectedGameOptions = {
@@ -23,6 +25,7 @@ export type StartPageAppShellController = {
   setActiveSection(sectionId: AppShellSectionId): void;
   setSelectedGame(variantId: VariantId, opts?: UpdateSelectedGameOptions): void;
   setPlayMode(playMode: StartPagePlayMode): void;
+  setAccountState(state: AccountRailCardState): void;
 };
 
 const SHELL_STYLE_ID = "stackworks-app-shell-style";
@@ -597,7 +600,19 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   const railMeta = document.createElement("div");
   railMeta.className = "appShellRailMeta";
   railMeta.textContent = "Phase 1 shell seam: this wraps the existing start-page controls without changing their launch or online behavior.";
-  rail.appendChild(railMeta);
+  const accountCard = createAccountRailCard(
+    {
+      status: "loading",
+      message: "Contacting the configured multiplayer server.",
+    },
+    {
+      onSignUp: () => opts.onRequestAccountAction?.("signup"),
+      onLogIn: () => opts.onRequestAccountAction?.("login"),
+      onManageAccount: () => opts.onRequestAccountAction?.("manage"),
+      onLogOut: () => opts.onRequestAccountAction?.("logout"),
+    },
+  );
+  rail.append(railMeta, accountCard.element);
 
   const main = document.createElement("div");
   main.className = "appShellMain";
@@ -956,5 +971,6 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
     setActiveSection,
     setSelectedGame,
     setPlayMode,
+    setAccountState: accountCard.update,
   };
 }

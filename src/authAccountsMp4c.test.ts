@@ -69,12 +69,19 @@ describe("MP4C accounts (authn/authz)", () => {
       const patch = await fetch(`${s.url}/api/auth/me`, {
         method: "PATCH",
         headers: { "content-type": "application/json", cookie },
-        body: JSON.stringify({ displayName: "Renamed" }),
+        body: JSON.stringify({
+          displayName: "Renamed",
+          countryCode: "CA",
+          timeZone: "America/Toronto",
+        }),
       });
       const patchJson = (await patch.json()) as any;
       expect(patch.ok).toBe(true);
       expect(patchJson.ok).toBe(true);
       expect(patchJson.user.displayName).toBe("Renamed");
+      expect(patchJson.user.countryCode).toBe("CA");
+      expect(patchJson.user.countryName).toBeTruthy();
+      expect(patchJson.user.timeZone).toBe("America/Toronto");
 
       const logout = await fetch(`${s.url}/api/auth/logout`, { method: "POST", headers: { cookie } });
       const logoutJson = (await logout.json()) as any;
@@ -129,6 +136,43 @@ describe("MP4C accounts (authn/authz)", () => {
       const meJson = (await me.json()) as any;
       expect(me.ok).toBe(true);
       expect(meJson.user.email).toBe("test2@example.com");
+    } finally {
+      const closing = new Promise<void>((resolve) => s.server.close(() => resolve()));
+      await closing;
+      await rmWithRetries(tmpRoot);
+    }
+  }, 30_000);
+
+  it("applies best-effort country and time-zone defaults from request headers", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "lasca-auth-"));
+    const gamesDir = path.join(tmpRoot, "games");
+    const authDir = path.join(tmpRoot, "auth");
+
+    const s = await startLascaServer({ port: 0, gamesDir, authDir, sessionTtlMs: 60_000 });
+
+    try {
+      const reg = await fetch(`${s.url}/api/auth/register`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "cf-ipcountry": "GB",
+          "cf-timezone": "Europe/London",
+        },
+        body: JSON.stringify({
+          email: "geo@example.com",
+          password: "password12345",
+          displayName: "Geo",
+        }),
+      });
+
+      const regJson = (await reg.json()) as any;
+      if (!reg.ok) {
+        throw new Error(`register failed: HTTP ${reg.status} ${JSON.stringify(regJson)}`);
+      }
+
+      expect(regJson.user.countryCode).toBe("GB");
+      expect(regJson.user.countryName).toBeTruthy();
+      expect(regJson.user.timeZone).toBe("Europe/London");
     } finally {
       const closing = new Promise<void>((resolve) => s.server.close(() => resolve()));
       await closing;

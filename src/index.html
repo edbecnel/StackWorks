@@ -929,6 +929,12 @@
               placeholder="Player"
             />
 
+            <label for="accountCountry">Country</label>
+            <select id="accountCountry" class="panelSelect"></select>
+
+            <label for="accountTimeZone">Time zone</label>
+            <select id="accountTimeZone" class="panelSelect"></select>
+
             <label for="accountAvatarUrl">Avatar</label>
             <input
               id="accountAvatarUrl"
@@ -976,7 +982,8 @@
 
           <div class="hint" style="margin-left: 0">
             Uses cookie sessions on the multiplayer server (port 8788). This
-            panel is for testing MP4C auth; it does not change seat tokens or
+            panel is for testing MP4C auth and profile identity, including
+            country and time-zone preferences; it does not change seat tokens or
             online authority rules yet.
           </div>
         </details>

@@ -76,6 +76,9 @@ export async function createUser(args: {
   email: string;
   password: PasswordHash;
   displayName: string;
+  countryCode?: string | undefined;
+  countryName?: string | undefined;
+  timeZone?: string | undefined;
 }): Promise<StoredUser> {
   const email = normalizeEmail(args.email);
   const displayName = args.displayName.trim();
@@ -94,6 +97,9 @@ export async function createUser(args: {
     userId,
     email,
     displayName,
+    ...(args.countryCode ? { countryCode: args.countryCode } : {}),
+    ...(args.countryName ? { countryName: args.countryName } : {}),
+    ...(args.timeZone ? { timeZone: args.timeZone } : {}),
     createdAtIso,
     password: args.password,
   };
@@ -108,6 +114,9 @@ export async function updateUserProfile(args: {
   userId: UserId;
   displayName?: string | undefined;
   avatarUrl?: string | undefined;
+  countryCode?: string | undefined;
+  countryName?: string | undefined;
+  timeZone?: string | undefined;
 }): Promise<StoredUser> {
   const file = await readUsersFile(args.authDir);
   const idx = file.users.findIndex((u) => u.userId === args.userId);
@@ -129,6 +138,30 @@ export async function updateUserProfile(args: {
     } else {
       // Keep this permissive; UI can validate further.
       next.avatarUrl = v.slice(0, 300);
+    }
+  }
+
+  if (typeof args.countryCode === "string") {
+    const code = args.countryCode.trim().toUpperCase();
+    if (!code) {
+      delete (next as any).countryCode;
+      delete (next as any).countryName;
+    } else {
+      next.countryCode = code;
+      if (typeof args.countryName === "string" && args.countryName.trim()) {
+        next.countryName = args.countryName.trim().slice(0, 80);
+      } else {
+        delete (next as any).countryName;
+      }
+    }
+  }
+
+  if (typeof args.timeZone === "string") {
+    const tz = args.timeZone.trim();
+    if (!tz) {
+      delete (next as any).timeZone;
+    } else {
+      next.timeZone = tz.slice(0, 80);
     }
   }
 

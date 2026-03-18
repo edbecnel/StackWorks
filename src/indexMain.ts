@@ -4,7 +4,8 @@ import type { VariantId } from "./variants/variantTypes";
 import type { GetLobbyResponse, GetRoomMetaResponse, LobbyRoomSummary, RoomVisibility } from "./shared/onlineProtocol.ts";
 import { getGuestDisplayName, setGuestDisplayName } from "./shared/guestIdentity.ts";
 import { createSfxManager } from "./ui/sfx";
-import type { AuthMeResponse, AuthOkResponse, AuthErrorResponse } from "./shared/authProtocol.ts";
+import type { AuthMeResponse, AuthOkResponse, AuthErrorResponse, AuthUser } from "./shared/authProtocol.ts";
+import { listCountryOptions, listTimeZones, normalizeCountryCode, resolveCountryName, resolveLocalTimeZone } from "./shared/profileMetadata.ts";
 import { normalizeCheckerboardThemeId } from "./render/checkerboardTheme";
 import {
   normalizeAnalysisSquareHighlightStyle,
@@ -592,6 +593,8 @@ window.addEventListener("DOMContentLoaded", () => {
   const elAccountPasswordToggle = (document.getElementById("accountPasswordToggle") as HTMLButtonElement | null) ?? null;
   const elAccountLoginForm = (document.getElementById("accountLoginForm") as HTMLFormElement | null) ?? null;
   const elAccountDisplayName = (document.getElementById("accountDisplayName") as HTMLInputElement | null) ?? null;
+  const elAccountCountry = (document.getElementById("accountCountry") as HTMLSelectElement | null) ?? null;
+  const elAccountTimeZone = (document.getElementById("accountTimeZone") as HTMLSelectElement | null) ?? null;
   const elAccountAvatarUrl = (document.getElementById("accountAvatarUrl") as HTMLInputElement | null) ?? null;
   const elAccountAvatarFile = (document.getElementById("accountAvatarFile") as HTMLInputElement | null) ?? null;
   const elAccountRefresh = (document.getElementById("accountRefresh") as HTMLButtonElement | null) ?? null;
@@ -669,6 +672,63 @@ window.addEventListener("DOMContentLoaded", () => {
     elAccountStatus.classList.toggle("isError", Boolean(opts?.isError));
   };
 
+  let syncShellAccountState = (_state: {
+    status: "loading" | "signed-out" | "signed-in" | "error";
+    displayName?: string;
+    email?: string;
+    avatarUrl?: string | null;
+    countryName?: string | null;
+    timeZone?: string | null;
+    message?: string;
+  }): void => {
+    // app shell mounts later in startup; keep account refresh safe before that.
+  };
+
+  const populateAccountCountryOptions = (): void => {
+    if (!elAccountCountry) return;
+    const currentValue = elAccountCountry.value;
+    const fragment = document.createDocumentFragment();
+
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Choose country";
+    fragment.appendChild(placeholder);
+
+    for (const option of listCountryOptions()) {
+      const el = document.createElement("option");
+      el.value = option.code;
+      el.textContent = option.name;
+      fragment.appendChild(el);
+    }
+
+    elAccountCountry.replaceChildren(fragment);
+    elAccountCountry.value = normalizeCountryCode(currentValue) ?? "";
+  };
+
+  const populateAccountTimeZoneOptions = (): void => {
+    if (!elAccountTimeZone) return;
+    const currentValue = elAccountTimeZone.value;
+    const fragment = document.createDocumentFragment();
+
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Choose time zone";
+    fragment.appendChild(placeholder);
+
+    for (const timeZone of listTimeZones()) {
+      const el = document.createElement("option");
+      el.value = timeZone;
+      el.textContent = timeZone;
+      fragment.appendChild(el);
+    }
+
+    elAccountTimeZone.replaceChildren(fragment);
+    elAccountTimeZone.value = currentValue || resolveLocalTimeZone() || "";
+  };
+
+  populateAccountCountryOptions();
+  populateAccountTimeZoneOptions();
+
   const envServerUrl = (import.meta as any)?.env?.VITE_SERVER_URL as string | undefined;
   const defaultServerUrl = (() => {
     if (typeof envServerUrl === "string" && envServerUrl.trim()) return envServerUrl.trim();
@@ -723,6 +783,25 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  const resolveAccountAvatarUrl = (avatarUrl: string | null | undefined): string | null => {
+    if (!avatarUrl) return null;
+    if (/^https?:\/\//i.test(avatarUrl)) return avatarUrl;
+    const serverUrl = resolveServerUrlForAccount();
+    if (!serverUrl) return null;
+    try {
+      return new URL(avatarUrl, `${serverUrl}/`).toString();
+    } catch {
+      return null;
+    }
+  };
+
+  const syncAccountFormFromUser = (user: AuthUser | null): void => {
+    if (elAccountDisplayName) elAccountDisplayName.value = user?.displayName ?? "";
+    if (elAccountAvatarUrl) elAccountAvatarUrl.value = user?.avatarUrl ?? "";
+    if (elAccountCountry) elAccountCountry.value = normalizeCountryCode(user?.countryCode) ?? "";
+    if (elAccountTimeZone) elAccountTimeZone.value = user?.timeZone ?? resolveLocalTimeZone() ?? "";
+  };
+
   const fetchAuthJson = async <TRes>(path: string, init?: RequestInit): Promise<{ ok: boolean; status: number; json: TRes | AuthErrorResponse }> => {
       const serverUrl = resolveServerUrlForAccount();
       if (!serverUrl) return { ok: false, status: 0, json: { error: "Invalid Server URL" } };
@@ -759,31 +838,57 @@ window.addEventListener("DOMContentLoaded", () => {
     const serverUrl = resolveServerUrlForAccount();
     if (!serverUrl) {
       setAccountStatus("Account: set a valid Server URL first.", { isError: true });
+      syncShellAccountState({
+        status: "error",
+        message: "Set a valid multiplayer server URL to use account features.",
+      });
       return;
     }
 
     setAccountStatus("Account: checking session…");
+    syncShellAccountState({ status: "loading", message: "Contacting the configured multiplayer server." });
     const r = await fetchAuthJson<AuthMeResponse>("/api/auth/me");
     if (!r.ok) {
       setAccountStatus(`Account: ${String((r.json as any)?.error ?? "Request failed")}`, { isError: true });
+      syncShellAccountState({
+        status: "error",
+        message: String((r.json as any)?.error ?? "Request failed"),
+      });
       return;
     }
 
     const me = r.json as any;
     if (!me || me.ok !== true) {
       setAccountStatus("Account: unexpected response", { isError: true });
+      syncShellAccountState({ status: "error", message: "Unexpected account response." });
       return;
     }
 
     const user = me.user;
     if (!user) {
       setAccountStatus("Account: signed out");
+      syncAccountFormFromUser(null);
+      syncShellAccountState({ status: "signed-out" });
       return;
     }
 
     const name = typeof user.displayName === "string" ? user.displayName : "(no name)";
     const email = typeof user.email === "string" ? user.email : "";
-    setAccountStatus(`Account: signed in as ${name}${email ? ` (${email})` : ""}`);
+    const countryName = user.countryName ?? resolveCountryName(user.countryCode ?? "") ?? null;
+    const timeZone = user.timeZone ?? null;
+    setAccountStatus(
+      `Account: signed in as ${name}${email ? ` (${email})` : ""}${countryName ? ` · ${countryName}` : ""}${timeZone ? ` · ${timeZone}` : ""}`,
+    );
+    syncAccountFormFromUser(user);
+    syncShellAccountState({
+      status: "signed-in",
+      displayName: name,
+      email,
+      avatarUrl: resolveAccountAvatarUrl(user.avatarUrl),
+      countryName,
+      timeZone,
+      message: "Profile identity is reused across the shell and multiplayer account tools.",
+    });
 
     // Convenience: if the Online Name input is blank or still the default placeholder value,
     // prefill it from the account display name so MP4C can be exercised end-to-end in UI.
@@ -915,12 +1020,20 @@ window.addEventListener("DOMContentLoaded", () => {
         const email = (elAccountEmail?.value || "").trim();
         const password = elAccountPassword?.value || "";
         const displayName = (elAccountDisplayName?.value || "").trim();
+        const countryCode = normalizeCountryCode(elAccountCountry?.value) ?? undefined;
+        const timeZone = (elAccountTimeZone?.value || "").trim() || undefined;
 
         setAccountStatus("Account: registering…");
         const r = await fetchAuthJson<AuthOkResponse>("/api/auth/register", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ email, password, ...(displayName ? { displayName } : {}) }),
+          body: JSON.stringify({
+            email,
+            password,
+            ...(displayName ? { displayName } : {}),
+            ...(countryCode ? { countryCode } : {}),
+            ...(timeZone ? { timeZone } : {}),
+          }),
         });
 
         if (!r.ok) {
@@ -952,9 +1065,11 @@ window.addEventListener("DOMContentLoaded", () => {
       void withAccountBusy(async () => {
         const displayName = (elAccountDisplayName?.value || "").trim();
         const avatarUrl = (elAccountAvatarUrl?.value || "").trim();
+        const countryCode = normalizeCountryCode(elAccountCountry?.value) ?? "";
+        const timeZone = (elAccountTimeZone?.value || "").trim();
 
-        if (!displayName && !avatarUrl) {
-          setAccountStatus("Account: nothing to update (set Display and/or Avatar)", { isError: true });
+        if (!displayName && !avatarUrl && !countryCode && !timeZone) {
+          setAccountStatus("Account: nothing to update (set profile fields first)", { isError: true });
           return;
         }
 
@@ -965,6 +1080,8 @@ window.addEventListener("DOMContentLoaded", () => {
           body: JSON.stringify({
             ...(displayName ? { displayName } : {}),
             ...(avatarUrl ? { avatarUrl } : {}),
+            countryCode,
+            timeZone,
           }),
         });
 
@@ -1797,7 +1914,25 @@ window.addEventListener("DOMContentLoaded", () => {
       elPlayMode.value = playMode;
       elPlayMode.dispatchEvent(new Event("change", { bubbles: true }));
     },
+    onRequestAccountAction: (action) => {
+      appShell.setActiveSection(GlobalSection.Account);
+      document.getElementById("launchAccountSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (action === "logout") {
+        elAccountLogout?.click();
+        return;
+      }
+      if (action === "signup") {
+        elAccountDisplayName?.focus();
+        return;
+      }
+      if (action === "login") {
+        elAccountEmail?.focus();
+        return;
+      }
+      elAccountDisplayName?.focus();
+    },
   });
+  syncShellAccountState = appShell.setAccountState;
 
   const syncDelayLabel = () => {
     const v = parseDelayMs(elAiDelay.value || "500", 500);

@@ -91,6 +91,11 @@ import type {
   UpdateProfileRequest,
 } from "../../src/shared/authProtocol.ts";
 import {
+  normalizeCountryCode,
+  normalizeTimeZone,
+  resolveCountryName,
+} from "../../src/shared/profileMetadata.ts";
+import {
   createUser,
   ensureAuthDir,
   findUserByEmail,
@@ -238,6 +243,23 @@ function isValidPassword(raw: any): raw is string {
   if (raw.length < 8) return false;
   if (raw.length > 200) return false;
   return true;
+}
+
+function inferCountryCodeFromHeaders(headers: express.Request["headers"]): string | undefined {
+  const raw =
+    (typeof headers["cf-ipcountry"] === "string" ? headers["cf-ipcountry"] : "")
+    || (typeof headers["cloudfront-viewer-country"] === "string" ? headers["cloudfront-viewer-country"] : "")
+    || (typeof headers["x-vercel-ip-country"] === "string" ? headers["x-vercel-ip-country"] : "")
+    || (typeof headers["x-country-code"] === "string" ? headers["x-country-code"] : "");
+  return normalizeCountryCode(raw);
+}
+
+function inferTimeZoneFromHeaders(headers: express.Request["headers"]): string | undefined {
+  const raw =
+    (typeof headers["cf-timezone"] === "string" ? headers["cf-timezone"] : "")
+    || (typeof headers["x-vercel-ip-timezone"] === "string" ? headers["x-vercel-ip-timezone"] : "")
+    || (typeof headers["x-time-zone"] === "string" ? headers["x-time-zone"] : "");
+  return normalizeTimeZone(raw);
 }
 
 
@@ -1468,8 +1490,19 @@ export function createLascaApp(opts: ServerOpts = {}): {
       if (!isValidPassword(body?.password)) throw new Error("Invalid password");
 
       const displayName = sanitizeDisplayName(body?.displayName) ?? "Player";
+      const countryCode = normalizeCountryCode(body?.countryCode) ?? inferCountryCodeFromHeaders(req.headers);
+      const countryName = countryCode ? resolveCountryName(countryCode) ?? undefined : undefined;
+      const timeZone = normalizeTimeZone(body?.timeZone) ?? inferTimeZoneFromHeaders(req.headers);
       const pw = await hashPassword(String(body.password));
-      const user = await createUser({ authDir, email: body.email, password: pw, displayName });
+      const user = await createUser({
+        authDir,
+        email: body.email,
+        password: pw,
+        displayName,
+        ...(countryCode ? { countryCode } : {}),
+        ...(countryName ? { countryName } : {}),
+        ...(timeZone ? { timeZone } : {}),
+      });
 
       const secure = isRequestSecure(req);
       const sameSite = secure ? "None" : "Lax";
@@ -1566,8 +1599,28 @@ export function createLascaApp(opts: ServerOpts = {}): {
       const body = req.body as UpdateProfileRequest;
       const displayName = body?.displayName != null ? sanitizeDisplayName(body.displayName) : undefined;
       const avatarUrl = typeof body?.avatarUrl === "string" ? body.avatarUrl : undefined;
+      const countryCode = body?.countryCode != null
+        ? (body.countryCode.trim() ? normalizeCountryCode(body.countryCode) : "")
+        : undefined;
+      if (body?.countryCode != null && body.countryCode.trim() && !countryCode) {
+        throw new Error("Invalid countryCode");
+      }
+      const timeZone = body?.timeZone != null
+        ? (body.timeZone.trim() ? normalizeTimeZone(body.timeZone) : "")
+        : undefined;
+      if (body?.timeZone != null && body.timeZone.trim() && !timeZone) {
+        throw new Error("Invalid timeZone");
+      }
 
-      const updated = await updateUserProfile({ authDir, userId: auth.userId, displayName, avatarUrl });
+      const updated = await updateUserProfile({
+        authDir,
+        userId: auth.userId,
+        displayName,
+        avatarUrl,
+        ...(body?.countryCode != null ? { countryCode: countryCode ?? "" } : {}),
+        ...(countryCode ? { countryName: resolveCountryName(countryCode) ?? countryCode } : {}),
+        ...(body?.timeZone != null ? { timeZone: timeZone ?? "" } : {}),
+      });
       const response: AuthOkResponse = { ok: true, user: publicUser(updated) };
       res.json(response);
     } catch (err) {

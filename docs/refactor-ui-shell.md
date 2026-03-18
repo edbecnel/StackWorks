@@ -29,6 +29,7 @@ Global product shell with a polished competitive board-game feel:
 
 - [ ] Top-left branded logo
 - [ ] Left global nav
+- [ ] Lower-left account/auth area
 - [ ] Selected-game left nav
 - [ ] Right-side content/action panel
 - [x] On desktop/laptop widths, game pages should prefer paired left/right side panels over a top header so the board keeps maximum vertical space
@@ -55,6 +56,7 @@ When using chess.com play screens as visual references, translate them into Stac
 
 - [ ] Use a thin, integrated player-bar treatment similar to chess.com's top/bottom player identifiers rather than detached floating cards
 - [ ] Use a left-side current-game identity area analogous to chess.com's bottom-left `Play Chess` label, but adapt the wording to the active StackWorks variant and mode
+- [x] Use a lower-left account/auth area analogous to chess.com's signed-in user rail item: show the logged-in user's display name + avatar when authenticated, and show `Sign Up` / `Log In` actions when signed out
 - [ ] Use a right-panel composition similar to chess.com's mode panel: current context at the top, selectable options in the middle, primary action anchored clearly
 
 **StackWorks equivalent, not literal copy**
@@ -62,8 +64,10 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Do not copy chess.com's product taxonomy (`Play`, `Puzzles`, `Learn`, etc.); keep StackWorks-specific navigation and variant structure
 - [ ] Replace chess.com's exact mode labels with StackWorks equivalents such as `Play <Variant>`, `Bot Match`, `Online Room`, `Local Game`, `Spectating`, or `Replay`
 - [ ] Populate side panels with StackWorks-specific content: rules/help, bot level, online room state, variant actions, history/replay, and account/community shortcuts where relevant
+- [x] The shell must surface authentication state directly in the left rail: signed-in view shows avatar + display name; signed-out view shows `Sign Up` and `Log In` entry points
 - [ ] Treat ratings, flags, profile polish, and other account metadata as future-ready optional slots rather than baseline requirements for the first UI pass
 - [ ] Use uploaded profile avatars plus sensible defaults/fallbacks, rather than introducing a custom avatar creator flow
+- [x] Profile/account setup should allow the user to choose country from a dropdown list and choose a time zone; if not specified, default these fields from origin IP / geolocation when available
 
 ---
 
@@ -88,6 +92,7 @@ When using chess.com play screens as visual references, translate them into Stac
   - **Landscape / wide (desktop, tablet sideways):** panels sit to the left and right of the board
 - [x] `src/ui/player/playerAvatar.ts` — avatar image with guest/bot fallback
 - [x] `src/ui/player/playerStatusBadge.ts` — online/offline/reconnecting presence badge
+- [x] `src/ui/account/accountRailCard.ts` — lower-left shell account/auth card: signed-in identity vs signed-out `Sign Up` / `Log In` actions
 
 ### Desktop shell panel strategy
 
@@ -127,9 +132,12 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Define `PresenceState` enum: `Online | Offline | Reconnecting | Waiting`
 - [x] Wire `ShellState` to `localStorage` for persistence across page navigations
 - [x] Feed `PlayerIdentity` from current match/session state (not hardcoded labels)
-- [ ] Do NOT use "White"/"Black" as primary player labels — use actual display names first, side/color secondarily
+- [x] Do NOT use "White"/"Black" as primary player labels — use actual display names first, side/color secondarily
 - [ ] Feed player country into `PlayerIdentity` when available so the shell can render a country flag next to the player name in the board-edge identifiers
 - [ ] Define avatar-profile metadata needed by the shell/account UI so player identity can reference an uploaded profile image with fallback/default behavior
+- [x] Define account/profile metadata for `countryCode`, `countryName`, and `timeZone`
+- [x] Define profile-defaulting behavior: if country or time zone is not explicitly chosen by the user, derive an initial default from origin IP / geolocation when the server has that information available
+- [x] Define shell account/auth state for the left rail: signed-in user summary `{ displayName, avatarUrl, status }` or signed-out action set `{ signUpHref, logInHref }`
 
 ---
 
@@ -140,6 +148,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Shell reads `ShellState` from `localStorage` / URL param on mount to restore active game + section
 - [ ] Page transitions remain standard `<a href>` navigations (no client-side router needed)
 - [ ] `appShell.ts` injects the left rail + header DOM before the existing page content container
+- [x] `appShell.ts` renders a lower-left account/auth card that switches between signed-in identity and signed-out `Sign Up` / `Log In` actions
 - [x] `gameShell.ts` wraps existing board/game container inside the game sub-shell DOM
 - [x] `gameShell.ts` may reserve a compact mobile portrait header strip, but it must avoid a tall desktop-style header and keep the board as the primary surface
 - [x] `gameShell.ts` must hide its header chrome when the document enters browser fullscreen; the board and existing game UI should use the reclaimed height immediately
@@ -176,6 +185,7 @@ When using chess.com play screens as visual references, translate them into Stac
   - [ ] Responsive left rail (collapsed icon-only on mobile)
   - [ ] Brand/logo slot in top-left
   - [ ] Global nav items: Home, Games, Community, Account, Settings
+  - [x] Lower-left account/auth card: signed-in user avatar + name, or `Sign Up` / `Log In` actions when signed out
   - [x] Hover flyouts on desktop (`flyoutMenu.ts`)
   - [x] Drawer/overlay behavior on mobile
   - [ ] On narrow portrait screens, the shell may use a shallow mobile header but must avoid introducing a tall persistent desktop-style top bar above gameplay-critical content
@@ -246,10 +256,17 @@ When using chess.com play screens as visual references, translate them into Stac
 
 ### Phase 2.5 — Profile Identity
 
+- [x] Add lower-left signed-in account card to the shell rail using authenticated display name + avatar
+- [x] Add lower-left signed-out shell actions for new/returning players: `Sign Up` and `Log In`
 - [ ] Add uploaded-avatar profile support for account/profile setup
+- [x] Add country selection to account/profile setup using a dropdown list of supported countries
+- [x] Add time-zone selection to account/profile setup using a selectable time-zone list
+- [x] If country or time zone has not been chosen yet, prefill them from origin IP / geolocation when available, while allowing the user to override the defaults manually
 - [ ] Keep direct avatar image upload as the primary profile-avatar path, aligned with the expected chess.com-style profile model
 - [ ] Persist uploaded avatar metadata in the existing account/identity model used by online play
+- [x] Persist selected country and time zone in the existing account/identity model used by online play
 - [ ] Ensure uploaded avatars feed the top/bottom board player identifiers, account/profile surfaces, and any future lobby/player cards
+- [ ] Ensure selected country feeds board-edge player identifiers and account/profile surfaces; ensure selected time zone is available to account/profile and scheduling-related UI where relevant
 - [ ] Define fallback behavior for missing, invalid, or removed uploaded avatars
 
 ---
@@ -284,6 +301,9 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Review and align player identity panel styling across all game pages
 - [ ] Verify country flags render cleanly and align consistently inside the top/bottom player identifiers across all supported games and breakpoints
 - [ ] Verify uploaded avatars render cleanly and consistently in board-edge player identifiers, side panels, and profile/account surfaces
+- [ ] Verify country dropdown and time-zone selection render clearly and behave consistently in account/profile surfaces
+- [ ] Verify IP-based country/time-zone prefills are best-effort only, do not overwrite explicit user choices, and degrade cleanly when origin IP data is unavailable
+- [ ] Verify the lower-left shell account/auth area renders correctly in both states: signed-in user summary and signed-out `Sign Up` / `Log In` actions
 - [ ] Confirm no regressions in board/game renderer visual output
 
 ---
@@ -325,6 +345,8 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Player identity panels display correctly in online, bot, friend, and spectate modes for all supported games
 - [ ] Player identity panels display country flags correctly when country metadata is available, and degrade cleanly when it is missing
 - [ ] Player identity panels and account/profile surfaces use uploaded avatars correctly, with sensible fallback behavior for missing or invalid avatar data
+- [ ] Account/profile surfaces let the user select country from a dropdown list and select a time zone, with best-effort defaults from origin IP / geolocation when available
+- [ ] The shell left rail shows the signed-in user's avatar + display name when authenticated, and `Sign Up` / `Log In` actions when signed out
 - [ ] Shell is responsive on both desktop and mobile without covering board content
 - [ ] In portrait mobile layouts, shell navigation does not sit as a persistent tall header above the board
 - [ ] In browser fullscreen, the shell header is hidden and does not consume top screen space

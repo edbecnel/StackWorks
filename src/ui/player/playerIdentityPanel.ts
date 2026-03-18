@@ -106,7 +106,7 @@ export function createPlayerIdentityPanel(opts: PlayerIdentityPanelOptions): Pla
     detail.textContent = identity.detailText;
     badge.setStatus({ status: identity.status, text: identity.statusText });
 
-    sideChip.textContent = identity.color === "W" ? "White" : "Black";
+    sideChip.textContent = identity.sideLabel;
     localChip.hidden = !identity.isLocal;
     localChip.textContent = "You";
     activeChip.hidden = !identity.isActiveTurn;

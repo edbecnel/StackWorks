@@ -7,6 +7,7 @@ export type PresenceState = "offline" | "connected" | "waiting" | "in_grace" | "
 export interface PlayerIdentity {
 	color: Player;
 	displayName: string;
+	sideLabel: string;
 	roleLabel: string;
 	detailText: string;
 	status: PresenceState;
