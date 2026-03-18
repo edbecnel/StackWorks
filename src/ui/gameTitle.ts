@@ -1,4 +1,66 @@
-export function setStackWorksGameTitle(el: HTMLElement, gameName: string): void {
+import { renderLogo } from "./branding/logo";
+
+const GAME_TITLE_STYLE_ID = "stackworks-game-title-style";
+
+function ensureGameTitleStyles(): void {
+  if (document.getElementById(GAME_TITLE_STYLE_ID)) return;
+
+  const style = document.createElement("style");
+  style.id = GAME_TITLE_STYLE_ID;
+  style.textContent = `
+    .stackworksGameTitleRoot {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      line-height: 1.1;
+      min-width: 0;
+    }
+
+    .stackworksGameTitleBrandLink {
+      display: inline-flex;
+      align-items: center;
+      max-width: min(150px, 100%);
+      text-decoration: none;
+    }
+
+    .stackworksGameTitleBrandLink img {
+      display: block;
+      width: 100%;
+      max-width: 128px;
+      height: auto;
+    }
+
+    .stackworksGameTitleTextBrand {
+      font-size: 14px;
+    }
+
+    .stackworksGameTitleGameName {
+      font-size: 13px;
+    }
+
+    body[data-panel-layout="menu"] .stackworksGameTitleBrandLink {
+      display: none;
+    }
+
+    body[data-panel-layout="menu"] .stackworksGameTitleTextBrand {
+      display: block;
+    }
+
+    body:not([data-panel-layout="menu"]) .stackworksGameTitleBrandLink {
+      display: inline-flex;
+    }
+
+    body:not([data-panel-layout="menu"]) .stackworksGameTitleTextBrand {
+      display: none;
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+export function setStackWorksGameTitle(el: HTMLElement, gameName: string, startHref = "./"): void {
+  ensureGameTitleStyles();
+
   const name = String(gameName ?? "").trim();
   const game = name.length > 0 ? name : "Game";
 
@@ -7,18 +69,22 @@ export function setStackWorksGameTitle(el: HTMLElement, gameName: string): void 
   el.style.overflow = "visible";
   el.style.textOverflow = "clip";
 
-  el.style.display = "flex";
-  el.style.flexDirection = "column";
-  el.style.gap = "1px";
-  el.style.lineHeight = "1.1";
+  el.classList.add("stackworksGameTitleRoot");
+
+  const brandLink = document.createElement("a");
+  brandLink.className = "stackworksGameTitleBrandLink";
+  brandLink.href = startHref;
+  brandLink.setAttribute("aria-label", "Start Page");
+  brandLink.title = "Start Page";
+  renderLogo(brandLink, { variant: "wordmark", ariaHidden: true });
 
   const top = document.createElement("div");
+  top.className = "stackworksGameTitleTextBrand";
   top.textContent = "StackWorks";
-  top.style.fontSize = "14px";
 
   const bottom = document.createElement("div");
+  bottom.className = "stackworksGameTitleGameName";
   bottom.textContent = game;
-  bottom.style.fontSize = "13px";
 
-  el.replaceChildren(top, bottom);
+  el.replaceChildren(brandLink, top, bottom);
 }

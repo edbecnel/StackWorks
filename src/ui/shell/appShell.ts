@@ -157,6 +157,7 @@ function ensureShellStyles(): void {
       display: flex;
       flex-direction: column;
       gap: 8px;
+      min-height: 0;
     }
 
     .appShellNavButton {
@@ -210,7 +211,9 @@ function ensureShellStyles(): void {
       position: relative;
       z-index: 1;
       min-width: 0;
+      min-height: 0;
       display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
       grid-template-columns: minmax(0, 1fr);
       gap: 16px;
       padding: 16px;
@@ -291,10 +294,12 @@ function ensureShellStyles(): void {
       grid-template-columns: minmax(0, 1fr);
       gap: 16px;
       align-items: start;
+      min-height: 0;
     }
 
     .appShellContentSlot {
       min-width: 0;
+      min-height: 0;
     }
 
     .appShellContentSlot > .wrap {
@@ -317,6 +322,7 @@ function ensureShellStyles(): void {
 
     .appShellSidePanel {
       min-width: 0;
+      min-height: 0;
       display: grid;
       gap: 12px;
     }
@@ -481,8 +487,14 @@ function ensureShellStyles(): void {
     }
 
     @media (min-width: 1040px) {
+      body.stackworksAppShellEnabled {
+        overflow: hidden;
+      }
+
       .appShellRoot {
         grid-template-columns: 260px minmax(0, 1fr);
+        height: 100vh;
+        min-height: 100vh;
       }
 
       .appShellOverlay,
@@ -495,18 +507,34 @@ function ensureShellStyles(): void {
         position: sticky;
         top: 0;
         width: auto;
+        height: 100vh;
         min-height: 100vh;
+        overflow: hidden;
         transform: none;
         box-shadow: none;
         z-index: 1;
       }
 
+      .appShellNav {
+        overflow: auto;
+        padding-right: 2px;
+      }
+
       .appShellMain {
+        height: 100vh;
         padding: 20px 20px 24px 0;
       }
 
       .appShellBody {
         grid-template-columns: minmax(0, 1fr) 300px;
+        min-height: 0;
+        align-items: stretch;
+      }
+
+      .appShellContentSlot,
+      .appShellSidePanel {
+        overflow: auto;
+        padding-right: 4px;
       }
     }
 

@@ -57,6 +57,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Use a thin, integrated player-bar treatment similar to chess.com's top/bottom player identifiers rather than detached floating cards
 - [ ] Use a left-side current-game identity area analogous to chess.com's bottom-left `Play Chess` label, but adapt the wording to the active StackWorks variant and mode
 - [x] Use a lower-left account/auth area analogous to chess.com's signed-in user rail item: show the logged-in user's display name + avatar when authenticated, and show `Sign Up` / `Log In` actions when signed out
+- [ ] On the start page, keep the signed-out `Sign Up` / `Log In` actions visible in the bottom-left shell area within a typical desktop viewport; reaching them should not require vertical scrolling
 - [ ] Use a right-panel composition similar to chess.com's mode panel: current context at the top, selectable options in the middle, primary action anchored clearly
 
 **StackWorks equivalent, not literal copy**
@@ -82,7 +83,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [x] `src/ui/navigation/flyoutMenu.ts` — desktop hover flyout menu component
 - [x] `src/ui/navigation/tabs.ts` — reusable tab bar component
 - [x] `src/ui/branding/logo.ts` — logo component referencing `public/icons/` SVG assets by placement context
-  - `stackworks-logo-horizontal.svg` — desktop top-left header (default brand asset)
+  - `stackworks-logo-horizontal.svg` — desktop top-left header in the `Panels` layout on each game page, replacing the plain text `StackWorks` label
   - `stackworks-logo-icon.svg` — mobile header, collapsed sidebar, favicon, browser tab, app icon base
   - `stackworks-wordmark.svg` — mobile header (if space allows, alongside icon), footer, simple text branding
   - `stackworks-logo-mono.svg` — one-color, fallback, print, and theme-conflict cases
@@ -174,6 +175,7 @@ When using chess.com play screens as visual references, translate them into Stac
     - [ ] Desktop top-left header → `stackworks-logo-horizontal.svg`
     - [ ] Mobile header → `stackworks-logo-icon.svg`; optionally `stackworks-wordmark.svg` alongside if space allows
     - [ ] Collapsed sidebar / compact nav → `stackworks-logo-icon.svg`
+    - [ ] In-game board/shell logo treatment must be a clickable link with the same behavior as the `Start Page` action
     - [ ] Favicon / browser tab / app icon base → `stackworks-logo-icon.svg`
     - [ ] Footer / simple text branding → `stackworks-wordmark.svg`
     - [ ] One-color / fallback / print / theme-conflict → `stackworks-logo-mono.svg`
@@ -186,6 +188,9 @@ When using chess.com play screens as visual references, translate them into Stac
   - [ ] Brand/logo slot in top-left
   - [ ] Global nav items: Home, Games, Community, Account, Settings
   - [x] Lower-left account/auth card: signed-in user avatar + name, or `Sign Up` / `Log In` actions when signed out
+  - [ ] Desktop shell should avoid whole-page vertical scrolling for primary chrome: keep the left rail at a fixed viewport height, with the middle content area and right panel content scrolling internally as needed
+  - [ ] Start Page internal scroll areas should reuse the same scrollbar styling as the game pages: narrow dark-gray scrollbars that lighten on hover
+  - [ ] Mobile should still rely on normal touch/finger scrolling for those same areas
   - [x] Hover flyouts on desktop (`flyoutMenu.ts`)
   - [x] Drawer/overlay behavior on mobile
   - [ ] On narrow portrait screens, the shell may use a shallow mobile header but must avoid introducing a tall persistent desktop-style top bar above gameplay-critical content
@@ -226,6 +231,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Integrate `playerIdentityPanel.ts` into `gameShell.ts`
   - [x] Feed from current match/session state for all game types
   - [ ] Pull country/profile metadata from the existing account/identity sources when available and expose it to the board-edge player identifiers
+  - [ ] When replay/history/PGN import metadata includes player names, feed those names into the top/bottom player bars instead of falling back to side labels
   - [ ] Works for: live online games, play-vs-friend, bot games, spectating, replay/history
   - [ ] Rendering is independent from game rules (works for Chess, Columns Chess, Dama, Lasca, Damasca, etc.)
 
@@ -265,8 +271,8 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Keep direct avatar image upload as the primary profile-avatar path, aligned with the expected chess.com-style profile model
 - [ ] Persist uploaded avatar metadata in the existing account/identity model used by online play
 - [x] Persist selected country and time zone in the existing account/identity model used by online play
-- [ ] Ensure uploaded avatars feed the top/bottom board player identifiers, account/profile surfaces, and any future lobby/player cards
-- [ ] Ensure selected country feeds board-edge player identifiers and account/profile surfaces; ensure selected time zone is available to account/profile and scheduling-related UI where relevant
+- [x] Ensure uploaded avatars feed the top/bottom board player identifiers, account/profile surfaces, and any future lobby/player cards
+- [x] Ensure selected country feeds board-edge player identifiers, lobby/player summary surfaces, and account/profile surfaces; ensure selected time zone is available to account/profile and scheduling-related UI where relevant
 - [ ] Define fallback behavior for missing, invalid, or removed uploaded avatars
 
 ---
@@ -298,6 +304,9 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Verify portrait mobile layouts do not lose excessive board height to shell chrome
 - [ ] Verify browser fullscreen removes shell header chrome and preserves the board-first layout on larger displays
 - [ ] Verify desktop layouts keep the board vertically unconstrained by avoiding persistent top game-shell chrome
+- [ ] Verify desktop shell layouts use a fixed-height left rail while allowing center content and right-panel content to scroll internally instead of forcing whole-page vertical scrolling
+- [ ] Verify Start Page internal scroll areas use the same narrow dark-gray scrollbar styling as the game pages and lighten on hover
+- [ ] Verify mobile internal scroll areas feel natural with touch scrolling and do not depend on persistent visible scrollbars
 - [ ] Review and align player identity panel styling across all game pages
 - [ ] Verify country flags render cleanly and align consistently inside the top/bottom player identifiers across all supported games and breakpoints
 - [ ] Verify uploaded avatars render cleanly and consistently in board-edge player identifiers, side panels, and profile/account surfaces
@@ -315,7 +324,8 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Implement `src/ui/branding/logo.ts`
   - [ ] `renderLogo(variant: LogoVariant, container: HTMLElement): void` — inserts correct `<img>` into slot
   - [ ] Enforce placement rules: size via CSS class only · preserve aspect ratio · no stretching · no horizontal logo in narrow spaces
-- [ ] **Desktop top-left header** — wire `stackworks-logo-horizontal.svg` into `appShell.ts` brand slot
+- [ ] **Desktop top-left header (`Panels` layout)** — replace the plain text `StackWorks` label on each game page with `stackworks-logo-horizontal.svg` in the `appShell.ts` brand slot
+- [ ] **In-game board logo** — clicking the StackWorks logo should navigate exactly like `Start Page`
 - [ ] **Collapsed sidebar / compact nav** — auto-switch to `stackworks-logo-icon.svg` when rail collapses
 - [ ] **Mobile header** — use `stackworks-logo-icon.svg`; conditionally show `stackworks-wordmark.svg` alongside if space allows
 - [ ] **Favicon / browser tab** — add `<link rel="icon" href="/icons/stackworks-logo-icon.svg">` to all HTML entry points
@@ -347,6 +357,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Player identity panels and account/profile surfaces use uploaded avatars correctly, with sensible fallback behavior for missing or invalid avatar data
 - [ ] Account/profile surfaces let the user select country from a dropdown list and select a time zone, with best-effort defaults from origin IP / geolocation when available
 - [ ] The shell left rail shows the signed-in user's avatar + display name when authenticated, and `Sign Up` / `Log In` actions when signed out
+- [ ] Clicking the StackWorks logo from in-game shell/board contexts behaves the same as clicking `Start Page`
 - [ ] Shell is responsive on both desktop and mobile without covering board content
 - [ ] In portrait mobile layouts, shell navigation does not sit as a persistent tall header above the board
 - [ ] In browser fullscreen, the shell header is hidden and does not consume top screen space

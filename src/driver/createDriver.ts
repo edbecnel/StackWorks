@@ -292,6 +292,7 @@ function parseOnlineQuery(search: string, envServerUrl?: string | undefined): On
 async function postJson<TReq, TRes>(serverUrl: string, path: string, body: TReq): Promise<TRes> {
   const res = await fetch(`${serverUrl}${path}`, {
     method: "POST",
+    credentials: "include",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -317,7 +318,7 @@ async function postJson<TReq, TRes>(serverUrl: string, path: string, body: TReq)
 }
 
 async function getJson<TRes>(serverUrl: string, path: string): Promise<TRes> {
-  const res = await fetch(`${serverUrl}${path}`);
+  const res = await fetch(`${serverUrl}${path}`, { credentials: "include" });
   const raw = await res.text();
   let json: any = null;
   try {

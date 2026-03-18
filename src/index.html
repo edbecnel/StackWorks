@@ -425,6 +425,93 @@
         text-overflow: ellipsis;
       }
 
+      .lobbyIdentityRow {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 4px;
+      }
+
+      .lobbyIdentityChip {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+        max-width: 100%;
+        padding: 4px 8px 4px 5px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .lobbyIdentityAvatar {
+        position: relative;
+        flex: 0 0 24px;
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.18),
+          rgba(255, 255, 255, 0.06)
+        );
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .lobbyIdentityAvatar[data-player-color="W"] {
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+      }
+
+      .lobbyIdentityAvatar[data-player-color="B"] {
+        background: linear-gradient(
+          180deg,
+          rgba(127, 178, 255, 0.2),
+          rgba(39, 53, 79, 0.5)
+        );
+      }
+
+      .lobbyIdentityAvatarFallback {
+        font-size: 10px;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.9);
+        letter-spacing: 0.04em;
+      }
+
+      .lobbyIdentityAvatarImage {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .lobbyIdentityText {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .lobbyIdentityName,
+      .lobbyIdentityMeta {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .lobbyIdentityName {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.92);
+      }
+
+      .lobbyIdentityMeta {
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.62);
+      }
+
       .accountStatus {
         font-size: 11px;
         color: rgba(255, 255, 255, 0.7);

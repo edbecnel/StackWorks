@@ -394,6 +394,7 @@ export class RemoteDriver implements GameDriver {
     const { serverUrl } = this.requireIds();
     const res = await fetch(`${serverUrl}${path}`, {
       method: "POST",
+      credentials: "include",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     });
@@ -420,7 +421,7 @@ export class RemoteDriver implements GameDriver {
 
   private async getJson<TRes>(path: string): Promise<TRes> {
     const { serverUrl } = this.requireIds();
-    const res = await fetch(`${serverUrl}${path}`);
+    const res = await fetch(`${serverUrl}${path}`, { credentials: "include" });
     const raw = await res.text();
     let json: any = null;
     try {

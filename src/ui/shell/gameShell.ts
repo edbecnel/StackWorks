@@ -175,6 +175,7 @@ function ensureGameShellStyles(): void {
       background: rgba(255, 255, 255, 0.08);
       border: 1px solid rgba(255, 255, 255, 0.12);
       flex: 0 0 auto;
+      text-decoration: none;
     }
 
     .gameShellCompactBarBrand img {
@@ -225,6 +226,7 @@ function ensureGameShellStyles(): void {
       border: 1px solid rgba(255, 255, 255, 0.08);
       background: rgba(255, 255, 255, 0.04);
       flex: 0 0 auto;
+      text-decoration: none;
     }
 
     .gameShellBrand img {
@@ -1070,9 +1072,15 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
   compactTrigger.setAttribute("aria-expanded", "false");
   compactTrigger.setAttribute("aria-label", `Open ${opts.title} menu`);
 
-  const compactBarBrand = document.createElement("span");
+  const compactBarBrand = document.createElement(opts.backHref ? "a" : "span");
   compactBarBrand.className = "gameShellCompactBarBrand";
-  compactBarBrand.setAttribute("aria-hidden", "true");
+  if (opts.backHref && compactBarBrand instanceof HTMLAnchorElement) {
+    compactBarBrand.href = opts.backHref;
+    compactBarBrand.title = "Start Page";
+    compactBarBrand.setAttribute("aria-label", "Start Page");
+  } else {
+    compactBarBrand.setAttribute("aria-hidden", "true");
+  }
   renderLogo(compactBarBrand, { variant: "icon", ariaHidden: true });
 
   const compactBarTitle = document.createElement("div");
@@ -1095,9 +1103,15 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
   const identity = document.createElement("div");
   identity.className = "gameShellIdentity";
 
-  const brand = document.createElement("span");
+  const brand = document.createElement(opts.backHref ? "a" : "span");
   brand.className = "gameShellBrand";
-  brand.setAttribute("aria-hidden", "true");
+  if (opts.backHref && brand instanceof HTMLAnchorElement) {
+    brand.href = opts.backHref;
+    brand.title = "Start Page";
+    brand.setAttribute("aria-label", "Start Page");
+  } else {
+    brand.setAttribute("aria-hidden", "true");
+  }
   renderLogo(brand, { variant: "icon", ariaHidden: true });
 
   const titleBlock = document.createElement("div");
@@ -1401,6 +1415,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     };
 
     controller.addHistoryChangeCallback(() => syncPanels());
+    controller.addShellSnapshotChangeCallback(() => syncPanels());
     controller.addAnalysisModeChangeCallback(() => syncPanels());
     window.addEventListener("resize", scheduleBoardFit);
     window.visualViewport?.addEventListener("resize", scheduleBoardFit);

@@ -450,11 +450,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   };
 
   /**
-   * Positions the vertical eval bar to span only the checkerboard squares area.
-   * In framed mode the SVG viewBox includes player name strips; we use the stored
-   * BoardViewportMetrics to compute the fractions and apply them as inline styles.
-   * In playable mode the viewBox is already cropped to the squares, so no offset
-   * is needed (top: 0 / height: 100%).
+   * Positions the vertical eval bar beside the rendered board.
+   * On normal framed displays it should match the full visible SVG height.
+   * Playable mode keeps the tighter square-only alignment.
    */
   function applyEvalBarGeometry() {
     const boardWithEvalBarEl = document.getElementById("boardWithEvalBar") as HTMLElement | null;
@@ -507,9 +505,12 @@ window.addEventListener("DOMContentLoaded", async () => {
     const squareTopLeft = { x: minLeft, y: minTop };
     const squareBottomLeft = { x: minLeft, y: maxBottom };
     let barLeft = squareTopLeft.x - hostRect.left - barWidth - EVAL_BAR_GAP_PX;
+    let barTop = squareTopLeft.y - hostRect.top;
+    let barHeight = Math.max(0, squareBottomLeft.y - squareTopLeft.y);
 
     if (metrics.mode === "framed") {
-      barLeft = squareTopLeft.x - hostRect.left - barWidth - EVAL_BAR_FRAMED_GAP_PX;
+      barTop = 0;
+      barHeight = hostRect.height;
     } else {
       barLeft -= EVAL_BAR_PLAYABLE_SHIFT_LEFT_PX;
     }
@@ -519,9 +520,9 @@ window.addEventListener("DOMContentLoaded", async () => {
     // Place the bar a few pixels left of the actual playable squares.
     barOuterEl.style.left = `${barLeft.toFixed(2)}px`;
 
-    // Vertical: match the playable squares exactly.
-    barOuterEl.style.top = `${(squareTopLeft.y - hostRect.top).toFixed(2)}px`;
-    barOuterEl.style.height = `${Math.max(0, squareBottomLeft.y - squareTopLeft.y).toFixed(2)}px`;
+    // Vertical: full board height in framed mode, square height in playable mode.
+    barOuterEl.style.top = `${barTop.toFixed(2)}px`;
+    barOuterEl.style.height = `${Math.max(0, barHeight).toFixed(2)}px`;
 
     // #evalBarVertical fills #evalBarOuter entirely (top/height on outer cover it).
     barEl.style.top = "";
@@ -552,6 +553,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   const setPlayerNames = (white: string, black: string) => {
     playerWhiteName = white;
     playerBlackName = black;
+    controllerRef?.setLocalPlayerDisplayNames({ W: white, B: black });
     syncShowPlayerNamesUI();
     updatePlayerNameDisplay();
   };
@@ -658,7 +660,9 @@ window.addEventListener("DOMContentLoaded", async () => {
     envServerUrl: import.meta.env.VITE_SERVER_URL,
   });
 
+  let controllerRef: GameController | null = null;
   const controller = new GameController(svg, piecesLayer, inspector as any, state, history, driver);
+  controllerRef = controller;
   hudController = controller;
   controller.bind();
   shell.bindController(controller);
@@ -974,6 +978,7 @@ window.addEventListener("DOMContentLoaded", async () => {
           rulesetId: "chess",
           boardSize: 8,
         });
+        setPlayerNames("", "");
         controller.loadGame(loaded.state, loaded.history);
         try {
           controller.jumpToHistory(0);

@@ -271,10 +271,11 @@ Regression/tests to keep green
   - Persist `countryCode`, `countryName`, and `timeZone` in the account/identity model.
   - If country or time zone is not explicitly chosen yet, derive an initial default from origin IP / geolocation when the server has that information available.
   - IP/geolocation defaults are best-effort only and must never overwrite an explicit user choice.
-- [~] Shell account/auth presentation
+- [x] Shell account/auth presentation
   - Signed-in shell rail/card shows the authenticated user's display name and avatar.
   - Signed-out shell rail/card shows `Sign Up` and `Log In` actions.
-  - Country metadata should feed shell/player identity surfaces so country flags can render when available.
+  - Desktop shell layout should keep those left-rail auth actions visible without whole-page scrolling by using a fixed-height left rail and independently scrollable center/right content areas.
+  - Country metadata now feeds shell/player identity surfaces, including in-game player cards and lobby seat summaries, so country flags can render when available.
 - [~] Abuse protections for auth endpoints
   - Basic per-IP rate limiting for `/api/auth/*`.
 

@@ -1,7 +1,7 @@
 import { DEFAULT_THEME_ID, getThemeById, THEMES } from "./theme/themes";
 import { DEFAULT_VARIANT_ID, VARIANTS, getVariantById, isVariantId } from "./variants/variantRegistry";
 import type { VariantId } from "./variants/variantTypes";
-import type { GetLobbyResponse, GetRoomMetaResponse, LobbyRoomSummary, RoomVisibility } from "./shared/onlineProtocol.ts";
+import type { GetLobbyResponse, GetRoomMetaResponse, LobbyRoomSummary, PlayerColor, RoomVisibility } from "./shared/onlineProtocol.ts";
 import { getGuestDisplayName, setGuestDisplayName } from "./shared/guestIdentity.ts";
 import { createSfxManager } from "./ui/sfx";
 import type { AuthMeResponse, AuthOkResponse, AuthErrorResponse, AuthUser } from "./shared/authProtocol.ts";
@@ -16,6 +16,7 @@ import {
 import { getSideLabelsForRuleset } from "./shared/sideTerminology";
 import { applyPanelLayoutMode, installPanelLayoutStartPageOptionUI, readPanelLayoutMode } from "./ui/panelLayoutMode";
 import { readBoardViewportMode, writeBoardViewportMode } from "./ui/boardViewportMode";
+import { createLobbyIdentityChip } from "./ui/lobby/lobbyIdentityChip";
 import { initStartPageAppShell } from "./ui/shell/appShell";
 import { readShellState } from "./config/shellState";
 
@@ -1438,28 +1439,46 @@ window.addEventListener("DOMContentLoaded", () => {
       rid.textContent = r.roomId;
       title.appendChild(rid);
 
-      const sub = document.createElement("div");
-      sub.className = "lobbyItemSub";
-      const open = r.seatsOpen.length ? `Open: ${r.seatsOpen.join("/")}` : "Open: —";
-      const taken = r.seatsTaken.length ? `Taken: ${r.seatsTaken.join("/")}` : "Taken: —";
-
       const status = r.status === "in_game" ? "Status: In game" : r.status === "waiting" ? "Status: Waiting" : "";
       const createdAtMs = typeof r.createdAt === "string" ? Date.parse(r.createdAt) : NaN;
       const age = Number.isFinite(createdAtMs) ? `Age: ${formatAgeShort(Date.now() - createdAtMs)}` : "";
 
       const hostDisplayName = typeof (r as any)?.hostDisplayName === "string" ? String((r as any).hostDisplayName).trim() : "";
-      const host = hostDisplayName ? `Host: ${hostDisplayName}` : "";
-
       const byColor = r.displayNameByColor as Partial<Record<"W" | "B", string>> | undefined;
+      const identityByColor = r.identityByColor as Partial<Record<PlayerColor, {
+        displayName?: string;
+        avatarUrl?: string;
+        countryCode?: string;
+        countryName?: string;
+      }>> | undefined;
       const lightName = typeof byColor?.W === "string" ? byColor.W.trim() : "";
       const darkName = typeof byColor?.B === "string" ? byColor.B.trim() : "";
-      const players = lightName || darkName ? `Players: ${lightName ? `${wLabel}=${lightName}` : `${wLabel}=—`} · ${darkName ? `${bLabel}=${darkName}` : `${bLabel}=—`}` : "";
+      const whiteIdentity = identityByColor?.W ?? (lightName ? { displayName: lightName } : undefined);
+      const blackIdentity = identityByColor?.B ?? (darkName ? { displayName: darkName } : undefined);
+
+      const identityRow = document.createElement("div");
+      identityRow.className = "lobbyIdentityRow";
+      const whiteChip = createLobbyIdentityChip({ serverUrl, seatLabel: wLabel, identity: whiteIdentity, color: "W" });
+      const blackChip = createLobbyIdentityChip({ serverUrl, seatLabel: bLabel, identity: blackIdentity, color: "B" });
+      if (whiteChip) identityRow.appendChild(whiteChip);
+      if (blackChip) identityRow.appendChild(blackChip);
+      const hasIdentityRow = identityRow.childElementCount > 0;
+
+      const sub = document.createElement("div");
+      sub.className = "lobbyItemSub";
+      const open = r.seatsOpen.length ? `Open: ${r.seatsOpen.join("/")}` : "Open: —";
+      const taken = r.seatsTaken.length ? `Taken: ${r.seatsTaken.join("/")}` : "Taken: —";
+      const host = !hasIdentityRow && hostDisplayName ? `Host: ${hostDisplayName}` : "";
+      const players = !hasIdentityRow && (lightName || darkName)
+        ? `Players: ${lightName ? `${wLabel}=${lightName}` : `${wLabel}=—`} · ${darkName ? `${bLabel}=${darkName}` : `${bLabel}=—`}`
+        : "";
 
       sub.textContent = [status, age, host, open, taken, players, r.visibility === "public" ? "Public" : "Private"]
         .filter(Boolean)
         .join(" · ");
 
       left.appendChild(title);
+      if (hasIdentityRow) left.appendChild(identityRow);
       left.appendChild(sub);
 
       const right = document.createElement("div");

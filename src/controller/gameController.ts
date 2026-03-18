@@ -101,6 +101,8 @@ export class GameController {
   private remainderTimer: number | null = null;
   private history: HistoryManager;
   private driver: GameDriver;
+  private readonly shellSnapshotListeners: Array<() => void> = [];
+  private readonly localShellDisplayNames: Partial<Record<Player, string>> = {};
 
   private drawOfferInputLockActive: boolean = false;
   private lastPromptedDrawOfferNonce: number | null = null;
@@ -1945,6 +1947,34 @@ export class GameController {
     this.historyListeners.push(callback);
   }
 
+  addShellSnapshotChangeCallback(callback: () => void): void {
+    this.shellSnapshotListeners.push(callback);
+  }
+
+  setLocalPlayerDisplayNames(displayNames: Partial<Record<Player, string | null | undefined>>): void {
+    let didChange = false;
+    for (const color of ["W", "B"] as const) {
+      if (!(color in displayNames)) continue;
+      const rawValue = displayNames[color];
+      const nextValue = typeof rawValue === "string" ? rawValue.trim() : "";
+      const prevValue = this.localShellDisplayNames[color] ?? "";
+      if (nextValue) {
+        if (prevValue !== nextValue) {
+          this.localShellDisplayNames[color] = nextValue;
+          didChange = true;
+        }
+        continue;
+      }
+      if (prevValue) {
+        delete this.localShellDisplayNames[color];
+        didChange = true;
+      }
+    }
+    if (!didChange) return;
+    this.updatePanel();
+    this.fireShellSnapshotChange();
+  }
+
   private checkAndHandleCurrentPlayerLost(): boolean {
     const result = checkCurrentPlayerLost(this.state);
     const isTerminal = Boolean(result.reason) || Boolean(result.winner);
@@ -1969,6 +1999,17 @@ export class GameController {
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error("[controller] history listener error", err);
+      }
+    }
+  }
+
+  private fireShellSnapshotChange(): void {
+    for (const cb of this.shellSnapshotListeners) {
+      try {
+        cb();
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[controller] shell snapshot listener error", err);
       }
     }
   }
@@ -2916,11 +2957,27 @@ export class GameController {
     };
   }
 
+  private resolveShellAvatarUrl(serverUrl: string | null, rawAvatarUrl: string | null | undefined): string | null {
+    const avatarUrl = typeof rawAvatarUrl === "string" ? rawAvatarUrl.trim() : "";
+    if (!avatarUrl) return null;
+    if (/^https?:\/\//i.test(avatarUrl)) return avatarUrl;
+    if (!serverUrl) return avatarUrl;
+    try {
+      return new URL(avatarUrl, `${serverUrl.replace(/\/$/, "")}/`).toString();
+    } catch {
+      return avatarUrl;
+    }
+  }
+
+  private resolveLocalShellDisplayName(color: Player): string {
+    return this.localShellDisplayNames[color] ?? this.sideLabel(color);
+  }
+
   getPlayerShellSnapshot(): PlayerShellSnapshot {
     const defaultPlayers: Record<Player, PlayerIdentity> = {
       W: this.createShellPlayerIdentity({
         color: "W",
-        displayName: this.sideLabel("W"),
+        displayName: this.resolveLocalShellDisplayName("W"),
         sideLabel: this.sideLabel("W"),
         roleLabel: "Local match",
         detailText: this.state.toMove === "W" ? "To move." : "Waiting for the next turn.",
@@ -2930,7 +2987,7 @@ export class GameController {
       }),
       B: this.createShellPlayerIdentity({
         color: "B",
-        displayName: this.sideLabel("B"),
+        displayName: this.resolveLocalShellDisplayName("B"),
         sideLabel: this.sideLabel("B"),
         roleLabel: "Local match",
         detailText: this.state.toMove === "B" ? "To move." : "Waiting for the next turn.",
@@ -2954,6 +3011,7 @@ export class GameController {
     const remote = this.driver as OnlineGameDriver;
     const selfId = remote.getPlayerId();
     const localColor = remote.getPlayerColor();
+    const serverUrl = remote.getServerUrl();
     const presence = remote.getPresence();
     const identity = remote.getIdentity();
     const viewerRole = selfId === "spectator" ? "spectator" : "player";
@@ -2996,11 +3054,13 @@ export class GameController {
     const opponentPresence = opponentId ? (presence?.[opponentId] ?? null) : null;
 
     const selfNameRaw = identity?.[selfId]?.displayName;
+    const selfIdentity = identity?.[selfId] ?? null;
     const selfName = typeof selfNameRaw === "string" && selfNameRaw.trim().length > 0
       ? selfNameRaw.trim()
       : "You";
 
     const opponentNameRaw = opponentId ? identity?.[opponentId]?.displayName : null;
+    const opponentIdentity = opponentId ? (identity?.[opponentId] ?? null) : null;
     const opponentName = typeof opponentNameRaw === "string" && opponentNameRaw.trim().length > 0
       ? opponentNameRaw.trim()
       : this.sideLabel(opponentColor);
@@ -3054,6 +3114,9 @@ export class GameController {
           detailText: selfDetail,
           status: selfStatus.status,
           statusText: selfStatusText,
+          avatarUrl: this.resolveShellAvatarUrl(serverUrl, selfIdentity?.avatarUrl),
+          countryCode: selfIdentity?.countryCode ?? null,
+          countryName: selfIdentity?.countryName ?? null,
           isLocal: true,
         }),
         [opponentColor]: this.createShellPlayerIdentity({
@@ -3064,6 +3127,9 @@ export class GameController {
           detailText: opponentDetail,
           status: opponentStatus.status,
           statusText: opponentStatusText,
+          avatarUrl: this.resolveShellAvatarUrl(serverUrl, opponentIdentity?.avatarUrl),
+          countryCode: opponentIdentity?.countryCode ?? null,
+          countryName: opponentIdentity?.countryName ?? null,
           isLocal: false,
         }),
       },

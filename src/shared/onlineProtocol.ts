@@ -29,6 +29,12 @@ export type PlayerIdentity = {
   guestId?: string;
   /** Display name (may be shown to the opponent / spectators depending on room visibility). */
   displayName?: string;
+  /** Optional decorative avatar URL shared with room participants/spectators. */
+  avatarUrl?: string;
+  /** Optional ISO 3166-1 alpha-2 country code for room identity displays. */
+  countryCode?: string;
+  /** Optional display name derived from countryCode for UI tooltips/labels. */
+  countryName?: string;
 };
 
 export type IdentityByPlayerId = Record<PlayerId, PlayerIdentity>;
@@ -281,6 +287,8 @@ export type GetRoomWatchTokenResponse =
 
 export type LobbyRoomStatus = "waiting" | "in_game";
 
+export type LobbyIdentityByColor = Partial<Record<PlayerColor, PlayerIdentity>>;
+
 export type LobbyRoomSummary = {
   roomId: RoomId;
   variantId: VariantId;
@@ -291,12 +299,16 @@ export type LobbyRoomSummary = {
   createdAt?: string;
   /** Optional room host display name (best-effort; informational only). */
   hostDisplayName?: string;
+  /** Optional public host identity metadata for lobby/player-card surfaces. */
+  hostIdentity?: PlayerIdentity;
   /** Player colors currently taken (derived from server room.players). */
   seatsTaken: PlayerColor[];
   /** Player colors currently available to join. */
   seatsOpen: PlayerColor[];
   /** Optional public display names per seat (informational only). */
   displayNameByColor?: Partial<Record<PlayerColor, string>>;
+  /** Optional public identity metadata per seat for richer lobby/player-card surfaces. */
+  identityByColor?: LobbyIdentityByColor;
   /** Included for UI display; informational only. */
   timeControl?: TimeControl;
 };

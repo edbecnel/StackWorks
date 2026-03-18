@@ -201,4 +201,94 @@ describe("MP3 lobby", () => {
       await rmWithRetries(tmpRoot);
     }
   });
+
+  it("includes public avatar and country metadata in lobby seat identities", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "lasca-online-lobby-identities-"));
+    const gamesDir = path.join(tmpRoot, "games");
+    const s = await startLascaServer({ port: 0, gamesDir });
+
+    try {
+      const register = async (email: string, displayName: string, countryCode: string) => {
+        const res = await fetch(`${s.url}/api/auth/register`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email, password: "pw123456", displayName, countryCode }),
+        });
+        const json = await res.json() as any;
+        expect(json.error).toBeUndefined();
+        const cookie = res.headers.get("set-cookie") ?? "";
+        expect(cookie).toContain("lasca.sid=");
+        return { cookie, json };
+      };
+
+      const host = await register("host-lobby@example.com", "HostAccount", "CA");
+      const guest = await register("guest-lobby@example.com", "GuestAccount", "GB");
+
+      const patchRes = await fetch(`${s.url}/api/auth/me`, {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          cookie: host.cookie,
+        },
+        body: JSON.stringify({ avatarUrl: "/api/auth/avatar/host-lobby.png" }),
+      }).then((r) => r.json() as Promise<any>);
+      expect(patchRes.error).toBeUndefined();
+
+      const initial = createInitialGameStateForVariant("lasca_7_classic" as any);
+      const history = new HistoryManager();
+      history.push(initial);
+
+      const createRes = await fetch(`${s.url}/api/create`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: host.cookie,
+        },
+        body: JSON.stringify({
+          variantId: "lasca_7_classic",
+          preferredColor: "W",
+          snapshot: {
+            state: serializeWireGameState(initial),
+            history: serializeWireHistory(history.exportSnapshots()),
+            stateVersion: 0,
+          },
+        }),
+      }).then((r) => r.json() as Promise<any>);
+
+      expect(createRes.error).toBeUndefined();
+
+      const joinRes = await fetch(`${s.url}/api/join`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: guest.cookie,
+        },
+        body: JSON.stringify({ roomId: createRes.roomId, preferredColor: "B" }),
+      }).then((r) => r.json() as Promise<any>);
+
+      expect(joinRes.error).toBeUndefined();
+
+      const lobby = await fetch(`${s.url}/api/lobby?includeFull=1`).then((r) => r.json() as Promise<any>);
+      expect(lobby.error).toBeUndefined();
+      const rooms = Array.isArray(lobby.rooms) ? lobby.rooms : [];
+      const item = rooms.find((x: any) => x?.roomId === createRes.roomId);
+      expect(item).toBeTruthy();
+
+      expect((item as any)?.hostIdentity?.displayName).toBe("HostAccount");
+      expect((item as any)?.hostIdentity?.countryCode).toBe("CA");
+      expect((item as any)?.hostIdentity?.countryName).toBeTruthy();
+      expect((item as any)?.hostIdentity?.avatarUrl).toBe("/api/auth/avatar/host-lobby.png");
+
+      expect((item as any)?.identityByColor?.W?.displayName).toBe("HostAccount");
+      expect((item as any)?.identityByColor?.W?.countryCode).toBe("CA");
+      expect((item as any)?.identityByColor?.W?.avatarUrl).toBe("/api/auth/avatar/host-lobby.png");
+      expect((item as any)?.identityByColor?.B?.displayName).toBe("GuestAccount");
+      expect((item as any)?.identityByColor?.B?.countryCode).toBe("GB");
+      expect((item as any)?.identityByColor?.B?.countryName).toBeTruthy();
+    } finally {
+      const closing = new Promise<void>((resolve) => s.server.close(() => resolve()));
+      await closing;
+      await rmWithRetries(tmpRoot);
+    }
+  });
 });

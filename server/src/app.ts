@@ -305,6 +305,42 @@ function sanitizeDisplayName(raw: any): string | undefined {
   return cleaned.slice(0, 24);
 }
 
+function sanitizeProfileAvatarUrl(raw: any): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const next = raw.trim();
+  if (!next) return undefined;
+  return next.slice(0, 300);
+}
+
+function sanitizeProfileCountryCode(raw: any): string | undefined {
+  return normalizeCountryCode(raw);
+}
+
+function sanitizeProfileCountryName(raw: any): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const next = raw.trim();
+  if (!next) return undefined;
+  return next.slice(0, 80);
+}
+
+async function resolveAuthenticatedRoomIdentity(args: {
+  req: express.Request;
+  authDir: string;
+}): Promise<Partial<PlayerIdentity>> {
+  const auth = (args.req as any).auth as { userId: string } | null;
+  if (!auth?.userId) return {};
+
+  const user = await findUserById(args.authDir, auth.userId);
+  if (!user) return {};
+
+  return {
+    ...(user.displayName ? { displayName: user.displayName } : {}),
+    ...(user.avatarUrl ? { avatarUrl: user.avatarUrl } : {}),
+    ...(user.countryCode ? { countryCode: user.countryCode } : {}),
+    ...(user.countryName ? { countryName: user.countryName } : {}),
+  };
+}
+
 function ensureIdentity(room: Room, playerId: PlayerId): PlayerIdentity {
   const existing = room.identity.get(playerId);
   if (existing) return existing;
@@ -317,13 +353,27 @@ function setIdentity(room: Room, playerId: PlayerId, patch: Partial<PlayerIdenti
   const cur = ensureIdentity(room, playerId);
   if (typeof patch.guestId === "string") cur.guestId = patch.guestId;
   if (typeof patch.displayName === "string") cur.displayName = patch.displayName;
+  else if (patch.displayName === null) delete cur.displayName;
+  if (typeof patch.avatarUrl === "string") cur.avatarUrl = patch.avatarUrl;
+  else if (patch.avatarUrl === null) delete cur.avatarUrl;
+  if (typeof patch.countryCode === "string") cur.countryCode = patch.countryCode;
+  else if (patch.countryCode === null) delete cur.countryCode;
+  if (typeof patch.countryName === "string") cur.countryName = patch.countryName;
+  else if (patch.countryName === null) delete cur.countryName;
 }
 
 function publicIdentityForRoom(room: Room): IdentityByPlayerId {
   const out: IdentityByPlayerId = {};
   for (const [playerId] of room.players.entries()) {
     const ident = room.identity.get(playerId);
-    if (ident?.displayName) out[playerId] = { displayName: ident.displayName };
+    if (!ident) continue;
+    const next: PlayerIdentity = {
+      ...(ident.displayName ? { displayName: ident.displayName } : {}),
+      ...(ident.avatarUrl ? { avatarUrl: ident.avatarUrl } : {}),
+      ...(ident.countryCode ? { countryCode: ident.countryCode } : {}),
+      ...(ident.countryName ? { countryName: ident.countryName } : {}),
+    };
+    if (Object.keys(next).length > 0) out[playerId] = next;
   }
   return out;
 }
@@ -340,6 +390,31 @@ function displayNameByColorForPlayers(args: {
     const name = typeof raw === "string" ? raw.trim() : "";
     if (!name) continue;
     out[color] = name;
+  }
+
+  return Object.keys(out).length ? out : undefined;
+}
+
+function identityByColorForPlayers(args: {
+  players: Iterable<[PlayerId, PlayerColor]>;
+  identity: IdentityByPlayerId | null | undefined;
+}): Partial<Record<PlayerColor, PlayerIdentity>> | undefined {
+  if (!args.identity) return undefined;
+
+  const out: Partial<Record<PlayerColor, PlayerIdentity>> = {};
+  for (const [playerId, color] of args.players) {
+    const ident = args.identity[playerId];
+    if (!ident) continue;
+
+    const displayName = typeof ident.displayName === "string" ? ident.displayName.trim() : "";
+    const next: PlayerIdentity = {
+      ...(displayName ? { displayName } : {}),
+      ...(ident.avatarUrl ? { avatarUrl: ident.avatarUrl } : {}),
+      ...(ident.countryCode ? { countryCode: ident.countryCode } : {}),
+      ...(ident.countryName ? { countryName: ident.countryName } : {}),
+    };
+    if (!Object.keys(next).length) continue;
+    out[color] = next;
   }
 
   return Object.keys(out).length ? out : undefined;
@@ -456,6 +531,9 @@ async function persistSnapshot(
     identityRecord[pid] = {
       ...(ident.guestId ? { guestId: ident.guestId } : {}),
       ...(ident.displayName ? { displayName: ident.displayName } : {}),
+      ...(ident.avatarUrl ? { avatarUrl: ident.avatarUrl } : {}),
+      ...(ident.countryCode ? { countryCode: ident.countryCode } : {}),
+      ...(ident.countryName ? { countryName: ident.countryName } : {}),
     };
   }
 
@@ -1081,10 +1159,16 @@ export function createLascaApp(opts: ServerOpts = {}): {
       const raw = loadedIdentityRaw?.[playerId];
       const guestId = sanitizeGuestId((raw as any)?.guestId);
       const displayName = sanitizeDisplayName((raw as any)?.displayName);
-      if (guestId || displayName) {
+      const avatarUrl = sanitizeProfileAvatarUrl((raw as any)?.avatarUrl);
+      const countryCode = sanitizeProfileCountryCode((raw as any)?.countryCode);
+      const countryName = sanitizeProfileCountryName((raw as any)?.countryName);
+      if (guestId || displayName || avatarUrl || countryCode || countryName) {
         setIdentity(room, playerId, {
           ...(guestId ? { guestId } : {}),
           ...(displayName ? { displayName } : {}),
+          ...(avatarUrl ? { avatarUrl } : {}),
+          ...(countryCode ? { countryCode } : {}),
+          ...(countryName ? { countryName } : {}),
         });
       }
     }
@@ -1774,10 +1858,12 @@ export function createLascaApp(opts: ServerOpts = {}): {
       }
 
       // Initial snapshot so client can render immediately.
+      const identity = publicIdentityForRoom(room);
       streamWrite(res, "snapshot", {
         roomId,
         snapshot: snapshotForRoom(room),
         presence: presenceForRoom(room),
+        identity: Object.keys(identity).length > 0 ? identity : undefined,
         timeControl: room.timeControl,
         clock: room.clock ?? undefined,
       });
@@ -1892,10 +1978,12 @@ export function createLascaApp(opts: ServerOpts = {}): {
 
       const guestId = sanitizeGuestId((body as any).guestId);
       const displayName = sanitizeDisplayName((body as any).displayName);
-      if (guestId || displayName) {
+      const authIdentity = await resolveAuthenticatedRoomIdentity({ req, authDir });
+      if (guestId || displayName || Object.keys(authIdentity).length > 0) {
         setIdentity(room, playerId, {
           ...(guestId ? { guestId } : {}),
           ...(displayName ? { displayName } : {}),
+          ...authIdentity,
         });
       }
 
@@ -1953,6 +2041,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
 
         const guestId = sanitizeGuestId((body as any).guestId);
         const displayName = sanitizeDisplayName((body as any).displayName);
+        const authIdentity = await resolveAuthenticatedRoomIdentity({ req, authDir });
 
         const findPlayerIdsByGuestId = (gid: string): PlayerId[] => {
           const out: PlayerId[] = [];
@@ -1974,10 +2063,11 @@ export function createLascaApp(opts: ServerOpts = {}): {
           const color = room.players.get(playerId);
           if (!color) throw new Error("Room full");
 
-          if (guestId || displayName) {
+          if (guestId || displayName || Object.keys(authIdentity).length > 0) {
             setIdentity(room, playerId, {
               ...(guestId ? { guestId } : {}),
               ...(displayName ? { displayName } : {}),
+              ...authIdentity,
             });
           }
 
@@ -2036,10 +2126,11 @@ export function createLascaApp(opts: ServerOpts = {}): {
         const playerId: PlayerId = randId();
         room.players.set(playerId, color);
         room.colorsTaken.add(color);
-        if (guestId || displayName) {
+        if (guestId || displayName || Object.keys(authIdentity).length > 0) {
           setIdentity(room, playerId, {
             ...(guestId ? { guestId } : {}),
             ...(displayName ? { displayName } : {}),
+            ...authIdentity,
           });
         }
 
@@ -2116,8 +2207,10 @@ export function createLascaApp(opts: ServerOpts = {}): {
 
         const identity = publicIdentityForRoom(room);
         const displayNameByColor = displayNameByColorForPlayers({ players: room.players.entries(), identity });
+        const identityByColor = identityByColorForPlayers({ players: room.players.entries(), identity });
         const hostNameRaw = identity?.[room.creatorPlayerId]?.displayName;
         const hostDisplayName = typeof hostNameRaw === "string" ? hostNameRaw.trim() : "";
+        const hostIdentity = room.creatorPlayerId ? identity?.[room.creatorPlayerId] : undefined;
 
         const status = seatsOpen.length > 0 ? "waiting" : "in_game";
 
@@ -2128,9 +2221,11 @@ export function createLascaApp(opts: ServerOpts = {}): {
           status,
           createdAt: room.createdAtIso,
           ...(hostDisplayName ? { hostDisplayName } : {}),
+          ...(hostIdentity ? { hostIdentity } : {}),
           seatsTaken: Array.from(seatsTaken.values()),
           seatsOpen,
           ...(displayNameByColor ? { displayNameByColor } : {}),
+          ...(identityByColor ? { identityByColor } : {}),
           timeControl: room.timeControl,
           sortMs: Date.now(),
         });
@@ -2184,8 +2279,22 @@ export function createLascaApp(opts: ServerOpts = {}): {
           const publicIdentity: IdentityByPlayerId | undefined = fileIdentityRaw
             ? Object.fromEntries(
                 Object.entries(fileIdentityRaw)
-                  .map(([pid, ident]) => [pid, { displayName: (ident as any)?.displayName }])
-                  .filter(([, ident]) => typeof (ident as any)?.displayName === "string" && String((ident as any).displayName).trim())
+                  .map(([pid, ident]) => {
+                    const displayName = sanitizeDisplayName((ident as any)?.displayName);
+                    const avatarUrl = sanitizeProfileAvatarUrl((ident as any)?.avatarUrl);
+                    const countryCode = sanitizeProfileCountryCode((ident as any)?.countryCode);
+                    const countryName = sanitizeProfileCountryName((ident as any)?.countryName);
+                    return [
+                      pid,
+                      {
+                        ...(displayName ? { displayName } : {}),
+                        ...(avatarUrl ? { avatarUrl } : {}),
+                        ...(countryCode ? { countryCode } : {}),
+                        ...(countryName ? { countryName } : {}),
+                      },
+                    ];
+                  })
+                  .filter(([, ident]) => Object.keys(ident as object).length > 0)
               )
             : undefined;
 
@@ -2199,6 +2308,11 @@ export function createLascaApp(opts: ServerOpts = {}): {
             players: (file.meta.players ?? []) as Array<[PlayerId, PlayerColor]>,
             identity: publicIdentity,
           });
+          const identityByColor = identityByColorForPlayers({
+            players: (file.meta.players ?? []) as Array<[PlayerId, PlayerColor]>,
+            identity: publicIdentity,
+          });
+          const hostIdentity = creatorId ? publicIdentity?.[creatorId] : undefined;
 
           const stat = await fs
             .stat(snapP)
@@ -2218,9 +2332,11 @@ export function createLascaApp(opts: ServerOpts = {}): {
             status,
             ...(createdAt ? { createdAt } : {}),
             ...(hostDisplayName ? { hostDisplayName } : {}),
+            ...(hostIdentity ? { hostIdentity } : {}),
             seatsTaken: Array.from(seatsTaken.values()),
             seatsOpen,
             ...(displayNameByColor ? { displayNameByColor } : {}),
+            ...(identityByColor ? { identityByColor } : {}),
             timeControl,
             sortMs,
           });

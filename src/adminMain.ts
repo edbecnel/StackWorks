@@ -1,4 +1,5 @@
-import type { GetLobbyResponse, LobbyRoomSummary } from "./shared/onlineProtocol";
+import type { GetLobbyResponse, LobbyRoomSummary, PlayerColor } from "./shared/onlineProtocol";
+import { createLobbyIdentityChip } from "./ui/lobby/lobbyIdentityChip";
 
 const LS_KEYS = {
   onlineServerUrl: "lasca.online.serverUrl",
@@ -140,7 +141,7 @@ function roomSub(room: LobbyRoomSummary): string {
   }
   if (room.status === "waiting") parts.push("waiting");
   if (room.status === "in_game") parts.push("in game");
-  if (typeof room.hostDisplayName === "string" && room.hostDisplayName.trim()) {
+  if (!room.hostIdentity && typeof room.hostDisplayName === "string" && room.hostDisplayName.trim()) {
     parts.push(`host: ${room.hostDisplayName.trim()}`);
   }
   return parts.join(" • ");
@@ -149,6 +150,7 @@ function roomSub(room: LobbyRoomSummary): string {
 function renderLobby(rooms: LobbyRoomSummary[]): void {
   const list = byId<HTMLDivElement>("adminLobbyList");
   list.replaceChildren();
+  const serverUrl = getServerUrl();
 
   const createdAtMs = (r: LobbyRoomSummary): number => {
     if (typeof r.createdAt !== "string") return 0;
@@ -172,11 +174,36 @@ function renderLobby(rooms: LobbyRoomSummary[]): void {
     sub1.className = "lobbyItemSub";
     sub1.textContent = roomLabel(room);
 
+    const identityByColor = room.identityByColor as Partial<Record<PlayerColor, {
+      displayName?: string;
+      avatarUrl?: string;
+      countryCode?: string;
+      countryName?: string;
+    }>> | undefined;
+    const identityRow = document.createElement("div");
+    identityRow.className = "lobbyIdentityRow";
+    const whiteChip = createLobbyIdentityChip({
+      serverUrl,
+      seatLabel: "White",
+      identity: identityByColor?.W,
+      color: "W",
+    });
+    const blackChip = createLobbyIdentityChip({
+      serverUrl,
+      seatLabel: "Black",
+      identity: identityByColor?.B,
+      color: "B",
+    });
+    if (whiteChip) identityRow.appendChild(whiteChip);
+    if (blackChip) identityRow.appendChild(blackChip);
+
     const sub2 = document.createElement("div");
     sub2.className = "lobbyItemSub";
     sub2.textContent = roomSub(room);
 
-    left.append(title, sub1, sub2);
+    left.append(title, sub1);
+    if (identityRow.childElementCount) left.append(identityRow);
+    left.append(sub2);
 
     const right = document.createElement("div");
     right.className = "lobbyItemRight";

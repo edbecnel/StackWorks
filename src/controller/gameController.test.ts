@@ -993,3 +993,53 @@ describe("GameController online debug copy", () => {
     expect(toast?.textContent).toBe("Copied debug info");
   });
 });
+
+describe("GameController local shell identities", () => {
+  let mockSvg: SVGSVGElement;
+  let mockPiecesLayer: SVGGElement;
+
+  beforeEach(() => {
+    mockSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg") as SVGSVGElement;
+    mockPiecesLayer = document.createElementNS("http://www.w3.org/2000/svg", "g") as SVGGElement;
+
+    (mockSvg as any).addEventListener = () => {};
+    (mockSvg as any).querySelector = () => null;
+  });
+
+  it("uses imported local names in the shell snapshot and can clear them", () => {
+    const history = new HistoryManager();
+    const s: GameState = {
+      board: new Map([[
+        "r1c1",
+        [{ owner: "W", rank: "P" }],
+      ]]),
+      toMove: "W",
+      phase: "idle",
+      meta: {
+        variantId: "chess_classic" as any,
+        rulesetId: "chess" as any,
+        boardSize: 8 as any,
+      },
+    };
+    history.push(s);
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, s, history);
+    const onShellSnapshotChange = vi.fn();
+    controller.addShellSnapshotChangeCallback(onShellSnapshotChange);
+
+    controller.setLocalPlayerDisplayNames({ W: "Magnus Carlsen", B: "  Hikaru Nakamura  " });
+
+    let snapshot = controller.getPlayerShellSnapshot();
+    expect(snapshot.mode).toBe("local");
+    expect(snapshot.players.W.displayName).toBe("Magnus Carlsen");
+    expect(snapshot.players.B.displayName).toBe("Hikaru Nakamura");
+    expect(onShellSnapshotChange).toHaveBeenCalledTimes(1);
+
+    controller.setLocalPlayerDisplayNames({ W: "", B: null });
+
+    snapshot = controller.getPlayerShellSnapshot();
+    expect(snapshot.players.W.displayName).toBe("White");
+    expect(snapshot.players.B.displayName).toBe("Black");
+    expect(onShellSnapshotChange).toHaveBeenCalledTimes(2);
+  });
+});
