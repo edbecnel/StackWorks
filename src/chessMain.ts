@@ -155,7 +155,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     title: variant.displayName,
     subtitle: variant.subtitle,
     gameSection: GameSection.Play,
-    meta: [rulesBoardLine(variant.rulesetId, variant.boardSize), `${variant.boardSize}x${variant.boardSize} board`],
+    meta: [rulesBoardLine(variant.rulesetId, variant.boardSize)],
     backHref: "./",
     helpHref: "./chess-help.html",
     activeSectionId: "play",
@@ -709,6 +709,15 @@ window.addEventListener("DOMContentLoaded", async () => {
     controller.addAnalysisModeChangeCallback((enabled) => b.setAnalysisModeActive(enabled));
     return b;
   })() : null;
+
+  // Apply start-page player name prefs to the SVG name overlay (offline only).
+  if (driver.mode !== "online") {
+    try {
+      const nameLight = localStorage.getItem("lasca.local.nameLight")?.trim() ?? "";
+      const nameDark = localStorage.getItem("lasca.local.nameDark")?.trim() ?? "";
+      if (nameLight || nameDark) setPlayerNames(nameLight, nameDark);
+    } catch { /* ignore */ }
+  }
 
   bindChessEvaluationPanel(controller, bot);
 

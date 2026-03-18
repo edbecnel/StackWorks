@@ -18,6 +18,7 @@ const DEFAULT_LAST_MOVE_STROKE_W = 6;
 const CLASSIC_SQUARE_STROKE_W = 4;
 const CHESSCOM_TARGET_DOT_LIGHT_FILL = "rgba(28, 28, 28, 0.26)";
 const CHESSCOM_TARGET_DOT_DARK_FILL = "rgba(20, 20, 20, 0.22)";
+const CHESSCOM_TARGET_DOT_HIGH_CONTRAST_FILL = "rgba(255, 255, 255, 0.34)";
 const CHESSCOM_TARGET_DOT_MIN_RADIUS = 13;
 const CHESSCOM_TARGET_DOT_MAX_RADIUS = 16;
 const CHESSCOM_TARGET_DOT_SCALE = 0.34;
@@ -25,6 +26,8 @@ const CHESSCOM_TARGET_RING_LIGHT_STROKE = "rgba(28, 28, 28, 0.34)";
 const CHESSCOM_TARGET_RING_DARK_STROKE = "rgba(20, 20, 20, 0.30)";
 const CHESSCOM_TARGET_RING_LIGHT_FILL = "rgba(28, 28, 28, 0.08)";
 const CHESSCOM_TARGET_RING_DARK_FILL = "rgba(20, 20, 20, 0.06)";
+const CHESSCOM_TARGET_RING_HIGH_CONTRAST_STROKE = "rgba(255, 255, 255, 0.74)";
+const CHESSCOM_TARGET_RING_HIGH_CONTRAST_FILL = "rgba(255, 255, 255, 0.14)";
 const CHESSCOM_TARGET_RING_STROKE_W = 10;
 
 const CHESSCOM_SELECTION_LIGHT_FILL = "rgba(126, 179, 255, 0.30)";
@@ -280,6 +283,7 @@ export function drawTargetsChessCom(layer: SVGGElement, nodeIds: string[], captu
       const cy = rect ? rect.y + rect.h / 2 : parseFloat(node?.getAttribute("cy") || "0");
       const diameter = rect ? Math.min(rect.w, rect.h) : parseFloat(node?.getAttribute("r") || "0") * 2.8;
       const radius = Math.max(22, Math.round(diameter * 0.36));
+      const useHighContrastTone = shouldUseHighContrastTargetTone(svg, id);
       const tone = squareToneFromNodeId(id);
 
       const ring = document.createElementNS(SVG_NS, "circle") as SVGCircleElement;
@@ -287,8 +291,22 @@ export function drawTargetsChessCom(layer: SVGGElement, nodeIds: string[], captu
       ring.setAttribute("cx", String(cx));
       ring.setAttribute("cy", String(cy));
       ring.setAttribute("r", String(radius));
-      ring.setAttribute("fill", tone === "light" ? CHESSCOM_TARGET_RING_LIGHT_FILL : CHESSCOM_TARGET_RING_DARK_FILL);
-      ring.setAttribute("stroke", tone === "light" ? CHESSCOM_TARGET_RING_LIGHT_STROKE : CHESSCOM_TARGET_RING_DARK_STROKE);
+      ring.setAttribute(
+        "fill",
+        useHighContrastTone
+          ? CHESSCOM_TARGET_RING_HIGH_CONTRAST_FILL
+          : tone === "light"
+            ? CHESSCOM_TARGET_RING_LIGHT_FILL
+            : CHESSCOM_TARGET_RING_DARK_FILL,
+      );
+      ring.setAttribute(
+        "stroke",
+        useHighContrastTone
+          ? CHESSCOM_TARGET_RING_HIGH_CONTRAST_STROKE
+          : tone === "light"
+            ? CHESSCOM_TARGET_RING_LIGHT_STROKE
+            : CHESSCOM_TARGET_RING_DARK_STROKE,
+      );
       ring.setAttribute("stroke-width", String(CHESSCOM_TARGET_RING_STROKE_W));
       ring.setAttribute("pointer-events", "none");
       applyStrokeDefaults(ring);
@@ -303,7 +321,11 @@ export function drawTargetsChessCom(layer: SVGGElement, nodeIds: string[], captu
       CHESSCOM_TARGET_DOT_MIN_RADIUS,
       Math.min(CHESSCOM_TARGET_DOT_MAX_RADIUS, Math.round(baseRadius * CHESSCOM_TARGET_DOT_SCALE)),
     );
-    const fill = squareToneFromNodeId(id) === "light" ? CHESSCOM_TARGET_DOT_LIGHT_FILL : CHESSCOM_TARGET_DOT_DARK_FILL;
+    const fill = shouldUseHighContrastTargetTone(svg, id)
+      ? CHESSCOM_TARGET_DOT_HIGH_CONTRAST_FILL
+      : squareToneFromNodeId(id) === "light"
+        ? CHESSCOM_TARGET_DOT_LIGHT_FILL
+        : CHESSCOM_TARGET_DOT_DARK_FILL;
 
     const dot = document.createElementNS(SVG_NS, "circle") as SVGCircleElement;
     dot.setAttribute("class", "target-dot target-dot--chesscom");
@@ -397,6 +419,32 @@ function inferGridStep(values: number[]): number | null {
   return Number.isFinite(minDelta) ? minDelta : null;
 }
 
+function parseColorRgb(value: string): [number, number, number] | null {
+  const raw = value.trim();
+  if (!raw) return null;
+
+  const hex = raw.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hex) {
+    const digits = hex[1].length === 3
+      ? hex[1].split("").map((digit) => digit + digit).join("")
+      : hex[1];
+    const r = Number.parseInt(digits.slice(0, 2), 16);
+    const g = Number.parseInt(digits.slice(2, 4), 16);
+    const b = Number.parseInt(digits.slice(4, 6), 16);
+    return [r, g, b];
+  }
+
+  const rgb = raw.match(/^rgba?\(([^)]+)\)$/i);
+  if (!rgb) return null;
+  const parts = rgb[1].split(",").map((part) => Number.parseFloat(part.trim()));
+  if (parts.length < 3 || parts.slice(0, 3).some((part) => !Number.isFinite(part))) return null;
+  return [parts[0], parts[1], parts[2]];
+}
+
+function brightnessFromRgb([r, g, b]: [number, number, number]): number {
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
 function lastMoveFillForStyle(
   style: LastMoveHighlightStyle,
   nodeId: string,
@@ -465,6 +513,36 @@ function computeSquareRect(svg: SVGSVGElement, nodeId: string): SquareRect | nul
   const h = inferredHeight ?? inferredWidth ?? 100;
 
   return { x: cx - w / 2, y: cy - h / 2, w, h };
+}
+
+function readSquareBrightness(svg: SVGSVGElement, nodeId: string): number | null {
+  const rect = computeSquareRect(svg, nodeId);
+  if (!rect) return null;
+
+  const cx = rect.x + rect.w / 2;
+  const cy = rect.y + rect.h / 2;
+  const squares = Array.from(svg.querySelectorAll("#squares rect")) as SVGRectElement[];
+  const match = squares.find((square) => {
+    const x = Number.parseFloat(square.getAttribute("x") ?? "NaN");
+    const y = Number.parseFloat(square.getAttribute("y") ?? "NaN");
+    const w = Number.parseFloat(square.getAttribute("width") ?? "NaN");
+    const h = Number.parseFloat(square.getAttribute("height") ?? "NaN");
+    if (![x, y, w, h].every(Number.isFinite)) return false;
+    return cx >= x - 0.5 && cx <= x + w + 0.5 && cy >= y - 0.5 && cy <= y + h + 0.5;
+  });
+  if (!match) return null;
+
+  const fill =
+    match.getAttribute("fill") ||
+    match.style.fill ||
+    (typeof getComputedStyle === "function" ? getComputedStyle(match).fill : "");
+  const rgb = fill ? parseColorRgb(fill) : null;
+  return rgb ? brightnessFromRgb(rgb) : null;
+}
+
+function shouldUseHighContrastTargetTone(svg: SVGSVGElement, nodeId: string): boolean {
+  const brightness = readSquareBrightness(svg, nodeId);
+  return brightness !== null && brightness < 56;
 }
 
 function applyRectDefaults(el: SVGRectElement): void {

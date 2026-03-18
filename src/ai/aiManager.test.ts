@@ -82,7 +82,7 @@ describe("AIManager paused-turn sticky toast", () => {
     vi.runAllTimers();
 
     expect(controller.sticky.key).toBe("aiPausedTapResume");
-    expect(controller.sticky.text).toBe("Light to Play. Tap here ore press spacebar to resume bot");
+    expect(controller.sticky.text).toBe("Light to Play. Tap here or press spacebar to resume bot");
   });
 
   it("auto-resumes after the timed turn toast once the game is no longer fresh (human moved first)", () => {
@@ -136,7 +136,7 @@ describe("AIManager paused-turn sticky toast", () => {
     vi.runAllTimers();
 
     expect(controller.sticky.key).toBe("aiPausedTapResume");
-    expect(controller.sticky.text).toBe("Light to Play. Tap here ore press spacebar to resume bot");
+    expect(controller.sticky.text).toBe("Light to Play. Tap here or press spacebar to resume bot");
   });
 
   it("shows sticky tap-to-resume after newGame for non-chess", () => {
@@ -157,7 +157,27 @@ describe("AIManager paused-turn sticky toast", () => {
     vi.runAllTimers();
 
     expect(controller.sticky.key).toBe("aiPausedTapResume");
-    expect(controller.sticky.text).toBe("Light to Play. Tap here ore press spacebar to resume bot");
+    expect(controller.sticky.text).toBe("Light to Play. Tap here or press spacebar to resume bot");
+  });
+
+  it("shows the sticky resume toast on a fresh US Checkers game when Black bot moves first", () => {
+    localStorage.setItem("lasca.ai.white", "human");
+    localStorage.setItem("lasca.ai.black", "easy");
+    localStorage.setItem("lasca.ai.paused", "true");
+
+    const controller = new FakeController(
+      { toMove: "B", phase: "idle", board: new Map(), meta: { rulesetId: "checkers_us", boardSize: 8 } },
+      [{ index: 0, toMove: "B", isCurrent: true, notation: "" }]
+    ) as any;
+
+    const mgr = new AIManager(controller);
+    mgr.bind();
+
+    vi.runAllTimers();
+
+    expect(controller.sticky.key).toBe("aiPausedTapResume");
+    expect(controller.sticky.text).toBe("Black to Play. Tap here or press spacebar to resume bot");
+    expect(localStorage.getItem("lasca.ai.paused")).toBe("true");
   });
 
   it("forces AI dropdowns to Human during analysis and restores after", () => {
@@ -201,5 +221,48 @@ describe("AIManager paused-turn sticky toast", () => {
     mgr.setAnalysisModeActive(false);
     expect((document.getElementById("aiWhiteSelect") as HTMLSelectElement).value).toBe("easy");
     expect((document.getElementById("aiBlackSelect") as HTMLSelectElement).value).toBe("easy");
+  });
+
+  it("prepends the signed-in local account name to AI dropdowns", async () => {
+    document.body.innerHTML = `
+      <select id="aiWhiteSelect">
+        <option value="human">Human</option>
+        <option value="easy">Beginner</option>
+        <option value="medium">Intermediate</option>
+        <option value="advanced">Strong</option>
+      </select>
+      <select id="aiBlackSelect">
+        <option value="human">Human</option>
+        <option value="easy">Beginner</option>
+        <option value="medium">Intermediate</option>
+        <option value="advanced">Strong</option>
+      </select>
+      <input id="aiDelay" />
+      <button id="aiDelayReset"></button>
+      <span id="aiDelayLabel"></span>
+      <button id="aiPauseBtn"></button>
+      <button id="aiStepBtn"></button>
+      <span id="aiInfo"></span>
+    `;
+
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ ok: true, user: { displayName: "EdB" } }),
+    })));
+
+    const controller = new FakeController(
+      { toMove: "W", phase: "idle", board: new Map(), meta: { rulesetId: "lasca" } },
+      [{ index: 0, toMove: "W", isCurrent: true, notation: "" }]
+    ) as any;
+
+    const mgr = new AIManager(controller);
+    mgr.bind();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const whiteOptions = Array.from((document.getElementById("aiWhiteSelect") as HTMLSelectElement).options).map((option) => option.textContent);
+    expect(whiteOptions).toEqual(["EdB", "Human", "Beginner", "Intermediate", "Strong"]);
   });
 });

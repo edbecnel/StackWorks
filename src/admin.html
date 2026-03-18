@@ -360,27 +360,68 @@
         color: rgba(255, 90, 90, 0.9);
       }
 
-      .confirmBar {
-        margin-top: 10px;
-        padding: 10px;
-        border-radius: 10px;
+      .confirmDialog {
+        width: min(100%, 420px);
+        margin: auto;
         border: 1px solid rgba(255, 90, 90, 0.22);
-        background: rgba(255, 90, 90, 0.08);
-        display: flex;
-        gap: 10px;
-        align-items: center;
-        justify-content: space-between;
+        border-radius: 16px;
+        padding: 0;
+        background: rgba(24, 14, 14, 0.98);
+        color: var(--panel-text);
+        box-shadow: 0 28px 80px rgba(0, 0, 0, 0.45);
       }
 
-      .confirmText {
+      .confirmDialog::backdrop {
+        background: rgba(0, 0, 0, 0.56);
+        backdrop-filter: blur(2px);
+      }
+
+      .confirmDialogPanel {
+        padding: 18px;
+      }
+
+      .confirmDialogTitle {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 800;
+        color: rgba(255, 90, 90, 0.96);
+        letter-spacing: 0.02em;
+      }
+
+      .confirmDialogText {
+        margin: 10px 0 0 0;
         font-size: 12px;
         color: rgba(255, 255, 255, 0.86);
+        line-height: 1.45;
+      }
+
+      .confirmDialogRoom {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        background: rgba(255, 255, 255, 0.04);
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.94);
+      }
+
+      .confirmDialogError {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 90, 90, 0.24);
+        background: rgba(255, 90, 90, 0.1);
+        font-size: 12px;
+        line-height: 1.45;
+        color: rgba(255, 214, 214, 0.96);
       }
 
       .confirmActions {
+        margin-top: 16px;
         display: flex;
         gap: 8px;
         align-items: center;
+        justify-content: flex-end;
         flex-shrink: 0;
       }
 
@@ -515,21 +556,9 @@
               Copy
             </button>
           </div>
-
-          <div id="adminDeleteConfirm" class="confirmBar" hidden>
-            <div id="adminDeleteConfirmText" class="confirmText">—</div>
-            <div class="confirmActions">
-              <button class="panelBtn" id="adminDeleteConfirmYes" type="button">
-                Confirm delete
-              </button>
-              <button class="panelBtn" id="adminDeleteConfirmNo" type="button">
-                Cancel
-              </button>
-            </div>
-          </div>
           <div class="hint">
-            Calls DELETE /api/admin/room/:roomId and evicts the room
-            immediately.
+            Opens a confirmation dialog, then calls DELETE
+            /api/admin/room/:roomId.
           </div>
         </section>
 
@@ -553,11 +582,42 @@
             <span class="subtle">(same as the button in Connection)</span>
           </div>
           <div class="subtle">
-            Tip: refresh the lobby, then delete from a row.
+            Row Delete and Delete room use the same confirmation dialog.
           </div>
           <div class="lobbyList" id="adminLobbyList"></div>
         </section>
       </div>
     </div>
+
+    <dialog
+      id="adminDeleteConfirmDialog"
+      class="confirmDialog"
+      aria-labelledby="adminDeleteConfirmTitle"
+    >
+      <div class="confirmDialogPanel">
+        <h2 id="adminDeleteConfirmTitle" class="confirmDialogTitle">
+          Confirm delete
+        </h2>
+        <p id="adminDeleteConfirmText" class="confirmDialogText">
+          Delete this room? This cannot be undone.
+        </p>
+        <div id="adminDeleteConfirmRoomId" class="confirmDialogRoom mono">
+          —
+        </div>
+        <div
+          id="adminDeleteConfirmError"
+          class="confirmDialogError"
+          hidden
+        ></div>
+        <div class="confirmActions">
+          <button class="panelBtn" id="adminDeleteConfirmNo" type="button">
+            Cancel
+          </button>
+          <button class="panelBtn" id="adminDeleteConfirmYes" type="button">
+            Delete room
+          </button>
+        </div>
+      </div>
+    </dialog>
   </body>
 </html>

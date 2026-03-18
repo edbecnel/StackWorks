@@ -49,6 +49,11 @@ type AuthMeResponse = {
   } | null;
 };
 
+type LocalViewerIdentityOverride = {
+  displayName?: string;
+  avatarUrl?: string;
+};
+
 function readDesktopPanelMode(): DesktopPanelMode {
   try {
     const raw = localStorage.getItem(DESKTOP_PANEL_MODE_LS_KEY);
@@ -77,6 +82,72 @@ function resolveServerAssetUrl(serverUrl: string, assetUrl: string): string {
 function isLegacyMenuLayoutActive(): boolean {
   if (typeof document === "undefined") return false;
   return document.body.dataset.panelLayout === "menu";
+}
+
+function buildDesktopNavDescription(item: GameShellNavItem): string {
+  switch (item.id) {
+    case "play":
+      return "Reveal play options in the right panel.";
+    case "status":
+      return "Reveal room, turn, and match-status options in the right panel.";
+    case "tools":
+      return "Reveal analysis, export, and utility actions in the right panel.";
+    case "bot":
+      return "Reveal bot and engine actions in the right panel.";
+    case "history":
+      return "Reveal playback and history actions in the right panel.";
+    case "rules":
+      return "Reveal rules and help actions in the right panel.";
+    default:
+      return `Reveal ${item.label.toLowerCase()} options in the right panel.`;
+  }
+}
+
+function buildDesktopSectionCopy(item: GameShellNavItem): { title: string; description: string; actionLabel: string; actionDescription: string } {
+  switch (item.id) {
+    case "status":
+      return {
+        title: "Game status",
+        description: "Keep the board visible while using the right panel for room state, turn flow, and current match details.",
+        actionLabel: "Open status panel",
+        actionDescription: "Jump to the existing in-page status controls for this game.",
+      };
+    case "tools":
+      return {
+        title: "Game tools",
+        description: "Use the right panel as the shell-level launcher for analysis, export, options, and board utilities.",
+        actionLabel: "Open tools panel",
+        actionDescription: "Jump to the existing tools and options controls for this game.",
+      };
+    case "bot":
+      return {
+        title: "Bot controls",
+        description: "Keep bot and engine controls grouped as a shell context instead of treating them as raw page anchors.",
+        actionLabel: "Open bot controls",
+        actionDescription: "Jump to the existing bot or engine panel for this game.",
+      };
+    case "history":
+      return {
+        title: "Move history",
+        description: "Use the right panel to focus playback, notation, and review flows without losing the board context.",
+        actionLabel: "Open move history",
+        actionDescription: "Jump to the existing move history and playback controls.",
+      };
+    case "rules":
+      return {
+        title: "Rules and help",
+        description: "Keep rules, reference, and guidance available as shell context while the game board stays in view.",
+        actionLabel: "Open rules panel",
+        actionDescription: "Jump to the existing rules section on this page.",
+      };
+    default:
+      return {
+        title: item.label,
+        description: `Use the right panel for ${item.label.toLowerCase()} context while keeping the board visible.`,
+        actionLabel: `Open ${item.label}`,
+        actionDescription: `Jump to the existing ${item.label.toLowerCase()} section on this page.`,
+      };
+  }
 }
 
 function ensureGameShellStyles(): void {
@@ -631,6 +702,11 @@ function ensureGameShellStyles(): void {
       outline: none;
     }
 
+    .gameShellDesktopNavButton.isActive {
+      border-color: rgba(232, 191, 112, 0.34);
+      background: linear-gradient(180deg, rgba(202, 157, 78, 0.18), rgba(202, 157, 78, 0.06));
+    }
+
     .gameShellDesktopNavLabel,
     .gameShellDesktopActionLabel {
       display: block;
@@ -644,6 +720,15 @@ function ensureGameShellStyles(): void {
       margin-top: 4px;
       font-size: 11px;
       color: rgba(255, 255, 255, 0.62);
+    }
+
+    .gameShellDesktopSectionPanel {
+      display: none;
+      gap: 12px;
+    }
+
+    .gameShellDesktopSectionPanel.isActive {
+      display: grid;
     }
 
     :fullscreen .gameShellHeader,
@@ -1273,6 +1358,8 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
   const nav = document.createElement("nav");
   nav.className = "gameShellNav";
 
+  let syncDesktopShellSection: ((sectionId: string) => void) | null = null;
+
   const tabs = createTabs({
     className: "gameShellNavTabs",
     activeId: opts.activeSectionId,
@@ -1294,6 +1381,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
 
   const setActiveSection = (sectionId: string): void => {
     tabs.setActiveTab(sectionId);
+    syncDesktopShellSection?.(sectionId);
     updateShellState({
       activeGame: opts.variantId,
       activeSection: GlobalSection.Games,
@@ -1325,6 +1413,14 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     const bottomPanel = createPlayerIdentityPanel({ identity: initialSnapshot.players.W });
 
     const localIdentityOverrides: Partial<Record<Player, Partial<PlayerIdentity>>> = {};
+
+    // Seed player panels with names stored from the start page.
+    try {
+      const nameLight = localStorage.getItem("lasca.local.nameLight")?.trim() ?? "";
+      const nameDark = localStorage.getItem("lasca.local.nameDark")?.trim() ?? "";
+      if (nameLight) localIdentityOverrides["W"] = { displayName: nameLight };
+      if (nameDark) localIdentityOverrides["B"] = { displayName: nameDark };
+    } catch { /* ignore */ }
     let boardFitFrame: number | null = null;
 
     const fitBoardStage = (): void => {
@@ -1372,30 +1468,62 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     boardAnchor.insertAdjacentElement("beforebegin", topPanel.element);
     boardAnchor.insertAdjacentElement("afterend", bottomPanel.element);
 
-    const buildSnapshotWithOverrides = (snapshot: PlayerShellSnapshot): PlayerShellSnapshot => {
+    let localViewerIdentityOverride: LocalViewerIdentityOverride | null = null;
+
+    const buildSnapshotWithOverrides = (snapshot: PlayerShellSnapshot, bottomColor: Player): PlayerShellSnapshot => {
       const nextPlayers = { ...snapshot.players };
       for (const color of ["W", "B"] as const) {
         const override = localIdentityOverrides[color];
         if (!override) continue;
         nextPlayers[color] = { ...nextPlayers[color], ...override };
       }
+      if (snapshot.mode === "local" && localViewerIdentityOverride) {
+        const bottomIdentity = nextPlayers[bottomColor];
+        nextPlayers[bottomColor] = {
+          ...bottomIdentity,
+          ...(localViewerIdentityOverride.displayName ? { displayName: localViewerIdentityOverride.displayName } : {}),
+          ...(localViewerIdentityOverride.avatarUrl ? { avatarUrl: localViewerIdentityOverride.avatarUrl } : {}),
+          roleLabel: `You · ${bottomIdentity.sideLabel}`,
+          isLocal: true,
+        };
+      }
       return { ...snapshot, players: nextPlayers };
     };
 
-    const loadLocalAvatarOverride = async (snapshot: PlayerShellSnapshot): Promise<void> => {
-      if (snapshot.mode !== "online" || snapshot.viewerRole !== "player" || !snapshot.viewerColor || !snapshot.serverUrl) return;
+    const loadSignedInViewerOverride = async (snapshot: PlayerShellSnapshot): Promise<void> => {
+      const authUrl = (() => {
+        if (snapshot.mode === "online") {
+          if (snapshot.viewerRole !== "player" || !snapshot.viewerColor || !snapshot.serverUrl) return null;
+          return `${snapshot.serverUrl.replace(/\/$/, "")}/api/auth/me`;
+        }
+        if (typeof window === "undefined") return null;
+        if (!/^https?:$/i.test(window.location.protocol)) return null;
+        return `${window.location.origin.replace(/\/$/, "")}/api/auth/me`;
+      })();
+      if (!authUrl) return;
+
       try {
-        const res = await fetch(`${snapshot.serverUrl.replace(/\/$/, "")}/api/auth/me`, {
+        const res = await fetch(authUrl, {
           credentials: "include",
         });
         if (!res.ok) return;
         const body = await res.json() as AuthMeResponse;
+        if (!body?.user) return;
+        const rawDisplayName = typeof body.user.displayName === "string" ? body.user.displayName.trim() : "";
         const rawAvatarUrl = typeof body?.user?.avatarUrl === "string" ? body.user.avatarUrl.trim() : "";
-        if (!rawAvatarUrl) return;
-        localIdentityOverrides[snapshot.viewerColor] = {
-          ...(localIdentityOverrides[snapshot.viewerColor] ?? {}),
-          avatarUrl: resolveServerAssetUrl(snapshot.serverUrl, rawAvatarUrl),
-        };
+        if (snapshot.mode === "online" && snapshot.viewerColor && snapshot.serverUrl) {
+          if (!rawAvatarUrl) return;
+          localIdentityOverrides[snapshot.viewerColor] = {
+            ...(localIdentityOverrides[snapshot.viewerColor] ?? {}),
+            avatarUrl: resolveServerAssetUrl(snapshot.serverUrl, rawAvatarUrl),
+          };
+        } else if (snapshot.mode === "local") {
+          if (!rawDisplayName && !rawAvatarUrl) return;
+          localViewerIdentityOverride = {
+            ...(rawDisplayName ? { displayName: rawDisplayName } : {}),
+            ...(rawAvatarUrl ? { avatarUrl: rawAvatarUrl } : {}),
+          };
+        }
         syncPanels();
       } catch {
         // ignore profile lookup failures
@@ -1403,11 +1531,11 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     };
 
     const syncPanels = (): void => {
-      const snapshot = buildSnapshotWithOverrides(controller.getPlayerShellSnapshot());
       const boardSvg = opts.appRoot.querySelector("#boardWrap svg") as SVGSVGElement | null;
       const flipped = boardSvg ? isBoardFlipped(boardSvg) : false;
       const topColor = flipped ? "W" : "B";
       const bottomColor = flipped ? "B" : "W";
+      const snapshot = buildSnapshotWithOverrides(controller.getPlayerShellSnapshot(), bottomColor);
 
       topPanel.update(snapshot.players[topColor]);
       bottomPanel.update(snapshot.players[bottomColor]);
@@ -1426,7 +1554,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     fitResizeObserver?.observe(boardStage);
     fitResizeObserver?.observe(topPanel.element);
     fitResizeObserver?.observe(bottomPanel.element);
-    void loadLocalAvatarOverride(initialSnapshot);
+    void loadSignedInViewerOverride(initialSnapshot);
     window.setInterval(syncPanels, 1000);
     syncPanels();
     didBindController = true;
@@ -1463,7 +1591,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
       return legacyBody;
     };
 
-    const createShellLeftBody = (): HTMLDivElement => {
+    const createShellLeftBody = (): { shellBody: HTMLDivElement; setActiveSection: (sectionId: string) => void } => {
       const shellBody = document.createElement("div");
       shellBody.className = "sidebarBody gameShellDesktopShellBody";
 
@@ -1495,34 +1623,50 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
       navTitle.textContent = "Navigate this game";
       const navList = document.createElement("div");
       navList.className = "gameShellDesktopNavList";
+      const navButtons = new Map<string, HTMLButtonElement>();
 
       for (const item of opts.navItems ?? []) {
         const button = document.createElement("button");
         button.type = "button";
         button.className = "gameShellDesktopNavButton";
-        button.innerHTML = `<span class="gameShellDesktopNavLabel">${item.label}</span><span class="gameShellDesktopNavDescription">Open the ${item.label.toLowerCase()} area inside this page.</span>`;
+        button.innerHTML = `<span class="gameShellDesktopNavLabel">${item.label}</span><span class="gameShellDesktopNavDescription">${buildDesktopNavDescription(item)}</span>`;
         button.addEventListener("click", () => {
           setActiveSection(item.id);
-          if (item.targetSelector) {
-            const target = document.querySelector(item.targetSelector) as HTMLElement | null;
-            target?.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
-          }
           item.onSelect?.();
         });
+        navButtons.set(item.id, button);
         navList.appendChild(button);
       }
 
       navCard.append(navEyebrow, navTitle, navList);
       shellBody.append(intro, navCard);
-      return shellBody;
+      return {
+        shellBody,
+        setActiveSection: (sectionId: string) => {
+          for (const [id, button] of navButtons) {
+            const isActive = id === sectionId;
+            button.classList.toggle("isActive", isActive);
+            button.setAttribute("aria-pressed", isActive ? "true" : "false");
+          }
+        },
+      };
     };
 
-    const createShellRightBody = (): HTMLDivElement => {
+    const createShellRightBody = (): { shellBody: HTMLDivElement; setActiveSection: (sectionId: string) => void } => {
       const shellBody = document.createElement("div");
       shellBody.className = "sidebarBody gameShellDesktopShellBody";
 
+      const openNavItemTarget = (item: GameShellNavItem): void => {
+        if (item.targetSelector) {
+          const target = document.querySelector(item.targetSelector) as HTMLElement | null;
+          target?.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+        }
+        item.onSelect?.();
+      };
+
       const actionCard = document.createElement("section");
       actionCard.className = "gameShellDesktopShellCard";
+      const sectionPanels = new Map<string, HTMLElement>();
 
       const findNavItem = (preferredIds: readonly string[]): GameShellNavItem | null => {
         for (const id of preferredIds) {
@@ -1540,13 +1684,58 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
           description: fallbackDescription,
           onSelect: () => {
             setActiveSection(navItem.id);
-            if (navItem.targetSelector) {
-              const target = document.querySelector(navItem.targetSelector) as HTMLElement | null;
-              target?.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
-            }
-            navItem.onSelect?.();
+            openNavItemTarget(navItem);
           },
         };
+      };
+
+      const createSectionActionButton = (item: GameShellNavItem): HTMLButtonElement => {
+        const copy = buildDesktopSectionCopy(item);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "gameShellDesktopActionButton";
+        button.innerHTML = `<span class="gameShellDesktopActionLabel">${copy.actionLabel}</span><span class="gameShellDesktopActionDescription">${copy.actionDescription}</span>`;
+        button.addEventListener("click", () => {
+          setActiveSection(item.id);
+          openNavItemTarget(item);
+        });
+        return button;
+      };
+
+      const createSectionPanel = (item: GameShellNavItem): HTMLElement => {
+        const copy = buildDesktopSectionCopy(item);
+        const panel = document.createElement("div");
+        panel.className = "gameShellDesktopSectionPanel";
+        panel.dataset.sectionId = item.id;
+
+        const introCard = document.createElement("section");
+        introCard.className = "gameShellDesktopShellCard";
+        introCard.innerHTML = `
+          <p class="gameShellDesktopShellEyebrow">${opts.breadcrumb}</p>
+          <h2 class="gameShellDesktopShellTitle">${copy.title}</h2>
+          <p class="gameShellDesktopShellText">${copy.description}</p>
+        `;
+        panel.appendChild(introCard);
+
+        const itemActionCard = document.createElement("section");
+        itemActionCard.className = "gameShellDesktopShellCard";
+        const actionList = document.createElement("div");
+        actionList.className = "gameShellDesktopActionList";
+        actionList.appendChild(createSectionActionButton(item));
+
+        if (item.id === "rules" && opts.helpHref) {
+          const helpLink = document.createElement("a");
+          helpLink.className = "gameShellDesktopActionLink";
+          helpLink.href = opts.helpHref;
+          helpLink.target = "_blank";
+          helpLink.rel = "noopener noreferrer";
+          helpLink.innerHTML = `<span class="gameShellDesktopActionLabel">Open help guide</span><span class="gameShellDesktopActionDescription">Open the full reference page for this game in a separate tab.</span>`;
+          actionList.appendChild(helpLink);
+        }
+
+        itemActionCard.appendChild(actionList);
+        panel.appendChild(itemActionCard);
+        return panel;
       };
 
       const playHub = createPlayHub({
@@ -1570,9 +1759,30 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
         ),
       });
 
+      const playPanel = document.createElement("div");
+      playPanel.className = "gameShellDesktopSectionPanel";
+      playPanel.dataset.sectionId = "play";
       actionCard.appendChild(playHub.element);
-      shellBody.appendChild(actionCard);
-      return shellBody;
+      playPanel.appendChild(actionCard);
+      sectionPanels.set("play", playPanel);
+      shellBody.appendChild(playPanel);
+
+      for (const item of opts.navItems ?? []) {
+        if (item.id === "play") continue;
+        const panel = createSectionPanel(item);
+        sectionPanels.set(item.id, panel);
+        shellBody.appendChild(panel);
+      }
+
+      return {
+        shellBody,
+        setActiveSection: (sectionId: string) => {
+          const nextSectionId = sectionPanels.has(sectionId) ? sectionId : "play";
+          for (const [id, panel] of sectionPanels) {
+            panel.classList.toggle("isActive", id === nextSectionId);
+          }
+        },
+      };
     };
 
     const leftLegacyBody = decorateLegacyBody(leftSidebar);
@@ -1624,8 +1834,13 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
 
     leftLegacyBody.insertAdjacentElement("beforebegin", leftTabs.root);
     rightLegacyBody.insertAdjacentElement("beforebegin", rightTabs.root);
-    leftLegacyBody.insertAdjacentElement("afterend", leftShellBody);
-    rightLegacyBody.insertAdjacentElement("afterend", rightShellBody);
+    leftLegacyBody.insertAdjacentElement("afterend", leftShellBody.shellBody);
+    rightLegacyBody.insertAdjacentElement("afterend", rightShellBody.shellBody);
+
+    syncDesktopShellSection = (sectionId: string) => {
+      leftShellBody.setActiveSection(sectionId);
+      rightShellBody.setActiveSection(sectionId);
+    };
 
     const allButtons = [leftTabs.legacyBtn, leftTabs.shellBtn, rightTabs.legacyBtn, rightTabs.shellBtn];
 

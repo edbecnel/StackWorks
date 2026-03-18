@@ -766,7 +766,7 @@ describe("GameController loadGame reconstructs last-move hints", () => {
       if (reason !== "loadGame") return;
       controller.showStickyToast(
         "chessbot_paused_turn",
-        "Black to Play. Tap here ore press spacebar to resume bot",
+        "Black to Play. Tap here or press spacebar to resume bot",
         { force: true }
       );
     });
@@ -774,7 +774,7 @@ describe("GameController loadGame reconstructs last-move hints", () => {
     controller.loadGame(loaded, { states: [s0, loaded], notation: ["", ""], currentIndex: 1 });
 
     const toast = document.querySelector(".lascaToast") as HTMLElement | null;
-    expect(toast?.textContent).toBe("Black to Play. Tap here ore press spacebar to resume bot");
+    expect(toast?.textContent).toBe("Black to Play. Tap here or press spacebar to resume bot");
   });
 });
 
@@ -1041,5 +1041,165 @@ describe("GameController local shell identities", () => {
     expect(snapshot.players.W.displayName).toBe("White");
     expect(snapshot.players.B.displayName).toBe("Black");
     expect(onShellSnapshotChange).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("GameController online shell identities", () => {
+  let mockSvg: SVGSVGElement;
+  let mockPiecesLayer: SVGGElement;
+
+  class FakeOnlineShellDriver {
+    public mode = "online" as const;
+    private playerId: string | null = "p1";
+    private playerColor: "W" | "B" | null = "W";
+    private presence: any = null;
+    private identity: any = null;
+
+    setViewer(playerId: string | null, playerColor: "W" | "B" | null): void {
+      this.playerId = playerId;
+      this.playerColor = playerColor;
+    }
+
+    setPresence(presence: any): void {
+      this.presence = presence;
+    }
+
+    setIdentity(identity: any): void {
+      this.identity = identity;
+    }
+
+    getPlayerId(): string | null {
+      return this.playerId;
+    }
+
+    getPlayerColor(): "W" | "B" | null {
+      return this.playerColor;
+    }
+
+    getPresence(): any {
+      return this.presence;
+    }
+
+    getIdentity(): any {
+      return this.identity;
+    }
+
+    getServerUrl(): string | null {
+      return "http://localhost:9999";
+    }
+  }
+
+  beforeEach(() => {
+    mockSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg") as SVGSVGElement;
+    mockPiecesLayer = document.createElementNS("http://www.w3.org/2000/svg", "g") as SVGGElement;
+
+    (mockSvg as any).addEventListener = () => {};
+    (mockSvg as any).querySelector = () => null;
+  });
+
+  it("includes live online names and country metadata for both players", () => {
+    const history = new HistoryManager();
+    const s: GameState = {
+      board: new Map([["r1c1", [{ owner: "W", rank: "P" }]]]),
+      toMove: "W",
+      phase: "idle",
+      meta: {
+        variantId: "chess_classic" as any,
+        rulesetId: "chess" as any,
+        boardSize: 8 as any,
+      },
+    };
+    history.push(s);
+
+    const driver = new FakeOnlineShellDriver();
+    driver.setPresence({
+      p1: { connected: true },
+      p2: { connected: true },
+    });
+    driver.setIdentity({
+      p1: { displayName: "Alice", countryCode: "us", countryName: "United States" },
+      p2: { displayName: "Bob", countryCode: "ca", countryName: "Canada" },
+    });
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, s, history, driver as any);
+    const snapshot = controller.getPlayerShellSnapshot();
+
+    expect(snapshot.mode).toBe("online");
+    expect(snapshot.viewerRole).toBe("player");
+    expect(snapshot.players.W.displayName).toBe("Alice");
+    expect(snapshot.players.W.countryCode).toBe("us");
+    expect(snapshot.players.W.countryName).toBe("United States");
+    expect(snapshot.players.W.roleLabel).toBe("You · White");
+    expect(snapshot.players.W.detailText).toBe("Your turn.");
+    expect(snapshot.players.B.displayName).toBe("Bob");
+    expect(snapshot.players.B.countryCode).toBe("ca");
+    expect(snapshot.players.B.countryName).toBe("Canada");
+    expect(snapshot.players.B.detailText).toBe("Watching for the next move.");
+  });
+
+  it("shows waiting-for-opponent details when the remote seat has not joined", () => {
+    const history = new HistoryManager();
+    const s: GameState = {
+      board: new Map([["r1c1", [{ owner: "W", rank: "P" }]]]),
+      toMove: "B",
+      phase: "idle",
+      meta: {
+        variantId: "chess_classic" as any,
+        rulesetId: "chess" as any,
+        boardSize: 8 as any,
+      },
+    };
+    history.push(s);
+
+    const driver = new FakeOnlineShellDriver();
+    driver.setPresence({
+      p1: { connected: true },
+    });
+    driver.setIdentity({
+      p1: { displayName: "Alice" },
+    });
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, s, history, driver as any);
+    const snapshot = controller.getPlayerShellSnapshot();
+
+    expect(snapshot.players.W.displayName).toBe("Alice");
+    expect(snapshot.players.B.displayName).toBe("Black");
+    expect(snapshot.players.B.status).toBe("waiting");
+    expect(snapshot.players.B.statusText).toBe("Waiting");
+    expect(snapshot.players.B.detailText).toBe("Waiting for opponent to join.");
+  });
+
+  it("shows spectator view labels when the viewer is a spectator", () => {
+    const history = new HistoryManager();
+    const s: GameState = {
+      board: new Map([["r1c1", [{ owner: "W", rank: "P" }]]]),
+      toMove: "W",
+      phase: "idle",
+      meta: {
+        variantId: "chess_classic" as any,
+        rulesetId: "chess" as any,
+        boardSize: 8 as any,
+      },
+    };
+    history.push(s);
+
+    const driver = new FakeOnlineShellDriver();
+    driver.setViewer("spectator", null);
+    driver.setPresence({
+      p1: { connected: true },
+      p2: { connected: true },
+    });
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, s, history, driver as any);
+    const snapshot = controller.getPlayerShellSnapshot();
+
+    expect(snapshot.viewerRole).toBe("spectator");
+    expect(snapshot.viewerColor).toBe(null);
+    expect(snapshot.players.W.roleLabel).toBe("Spectator view");
+    expect(snapshot.players.B.roleLabel).toBe("Spectator view");
+    expect(snapshot.players.W.status).toBe("spectating");
+    expect(snapshot.players.B.status).toBe("spectating");
+    expect(snapshot.players.W.detailText).toBe("Seat mapping is still loading.");
+    expect(snapshot.players.B.detailText).toBe("Seat mapping is still loading.");
   });
 });

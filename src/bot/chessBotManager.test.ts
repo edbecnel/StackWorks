@@ -128,8 +128,57 @@ describe("ChessBotManager loadGame paused toast", () => {
 
     expect(controller.sticky.key).toBe("chessbot_paused_turn");
     expect(controller.sticky.text).toContain("Black");
-    expect(controller.sticky.text).toContain("Tap here ore press spacebar to resume bot");
+    expect(controller.sticky.text).toContain("Tap here or press spacebar to resume bot");
     expect(controller.stickyActionKeys).toContain("chessbot_paused_turn");
+  });
+
+  it("prepends the signed-in local account name to bot dropdowns", async () => {
+    document.body.innerHTML = `
+      <select id="botWhiteSelect"><option value="human">Human</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="strong">Strong</option></select>
+      <select id="botBlackSelect"><option value="human">Human</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="strong">Strong</option></select>
+      <input id="botDelay" />
+      <button id="botDelayReset"></button>
+      <span id="botDelayLabel"></span>
+      <button id="botPauseBtn"></button>
+      <button id="botResetLearningBtn"></button>
+      <span id="botStatus"></span>
+      <div id="boardWrap"></div>
+    `;
+
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ ok: true, user: { displayName: "EdB" } }),
+    })));
+
+    const controller = new FakeController(mkChessState("W"), [{ index: 0, isCurrent: true }]);
+    const mgr = new ChessBotManager(controller as any, {
+      engineFactory: () => ({
+        init: async () => {},
+        terminate: () => {},
+        bestMove: async () => "",
+        evaluate: async () => null,
+      } as any),
+    });
+
+    mgr.bind();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const whiteOptions = Array.from((document.getElementById("botWhiteSelect") as HTMLSelectElement).options).map((option) => ({
+      text: option.textContent,
+      disabled: option.disabled,
+      value: option.value,
+    }));
+
+    expect(whiteOptions.slice(0, 5)).toEqual([
+      { text: "EdB", disabled: true, value: "" },
+      { text: "Human", disabled: false, value: "human" },
+      { text: "Beginner", disabled: false, value: "beginner" },
+      { text: "Intermediate", disabled: false, value: "intermediate" },
+      { text: "Strong", disabled: false, value: "strong" },
+    ]);
   });
 
   it("re-enables Resume bot and shows the paused toast on a fresh new game after game over", async () => {

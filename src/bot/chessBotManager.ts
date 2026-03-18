@@ -12,6 +12,7 @@ import type { UciEngine, EvalScore } from "./uciEngine.ts";
 import { StockfishUciEngine } from "./stockfishEngine.ts";
 import { HttpUciEngine } from "./httpEngine.ts";
 import { pickFallbackMoveChess } from "./chessFallback.ts";
+import { applySignedInNameToLocalBotSelects } from "../ui/bot/localBotSelectIdentity.ts";
 
 export type { EvalScore };
 
@@ -488,6 +489,8 @@ export class ChessBotManager {
     this.elPause = document.getElementById("botPauseBtn") as HTMLButtonElement | null;
     this.elReset = document.getElementById("botResetLearningBtn") as HTMLButtonElement | null;
     this.elStatus = document.getElementById("botStatus");
+
+    void applySignedInNameToLocalBotSelects([this.elWhite, this.elBlack]);
 
     // Classic Chess bot UX: always start paused (but only meaningful if a bot is enabled).
     // This prevents surprise moves immediately on load/launch.
@@ -1135,7 +1138,7 @@ export class ChessBotManager {
 
       this.controller.setInputEnabled(false);
       const sideLabel = toMove === "B" ? "Black" : "White";
-      const msg = `${sideLabel} to Play. Tap here ore press spacebar to resume bot`;
+      const msg = `${sideLabel} to Play. Tap here or press spacebar to resume bot`;
       this.controller.setStickyToastAction(ChessBotManager.PAUSED_TURN_TOAST_KEY, () => this.resumeBotFromPause());
       this.controller.showStickyToast(ChessBotManager.PAUSED_TURN_TOAST_KEY, msg, { force: true });
       return;

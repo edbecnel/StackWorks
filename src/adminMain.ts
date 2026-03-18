@@ -242,11 +242,52 @@ function renderLobby(rooms: LobbyRoomSummary[]): void {
 }
 
 let pendingDelete: { roomId: string; refreshAfter: boolean; source: "row" | "input" } | null = null;
+let deleteConfirmBusy = false;
+
+function getDeleteConfirmDialog(): HTMLDialogElement | null {
+  return document.getElementById("adminDeleteConfirmDialog") as HTMLDialogElement | null;
+}
+
+function setDeleteConfirmBusy(isBusy: boolean): void {
+  deleteConfirmBusy = isBusy;
+
+  const yes = document.getElementById("adminDeleteConfirmYes") as HTMLButtonElement | null;
+  const no = document.getElementById("adminDeleteConfirmNo") as HTMLButtonElement | null;
+  if (yes) {
+    yes.disabled = isBusy;
+    yes.textContent = isBusy ? "Deleting..." : "Delete room";
+  }
+  if (no) no.disabled = isBusy;
+}
+
+function setDeleteConfirmError(message: string | null): void {
+  const el = document.getElementById("adminDeleteConfirmError") as HTMLDivElement | null;
+  if (!el) return;
+  const text = (message || "").trim();
+  el.hidden = !text;
+  el.textContent = text;
+}
 
 function setDeleteConfirmVisible(isVisible: boolean): void {
-  const bar = document.getElementById("adminDeleteConfirm") as HTMLDivElement | null;
-  if (!bar) return;
-  bar.hidden = !isVisible;
+  const dialog = getDeleteConfirmDialog();
+  if (!dialog) return;
+
+  if (isVisible) {
+    if (dialog.open) return;
+    if (typeof dialog.showModal === "function") {
+      dialog.showModal();
+    } else {
+      dialog.setAttribute("open", "");
+    }
+    return;
+  }
+
+  if (!dialog.open) return;
+  if (typeof dialog.close === "function") {
+    dialog.close();
+  } else {
+    dialog.removeAttribute("open");
+  }
 }
 
 function requestDeleteRoomConfirm(roomIdRaw: string, opts: { refreshAfter: boolean; source: "row" | "input" }): void {
@@ -263,28 +304,36 @@ function requestDeleteRoomConfirm(roomIdRaw: string, opts: { refreshAfter: boole
   pendingDelete = { roomId, refreshAfter: opts.refreshAfter, source: opts.source };
 
   const text = document.getElementById("adminDeleteConfirmText") as HTMLDivElement | null;
-  if (text) text.textContent = `Delete room ${roomId}? This cannot be undone.`;
+  if (text) text.textContent = "Delete this room? This cannot be undone.";
 
+  const roomText = document.getElementById("adminDeleteConfirmRoomId") as HTMLDivElement | null;
+  if (roomText) roomText.textContent = roomId;
+
+  setDeleteConfirmError(null);
+  setDeleteConfirmBusy(false);
   setDeleteConfirmVisible(true);
 }
 
-async function deleteRoom(roomIdRaw: string, opts: { refreshAfter: boolean; source: "row" | "input" }): Promise<void> {
+async function deleteRoom(roomIdRaw: string, opts: { refreshAfter: boolean; source: "row" | "input" }): Promise<boolean> {
   const serverUrl = getServerUrl();
   if (!serverUrl) {
+    setDeleteConfirmError("Set Server URL first.");
     setStatus("Set Server URL first", "error");
-    return;
+    return false;
   }
 
   const roomId = (roomIdRaw || "").trim();
   if (!roomId) {
+    setDeleteConfirmError("Enter a Room ID first.");
     setStatus("Enter a Room ID", "error");
-    return;
+    return false;
   }
 
   const token = getToken();
   if (!token) {
+    setDeleteConfirmError("Enter the admin token before deleting a room.");
     setStatus("Enter Admin token", "error");
-    return;
+    return false;
   }
 
   setStatus(`Deleting ${roomId}…`, "info");
@@ -307,10 +356,20 @@ async function deleteRoom(roomIdRaw: string, opts: { refreshAfter: boolean; sour
 
   if (!res.ok) {
     const err = (json && typeof json.error === "string" && json.error) || `${res.status} ${res.statusText}`;
-    setStatus(`Delete failed: ${err}`, "error");
-    return;
+    let detail = `Delete failed: ${err}`;
+    if (res.status === 404) {
+      detail =
+        "Delete failed: the admin delete route is not enabled on this server. " +
+        "For local development, start the backend with LASCA_ADMIN_TOKEN set and enter the same token here.";
+    } else if (res.status === 403) {
+      detail = "Delete failed: the admin token was rejected by the server.";
+    }
+    setDeleteConfirmError(detail);
+    setStatus(detail, "error");
+    return false;
   }
 
+  setDeleteConfirmError(null);
   setStatus(`Deleted ${roomId}`, "ok");
 
   // If delete came from the input, clear it.
@@ -321,6 +380,8 @@ async function deleteRoom(roomIdRaw: string, opts: { refreshAfter: boolean; sour
   if (opts.refreshAfter) {
     await refreshLobby();
   }
+
+  return true;
 }
 
 let lastRooms: LobbyRoomSummary[] = [];
@@ -483,24 +544,50 @@ function init(): void {
     requestDeleteRoomConfirm(roomId, { refreshAfter: true, source: "input" });
   };
 
+  const elConfirmDialog = getDeleteConfirmDialog();
   const elConfirmYes = document.getElementById("adminDeleteConfirmYes") as HTMLButtonElement | null;
   const elConfirmNo = document.getElementById("adminDeleteConfirmNo") as HTMLButtonElement | null;
 
-  elConfirmNo?.addEventListener("click", () => {
+  elConfirmDialog?.addEventListener("cancel", (event) => {
+    if (deleteConfirmBusy) {
+      event.preventDefault();
+      return;
+    }
+    pendingDelete = null;
+    setStatus("Delete cancelled", "info");
+  });
+
+  elConfirmDialog?.addEventListener("click", (event) => {
+    if (deleteConfirmBusy) return;
+    if (event.target !== elConfirmDialog) return;
     pendingDelete = null;
     setDeleteConfirmVisible(false);
     setStatus("Delete cancelled", "info");
   });
 
-  elConfirmYes?.addEventListener("click", () => {
-    const p = pendingDelete;
+  elConfirmNo?.addEventListener("click", () => {
+    if (deleteConfirmBusy) return;
     pendingDelete = null;
     setDeleteConfirmVisible(false);
+    setStatus("Delete cancelled", "info");
+  });
+
+  elConfirmYes?.addEventListener("click", async () => {
+    const p = pendingDelete;
     if (!p) {
       setStatus("Nothing to confirm", "error");
       return;
     }
-    void deleteRoom(p.roomId, { refreshAfter: p.refreshAfter, source: p.source });
+
+    setDeleteConfirmBusy(true);
+    try {
+      const deleted = await deleteRoom(p.roomId, { refreshAfter: p.refreshAfter, source: p.source });
+      if (!deleted) return;
+      pendingDelete = null;
+      setDeleteConfirmVisible(false);
+    } finally {
+      setDeleteConfirmBusy(false);
+    }
   });
 
   byId<HTMLButtonElement>("adminCopyRoomIdBtn").onclick = async () => {

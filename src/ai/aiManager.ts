@@ -8,6 +8,7 @@ import type { AISettings, AIDifficulty, AIWorkerResponse } from "./aiTypes.ts";
 import { difficultyForPlayer } from "./aiTypes.ts";
 import { createPrng } from "../shared/prng.ts";
 import { sideLabelForRuleset } from "../shared/sideTerminology.ts";
+import { applySignedInNameToLocalBotSelects } from "../ui/bot/localBotSelectIdentity.ts";
 
 const LS_KEYS = {
   white: "lasca.ai.white",
@@ -201,7 +202,8 @@ export class AIManager {
       const isAiTurn = diff !== "human";
       if (!isAiTurn) return;
 
-      // Only auto-resume on fresh starts for human-vs-AI.
+      // Only auto-resume on post-opening human-vs-AI turns after the initial
+      // sticky resume prompt has already been shown.
       if (!this.isHumanVsAI()) return;
       if (!(this.pauseOrigin === "startup" || this.pauseOrigin === "newGame")) return;
 
@@ -238,12 +240,14 @@ export class AIManager {
     const isChessLike = rulesetId === "chess" || rulesetId === "columns_chess";
     const boardSize = (this.controller.getState().meta as any)?.boardSize as number | undefined;
     const sideLabel = (p: Player): string => sideLabelForRuleset(rulesetId, p, { boardSize });
+    const stickySideLabel = (p: Player): string => {
+      if (rulesetId === "checkers_us" && p === "B") return "Black";
+      return sideLabel(p);
+    };
 
-    // For non-chess variants, we want the sticky "Tap here to resume bot" hint
-    // to be visible when a fresh game starts and it's the bot's turn.
-    // However, after the human makes the first move (history length > 1) we keep
-    // the older behavior: avoid a persistent hint and auto-resume after a short
-    // turn toast delay.
+    // For non-chess variants, fresh starts expose a sticky tap-to-resume hint on
+    // a bot turn. After the human makes the first move (history length > 1),
+    // avoid a persistent hint and auto-resume after a short turn toast delay.
     if (!isChessLike && this.settings.paused && isAiTurn) {
       const suppressAfterHumanFirstMove =
         (this.pauseOrigin === "startup" || this.pauseOrigin === "newGame") && !this.isFreshGame();
@@ -279,8 +283,8 @@ export class AIManager {
       this.controller.showStickyToast(
         AIManager.TAP_RESUME_TOAST_KEY,
         isPast && canRedo
-          ? `${sideLabel(toMove)} to Play. Tap here to redo bot move`
-          : `${sideLabel(toMove)} to Play. Tap here ore press spacebar to resume bot`,
+          ? `${stickySideLabel(toMove)} to Play. Tap here to redo bot move`
+          : `${stickySideLabel(toMove)} to Play. Tap here or press spacebar to resume bot`,
         { force: true }
       );
     } else {
@@ -386,6 +390,8 @@ export class AIManager {
     this.elPause = document.getElementById("aiPauseBtn") as HTMLButtonElement | null;
     this.elStep = document.getElementById("aiStepBtn") as HTMLButtonElement | null;
     this.elInfo = document.getElementById("aiInfo");
+
+    void applySignedInNameToLocalBotSelects([this.elWhite, this.elBlack]);
 
     if (this.elWhite) {
       this.elWhite.value = this.settings.white;

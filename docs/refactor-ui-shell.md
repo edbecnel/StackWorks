@@ -232,7 +232,7 @@ When using chess.com play screens as visual references, translate them into Stac
   - [x] Feed from current match/session state for all game types
   - [ ] Pull country/profile metadata from the existing account/identity sources when available and expose it to the board-edge player identifiers
   - [x] When replay/history/PGN import metadata includes player names, feed those names into the top/bottom player bars instead of falling back to side labels
-  - [ ] Works for: live online games, play-vs-friend, bot games, spectating, replay/history
+  - [x] Works for: live online games, play-vs-friend, bot games, spectating, replay/history
   - [ ] Rendering is independent from game rules (works for Chess, Columns Chess, Dama, Lasca, Damasca, etc.)
 
 ---
@@ -289,6 +289,7 @@ When using chess.com play screens as visual references, translate them into Stac
   - [x] **Variants tab** — wire to existing variant selection (Columns Chess, Dama, Lasca, Damasca, etc.)
 - [ ] Preserve all existing functionality when tabs are wired to real features
 - [x] Add clear "coming soon" / placeholder UI for unfinished tabs
+- [ ] Allow an online-broadcast bot mode that behaves like local play for control flow, ignores opponent connection/presence gating, and only publishes the game for public or invited observers
 
 ---
 

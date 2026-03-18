@@ -2,6 +2,7 @@ import type { GameController, HistoryChangeReason } from "../controller/gameCont
 import type { Player } from "../types.ts";
 import { createPrng } from "../shared/prng.ts";
 import { pickFallbackMoveColumnsChess } from "./columnsChessFallback.ts";
+import { applySignedInNameToLocalBotSelects } from "../ui/bot/localBotSelectIdentity.ts";
 
 export type ColumnsBotSideSetting = "human" | "bot";
 
@@ -138,6 +139,8 @@ export class ColumnsChessBotManager {
     this.elPause = document.getElementById("botPauseBtn") as HTMLButtonElement | null;
     this.elReset = document.getElementById("botResetLearningBtn") as HTMLButtonElement | null;
     this.elStatus = document.getElementById("botStatus");
+
+    void applySignedInNameToLocalBotSelects([this.elWhite, this.elBlack]);
 
     // Prevent surprise moves immediately on load.
     if (this.settings.white !== "human" || this.settings.black !== "human") {
@@ -397,7 +400,7 @@ export class ColumnsChessBotManager {
     const side = state.toMove === "W" ? "White" : "Black";
     this.controller.showStickyToast(
       ColumnsChessBotManager.PAUSED_TURN_TOAST_KEY,
-      `${side}'s turn. Tap here ore press spacebar to resume bot`,
+      `${side}'s turn. Tap here or press spacebar to resume bot`,
       { force: true }
     );
   }

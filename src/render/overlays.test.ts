@@ -83,6 +83,50 @@ function makeGraphBoardSvg(): SVGSVGElement {
   return svg;
 }
 
+function makeCheckersSvg(): SVGSVGElement {
+  document.body.innerHTML = "";
+
+  const svg = document.createElementNS(SVG_NS, "svg") as SVGSVGElement;
+  svg.setAttribute("viewBox", "0 0 1000 1000");
+
+  const pieces = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  pieces.id = "pieces";
+  svg.appendChild(pieces);
+
+  const squares = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  squares.id = "squares";
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const rect = document.createElementNS(SVG_NS, "rect") as SVGRectElement;
+      rect.setAttribute("x", String(100 + c * 100));
+      rect.setAttribute("y", String(100 + r * 100));
+      rect.setAttribute("width", "100");
+      rect.setAttribute("height", "100");
+      rect.setAttribute("fill", (r + c) % 2 === 0 ? "#b21f1f" : "#111111");
+      squares.appendChild(rect);
+    }
+  }
+  svg.appendChild(squares);
+
+  const nodes = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  nodes.id = "nodes";
+  for (const [id, cx, cy] of [
+    ["r2c1", "250", "350"],
+    ["r3c0", "150", "450"],
+  ] as const) {
+    const node = document.createElementNS(SVG_NS, "circle") as SVGCircleElement;
+    node.id = id;
+    node.setAttribute("cx", cx);
+    node.setAttribute("cy", cy);
+    node.setAttribute("r", "40");
+    nodes.appendChild(node);
+  }
+  svg.appendChild(nodes);
+
+  document.body.appendChild(svg);
+  return svg;
+}
+
 describe("drawLastMoveSquares", () => {
   it("renders classic last-move highlights with the existing cyan stroke", () => {
     const svg = makeSvg8x8();
@@ -164,6 +208,17 @@ describe("drawTargetsChessCom", () => {
     expect(ring?.getAttribute("fill")).toBe("rgba(20, 20, 20, 0.06)");
     expect(dots).toHaveLength(1);
     expect(dots[0]?.getAttribute("cx")).toBe("150");
+  });
+
+  it("uses high-contrast dots on very dark playable Checkers squares", () => {
+    const svg = makeCheckersSvg();
+    const overlays = ensureOverlayLayer(svg);
+
+    drawTargetsChessCom(overlays, ["r2c1"]);
+
+    const dot = svg.querySelector(".target-dot--chesscom") as SVGCircleElement | null;
+    expect(dot).not.toBeNull();
+    expect(dot?.getAttribute("fill")).toBe("rgba(255, 255, 255, 0.34)");
   });
 });
 

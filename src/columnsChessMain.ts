@@ -105,7 +105,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     title: variant.displayName,
     subtitle: variant.subtitle,
     gameSection: GameSection.Play,
-    meta: [rulesBoardLine(variant.rulesetId, variant.boardSize), `${variant.boardSize}x${variant.boardSize} board`],
+    meta: [rulesBoardLine(variant.rulesetId, variant.boardSize)],
     backHref: "./",
     helpHref: "./columnsChess-help.html",
     activeSectionId: "play",

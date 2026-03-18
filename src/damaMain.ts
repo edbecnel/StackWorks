@@ -161,7 +161,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     title: activeVariant.displayName,
     subtitle: activeVariant.subtitle,
     gameSection: GameSection.Play,
-    meta: [rulesBoardLine(activeVariant.rulesetId, activeVariant.boardSize), `${activeVariant.boardSize}x${activeVariant.boardSize} board`],
+    meta: [rulesBoardLine(activeVariant.rulesetId, activeVariant.boardSize)],
     backHref: "./",
     helpHref: isCheckers ? "./checkers-help.html" : "./dama-help.html",
     activeSectionId: "play",

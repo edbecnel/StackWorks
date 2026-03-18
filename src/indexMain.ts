@@ -73,6 +73,8 @@ const LS_KEYS = {
   onlineVisibility: "lasca.online.visibility",
 
   lobbyMineOnly: "lasca.lobby.mineOnly",
+  localPlayerLight: "lasca.local.nameLight",
+  localPlayerDark: "lasca.local.nameDark",
 } as const;
 
 const START_SPLASH_MS = 3500;
@@ -240,6 +242,7 @@ const CHESSBOT_LS_KEYS = {
   white: "lasca.chessbot.white",
   black: "lasca.chessbot.black",
   paused: "lasca.chessbot.paused",
+  delay: "lasca.chessbot.delayMs",
 } as const;
 
 type ChessBotSideSetting = "human" | "beginner" | "intermediate" | "strong";
@@ -642,11 +645,14 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const elAiWhite = byId<HTMLSelectElement>("launchAiWhite");
   const elAiBlack = byId<HTMLSelectElement>("launchAiBlack");
+  const elPlayerNameLight = (document.getElementById("launchPlayerNameLight") as HTMLInputElement | null) ?? null;
+  const elPlayerNameDark = (document.getElementById("launchPlayerNameDark") as HTMLInputElement | null) ?? null;
   const elAiWhiteLabel = (document.querySelector('label[for="launchAiWhite"]') as HTMLElement | null) ?? null;
   const elAiBlackLabel = (document.querySelector('label[for="launchAiBlack"]') as HTMLElement | null) ?? null;
   const elAiDelay = byId<HTMLInputElement>("launchAiDelay");
   const elAiDelayReset = byId<HTMLButtonElement>("launchAiDelayReset");
   const elAiDelayLabel = byId<HTMLElement>("launchAiDelayLabel");
+  const elBotSection = (elAiWhite.closest('[data-start-section="bot"]') as HTMLElement | null) ?? null;
 
   const elWarning = byId<HTMLElement>("launchWarning");
   const elLaunch = byId<HTMLButtonElement>("launchBtn");
@@ -1913,9 +1919,46 @@ window.addEventListener("DOMContentLoaded", () => {
     elAiBlack.value = chessBotSideToDifficulty(localStorage.getItem(CHESSBOT_LS_KEYS.black));
   }
 
-  const delay = readDelayMs(initialVariant === "columns_chess" ? LS_KEYS.columnsBotDelayMs : LS_KEYS.aiDelayMs, 1000);
+  const initialDelayKey = initialVariant === "columns_chess"
+    ? LS_KEYS.columnsBotDelayMs
+    : initialVariant === "chess_classic"
+    ? CHESSBOT_LS_KEYS.delay
+    : LS_KEYS.aiDelayMs;
+  const delay = readDelayMs(initialDelayKey, 1000);
   elAiDelay.value = String(delay);
   elAiDelayLabel.textContent = `${delay} ms`;
+
+  if (elPlayerNameLight) elPlayerNameLight.value = localStorage.getItem(LS_KEYS.localPlayerLight) ?? "";
+  if (elPlayerNameDark) elPlayerNameDark.value = localStorage.getItem(LS_KEYS.localPlayerDark) ?? "";
+
+  // Populate player name datalist + pre-fill empty inputs from the signed-in account.
+  void (async () => {
+    try {
+      const serverUrl = resolveConfiguredServerUrl();
+      if (!serverUrl) return;
+      const res = await fetch(`${serverUrl.replace(/\/$/, "")}/api/auth/me`, { credentials: "include" });
+      if (!res.ok) return;
+      const body = await res.json() as { ok: boolean; user?: { displayName?: string } | null };
+      const name = typeof body?.user?.displayName === "string" ? body.user.displayName.trim() : "";
+      if (!name) return;
+      // Add the logged-in name as a suggestion in the shared datalist.
+      const datalist = document.getElementById("launchPlayerNameSuggestions") as HTMLDataListElement | null;
+      if (datalist && !datalist.querySelector(`option[value=${JSON.stringify(name)}]`)) {
+        const opt = document.createElement("option");
+        opt.value = name;
+        datalist.appendChild(opt);
+      }
+      // Pre-fill whichever input is still empty.
+      if (elPlayerNameLight && !elPlayerNameLight.value) {
+        elPlayerNameLight.value = name;
+        localStorage.setItem(LS_KEYS.localPlayerLight, name);
+      }
+      if (elPlayerNameDark && !elPlayerNameDark.value) {
+        elPlayerNameDark.value = name;
+        localStorage.setItem(LS_KEYS.localPlayerDark, name);
+      }
+    } catch { /* ignore */ }
+  })();
 
   const startPageWrap = document.querySelector(".wrap") as HTMLElement | null;
   if (!startPageWrap) throw new Error("Missing start page root: .wrap");
@@ -1954,8 +1997,26 @@ window.addEventListener("DOMContentLoaded", () => {
   syncShellAccountState = appShell.setAccountState;
 
   const syncDelayLabel = () => {
-    const v = parseDelayMs(elAiDelay.value || "500", 500);
+    const min = Number(elAiDelay.min || "0");
+    const max = Number(elAiDelay.max || "5000");
+    const fallback = 1000;
+    const v = clamp(parseDelayMs(elAiDelay.value || String(fallback), fallback), Number.isFinite(min) ? min : 0, Number.isFinite(max) ? max : 5000);
+    elAiDelay.value = String(v);
     elAiDelayLabel.textContent = `${v} ms`;
+  };
+
+  const persistLaunchDelayPref = (): void => {
+    const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
+    const delayMs = parseDelayMs(elAiDelay.value || "1000", 1000);
+    if (vId === "columns_chess") {
+      localStorage.setItem(LS_KEYS.columnsBotDelayMs, String(delayMs));
+      return;
+    }
+    if (vId === "chess_classic") {
+      localStorage.setItem(CHESSBOT_LS_KEYS.delay, String(delayMs));
+      return;
+    }
+    localStorage.setItem(LS_KEYS.aiDelayMs, String(delayMs));
   };
 
   // When switching into playable-area viewport mode, we force "Inside squares"
@@ -1964,10 +2025,24 @@ window.addEventListener("DOMContentLoaded", () => {
   let boardCoordsInSquaresBeforePlayable: boolean | null = null;
 
   elAiDelay.addEventListener("input", syncDelayLabel);
+  elAiDelay.addEventListener("input", persistLaunchDelayPref);
+  elAiDelay.addEventListener("change", persistLaunchDelayPref);
   elAiDelayReset.addEventListener("click", () => {
-    elAiDelay.value = "500";
+    elAiDelay.value = "1000";
     syncDelayLabel();
+    persistLaunchDelayPref();
   });
+
+  if (elPlayerNameLight) {
+    elPlayerNameLight.addEventListener("input", () => {
+      localStorage.setItem(LS_KEYS.localPlayerLight, elPlayerNameLight.value.trim());
+    });
+  }
+  if (elPlayerNameDark) {
+    elPlayerNameDark.addEventListener("input", () => {
+      localStorage.setItem(LS_KEYS.localPlayerDark, elPlayerNameDark.value.trim());
+    });
+  }
 
   const syncAvailability = () => {
     const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
@@ -2005,6 +2080,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const isColumnsChess = vId === "columns_chess";
     const isClassicChess = vId === "chess_classic";
     const isCheckers = v.rulesetId === "checkers_us";
+    const showBotControls = playMode !== "online";
     const usesColumnsChessBoard = isColumnsChess || isClassicChess;
     const supportsModernLastMoveStyle = true;
     const supportsAnalysisSquareStyle = isColumnsChess || isClassicChess;
@@ -2127,7 +2203,8 @@ window.addEventListener("DOMContentLoaded", () => {
           elAiBlack.value = chessBotSideToDifficulty(localStorage.getItem(CHESSBOT_LS_KEYS.black));
         }
 
-        const delayMs = readDelayMs(LS_KEYS.aiDelayMs, 500);
+        const delayKey = isClassicChess ? CHESSBOT_LS_KEYS.delay : LS_KEYS.aiDelayMs;
+        const delayMs = readDelayMs(delayKey, 1000);
         elAiDelay.value = String(delayMs);
         syncDelayLabel();
       }
@@ -2136,11 +2213,14 @@ window.addEventListener("DOMContentLoaded", () => {
     const isAiGame = elAiWhite.value !== "human" || elAiBlack.value !== "human";
 
     // Allow bot selection for Columns Chess and Classic Chess.
-    elAiWhite.disabled = false;
-    elAiBlack.disabled = false;
+    if (elBotSection) elBotSection.style.display = showBotControls ? "" : "none";
+
+    elAiWhite.disabled = !showBotControls;
+    elAiBlack.disabled = !showBotControls;
     // Delay is a built-in AI throttle; Classic Chess bots use Stockfish movetime presets instead.
     // Columns Chess bot uses this delay setting.
-    elAiDelay.disabled = isClassicChess;
+    elAiDelay.disabled = !showBotControls;
+    elAiDelayReset.disabled = !showBotControls;
 
     // Online (2 players) requires both sides Human.
     const onlineOpt = Array.from(elPlayMode.options).find((o) => o.value === "online") ?? null;
