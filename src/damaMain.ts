@@ -70,6 +70,12 @@ function getActiveDamaVariantId(): VariantId {
 
 const ACTIVE_VARIANT_ID: VariantId = getActiveDamaVariantId();
 
+function saveLabelForDamaVariant(variantId: VariantId): string {
+  if (variantId === "checkers_8_us") return "checkers";
+  if (variantId === "dama_8_classic_international") return "dama_international";
+  return "dama";
+}
+
 const LS_OPT_KEYS = {
   moveHints: "lasca.opt.moveHints",
   moveHintStyle: "lasca.opt.moveHintStyle",
@@ -714,6 +720,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   if (saveGameBtn) {
     saveGameBtn.addEventListener("click", () => {
+      const gameLabel = saveLabelForDamaVariant(ACTIVE_VARIANT_ID);
       // In online mode, the authoritative history comes from server snapshots
       // (stored on the RemoteDriver), not the page-level HistoryManager.
       if (driver.mode === "online") {
@@ -723,7 +730,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         const stateFromHistory = driver.getHistoryCurrent();
         const currentState = stateFromHistory ?? driver.getState();
         const filename = buildPlayerNamedSaveFilename({
-          gameLabel: isCheckers ? "checkers" : "dama",
+          gameLabel,
           state: currentState,
           resolvePlayerLabel: (side) => resolvePlayerLabelForSave({ side, controller }),
         });
@@ -733,7 +740,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
       const currentState = controller.getState();
       const filename = buildPlayerNamedSaveFilename({
-        gameLabel: isCheckers ? "checkers" : "dama",
+        gameLabel,
         state: currentState,
         resolvePlayerLabel: (side) => resolvePlayerLabelForSave({ side, controller }),
       });

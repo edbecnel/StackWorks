@@ -107,8 +107,9 @@ export function createPlayerIdentityPanel(opts: PlayerIdentityPanelOptions): Pla
     badge.setStatus({ status: identity.status, text: identity.statusText });
 
     sideChip.textContent = identity.sideLabel;
-    localChip.hidden = !identity.isLocal;
-    localChip.textContent = "You";
+    const viewerTag = typeof identity.viewerTag === "string" && identity.viewerTag.trim() ? identity.viewerTag.trim() : (identity.isLocal ? "You" : "");
+    localChip.hidden = !viewerTag;
+    localChip.textContent = viewerTag;
     activeChip.hidden = !identity.isActiveTurn;
     activeChip.textContent = "To move";
   };

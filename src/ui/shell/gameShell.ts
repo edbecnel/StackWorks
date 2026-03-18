@@ -7,6 +7,7 @@ import { GameSection, GlobalSection, normalizeGameSection, readShellState, updat
 import type { GameController } from "../../controller/gameController";
 import type { Player, PlayerIdentity, PlayerShellSnapshot } from "../../types";
 import type { VariantId } from "../../variants/variantTypes";
+import { isLocalBotSide } from "../../shared/localPlayerNames";
 
 export interface GameShellNavItem {
   id: string;
@@ -1477,14 +1478,35 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
         if (!override) continue;
         nextPlayers[color] = { ...nextPlayers[color], ...override };
       }
-      if (snapshot.mode === "local" && localViewerIdentityOverride) {
+      if (snapshot.mode === "local") {
+        for (const color of ["W", "B"] as const) {
+          const identity = nextPlayers[color];
+          if (isLocalBotSide(color, opts.appRoot)) {
+            nextPlayers[color] = {
+              ...identity,
+              roleLabel: `Bot · ${identity.sideLabel}`,
+              viewerTag: "Bot",
+              isLocal: false,
+            };
+            continue;
+          }
+          nextPlayers[color] = {
+            ...identity,
+            roleLabel: `You · ${identity.sideLabel}`,
+            viewerTag: "You",
+            isLocal: true,
+          };
+        }
+      }
+      if (snapshot.mode === "local") {
+        if (isLocalBotSide(bottomColor, opts.appRoot)) {
+          return { ...snapshot, players: nextPlayers };
+        }
         const bottomIdentity = nextPlayers[bottomColor];
         nextPlayers[bottomColor] = {
           ...bottomIdentity,
-          ...(localViewerIdentityOverride.displayName ? { displayName: localViewerIdentityOverride.displayName } : {}),
-          ...(localViewerIdentityOverride.avatarUrl ? { avatarUrl: localViewerIdentityOverride.avatarUrl } : {}),
-          roleLabel: `You · ${bottomIdentity.sideLabel}`,
-          isLocal: true,
+          ...(localViewerIdentityOverride?.displayName ? { displayName: localViewerIdentityOverride.displayName } : {}),
+          ...(localViewerIdentityOverride?.avatarUrl ? { avatarUrl: localViewerIdentityOverride.avatarUrl } : {}),
         };
       }
       return { ...snapshot, players: nextPlayers };
@@ -1545,6 +1567,10 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     controller.addHistoryChangeCallback(() => syncPanels());
     controller.addShellSnapshotChangeCallback(() => syncPanels());
     controller.addAnalysisModeChangeCallback(() => syncPanels());
+    for (const selector of ["#aiWhiteSelect", "#aiBlackSelect", "#botWhiteSelect", "#botBlackSelect"]) {
+      const control = opts.appRoot.querySelector(selector) as HTMLSelectElement | null;
+      control?.addEventListener("change", syncPanels);
+    }
     window.addEventListener("resize", scheduleBoardFit);
     window.visualViewport?.addEventListener("resize", scheduleBoardFit);
     const fitResizeObserver = typeof ResizeObserver === "undefined"

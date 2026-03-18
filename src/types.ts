@@ -9,6 +9,7 @@ export interface PlayerIdentity {
 	displayName: string;
 	sideLabel: string;
 	roleLabel: string;
+	viewerTag?: string | null;
 	detailText: string;
 	status: PresenceState;
 	statusText: string;

@@ -39,6 +39,16 @@ describe("createPlayerIdentityPanel", () => {
     expect(chips[0]?.textContent).toBe("Black");
   });
 
+  it("shows a Bot chip when the identity carries a bot viewer tag", () => {
+    const panel = createPlayerIdentityPanel({
+      identity: makeIdentity({ roleLabel: "Bot · Light", isLocal: false, viewerTag: "Bot" }),
+    });
+
+    const chips = panel.element.querySelectorAll(".gameShellPlayerMetaChip");
+    expect(chips[1]?.textContent).toBe("Bot");
+    expect((chips[1] as HTMLElement | undefined)?.hidden).toBe(false);
+  });
+
   it("renders a country flag with an accessible label when country metadata is present", () => {
     const panel = createPlayerIdentityPanel({
       identity: makeIdentity({

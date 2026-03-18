@@ -191,4 +191,257 @@ describe("initGameShell desktop shell navigation", () => {
     expect(names.at(-1)).toBe("Local Account");
     expect(roles.at(-1)).toBe("You · White");
   });
+
+  it("labels a local bot-controlled side as Bot instead of You", async () => {
+    document.body.innerHTML = `
+      <div id="host">
+        <div id="appRoot">
+          <div id="leftSidebar" class="sidebar"><div class="sidebarBody"></div></div>
+          <div id="centerArea">
+            <div id="boardWrap">
+              <svg viewBox="0 0 1000 1000"></svg>
+            </div>
+            <select id="aiWhiteSelect"><option value="human">Human</option><option value="easy" selected>Easy</option></select>
+            <select id="aiBlackSelect"><option value="human" selected>Human</option><option value="easy">Easy</option></select>
+          </div>
+          <div id="rightSidebar" class="sidebar"><div class="sidebarBody"></div></div>
+        </div>
+      </div>
+    `;
+
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ ok: true, user: { displayName: "Local Account" } }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const snapshot: PlayerShellSnapshot = {
+      mode: "local",
+      transportStatus: "connected",
+      serverUrl: null,
+      viewerColor: null,
+      viewerRole: "offline",
+      players: {
+        W: {
+          color: "W",
+          displayName: "White",
+          sideLabel: "White",
+          roleLabel: "Local match",
+          detailText: "To move.",
+          status: "offline",
+          statusText: "Local play",
+          isLocal: false,
+          isActiveTurn: true,
+        },
+        B: {
+          color: "B",
+          displayName: "Black",
+          sideLabel: "Black",
+          roleLabel: "Local match",
+          detailText: "Waiting for the next turn.",
+          status: "offline",
+          statusText: "Local play",
+          isLocal: false,
+          isActiveTurn: false,
+        },
+      },
+    };
+
+    const controller = {
+      getPlayerShellSnapshot: () => snapshot,
+      addHistoryChangeCallback: vi.fn(),
+      addShellSnapshotChangeCallback: vi.fn(),
+      addAnalysisModeChangeCallback: vi.fn(),
+    };
+
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+    const shell = initGameShell({
+      appRoot,
+      variantId: "checkers_8_us",
+      breadcrumb: "Play / Checkers",
+      title: "Checkers",
+      subtitle: "Local bot shell test",
+      gameSection: GameSection.Play,
+      navItems: [],
+    });
+
+    shell.bindController(controller as any);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const roles = Array.from(document.querySelectorAll(".gameShellPlayerRole")).map((el) => el.textContent?.trim());
+    const metaChips = Array.from(document.querySelectorAll(".gameShellPlayerMetaChip")).map((el) => el.textContent?.trim());
+
+    expect(fetchMock).toHaveBeenCalled();
+    expect(roles.at(-1)).toBe("Bot · White");
+    expect(metaChips).toContain("Bot");
+  });
+
+  it("keeps the local human side tagged as You even without a signed-in profile", async () => {
+    document.body.innerHTML = `
+      <div id="host">
+        <div id="appRoot">
+          <div id="leftSidebar" class="sidebar"><div class="sidebarBody"></div></div>
+          <div id="centerArea">
+            <div id="boardWrap">
+              <svg viewBox="0 0 1000 1000"></svg>
+            </div>
+            <select id="aiWhiteSelect"><option value="human" selected>Human</option><option value="easy">Easy</option></select>
+            <select id="aiBlackSelect"><option value="human" selected>Human</option><option value="easy">Easy</option></select>
+          </div>
+          <div id="rightSidebar" class="sidebar"><div class="sidebarBody"></div></div>
+        </div>
+      </div>
+    `;
+
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ ok: true, user: null }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const snapshot: PlayerShellSnapshot = {
+      mode: "local",
+      transportStatus: "connected",
+      serverUrl: null,
+      viewerColor: null,
+      viewerRole: "offline",
+      players: {
+        W: {
+          color: "W",
+          displayName: "White",
+          sideLabel: "White",
+          roleLabel: "Local match",
+          detailText: "To move.",
+          status: "offline",
+          statusText: "Local play",
+          isLocal: false,
+          isActiveTurn: true,
+        },
+        B: {
+          color: "B",
+          displayName: "Black",
+          sideLabel: "Black",
+          roleLabel: "Local match",
+          detailText: "Waiting for the next turn.",
+          status: "offline",
+          statusText: "Local play",
+          isLocal: false,
+          isActiveTurn: false,
+        },
+      },
+    };
+
+    const controller = {
+      getPlayerShellSnapshot: () => snapshot,
+      addHistoryChangeCallback: vi.fn(),
+      addShellSnapshotChangeCallback: vi.fn(),
+      addAnalysisModeChangeCallback: vi.fn(),
+    };
+
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+    const shell = initGameShell({
+      appRoot,
+      variantId: "checkers_8_us",
+      breadcrumb: "Play / Checkers",
+      title: "Checkers",
+      subtitle: "Local human shell test",
+      gameSection: GameSection.Play,
+      navItems: [],
+    });
+
+    shell.bindController(controller as any);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const roles = Array.from(document.querySelectorAll(".gameShellPlayerRole")).map((el) => el.textContent?.trim());
+    const metaChips = Array.from(document.querySelectorAll(".gameShellPlayerMetaChip")).map((el) => el.textContent?.trim());
+
+    expect(fetchMock).toHaveBeenCalled();
+    expect(roles.at(-1)).toBe("You · White");
+    expect(metaChips).toContain("You");
+  });
+
+  it("labels a human side as You immediately after switching away from Bot", async () => {
+    document.body.innerHTML = `
+      <div id="host">
+        <div id="appRoot">
+          <div id="leftSidebar" class="sidebar"><div class="sidebarBody"></div></div>
+          <div id="centerArea">
+            <div id="boardWrap">
+              <svg viewBox="0 0 1000 1000"></svg>
+            </div>
+            <select id="aiWhiteSelect"><option value="human">Human</option><option value="easy" selected>Easy</option></select>
+            <select id="aiBlackSelect"><option value="human" selected>Human</option><option value="easy">Easy</option></select>
+          </div>
+          <div id="rightSidebar" class="sidebar"><div class="sidebarBody"></div></div>
+        </div>
+      </div>
+    `;
+
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ ok: true, user: null }) })));
+
+    const snapshot: PlayerShellSnapshot = {
+      mode: "local",
+      transportStatus: "connected",
+      serverUrl: null,
+      viewerColor: null,
+      viewerRole: "offline",
+      players: {
+        W: {
+          color: "W",
+          displayName: "White",
+          sideLabel: "White",
+          roleLabel: "Local match",
+          detailText: "To move.",
+          status: "offline",
+          statusText: "Local play",
+          isLocal: false,
+          isActiveTurn: true,
+        },
+        B: {
+          color: "B",
+          displayName: "Black",
+          sideLabel: "Black",
+          roleLabel: "Local match",
+          detailText: "Waiting for the next turn.",
+          status: "offline",
+          statusText: "Local play",
+          isLocal: false,
+          isActiveTurn: false,
+        },
+      },
+    };
+
+    const controller = {
+      getPlayerShellSnapshot: () => snapshot,
+      addHistoryChangeCallback: vi.fn(),
+      addShellSnapshotChangeCallback: vi.fn(),
+      addAnalysisModeChangeCallback: vi.fn(),
+    };
+
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+    const shell = initGameShell({
+      appRoot,
+      variantId: "checkers_8_us",
+      breadcrumb: "Play / Checkers",
+      title: "Checkers",
+      subtitle: "Local switch shell test",
+      gameSection: GameSection.Play,
+      navItems: [],
+    });
+
+    shell.bindController(controller as any);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    (document.getElementById("aiWhiteSelect") as HTMLSelectElement).value = "human";
+  document.getElementById("aiWhiteSelect")?.dispatchEvent(new Event("change"));
+
+    const roles = Array.from(document.querySelectorAll(".gameShellPlayerRole")).map((el) => el.textContent?.trim());
+    const metaChips = Array.from(document.querySelectorAll(".gameShellPlayerMetaChip")).map((el) => el.textContent?.trim());
+
+    expect(roles.at(-1)).toBe("You · White");
+    expect(metaChips).toContain("You");
+  });
 });

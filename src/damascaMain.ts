@@ -71,6 +71,10 @@ function getActiveDamascaVariantId(): VariantId {
 
 const ACTIVE_VARIANT_ID: VariantId = getActiveDamascaVariantId();
 
+function saveLabelForDamascaVariant(variantId: VariantId): string {
+  return variantId === "damasca_8" ? "damasca_international" : "damasca";
+}
+
 const LS_OPT_KEYS = {
   moveHints: "lasca.opt.moveHints",
   moveHintStyle: "lasca.opt.moveHintStyle",
@@ -650,6 +654,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   if (saveGameBtn) {
     saveGameBtn.addEventListener("click", () => {
+      const gameLabel = saveLabelForDamascaVariant(ACTIVE_VARIANT_ID);
       // In online mode, the authoritative history comes from server snapshots
       // (stored on the RemoteDriver), not the page-level HistoryManager.
       if (driver.mode === "online") {
@@ -659,7 +664,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         const stateFromHistory = driver.getHistoryCurrent();
         const currentState = stateFromHistory ?? driver.getState();
         const filename = buildPlayerNamedSaveFilename({
-          gameLabel: "damasca",
+          gameLabel,
           state: currentState,
           resolvePlayerLabel: (side) => resolvePlayerLabelForSave({ side, controller }),
         });
@@ -669,7 +674,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
       const currentState = controller.getState();
       const filename = buildPlayerNamedSaveFilename({
-        gameLabel: "damasca",
+        gameLabel,
         state: currentState,
         resolvePlayerLabel: (side) => resolvePlayerLabelForSave({ side, controller }),
       });
