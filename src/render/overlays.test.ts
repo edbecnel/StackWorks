@@ -53,6 +53,36 @@ function makeSvg8x8(): SVGSVGElement {
   return svg;
 }
 
+function makeGraphBoardSvg(): SVGSVGElement {
+  document.body.innerHTML = "";
+
+  const svg = document.createElementNS(SVG_NS, "svg") as SVGSVGElement;
+  svg.setAttribute("viewBox", "0 0 1000 1000");
+
+  const pieces = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  pieces.id = "pieces";
+  svg.appendChild(pieces);
+
+  const nodes = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  nodes.id = "nodes";
+  for (const [id, cx, cy] of [
+    ["r0c0", "140", "140"],
+    ["r1c1", "260", "260"],
+    ["r2c2", "380", "380"],
+  ] as const) {
+    const node = document.createElementNS(SVG_NS, "circle") as SVGCircleElement;
+    node.id = id;
+    node.setAttribute("cx", cx);
+    node.setAttribute("cy", cy);
+    node.setAttribute("r", "46");
+    nodes.appendChild(node);
+  }
+  svg.appendChild(nodes);
+
+  document.body.appendChild(svg);
+  return svg;
+}
+
 describe("drawLastMoveSquares", () => {
   it("renders classic last-move highlights with the existing cyan stroke", () => {
     const svg = makeSvg8x8();
@@ -134,6 +164,20 @@ describe("drawSelectionChessCom", () => {
     expect(selection?.getAttribute("width")).toBe("100");
     expect(selection?.getAttribute("stroke")).toBe("none");
     expect(selection?.getAttribute("fill")).toBe("rgba(126, 179, 255, 0.30)");
+  });
+
+  it("infers full-square geometry from graph-board node spacing", () => {
+    const svg = makeGraphBoardSvg();
+    const overlays = ensureOverlayLayer(svg);
+
+    drawSelectionChessCom(overlays, "r0c0");
+
+    const selection = svg.querySelector(".squareHighlight--selection-chesscom") as SVGRectElement | null;
+    expect(selection).not.toBeNull();
+    expect(selection?.getAttribute("x")).toBe("80");
+    expect(selection?.getAttribute("y")).toBe("80");
+    expect(selection?.getAttribute("width")).toBe("120");
+    expect(selection?.getAttribute("height")).toBe("120");
   });
 });
 

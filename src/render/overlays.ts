@@ -359,6 +359,28 @@ function squareToneFromNodeId(id: string): SquareTone {
   return (rc.r + rc.c) % 2 === 0 ? "light" : "dark";
 }
 
+function readNodeCenters(svg: SVGSVGElement): Array<{ cx: number; cy: number }> {
+  const nodes = Array.from(svg.querySelectorAll("circle[id^='r'][cx][cy]")) as SVGCircleElement[];
+  const centers: Array<{ cx: number; cy: number }> = [];
+  for (const node of nodes) {
+    const cx = Number.parseFloat(node.getAttribute("cx") ?? "NaN");
+    const cy = Number.parseFloat(node.getAttribute("cy") ?? "NaN");
+    if (Number.isFinite(cx) && Number.isFinite(cy)) centers.push({ cx, cy });
+  }
+  return centers;
+}
+
+function inferGridStep(values: number[]): number | null {
+  if (values.length < 2) return null;
+  const sorted = Array.from(new Set(values.map((value) => Math.round(value * 1000) / 1000))).sort((a, b) => a - b);
+  let minDelta = Infinity;
+  for (let index = 1; index < sorted.length; index += 1) {
+    const delta = sorted[index] - sorted[index - 1];
+    if (delta > 0.5 && delta < minDelta) minDelta = delta;
+  }
+  return Number.isFinite(minDelta) ? minDelta : null;
+}
+
 function lastMoveFillForStyle(
   style: LastMoveHighlightStyle,
   nodeId: string,
@@ -412,13 +434,21 @@ function computeSquareRect(svg: SVGSVGElement, nodeId: string): SquareRect | nul
     }
   }
 
-  // Fallback: infer square from the node circle center (assumes 100px tiles in 0..1000 boards).
+  // Fallback: infer tile size from the node grid when the SVG has no square rects
+  // (graph boards such as Lasca/Damasca only expose playable-node circles).
   const node = circleForNode(nodeId);
   if (!node) return null;
   const cx = Number.parseFloat(node.getAttribute("cx") ?? "NaN");
   const cy = Number.parseFloat(node.getAttribute("cy") ?? "NaN");
   if (!Number.isFinite(cx) || !Number.isFinite(cy)) return null;
-  return { x: cx - 50, y: cy - 50, w: 100, h: 100 };
+
+  const centers = readNodeCenters(svg);
+  const inferredWidth = inferGridStep(centers.map((center) => center.cx));
+  const inferredHeight = inferGridStep(centers.map((center) => center.cy));
+  const w = inferredWidth ?? inferredHeight ?? 100;
+  const h = inferredHeight ?? inferredWidth ?? 100;
+
+  return { x: cx - w / 2, y: cy - h / 2, w, h };
 }
 
 function applyRectDefaults(el: SVGRectElement): void {

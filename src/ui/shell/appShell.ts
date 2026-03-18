@@ -1,4 +1,5 @@
 import { START_PAGE_SHELL_NAV, getAppShellGame, type AppShellSectionId } from "../../config/appShellConfig";
+import { GlobalSection, readShellState, updateShellState } from "../../config/shellState";
 import { renderLogo } from "../branding/logo";
 import { attachHoverFlyoutMenu } from "../navigation/flyoutMenu";
 import type { VariantId } from "../../variants/variantTypes";
@@ -10,6 +11,8 @@ type StartPageAppShellOptions = {
   initialVariantId: VariantId;
   initialPlayMode: StartPagePlayMode;
   helpHref?: string;
+  onSelectGame?: (variantId: VariantId) => void;
+  onSelectPlayMode?: (playMode: StartPagePlayMode) => void;
 };
 
 type UpdateSelectedGameOptions = {
@@ -19,9 +22,11 @@ type UpdateSelectedGameOptions = {
 export type StartPageAppShellController = {
   setActiveSection(sectionId: AppShellSectionId): void;
   setSelectedGame(variantId: VariantId, opts?: UpdateSelectedGameOptions): void;
+  setPlayMode(playMode: StartPagePlayMode): void;
 };
 
 const SHELL_STYLE_ID = "stackworks-app-shell-style";
+const APP_SHELL_DESKTOP_MEDIA = "(min-width: 1040px)";
 
 function ensureShellStyles(): void {
   if (document.getElementById(SHELL_STYLE_ID)) return;
@@ -34,6 +39,11 @@ function ensureShellStyles(): void {
         radial-gradient(circle at top left, rgba(206, 162, 80, 0.18), transparent 26%),
         radial-gradient(circle at bottom right, rgba(92, 128, 186, 0.18), transparent 22%),
         linear-gradient(180deg, #121212 0%, #181818 100%);
+    }
+
+    body.stackworksAppShellNavLocked {
+      overflow: hidden;
+      touch-action: none;
     }
 
     .appShellRoot {
@@ -389,6 +399,62 @@ function ensureShellStyles(): void {
       margin-top: 12px;
     }
 
+    .appShellChoiceGrid {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .appShellChoiceButton {
+      appearance: none;
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      color: rgba(255, 255, 255, 0.92);
+      border-radius: 14px;
+      padding: 12px 13px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .appShellChoiceButton:hover,
+    .appShellChoiceButton:focus-visible {
+      background: rgba(255, 255, 255, 0.08);
+      outline: none;
+    }
+
+    .appShellChoiceButton.isActive {
+      border-color: rgba(232, 191, 112, 0.34);
+      background: linear-gradient(180deg, rgba(202, 157, 78, 0.18), rgba(202, 157, 78, 0.06));
+    }
+
+    .appShellChoiceLabel {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .appShellChoiceDescription {
+      display: block;
+      margin-top: 4px;
+      font-size: 11px;
+      line-height: 1.45;
+      color: rgba(255, 255, 255, 0.62);
+    }
+
+    .appShellChoiceMeta {
+      display: inline-flex;
+      align-items: center;
+      margin-top: 8px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.76);
+      letter-spacing: 0.02em;
+    }
+
     .appShellQuickLink {
       appearance: none;
       border: 1px solid rgba(255, 255, 255, 0.08);
@@ -480,22 +546,27 @@ function resolveSectionTarget(sectionId: AppShellSectionId): HTMLElement | null 
 export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPageAppShellController {
   ensureShellStyles();
   document.body.classList.add("stackworksAppShellEnabled");
+  const initialShellState = readShellState();
+  const desktopMedia = typeof window !== "undefined" && typeof window.matchMedia === "function"
+    ? window.matchMedia(APP_SHELL_DESKTOP_MEDIA)
+    : null;
 
   const shell = document.createElement("div");
   shell.className = "appShellRoot";
 
   const overlay = document.createElement("div");
   overlay.className = "appShellOverlay";
-  overlay.addEventListener("click", () => shell.classList.remove("navOpen"));
+  overlay.setAttribute("aria-hidden", "true");
 
   const rail = document.createElement("aside");
   rail.className = "appShellRail";
+  rail.id = "stackworksAppShellRail";
+  rail.setAttribute("aria-hidden", "true");
 
   const closeButton = document.createElement("button");
   closeButton.type = "button";
   closeButton.className = "appShellRailClose";
   closeButton.textContent = "Close";
-  closeButton.addEventListener("click", () => shell.classList.remove("navOpen"));
   rail.appendChild(closeButton);
 
   const brand = document.createElement("div");
@@ -538,7 +609,8 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   menuToggle.type = "button";
   menuToggle.className = "appShellMenuToggle";
   menuToggle.textContent = "Menu";
-  menuToggle.addEventListener("click", () => shell.classList.toggle("navOpen"));
+  menuToggle.setAttribute("aria-controls", rail.id);
+  menuToggle.setAttribute("aria-expanded", "false");
 
   const titleBlock = document.createElement("div");
   titleBlock.className = "appShellTitleBlock";
@@ -599,6 +671,24 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   launchLink.textContent = "Open selected page";
   quickCard.appendChild(launchLink);
 
+  const variantsCard = document.createElement("section");
+  variantsCard.className = "appShellCard";
+  variantsCard.innerHTML = `
+    <p class="appShellCardEyebrow">Game selection</p>
+    <h2 class="appShellCardTitle">Choose a variant</h2>
+    <p class="appShellCardText">These cards drive the existing launcher form underneath, so all current startup and online settings stay intact.</p>
+    <div class="appShellChoiceGrid" data-shell-variants></div>
+  `;
+
+  const playCard = document.createElement("section");
+  playCard.className = "appShellCard";
+  playCard.innerHTML = `
+    <p class="appShellCardEyebrow">Play paths</p>
+    <h2 class="appShellCardTitle">Select how you want to play</h2>
+    <p class="appShellCardText">Switch between local and online modes here, then continue using the existing launcher controls for detailed options.</p>
+    <div class="appShellChoiceGrid" data-shell-play-modes></div>
+  `;
+
   const summaryTitle = summaryCard.querySelector(".appShellCardTitle") as HTMLElement;
   const summaryText = summaryCard.querySelector(".appShellCardText") as HTMLElement;
   const boardValue = summaryCard.querySelector("[data-shell-board]") as HTMLElement;
@@ -606,9 +696,11 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   const entryValue = summaryCard.querySelector("[data-shell-entry]") as HTMLElement;
   const rulesetValue = summaryCard.querySelector("[data-shell-ruleset]") as HTMLElement;
   const quickLinks = quickCard.querySelector(".appShellQuickLinks") as HTMLElement;
+  const variantsGrid = variantsCard.querySelector("[data-shell-variants]") as HTMLElement;
+  const playModeGrid = playCard.querySelector("[data-shell-play-modes]") as HTMLElement;
 
   body.append(contentSlot, sidePanel);
-  sidePanel.append(summaryCard, quickCard);
+  sidePanel.append(summaryCard, playCard, variantsCard, quickCard);
   main.appendChild(body);
   shell.append(overlay, rail, main);
 
@@ -630,9 +722,58 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   }
 
   const navButtons = new Map<AppShellSectionId, HTMLButtonElement>();
+  const variantButtons = new Map<VariantId, HTMLButtonElement>();
+  const playModeButtons = new Map<StartPagePlayMode, HTMLButtonElement>();
   let selectedGame = getAppShellGame(opts.initialVariantId);
+  let currentPlayMode = opts.initialPlayMode;
+
+  const syncNavState = (): void => {
+    const expanded = shell.classList.contains("navOpen");
+    menuToggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+    rail.setAttribute("aria-hidden", expanded ? "false" : "true");
+    overlay.setAttribute("aria-hidden", expanded ? "false" : "true");
+    document.body.classList.toggle("stackworksAppShellNavLocked", expanded && !(desktopMedia?.matches ?? false));
+  };
+
+  const closeNav = (restoreFocus = false): void => {
+    shell.classList.remove("navOpen");
+    syncNavState();
+    if (restoreFocus) menuToggle.focus();
+  };
+
+  const openNav = (): void => {
+    if (desktopMedia?.matches) return;
+    shell.classList.add("navOpen");
+    syncNavState();
+    closeButton.focus();
+  };
+
+  const toggleNav = (): void => {
+    if (shell.classList.contains("navOpen")) {
+      closeNav(true);
+    } else {
+      openNav();
+    }
+  };
+
+  const handleViewportChange = (): void => {
+    if (desktopMedia?.matches) {
+      closeNav(false);
+    } else {
+      syncNavState();
+    }
+  };
+
+  overlay.addEventListener("click", () => closeNav(true));
+  closeButton.addEventListener("click", () => closeNav(true));
+  menuToggle.addEventListener("click", toggleNav);
+  desktopMedia?.addEventListener?.("change", handleViewportChange);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeNav(true);
+  });
 
   const setActiveSection = (sectionId: AppShellSectionId): void => {
+    updateShellState({ activeSection: sectionId });
     for (const [id, button] of navButtons) {
       const isActive = id === sectionId;
       button.classList.toggle("isActive", isActive);
@@ -642,7 +783,7 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
 
   const focusSection = (sectionId: AppShellSectionId): void => {
     setActiveSection(sectionId);
-    shell.classList.remove("navOpen");
+    closeNav(false);
     const target = resolveSectionTarget(sectionId);
     if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -705,10 +846,80 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
     quickLinks.appendChild(button);
   }
 
+  const launcherGames = [
+    ...new Map(
+      [
+        getAppShellGame("chess_classic"),
+        getAppShellGame("columns_chess"),
+        getAppShellGame("dama_8_classic_standard"),
+        getAppShellGame("lasca_7_classic"),
+        getAppShellGame("damasca_8"),
+      ].map((game) => [game.variantId, game]),
+    ).values(),
+  ];
+
+  for (const game of launcherGames) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "appShellChoiceButton";
+    button.innerHTML = `
+      <span class="appShellChoiceLabel">${game.displayName}</span>
+      <span class="appShellChoiceDescription">${game.subtitle}</span>
+      <span class="appShellChoiceMeta">${game.boardSize}x${game.boardSize} · ${game.rulesetId.replace(/_/g, " ")}</span>
+    `;
+    button.addEventListener("click", () => {
+      opts.onSelectGame?.(game.variantId);
+      focusSection(GlobalSection.Games);
+    });
+    variantButtons.set(game.variantId, button);
+    variantsGrid.appendChild(button);
+  }
+
+  const playModeChoices: Array<{ id: StartPagePlayMode; label: string; description: string; sectionId: AppShellSectionId }> = [
+    {
+      id: "local",
+      label: "Local game",
+      description: "Stay on this device for offline games, bot matches, and local setup controls.",
+      sectionId: GlobalSection.Games,
+    },
+    {
+      id: "online",
+      label: "Online room",
+      description: "Switch to the existing online launcher path for rooms, rejoin, spectate, and lobby actions.",
+      sectionId: GlobalSection.Community,
+    },
+  ];
+
+  for (const mode of playModeChoices) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "appShellChoiceButton";
+    button.innerHTML = `
+      <span class="appShellChoiceLabel">${mode.label}</span>
+      <span class="appShellChoiceDescription">${mode.description}</span>
+    `;
+    button.addEventListener("click", () => {
+      opts.onSelectPlayMode?.(mode.id);
+      focusSection(mode.sectionId);
+    });
+    playModeButtons.set(mode.id, button);
+    playModeGrid.appendChild(button);
+  }
+
+  const setPlayMode = (playMode: StartPagePlayMode): void => {
+    currentPlayMode = playMode;
+    for (const [id, button] of playModeButtons) {
+      const isActive = id === playMode;
+      button.classList.toggle("isActive", isActive);
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    }
+  };
+
   const setSelectedGame = (variantId: VariantId, updateOpts?: UpdateSelectedGameOptions): void => {
     const game = getAppShellGame(variantId);
     selectedGame = game;
-    const playMode = updateOpts?.playMode ?? opts.initialPlayMode;
+    updateShellState({ activeGame: variantId });
+    const playMode = updateOpts?.playMode ?? currentPlayMode;
     title.textContent = game.displayName;
     subtitle.textContent = game.subtitle;
     summaryTitle.textContent = game.displayName;
@@ -717,6 +928,14 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
     modeValue.textContent = playMode === "online" ? "Online" : "Local";
     entryValue.textContent = game.entryUrl ?? "Unavailable";
     rulesetValue.textContent = game.rulesetId.replace(/_/g, " ");
+
+    for (const [id, button] of variantButtons) {
+      const isActive = id === variantId;
+      button.classList.toggle("isActive", isActive);
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    }
+
+    setPlayMode(playMode);
 
     if (game.entryUrl) {
       launchLink.href = game.entryUrl;
@@ -729,11 +948,13 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
     }
   };
 
-  setActiveSection("home");
+  setActiveSection(initialShellState.activeSection ?? GlobalSection.Home);
   setSelectedGame(opts.initialVariantId, { playMode: opts.initialPlayMode });
+  syncNavState();
 
   return {
     setActiveSection,
     setSelectedGame,
+    setPlayMode,
   };
 }

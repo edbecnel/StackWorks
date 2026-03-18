@@ -1,7 +1,8 @@
 import { VARIANTS, getVariantById } from "../variants/variantRegistry";
 import type { RulesetId, VariantId } from "../variants/variantTypes";
+import { GlobalSection } from "./shellState";
 
-export type AppShellSectionId = "home" | "games" | "community" | "account" | "settings";
+export type AppShellSectionId = GlobalSection;
 
 export interface AppShellNavItem {
   id: AppShellSectionId;
@@ -19,11 +20,11 @@ export interface AppShellGameItem {
 }
 
 export const START_PAGE_SHELL_NAV: readonly AppShellNavItem[] = [
-  { id: "home", label: "Home", description: "Start page overview" },
-  { id: "games", label: "Games", description: "Variant selection" },
-  { id: "community", label: "Community", description: "Lobby and online play" },
-  { id: "account", label: "Account", description: "Profile and sign-in" },
-  { id: "settings", label: "Settings", description: "Board and startup options" },
+  { id: GlobalSection.Home, label: "Home", description: "Start page overview" },
+  { id: GlobalSection.Games, label: "Games", description: "Variant selection" },
+  { id: GlobalSection.Community, label: "Community", description: "Lobby and online play" },
+  { id: GlobalSection.Account, label: "Account", description: "Profile and sign-in" },
+  { id: GlobalSection.Settings, label: "Settings", description: "Board and startup options" },
 ] as const;
 
 export const APP_SHELL_GAMES: readonly AppShellGameItem[] = VARIANTS.map((variant) => ({

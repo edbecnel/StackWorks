@@ -1,9 +1,12 @@
 import { renderLogo } from "../branding/logo";
 import { createTabs } from "../navigation/tabs";
+import { createPlayHub, type PlayHubAction } from "./playHub";
 import { isBoardFlipped } from "../../render/boardFlip";
 import { createPlayerIdentityPanel } from "../player/playerIdentityPanel";
+import { GameSection, GlobalSection, normalizeGameSection, readShellState, updateShellState } from "../../config/shellState";
 import type { GameController } from "../../controller/gameController";
 import type { Player, PlayerIdentity, PlayerShellSnapshot } from "../../types";
+import type { VariantId } from "../../variants/variantTypes";
 
 export interface GameShellNavItem {
   id: string;
@@ -14,6 +17,7 @@ export interface GameShellNavItem {
 
 export interface GameShellOptions {
   appRoot: HTMLElement;
+  variantId: VariantId;
   breadcrumb: string;
   title: string;
   subtitle: string;
@@ -22,6 +26,7 @@ export interface GameShellOptions {
   helpHref?: string;
   navItems?: readonly GameShellNavItem[];
   activeSectionId?: string;
+  gameSection?: GameSection;
 }
 
 export interface GameShellController {
@@ -85,6 +90,11 @@ function ensureGameShellStyles(): void {
         radial-gradient(circle at top left, rgba(206, 162, 80, 0.12), transparent 24%),
         radial-gradient(circle at bottom right, rgba(92, 128, 186, 0.14), transparent 22%),
         linear-gradient(180deg, #111111 0%, #181818 100%);
+    }
+
+    body.stackworksGameShellNavLocked {
+      overflow: hidden;
+      touch-action: none;
     }
 
     .gameShellRoot {
@@ -1041,12 +1051,14 @@ function ensureGameShellStyles(): void {
 export function initGameShell(opts: GameShellOptions): GameShellController {
   ensureGameShellStyles();
   document.body.classList.add("stackworksGameShellEnabled");
+  const initialShellState = readShellState();
 
   const shell = document.createElement("div");
   shell.className = "gameShellRoot";
 
   const compactOverlay = document.createElement("div");
   compactOverlay.className = "gameShellCompactOverlay";
+  compactOverlay.setAttribute("aria-hidden", "true");
 
   const compactBar = document.createElement("div");
   compactBar.className = "gameShellCompactBar";
@@ -1073,6 +1085,9 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
 
   const header = document.createElement("header");
   header.className = "gameShellHeader";
+  header.id = `stackworksGameShellHeader-${opts.variantId}`;
+  header.setAttribute("aria-hidden", "true");
+  compactTrigger.setAttribute("aria-controls", header.id);
 
   const headerTop = document.createElement("div");
   headerTop.className = "gameShellHeaderTop";
@@ -1124,28 +1139,36 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
   const syncCompactState = (): void => {
     const expanded = shell.classList.contains("navOpen");
     compactTrigger.setAttribute("aria-expanded", expanded ? "true" : "false");
+    header.setAttribute("aria-hidden", expanded || !usesCompactShellControls() ? "false" : "true");
+    compactOverlay.setAttribute("aria-hidden", expanded ? "false" : "true");
+    document.body.classList.toggle("stackworksGameShellNavLocked", expanded && usesCompactShellControls());
   };
 
-  const closeCompactMenu = (): void => {
+  const closeCompactMenu = (restoreFocus = false): void => {
     shell.classList.remove("navOpen");
     syncCompactState();
+    if (restoreFocus) compactTrigger.focus();
   };
 
   const openCompactMenu = (): void => {
     if (!usesCompactShellControls()) return;
     shell.classList.add("navOpen");
     syncCompactState();
+    compactClose.focus();
   };
 
   const toggleCompactMenu = (): void => {
     if (!usesCompactShellControls()) return;
-    shell.classList.toggle("navOpen");
-    syncCompactState();
+    if (shell.classList.contains("navOpen")) {
+      closeCompactMenu(true);
+    } else {
+      openCompactMenu();
+    }
   };
 
   const handleCompactViewportChange = (): void => {
     if (!usesCompactShellControls()) {
-      closeCompactMenu();
+      closeCompactMenu(false);
     } else {
       syncCompactState();
     }
@@ -1185,8 +1208,8 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
   };
 
   compactTrigger.addEventListener("click", toggleCompactMenu);
-  compactClose.addEventListener("click", closeCompactMenu);
-  compactOverlay.addEventListener("click", closeCompactMenu);
+  compactClose.addEventListener("click", () => closeCompactMenu(true));
+  compactOverlay.addEventListener("click", () => closeCompactMenu(true));
 
   compactMedia?.addEventListener?.("change", handleCompactViewportChange);
   window.addEventListener("resize", scheduleLegacyHamburgerOffsetSync);
@@ -1195,7 +1218,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
   document.addEventListener("click", () => scheduleLegacyHamburgerOffsetSync());
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeCompactMenu();
+    if (event.key === "Escape") closeCompactMenu(true);
   });
 
   if (opts.backHref) {
@@ -1257,6 +1280,11 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
 
   const setActiveSection = (sectionId: string): void => {
     tabs.setActiveTab(sectionId);
+    updateShellState({
+      activeGame: opts.variantId,
+      activeSection: GlobalSection.Games,
+      gameSection: normalizeGameSection(sectionId) ?? opts.gameSection ?? GameSection.Play,
+    });
   };
 
   let didBindController = false;
@@ -1480,49 +1508,54 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
 
       const actionCard = document.createElement("section");
       actionCard.className = "gameShellDesktopShellCard";
-      actionCard.innerHTML = `
-        <p class="gameShellDesktopShellEyebrow">Shell actions</p>
-        <h2 class="gameShellDesktopShellTitle">Continue play</h2>
-        <p class="gameShellDesktopShellText">Use the new shell pair for fast navigation while keeping the legacy controls available as a separate panel mode.</p>
-      `;
-      const actionList = document.createElement("div");
-      actionList.className = "gameShellDesktopActionList";
 
-      if (opts.backHref) {
-        const backLink = document.createElement("a");
-        backLink.className = "gameShellDesktopActionLink";
-        backLink.href = opts.backHref;
-        backLink.innerHTML = `<span class="gameShellDesktopActionLabel">Start Page</span><span class="gameShellDesktopActionDescription">Return to the launcher and variant selection.</span>`;
-        actionList.appendChild(backLink);
-      }
+      const findNavItem = (preferredIds: readonly string[]): GameShellNavItem | null => {
+        for (const id of preferredIds) {
+          const found = (opts.navItems ?? []).find((item) => item.id === id);
+          if (found) return found;
+        }
+        return null;
+      };
 
-      if (opts.helpHref) {
-        const helpLink = document.createElement("a");
-        helpLink.className = "gameShellDesktopActionLink";
-        helpLink.href = opts.helpHref;
-        helpLink.target = "_blank";
-        helpLink.rel = "noopener noreferrer";
-        helpLink.innerHTML = `<span class="gameShellDesktopActionLabel">Help</span><span class="gameShellDesktopActionDescription">Open the rules and help page for this game.</span>`;
-        actionList.appendChild(helpLink);
-      }
+      const createNavAction = (preferredIds: readonly string[], fallbackLabel: string, fallbackDescription: string): PlayHubAction | null => {
+        const navItem = findNavItem(preferredIds);
+        if (!navItem) return null;
+        return {
+          label: fallbackLabel,
+          description: fallbackDescription,
+          onSelect: () => {
+            setActiveSection(navItem.id);
+            if (navItem.targetSelector) {
+              const target = document.querySelector(navItem.targetSelector) as HTMLElement | null;
+              target?.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+            }
+            navItem.onSelect?.();
+          },
+        };
+      };
 
-      for (const item of (opts.navItems ?? []).slice(0, 3)) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "gameShellDesktopActionButton";
-        button.innerHTML = `<span class="gameShellDesktopActionLabel">${item.label}</span><span class="gameShellDesktopActionDescription">Jump directly to the ${item.label.toLowerCase()} panel.</span>`;
-        button.addEventListener("click", () => {
-          setActiveSection(item.id);
-          if (item.targetSelector) {
-            const target = document.querySelector(item.targetSelector) as HTMLElement | null;
-            target?.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
-          }
-          item.onSelect?.();
-        });
-        actionList.appendChild(button);
-      }
+      const playHub = createPlayHub({
+        currentVariantId: opts.variantId,
+        backHref: opts.backHref,
+        helpHref: opts.helpHref,
+        onlineAction: createNavAction(
+          ["online", "status", "play"],
+          "Review live game status",
+          "Open the current room, connection, and match-status controls already present on this page.",
+        ),
+        botAction: createNavAction(
+          ["bot", "tools"],
+          "Open bot controls",
+          "Jump straight to the existing bot or AI control surface for this game.",
+        ),
+        friendAction: createNavAction(
+          ["status", "play"],
+          "Use current room controls",
+          "Open the current page's game or room section before returning to the launcher for friend-room actions.",
+        ),
+      });
 
-      actionCard.appendChild(actionList);
+      actionCard.appendChild(playHub.element);
       shellBody.appendChild(actionCard);
       return shellBody;
     };
@@ -1638,7 +1671,15 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
   appSlot.appendChild(opts.appRoot);
   enhanceDesktopSidebars();
 
-  setActiveSection(opts.activeSectionId ?? (opts.navItems?.[0]?.id ?? ""));
+  const initialActiveSectionId = (() => {
+    const persistedGameSection = initialShellState.activeGame === opts.variantId ? initialShellState.gameSection : null;
+    if (persistedGameSection && (opts.navItems ?? []).some((item) => item.id === persistedGameSection)) {
+      return persistedGameSection;
+    }
+    return opts.activeSectionId ?? (opts.navItems?.[0]?.id ?? "");
+  })();
+
+  setActiveSection(initialActiveSectionId);
   syncCompactState();
   scheduleLegacyHamburgerOffsetSync();
 

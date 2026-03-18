@@ -16,6 +16,7 @@ import { getSideLabelsForRuleset } from "./shared/sideTerminology";
 import { applyPanelLayoutMode, installPanelLayoutStartPageOptionUI, readPanelLayoutMode } from "./ui/panelLayoutMode";
 import { readBoardViewportMode, writeBoardViewportMode } from "./ui/boardViewportMode";
 import { initStartPageAppShell } from "./ui/shell/appShell";
+import { readShellState } from "./config/shellState";
 
 const LS_KEYS = {
   theme: "lasca.theme",
@@ -50,6 +51,7 @@ const LS_KEYS = {
   optBoard8x8Checkered: "lasca.opt.board8x8Checkered",
   optCheckerboardTheme: "lasca.opt.checkerboardTheme",
   optLastMoveHighlights: "lasca.opt.lastMoveHighlights",
+  optLastMoveHighlightStyle: "lasca.opt.lastMoveHighlightStyle",
   optChessMovePreviewMode: "lasca.opt.chess.movePreviewMode",
   optChessSelectionStyle: "lasca.opt.chess.selectionStyle",
   optChessLastMoveHighlightStyle: "lasca.opt.chess.lastMoveHighlightStyle",
@@ -74,6 +76,12 @@ const LS_KEYS = {
 const START_SPLASH_MS = 3500;
 
 type ChessMovePreviewMode = "off" | "stackworks" | "stackworks-squares" | "chesscom";
+
+function getLastMoveHighlightStyleKey(variantId: VariantId): string {
+  if (variantId === "chess_classic") return LS_KEYS.optChessLastMoveHighlightStyle;
+  if (variantId === "columns_chess") return LS_KEYS.optColumnsLastMoveHighlightStyle;
+  return LS_KEYS.optLastMoveHighlightStyle;
+}
 
 function normalizeChessMovePreviewMode(value: string | null | undefined): ChessMovePreviewMode {
   switch (value) {
@@ -1698,7 +1706,8 @@ window.addEventListener("DOMContentLoaded", () => {
     elGlassBg.value = v;
   });
 
-  const initialVariantId = readVariantId(LS_KEYS.variantId, DEFAULT_VARIANT_ID);
+  const initialShellState = readShellState();
+  const initialVariantId = initialShellState.activeGame ?? readVariantId(LS_KEYS.variantId, DEFAULT_VARIANT_ID);
   elGame.value = initialVariantId;
   prefetchGamePage(elGame);
 
@@ -1720,7 +1729,10 @@ window.addEventListener("DOMContentLoaded", () => {
   elMoveHints.checked = readBool(LS_KEYS.optMoveHints, true);
   if (elLastMoveStyle) {
     const initialLastMoveStyle = normalizeLastMoveHighlightStyle(
-      localStorage.getItem(LS_KEYS.optChessLastMoveHighlightStyle) ?? localStorage.getItem(LS_KEYS.optColumnsLastMoveHighlightStyle),
+      localStorage.getItem(getLastMoveHighlightStyleKey(initialVariantId))
+        ?? localStorage.getItem(LS_KEYS.optChessLastMoveHighlightStyle)
+        ?? localStorage.getItem(LS_KEYS.optColumnsLastMoveHighlightStyle)
+        ?? localStorage.getItem(LS_KEYS.optLastMoveHighlightStyle),
     );
     elLastMoveStyle.value = initialLastMoveStyle;
   }
@@ -1777,6 +1789,14 @@ window.addEventListener("DOMContentLoaded", () => {
     initialVariantId,
     initialPlayMode: (elPlayMode.value === "online" ? "online" : "local") as PlayMode,
     helpHref: "./start-help",
+    onSelectGame: (variantId) => {
+      elGame.value = variantId;
+      elGame.dispatchEvent(new Event("change", { bubbles: true }));
+    },
+    onSelectPlayMode: (playMode) => {
+      elPlayMode.value = playMode;
+      elPlayMode.dispatchEvent(new Event("change", { bubbles: true }));
+    },
   });
 
   const syncDelayLabel = () => {
@@ -1832,7 +1852,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const isClassicChess = vId === "chess_classic";
     const isCheckers = v.rulesetId === "checkers_us";
     const usesColumnsChessBoard = isColumnsChess || isClassicChess;
-    const supportsModernLastMoveStyle = isColumnsChess || isClassicChess;
+    const supportsModernLastMoveStyle = true;
     const supportsAnalysisSquareStyle = isColumnsChess || isClassicChess;
 
     // "Show player names" only applies to Classic Chess (the only game with SVG name rendering).
@@ -1899,7 +1919,7 @@ window.addEventListener("DOMContentLoaded", () => {
       if (elAnalysisSquareStyleHint) elAnalysisSquareStyleHint.style.display = supportsAnalysisSquareStyle ? "" : "none";
 
       if (elLastMoveStyle) {
-        const variantLastMoveKey = isClassicChess ? LS_KEYS.optChessLastMoveHighlightStyle : LS_KEYS.optColumnsLastMoveHighlightStyle;
+        const variantLastMoveKey = getLastMoveHighlightStyleKey(vId);
         elLastMoveStyle.value = normalizeLastMoveHighlightStyle(localStorage.getItem(variantLastMoveKey));
       }
       if (elAnalysisSquareStyle) {
@@ -2141,7 +2161,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   elLastMoveStyle?.addEventListener("change", () => {
     const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
-    const key = vId === "chess_classic" ? LS_KEYS.optChessLastMoveHighlightStyle : LS_KEYS.optColumnsLastMoveHighlightStyle;
+    const key = getLastMoveHighlightStyleKey(vId);
     localStorage.setItem(key, normalizeLastMoveHighlightStyle(elLastMoveStyle.value));
   });
 

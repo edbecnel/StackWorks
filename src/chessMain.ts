@@ -62,6 +62,7 @@ import {
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { initGameShell } from "./ui/shell/gameShell";
+import { GameSection } from "./config/shellState";
 
 const ACTIVE_VARIANT_ID: VariantId = "chess_classic";
 
@@ -148,9 +149,11 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const shell = initGameShell({
     appRoot,
+    variantId: variant.variantId,
     breadcrumb: "Play / Chess",
     title: variant.displayName,
     subtitle: variant.subtitle,
+    gameSection: GameSection.Play,
     meta: [rulesBoardLine(variant.rulesetId, variant.boardSize), `${variant.boardSize}x${variant.boardSize} board`],
     backHref: "./",
     helpHref: "./chess-help.html",

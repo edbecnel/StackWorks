@@ -35,7 +35,7 @@ Global product shell with a polished competitive board-game feel:
 - [x] Each desktop game page should support two left/right panel pairs: one pair for the existing in-game controls/info panels, and one pair for the new shell-style navigation/action panels
 - [x] Switching between the two panel pairs should happen through side-mounted tabs or rail toggles, not by introducing a persistent top menu bar
 - [ ] Hover flyouts on desktop
-- [ ] Drawer behavior on mobile
+- [x] Drawer behavior on mobile
 - [ ] Mobile portrait layout keeps the board as the priority surface while allowing a compact reserved header strip similar to chess.com's play screen
 - [ ] Mobile portrait navigation should behave like a compact app control surface layered into that shallow header area, rather than a tall desktop header translated downward
 - [ ] Fullscreen mode on laptop, tablet, and larger displays must hide the new shell header entirely so no top chrome reduces board height
@@ -74,7 +74,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [x] `src/config/appShellConfig.ts` — global shell configuration (nav items, game registry, feature flags)
 - [x] `src/ui/shell/appShell.ts` — top-level shell layout mount: logo, left rail, right panel, main content slot
 - [x] `src/ui/shell/gameShell.ts` — per-game sub-shell: breadcrumb/title, game nav, game action area
-- [ ] `src/ui/shell/playHub.ts` — Play hub layout: tab bar + panel switcher for Online/Bots/Coach/Friend/Tournaments/Variants
+- [x] `src/ui/shell/playHub.ts` — Play hub layout: tab bar + panel switcher for Online/Bots/Coach/Friend/Tournaments/Variants
 - [x] `src/ui/navigation/flyoutMenu.ts` — desktop hover flyout menu component
 - [x] `src/ui/navigation/tabs.ts` — reusable tab bar component
 - [x] `src/ui/branding/logo.ts` — logo component referencing `public/icons/` SVG assets by placement context
@@ -107,7 +107,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [x] `src/damasca.html` / `src/damascaMain.ts` — mount game shell, add player identity panels
 - [x] `src/main.ts` — shared entry bootstrap, shell init hook
 - [x] `src/types.ts` — add `PlayerIdentity` and `PresenceState` types used by the shell/player UI
-- [ ] `src/config/` — extend with shell/nav/game registry config
+- [x] `src/config/` — extend with shell/nav/game registry config
 
 ---
 
@@ -119,13 +119,13 @@ When using chess.com play screens as visual references, translate them into Stac
 
 ## Deliverable 3 — UI State Model
 
-- [ ] Define `ShellState`: `{ activeGame: GameId | null, activeSection: GlobalSection, gameSection: GameSection | null }`
-- [ ] Define `GlobalSection` enum: `Home | Games | Community | Account | Settings`
-- [ ] Define `GameSection` enum: `Play | Learn | Watch | History | Rules | Customize | Online`
-- [ ] Define `PlaySubSection` enum: `Online | Bots | Coach | Friend | Tournaments | Variants`
+- [x] Define `ShellState`: `{ activeGame: GameId | null, activeSection: GlobalSection, gameSection: GameSection | null }`
+- [x] Define `GlobalSection` enum: `Home | Games | Community | Account | Settings`
+- [x] Define `GameSection` enum: `Play | Learn | Watch | History | Rules | Customize | Online`
+- [x] Define `PlaySubSection` enum: `Online | Bots | Coach | Friend | Tournaments | Variants`
 - [ ] Define `PlayerIdentity` type: `{ id: string, displayName: string, avatarUrl: string | null, side: 'local' | 'remote' | 'spectator', presenceState: PresenceState, countryCode?: string | null, countryName?: string | null, rating?: number, isBot?: boolean, isFallback?: boolean }`
 - [ ] Define `PresenceState` enum: `Online | Offline | Reconnecting | Waiting`
-- [ ] Wire `ShellState` to `localStorage` for persistence across page navigations
+- [x] Wire `ShellState` to `localStorage` for persistence across page navigations
 - [x] Feed `PlayerIdentity` from current match/session state (not hardcoded labels)
 - [ ] Do NOT use "White"/"Black" as primary player labels — use actual display names first, side/color secondarily
 - [ ] Feed player country into `PlayerIdentity` when available so the shell can render a country flag next to the player name in the board-edge identifiers
@@ -177,7 +177,7 @@ When using chess.com play screens as visual references, translate them into Stac
   - [ ] Brand/logo slot in top-left
   - [ ] Global nav items: Home, Games, Community, Account, Settings
   - [x] Hover flyouts on desktop (`flyoutMenu.ts`)
-  - [ ] Drawer/overlay behavior on mobile
+  - [x] Drawer/overlay behavior on mobile
   - [ ] On narrow portrait screens, the shell may use a shallow mobile header but must avoid introducing a tall persistent desktop-style top bar above gameplay-critical content
 - [x] Create `src/ui/navigation/flyoutMenu.ts` — desktop hover flyout component
 - [x] Create `src/ui/navigation/tabs.ts` — reusable tab bar component
@@ -236,11 +236,11 @@ When using chess.com play screens as visual references, translate them into Stac
   - [x] Fullscreen behavior removes the game-shell header entirely instead of shrinking the board viewport
   - [x] Inject player identity panels above/below board
 - [ ] Replace current start/index page with game-first home experience:
-  - [ ] Game selection cards (one per game: Chess, Columns Chess, Dama, Lasca, etc.)
-  - [ ] Selected game summary panel
-  - [ ] Play action cards on the right
-  - [ ] Preserve all current launch settings (time control, color, variant options)
-  - [ ] Preserve all current online options (lobby, create room, join room, guest flow)
+  - [x] Game selection cards (one per game: Chess, Columns Chess, Dama, Lasca, etc.)
+  - [x] Selected game summary panel
+  - [x] Play action cards on the right
+  - [x] Preserve all current launch settings (time control, color, variant options)
+  - [x] Preserve all current online options (lobby, create room, join room, guest flow)
 - [ ] Keep existing `localStorage` data sources and behavior working
 - [ ] Wire `ShellState.activeGame` on game card selection
 
@@ -256,16 +256,16 @@ When using chess.com play screens as visual references, translate them into Stac
 
 ### Phase 3 — Play Hub with Tabs
 
-- [ ] Create `src/ui/shell/playHub.ts` — Play hub layout with tab bar + panel switcher
-- [ ] Add tabs: Online, Bots, Coach, Friend, Tournaments, Variants
-  - [ ] **Online tab** — wire to existing online lobby/room flow
-  - [ ] **Bots tab** — wire to existing bot/stockfish flow
-  - [ ] **Friend tab** — wire to existing play-a-friend/room creation flow
-  - [ ] **Coach tab** — placeholder panel (not yet implemented)
-  - [ ] **Tournaments tab** — placeholder panel (not yet implemented)
-  - [ ] **Variants tab** — wire to existing variant selection (Columns Chess, Dama, Lasca, Damasca, etc.)
+- [x] Create `src/ui/shell/playHub.ts` — Play hub layout with tab bar + panel switcher
+- [x] Add tabs: Online, Bots, Coach, Friend, Tournaments, Variants
+  - [x] **Online tab** — wire to existing online lobby/room flow
+  - [x] **Bots tab** — wire to existing bot/stockfish flow
+  - [x] **Friend tab** — wire to existing play-a-friend/room creation flow
+  - [x] **Coach tab** — placeholder panel (not yet implemented)
+  - [x] **Tournaments tab** — placeholder panel (not yet implemented)
+  - [x] **Variants tab** — wire to existing variant selection (Columns Chess, Dama, Lasca, Damasca, etc.)
 - [ ] Preserve all existing functionality when tabs are wired to real features
-- [ ] Add clear "coming soon" / placeholder UI for unfinished tabs
+- [x] Add clear "coming soon" / placeholder UI for unfinished tabs
 
 ---
 

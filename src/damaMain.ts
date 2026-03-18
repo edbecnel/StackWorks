@@ -35,7 +35,7 @@ import {
   normalizeCheckerboardThemeId,
   type CheckerboardThemeId,
 } from "./render/checkerboardTheme";
-import { normalizeMoveHintStyle } from "./render/highlightStyles";
+import { normalizeLastMoveHighlightStyle, normalizeMoveHintStyle } from "./render/highlightStyles";
 import { createBoardLoadingOverlay } from "./ui/boardLoadingOverlay";
 import { nextPaint } from "./ui/nextPaint";
 import { setBoardFlipped } from "./render/boardFlip";
@@ -44,6 +44,7 @@ import { getSideLabelsForRuleset } from "./shared/sideTerminology";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { initGameShell } from "./ui/shell/gameShell";
+import { GameSection } from "./config/shellState";
 import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
 import { ensureBoardCoordsInSquaresOption } from "./ui/boardCoordsInSquaresOption";
 import { applyBoardViewportModeToSvg } from "./render/boardViewport";
@@ -72,6 +73,7 @@ const LS_OPT_KEYS = {
   moveHintStyle: "lasca.opt.moveHintStyle",
   animations: "lasca.opt.animations",
   lastMoveHighlights: "lasca.opt.lastMoveHighlights",
+  lastMoveHighlightStyle: "lasca.opt.lastMoveHighlightStyle",
   showResizeIcon: "lasca.opt.showResizeIcon",
   boardCoords: "lasca.opt.boardCoords",
   boardCoordsInSquares: "lasca.opt.boardCoordsInSquares",
@@ -154,9 +156,11 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const shell = initGameShell({
     appRoot,
+    variantId: activeVariant.variantId,
     breadcrumb: isCheckers ? "Play / Checkers" : "Play / Dama",
     title: activeVariant.displayName,
     subtitle: activeVariant.subtitle,
+    gameSection: GameSection.Play,
     meta: [rulesBoardLine(activeVariant.rulesetId, activeVariant.boardSize), `${activeVariant.boardSize}x${activeVariant.boardSize} board`],
     backHref: "./",
     helpHref: isCheckers ? "./checkers-help.html" : "./dama-help.html",
@@ -523,10 +527,23 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Options: last move highlight
   const lastMoveHighlightsToggle = document.getElementById("lastMoveHighlightsToggle") as HTMLInputElement | null;
+  const lastMoveHighlightStyleSelect = document.getElementById("lastMoveHighlightStyleSelect") as HTMLSelectElement | null;
   const savedLastMoveHighlights = readOptionalBoolPref(LS_OPT_KEYS.lastMoveHighlights);
   const initialLastMoveHighlights = savedLastMoveHighlights ?? true;
+  const initialLastMoveHighlightStyle = normalizeLastMoveHighlightStyle(
+    readOptionalStringPref(LS_OPT_KEYS.lastMoveHighlightStyle),
+  );
   if (lastMoveHighlightsToggle) lastMoveHighlightsToggle.checked = initialLastMoveHighlights;
+  controller.setLastMoveHighlightStyle(initialLastMoveHighlightStyle);
   controller.setLastMoveHighlightsEnabled(lastMoveHighlightsToggle?.checked ?? initialLastMoveHighlights);
+  if (lastMoveHighlightStyleSelect) {
+    lastMoveHighlightStyleSelect.value = initialLastMoveHighlightStyle;
+    lastMoveHighlightStyleSelect.addEventListener("change", () => {
+      const next = normalizeLastMoveHighlightStyle(lastMoveHighlightStyleSelect.value);
+      writeStringPref(LS_OPT_KEYS.lastMoveHighlightStyle, next);
+      controller.setLastMoveHighlightStyle(next);
+    });
+  }
   if (lastMoveHighlightsToggle) {
     lastMoveHighlightsToggle.addEventListener("change", () => {
       writeBoolPref(LS_OPT_KEYS.lastMoveHighlights, lastMoveHighlightsToggle.checked);
