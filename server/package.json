@@ -13,6 +13,7 @@
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "lasca": "file:..",
+    "stockfish": "^17.1.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
