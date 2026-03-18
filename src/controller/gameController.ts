@@ -69,6 +69,10 @@ import { ensureCheckersUsDraw, getCheckersUsDrawStatus } from "../game/checkersU
 
 export type HistoryChangeReason = "move" | "undo" | "redo" | "jump" | "newGame" | "loadGame" | "gameOver";
 
+const DEFAULT_PLAYBACK_MOVE_ANIMATION_MS = 230;
+const PLAYBACK_MOVE_ANIMATION_EXTRA_HOP_MS = 30;
+const MAX_PLAYBACK_MOVE_ANIMATION_MS = 360;
+
 export class GameController {
   private svg: SVGSVGElement;
   private piecesLayer: SVGGElement;
@@ -2375,7 +2379,7 @@ export class GameController {
     return null;
   }
 
-  async jumpToHistoryAnimated(index: number, msPerHop: number = 250): Promise<void> {
+  async jumpToHistoryAnimated(index: number, animationMs: number = DEFAULT_PLAYBACK_MOVE_ANIMATION_MS): Promise<void> {
     const prev = this.state;
     if (this.analysisMode && !this.analysisHistory) return;
     const target = this.analysisMode ? this.analysisHistory!.jumpTo(index) : this.driver.jumpToHistory(index);
@@ -2426,8 +2430,8 @@ export class GameController {
             // ignore
           }
 
-          // Compute animation duration proportional to the number of board hops.
-          // One hop (adjacent square) always takes msPerHop ms regardless of user speed setting.
+          // Playback uses a hybrid duration so adjacent moves stay snappy while
+          // longer slides get a little extra travel time without dragging.
           const unitHopPx = computeUnitHopPx(this.svg, from);
           const fromPos = getNodeCenter(this.svg, from);
           const toPos = getNodeCenter(this.svg, to);
@@ -2436,7 +2440,11 @@ export class GameController {
             const dist = Math.sqrt((toPos.x - fromPos.x) ** 2 + (toPos.y - fromPos.y) ** 2);
             hops = Math.max(1, Math.round(dist / unitHopPx));
           }
-          const animMs = hops * msPerHop;
+          const baseAnimMs = Math.max(0, Math.trunc(animationMs));
+          const animMs = Math.min(
+            MAX_PLAYBACK_MOVE_ANIMATION_MS,
+            baseAnimMs + PLAYBACK_MOVE_ANIMATION_EXTRA_HOP_MS * Math.max(0, hops - 1)
+          );
 
           const animations: Array<Promise<void>> = [];
 
@@ -2453,7 +2461,7 @@ export class GameController {
                 movingGroup,
                 animMs,
                 movingCount ? [movingCount] : [],
-                { easing: "linear" }
+                { easing: "linear", keepCloneAfter: true }
               )
             );
           }
@@ -2552,20 +2560,6 @@ export class GameController {
             await Promise.all(animations);
           }
 
-          // Remove any kept animation clones before rendering the next snapshot.
-          // (Only the remainder animation uses keepCloneAfter currently.)
-          try {
-            const kept = this.overlayLayer.querySelectorAll('[data-animating="true"]');
-            for (const el of Array.from(kept)) {
-              try {
-                el.remove();
-              } catch {
-                // ignore
-              }
-            }
-          } catch {
-            // ignore
-          }
         }
       } catch {
         // ignore animation-only errors
@@ -2574,6 +2568,22 @@ export class GameController {
 
     this.state = target;
     this.renderAuthoritative();
+
+    // Remove any kept animation clones only after the destination snapshot has rendered,
+    // so the final landing frame stays visible without a handoff hitch.
+    try {
+      const kept = this.overlayLayer.querySelectorAll('[data-animating="true"]');
+      for (const el of Array.from(kept)) {
+        try {
+          el.remove();
+        } catch {
+          // ignore
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     this.recomputeMandatoryCapture();
     this.updatePanel();
     this.recomputeRepetitionCounts();

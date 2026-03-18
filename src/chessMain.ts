@@ -63,6 +63,7 @@ import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { initGameShell } from "./ui/shell/gameShell";
 import { GameSection } from "./config/shellState";
+import { resetChessBotSelectorsToHuman } from "./ui/chessBotSelectors";
 
 const ACTIVE_VARIANT_ID: VariantId = "chess_classic";
 
@@ -1167,6 +1168,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   };
 
   const importSinglePgnGame = (gamePgn: string): void => {
+    resetChessBotSelectorsToHuman();
+
     const chess = new Chess();
     let loadedOk = true;
     try {

@@ -352,7 +352,27 @@ body[data-panel-layout="menu"] #panelLayoutDialogOverlay[data-variant="playback"
      can appear "dead"/extra-wide on Android in landscape). */
   body[data-panel-layout="panels"] .sidebarBody {
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+    scrollbar-color: rgba(82, 82, 82, 0.68) transparent;
+  }
+
+  body[data-panel-layout="panels"] .sidebarBody::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  body[data-panel-layout="panels"] .sidebarBody::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  body[data-panel-layout="panels"] .sidebarBody::-webkit-scrollbar-thumb {
+    background: rgba(82, 82, 82, 0.68);
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+  }
+
+  body[data-panel-layout="panels"] .sidebarBody::-webkit-scrollbar-thumb:hover {
+    background: rgba(146, 146, 146, 0.92);
   }
 
   /* Safe-area fix for landscape flex-row layout.

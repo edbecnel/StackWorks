@@ -168,6 +168,15 @@ export function animateStack(
 
     const easing = (opts.easing ?? "ease-in-out").toLowerCase();
 
+    let settled = false;
+
+    const finishAtDestination = () => {
+      if (settled) return;
+      settled = true;
+      applyTransform(dx, dy);
+      cleanupAndResolve();
+    };
+
     const easeT = (t: number): number => {
       // t in [0,1]
       if (easing === "linear") return t;
@@ -186,8 +195,66 @@ export function animateStack(
 
     const ms = Math.max(0, Math.trunc(durationMs));
     if (ms === 0) {
-      applyTransform(dx, dy);
-      cleanupAndResolve();
+      finishAtDestination();
+      return;
+    }
+
+    const tryNativeSvgAnimation = (): boolean => {
+      try {
+        const animate = document.createElementNS("http://www.w3.org/2000/svg", "animateTransform") as SVGElement & {
+          beginElement?: () => void;
+        };
+        if (typeof animate.beginElement !== "function") return false;
+
+        animate.setAttribute("attributeName", "transform");
+        animate.setAttribute("attributeType", "XML");
+        animate.setAttribute("type", "translate");
+        animate.setAttribute("from", "0 0");
+        animate.setAttribute("to", `${dx} ${dy}`);
+        animate.setAttribute("dur", `${ms}ms`);
+        animate.setAttribute("fill", "freeze");
+
+        if (easing === "linear") {
+          animate.setAttribute("calcMode", "linear");
+        } else if (easing === "ease-out") {
+          animate.setAttribute("calcMode", "spline");
+          animate.setAttribute("keyTimes", "0;1");
+          animate.setAttribute("keySplines", "0 0 0.58 1");
+        } else {
+          animate.setAttribute("calcMode", "spline");
+          animate.setAttribute("keyTimes", "0;1");
+          animate.setAttribute("keySplines", "0.42 0 0.58 1");
+        }
+
+        const timeoutId = window.setTimeout(() => {
+          try {
+            animate.remove();
+          } catch {
+            // ignore
+          }
+          finishAtDestination();
+        }, ms + 150);
+
+        const handleEnd = () => {
+          window.clearTimeout(timeoutId);
+          try {
+            animate.remove();
+          } catch {
+            // ignore
+          }
+          finishAtDestination();
+        };
+
+        animate.addEventListener("endEvent", handleEnd, { once: true });
+        wrapper.appendChild(animate);
+        animate.beginElement();
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    if (tryNativeSvgAnimation()) {
       return;
     }
 
@@ -203,7 +270,7 @@ export function animateStack(
 
       if (t >= 1) {
         if (raf !== null) cancelAnimationFrame(raf);
-        cleanupAndResolve();
+        finishAtDestination();
         return;
       }
 
@@ -222,7 +289,7 @@ export function animateStack(
         }
         raf = null;
       }
-      cleanupAndResolve();
+      finishAtDestination();
     }, ms + 150);
   });
 }

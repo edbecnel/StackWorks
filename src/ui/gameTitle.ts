@@ -19,15 +19,18 @@ function ensureGameTitleStyles(): void {
     .stackworksGameTitleBrandLink {
       display: inline-flex;
       align-items: center;
-      max-width: min(150px, 100%);
+      width: min(128px, 100%);
+      max-width: min(128px, 100%);
       text-decoration: none;
+      overflow: hidden;
     }
 
     .stackworksGameTitleBrandLink img {
       display: block;
-      width: 100%;
-      max-width: 128px;
+      width: calc(100% + 3px);
+      max-width: none;
       height: auto;
+      margin-left: -3px;
     }
 
     .stackworksGameTitleTextBrand {

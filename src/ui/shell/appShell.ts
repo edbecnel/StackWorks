@@ -197,7 +197,6 @@ function ensureShellStyles(): void {
     }
 
     .appShellRailMeta {
-      margin-top: auto;
       font-size: 11px;
       line-height: 1.45;
       color: rgba(255, 255, 255, 0.58);
@@ -205,6 +204,14 @@ function ensureShellStyles(): void {
       border-radius: 14px;
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .appShellRailFooter {
+      margin-top: auto;
+      display: grid;
+      gap: 12px;
+      flex: 0 0 auto;
+      min-height: 0;
     }
 
     .appShellMain {
@@ -480,6 +487,41 @@ function ensureShellStyles(): void {
       background: rgba(255, 255, 255, 0.08);
     }
 
+    .appShellNav,
+    .appShellContentSlot,
+    .appShellSidePanel {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(82, 82, 82, 0.68) transparent;
+    }
+
+    .appShellNav::-webkit-scrollbar,
+    .appShellContentSlot::-webkit-scrollbar,
+    .appShellSidePanel::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    .appShellNav::-webkit-scrollbar-track,
+    .appShellContentSlot::-webkit-scrollbar-track,
+    .appShellSidePanel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .appShellNav::-webkit-scrollbar-thumb,
+    .appShellContentSlot::-webkit-scrollbar-thumb,
+    .appShellSidePanel::-webkit-scrollbar-thumb {
+      background: rgba(82, 82, 82, 0.68);
+      border-radius: 999px;
+      border: 1px solid transparent;
+      background-clip: padding-box;
+    }
+
+    .appShellNav::-webkit-scrollbar-thumb:hover,
+    .appShellContentSlot::-webkit-scrollbar-thumb:hover,
+    .appShellSidePanel::-webkit-scrollbar-thumb:hover {
+      background: rgba(146, 146, 146, 0.92);
+    }
+
     .appShellLaunchLink {
       margin-top: 12px;
       width: 100%;
@@ -628,6 +670,8 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   const railMeta = document.createElement("div");
   railMeta.className = "appShellRailMeta";
   railMeta.textContent = "Phase 1 shell seam: this wraps the existing start-page controls without changing their launch or online behavior.";
+  const railFooter = document.createElement("div");
+  railFooter.className = "appShellRailFooter";
   const accountCard = createAccountRailCard(
     {
       status: "loading",
@@ -640,7 +684,8 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
       onLogOut: () => opts.onRequestAccountAction?.("logout"),
     },
   );
-  rail.append(railMeta, accountCard.element);
+  railFooter.append(railMeta, accountCard.element);
+  rail.appendChild(railFooter);
 
   const main = document.createElement("div");
   main.className = "appShellMain";

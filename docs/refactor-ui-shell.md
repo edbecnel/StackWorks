@@ -57,7 +57,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Use a thin, integrated player-bar treatment similar to chess.com's top/bottom player identifiers rather than detached floating cards
 - [ ] Use a left-side current-game identity area analogous to chess.com's bottom-left `Play Chess` label, but adapt the wording to the active StackWorks variant and mode
 - [x] Use a lower-left account/auth area analogous to chess.com's signed-in user rail item: show the logged-in user's display name + avatar when authenticated, and show `Sign Up` / `Log In` actions when signed out
-- [ ] On the start page, keep the signed-out `Sign Up` / `Log In` actions visible in the bottom-left shell area within a typical desktop viewport; reaching them should not require vertical scrolling
+- [x] On the start page, keep the signed-out `Sign Up` / `Log In` actions visible in the bottom-left shell area within a typical desktop viewport; reaching them should not require vertical scrolling
 - [ ] Use a right-panel composition similar to chess.com's mode panel: current context at the top, selectable options in the middle, primary action anchored clearly
 
 **StackWorks equivalent, not literal copy**
@@ -134,7 +134,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [x] Wire `ShellState` to `localStorage` for persistence across page navigations
 - [x] Feed `PlayerIdentity` from current match/session state (not hardcoded labels)
 - [x] Do NOT use "White"/"Black" as primary player labels — use actual display names first, side/color secondarily
-- [ ] Feed player country into `PlayerIdentity` when available so the shell can render a country flag next to the player name in the board-edge identifiers
+- [x] Feed player country into `PlayerIdentity` when available so the shell can render a country flag next to the player name in the board-edge identifiers
 - [ ] Define avatar-profile metadata needed by the shell/account UI so player identity can reference an uploaded profile image with fallback/default behavior
 - [x] Define account/profile metadata for `countryCode`, `countryName`, and `timeZone`
 - [x] Define profile-defaulting behavior: if country or time zone is not explicitly chosen by the user, derive an initial default from origin IP / geolocation when the server has that information available
@@ -156,7 +156,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [x] `gameShell.ts` should prefer paired side-panel modes on desktop so shell navigation/actions live in left/right panels instead of a top header
 - [x] Player identity panels are injected above/below the board container by `gameShell.ts`
   - [x] Panel order updates dynamically when the board flips so the player cards stay attached to the correct board edge
-  - [ ] Player identifiers should show a country flag beside the display name when `PlayerIdentity.countryCode` is available
+  - [x] Player identifiers should show a country flag beside the display name when `PlayerIdentity.countryCode` is available
   - [ ] Expand the board-adjacent identity cards into full left/right landscape rails if the desktop shell direction needs that richer treatment later
 - [ ] Right-side action panel slot is populated by each page's own logic (preserving existing settings/online UI)
 
@@ -188,8 +188,8 @@ When using chess.com play screens as visual references, translate them into Stac
   - [ ] Brand/logo slot in top-left
   - [ ] Global nav items: Home, Games, Community, Account, Settings
   - [x] Lower-left account/auth card: signed-in user avatar + name, or `Sign Up` / `Log In` actions when signed out
-  - [ ] Desktop shell should avoid whole-page vertical scrolling for primary chrome: keep the left rail at a fixed viewport height, with the middle content area and right panel content scrolling internally as needed
-  - [ ] Start Page internal scroll areas should reuse the same scrollbar styling as the game pages: narrow dark-gray scrollbars that lighten on hover
+  - [x] Desktop shell should avoid whole-page vertical scrolling for primary chrome: keep the left rail at a fixed viewport height, with the middle content area and right panel content scrolling internally as needed
+  - [x] Start Page internal scroll areas should reuse the same scrollbar styling as the game pages: narrow dark-gray scrollbars that lighten on hover
   - [ ] Mobile should still rely on normal touch/finger scrolling for those same areas
   - [x] Hover flyouts on desktop (`flyoutMenu.ts`)
   - [x] Drawer/overlay behavior on mobile
@@ -217,7 +217,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [x] Create `src/ui/player/playerStatusBadge.ts`
   - [ ] States: Online, Offline, Reconnecting, Waiting for opponent
 - [x] Create `src/ui/player/playerIdentityPanel.ts`
-  - [ ] Shows: avatar, display name, country flag when available, side/color indicator (secondary), presence badge
+  - [x] Shows: avatar, display name, country flag when available, side/color indicator (secondary), presence badge
   - [ ] Visual target is the chess.com-style top/bottom player identifier pattern: thin board-edge bars with identity first and gameplay/session state second
   - [ ] **Portrait / narrow viewport:** stack one panel above the board, one below
   - [ ] **Landscape / wide viewport:** place one panel to the left of the board, one to the right (mirrors laptop/monitor layout)
@@ -231,7 +231,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Integrate `playerIdentityPanel.ts` into `gameShell.ts`
   - [x] Feed from current match/session state for all game types
   - [ ] Pull country/profile metadata from the existing account/identity sources when available and expose it to the board-edge player identifiers
-  - [ ] When replay/history/PGN import metadata includes player names, feed those names into the top/bottom player bars instead of falling back to side labels
+  - [x] When replay/history/PGN import metadata includes player names, feed those names into the top/bottom player bars instead of falling back to side labels
   - [ ] Works for: live online games, play-vs-friend, bot games, spectating, replay/history
   - [ ] Rendering is independent from game rules (works for Chess, Columns Chess, Dama, Lasca, Damasca, etc.)
 
@@ -304,15 +304,15 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Verify portrait mobile layouts do not lose excessive board height to shell chrome
 - [ ] Verify browser fullscreen removes shell header chrome and preserves the board-first layout on larger displays
 - [ ] Verify desktop layouts keep the board vertically unconstrained by avoiding persistent top game-shell chrome
-- [ ] Verify desktop shell layouts use a fixed-height left rail while allowing center content and right-panel content to scroll internally instead of forcing whole-page vertical scrolling
-- [ ] Verify Start Page internal scroll areas use the same narrow dark-gray scrollbar styling as the game pages and lighten on hover
+- [x] Verify desktop shell layouts use a fixed-height left rail while allowing center content and right-panel content to scroll internally instead of forcing whole-page vertical scrolling
+- [x] Verify Start Page internal scroll areas use the same narrow dark-gray scrollbar styling as the game pages and lighten on hover
 - [ ] Verify mobile internal scroll areas feel natural with touch scrolling and do not depend on persistent visible scrollbars
 - [ ] Review and align player identity panel styling across all game pages
-- [ ] Verify country flags render cleanly and align consistently inside the top/bottom player identifiers across all supported games and breakpoints
+- [x] Verify country flags render cleanly and align consistently inside the top/bottom player identifiers across all supported games and breakpoints
 - [ ] Verify uploaded avatars render cleanly and consistently in board-edge player identifiers, side panels, and profile/account surfaces
 - [ ] Verify country dropdown and time-zone selection render clearly and behave consistently in account/profile surfaces
 - [ ] Verify IP-based country/time-zone prefills are best-effort only, do not overwrite explicit user choices, and degrade cleanly when origin IP data is unavailable
-- [ ] Verify the lower-left shell account/auth area renders correctly in both states: signed-in user summary and signed-out `Sign Up` / `Log In` actions
+- [x] Verify the lower-left shell account/auth area renders correctly in both states: signed-in user summary and signed-out `Sign Up` / `Log In` actions
 - [ ] Confirm no regressions in board/game renderer visual output
 
 ---
@@ -353,7 +353,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] No game engine, renderer, or server code has been modified
 - [ ] All game entry points (`chess.html`, `dama.html`, etc.) still launch correctly as standalone Vite entries
 - [ ] Player identity panels display correctly in online, bot, friend, and spectate modes for all supported games
-- [ ] Player identity panels display country flags correctly when country metadata is available, and degrade cleanly when it is missing
+- [x] Player identity panels display country flags correctly when country metadata is available, and degrade cleanly when it is missing
 - [ ] Player identity panels and account/profile surfaces use uploaded avatars correctly, with sensible fallback behavior for missing or invalid avatar data
 - [ ] Account/profile surfaces let the user select country from a dropdown list and select a time zone, with best-effort defaults from origin IP / geolocation when available
 - [ ] The shell left rail shows the signed-in user's avatar + display name when authenticated, and `Sign Up` / `Log In` actions when signed out

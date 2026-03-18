@@ -29,7 +29,6 @@ function ensureStyles(): void {
   style.id = STYLE_ID;
   style.textContent = `
     .accountRailCard {
-      margin-top: auto;
       border-radius: 16px;
       border: 1px solid rgba(255, 255, 255, 0.08);
       background:

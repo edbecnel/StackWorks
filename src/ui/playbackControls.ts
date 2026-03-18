@@ -2,6 +2,7 @@ import type { GameController, HistoryChangeReason } from "../controller/gameCont
 
 const DEFAULT_DELAY_MS = 1000;
 const MAX_DELAY_MS = 5000;
+const PLAYBACK_MOVE_ANIMATION_MS = 230;
 /** Cap recorded delays at 1 minute so replays of very long think moves don't freeze. */
 const MAX_RECORDED_DELAY_MS = 60_000;
 
@@ -151,9 +152,10 @@ export function bindPlaybackControls(controller: GameController): void {
     const nextIndex = currentIndex + 1;
     if (nextIndex >= history.length) return;
 
-    // Animation speed is always 250 ms per adjacent position regardless of user delay setting.
+    // Playback move animation uses a snappy base duration; the controller adds a
+    // small capped extension for longer travel distances.
     // The user-configured delayMs is a post-landing pause applied in tick(), not the anim speed.
-    await controller.jumpToHistoryAnimated(nextIndex, 200);
+    await controller.jumpToHistoryAnimated(nextIndex, PLAYBACK_MOVE_ANIMATION_MS);
   };
 
   const tick = async () => {
@@ -181,6 +183,12 @@ export function bindPlaybackControls(controller: GameController): void {
       if (emtMs !== null) waitMs = Math.min(emtMs, MAX_RECORDED_DELAY_MS);
     }
     timer = window.setTimeout(() => void tick(), waitMs);
+  };
+
+  const resumeCurrentPlaybackWaitImmediately = () => {
+    if (!playing || timer === null) return;
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => void tick(), 0);
   };
 
   const start = () => {
@@ -284,6 +292,7 @@ export function bindPlaybackControls(controller: GameController): void {
 
   elUseRecorded?.addEventListener("change", () => {
     updateRecordedTimingUI();
+    if (!elUseRecorded.checked) resumeCurrentPlaybackWaitImmediately();
   });
 
   controller.addHistoryChangeCallback((reason: HistoryChangeReason) => {

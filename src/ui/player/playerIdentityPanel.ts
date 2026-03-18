@@ -95,7 +95,7 @@ export function createPlayerIdentityPanel(opts: PlayerIdentityPanelOptions): Pla
     const flagEmoji = countryCodeToFlagEmoji(identity.countryCode);
     flag.hidden = !flagEmoji;
     flag.textContent = flagEmoji;
-    if (identity.countryName) {
+    if (flagEmoji && identity.countryName) {
       flag.title = identity.countryName;
       flag.setAttribute("aria-label", identity.countryName);
     } else {

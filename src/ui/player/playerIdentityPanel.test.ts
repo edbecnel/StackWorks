@@ -38,4 +38,40 @@ describe("createPlayerIdentityPanel", () => {
     const chips = panel.element.querySelectorAll(".gameShellPlayerMetaChip");
     expect(chips[0]?.textContent).toBe("Black");
   });
+
+  it("renders a country flag with an accessible label when country metadata is present", () => {
+    const panel = createPlayerIdentityPanel({
+      identity: makeIdentity({
+        countryCode: "ca",
+        countryName: "Canada",
+      }),
+    });
+
+    const flag = panel.element.querySelector(".gameShellPlayerFlag") as HTMLElement | null;
+    expect(flag?.hidden).toBe(false);
+    expect(flag?.textContent).toBe("🇨🇦");
+    expect(flag?.getAttribute("aria-label")).toBe("Canada");
+    expect(flag?.getAttribute("title")).toBe("Canada");
+  });
+
+  it("hides the flag cleanly when country metadata is missing or invalid", () => {
+    const panel = createPlayerIdentityPanel({
+      identity: makeIdentity({
+        countryCode: null,
+        countryName: null,
+      }),
+    });
+
+    let flag = panel.element.querySelector(".gameShellPlayerFlag") as HTMLElement | null;
+    expect(flag?.hidden).toBe(true);
+    expect(flag?.textContent).toBe("");
+
+    panel.update(makeIdentity({ countryCode: "???", countryName: "Nowhere" }));
+
+    flag = panel.element.querySelector(".gameShellPlayerFlag") as HTMLElement | null;
+    expect(flag?.hidden).toBe(true);
+    expect(flag?.textContent).toBe("");
+    expect(flag?.hasAttribute("aria-label")).toBe(false);
+    expect(flag?.hasAttribute("title")).toBe(false);
+  });
 });
