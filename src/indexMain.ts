@@ -1284,8 +1284,9 @@ window.addEventListener("DOMContentLoaded", () => {
       localStorage.setItem(LS_KEYS.columnsBotPaused, "false");
     } else {
       localStorage.setItem(LS_KEYS.aiDelayMs, String(delayMs));
-      // Startup should not force paused; let AIManager decide (it auto-pauses when both sides are AI).
-      localStorage.setItem(LS_KEYS.aiPaused, "false");
+      // Let AIManager own startup pause state so fresh offline launches can show
+      // the resume toast when a bot is to move first (for example US Checkers).
+      localStorage.removeItem(LS_KEYS.aiPaused);
     }
   };
 

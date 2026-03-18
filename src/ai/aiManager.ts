@@ -239,11 +239,7 @@ export class AIManager {
     const rulesetId = this.controller.getState().meta?.rulesetId ?? "lasca";
     const isChessLike = rulesetId === "chess" || rulesetId === "columns_chess";
     const boardSize = (this.controller.getState().meta as any)?.boardSize as number | undefined;
-    const sideLabel = (p: Player): string => sideLabelForRuleset(rulesetId, p, { boardSize });
-    const stickySideLabel = (p: Player): string => {
-      if (rulesetId === "checkers_us" && p === "B") return "Black";
-      return sideLabel(p);
-    };
+    const stickySideLabel = (p: Player): string => sideLabelForRuleset(rulesetId, p, { boardSize });
 
     // For non-chess variants, fresh starts expose a sticky tap-to-resume hint on
     // a bot turn. After the human makes the first move (history length > 1),

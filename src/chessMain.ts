@@ -24,7 +24,7 @@ import {
   normalizeMoveHintStyle,
   normalizeSelectionStyle,
 } from "./render/highlightStyles";
-import { saveGameToFile, loadGameFromFile } from "./game/saveLoad";
+import { buildPlayerNamedSaveFilename, saveGameToFile, loadGameFromFile } from "./game/saveLoad";
 import { createSfxManager } from "./ui/sfx";
 import type { Stack } from "./types";
 import { bindPlaybackControls } from "./ui/playbackControls.ts";
@@ -59,6 +59,7 @@ import {
   installBoardViewportOptionUI,
   readBoardViewportMode,
 } from "./ui/boardViewportMode";
+import { resolveConfiguredLocalPlayerName } from "./shared/localPlayerNames";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { initGameShell } from "./ui/shell/gameShell";
@@ -574,6 +575,11 @@ window.addEventListener("DOMContentLoaded", async () => {
     return explicitName || "human";
   };
 
+  const resolvedPlayerNameForSave = (side: "W" | "B"): string => {
+    const configuredName = resolveConfiguredLocalPlayerName(side);
+    return configuredName || resolvedPlayerNameForExport(side);
+  };
+
   /** Build the "White vs. Black (result)" portion of a filename. */
   const playerNameFilePart = (resultSuffix?: string): string => {
     const w = toFileSlug(resolvedPlayerNameForExport("W"));
@@ -967,11 +973,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (saveGameBtn) {
     saveGameBtn.addEventListener("click", () => {
       const currentState = controller.getState();
-      const ts = new Date().toISOString().replace(/[T:]/g, "-").replace(/\..+/, "");
-      const namePart = playerNameFilePart(resultSuffixFromState(currentState));
-      const filename = namePart
-        ? `chess -- ${namePart} -- ${ts}.json`
-        : `chess -- ${ts}.json`;
+      const filename = buildPlayerNamedSaveFilename({
+        gameLabel: "chess",
+        state: currentState,
+        resolvePlayerLabel: (side) => resolvedPlayerNameForSave(side),
+      });
       saveGameToFile(currentState, history, filename, {
         includeTiming: exportPgnTimingToggle?.checked ?? false,
       });

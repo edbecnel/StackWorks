@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { serializeGameState, deserializeGameState, serializeSaveData, deserializeSaveData } from "./saveLoad";
+import {
+  buildPlayerNamedSaveFilename,
+  serializeGameState,
+  deserializeGameState,
+  serializeSaveData,
+  deserializeSaveData,
+} from "./saveLoad";
 import type { GameState } from "./state";
 import { HistoryManager } from "./historyManager";
 
@@ -269,5 +275,50 @@ describe("saveLoad", () => {
     expect(loaded.history).toBeDefined();
     expect(loaded.history!.states.length).toBe(2);
     expect(loaded.history!.currentIndex).toBe(1);
+  });
+
+  it("builds chess-style save filenames from player labels and result", () => {
+    const filename = buildPlayerNamedSaveFilename({
+      gameLabel: "damasca",
+      state: {
+        forcedGameOver: {
+          winner: "W",
+          reasonCode: "checkmate",
+          message: "Game over",
+        },
+      },
+      resolvePlayerLabel: (side) => (side === "W" ? "Ada Lovelace" : "black"),
+      now: new Date("2026-03-18T12:34:56.000Z"),
+    });
+
+    expect(filename).toBe("damasca -- Ada_Lovelace vs. black (1-0) -- 2026-03-18-12-34-56.json");
+  });
+
+  it("falls back to a timestamp-only filename when no player labels are available", () => {
+    const filename = buildPlayerNamedSaveFilename({
+      gameLabel: "lasca",
+      state: {},
+      resolvePlayerLabel: () => "",
+      now: new Date("2026-03-18T12:34:56.000Z"),
+    });
+
+    expect(filename).toBe("lasca -- 2026-03-18-12-34-56.json");
+  });
+
+  it("uses the chess-style drawn-game suffix", () => {
+    const filename = buildPlayerNamedSaveFilename({
+      gameLabel: "checkers",
+      state: {
+        forcedGameOver: {
+          winner: null,
+          reasonCode: "draw",
+          message: "Draw",
+        },
+      },
+      resolvePlayerLabel: (side) => (side === "W" ? "Ada" : "Byron"),
+      now: new Date("2026-03-18T12:34:56.000Z"),
+    });
+
+    expect(filename).toBe("checkers -- Ada vs. Byron (½-½) -- 2026-03-18-12-34-56.json");
   });
 });

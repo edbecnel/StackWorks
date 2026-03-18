@@ -452,6 +452,35 @@ export function saveGameToFile(
   URL.revokeObjectURL(url);
 }
 
+function toFileSlug(name: string): string {
+  return name.trim().replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "").slice(0, 24);
+}
+
+function resultSuffixFromState(state: unknown): string {
+  const forced = (state as any)?.forcedGameOver;
+  if (!forced) return "";
+  if (forced.winner === "W") return "(1-0)";
+  if (forced.winner === "B") return "(0-1)";
+  return "(½-½)";
+}
+
+export function buildPlayerNamedSaveFilename(args: {
+  gameLabel: string;
+  state: unknown;
+  resolvePlayerLabel: (side: "W" | "B") => string;
+  now?: Date;
+}): string {
+  const ts = (args.now ?? new Date()).toISOString().replace(/[T:]/g, "-").replace(/\..+/, "");
+  const white = toFileSlug(args.resolvePlayerLabel("W"));
+  const black = toFileSlug(args.resolvePlayerLabel("B"));
+  const vsStr = white && black ? `${white} vs. ${black}` : (white || black);
+  const resultSuffix = resultSuffixFromState(args.state);
+  const namePart = resultSuffix ? (vsStr ? `${vsStr} ${resultSuffix}` : resultSuffix) : vsStr;
+  return namePart
+    ? `${args.gameLabel} -- ${namePart} -- ${ts}.json`
+    : `${args.gameLabel} -- ${ts}.json`;
+}
+
 /**
  * Load game state from a file input
  */

@@ -12,7 +12,7 @@ import type { Player } from "./types";
 import { GameController } from "./controller/gameController.ts";
 import { ensureOverlayLayer } from "./render/overlays.ts";
 import { ALL_NODES } from "./game/board.ts";
-import { saveGameToFile, loadGameFromFile } from "./game/saveLoad.ts";
+import { buildPlayerNamedSaveFilename, saveGameToFile, loadGameFromFile } from "./game/saveLoad.ts";
 import { HistoryManager } from "./game/historyManager.ts";
 import { RULES } from "./game/ruleset.ts";
 import { renderBoardCoords } from "./render/boardCoords";
@@ -31,6 +31,7 @@ import { createDriverAsync, consumeStartupMessage } from "./driver/createDriver.
 import type { OnlineGameDriver } from "./driver/gameDriver.ts";
 import { createSfxManager } from "./ui/sfx";
 import { createPrng } from "./shared/prng.ts";
+import { resolveConfiguredLocalPlayerName } from "./shared/localPlayerNames";
 import { normalizeLastMoveHighlightStyle, normalizeMoveHintStyle } from "./render/highlightStyles";
 import { createBoardLoadingOverlay } from "./ui/boardLoadingOverlay";
 import { nextPaint } from "./ui/nextPaint";
@@ -43,6 +44,7 @@ import { initGameShell } from "./ui/shell/gameShell";
 import { GameSection } from "./config/shellState";
 import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
 import { applyBoardViewportModeToSvg } from "./render/boardViewport";
+import { bindBoardPlayerNameOverlay } from "./render/boardPlayerNames";
 import {
   applyBoardViewportMode,
   BOARD_VIEWPORT_MODE_CHANGED_EVENT,
@@ -85,6 +87,19 @@ function readOptionalStringPref(key: string): string | null {
 
 function writeStringPref(key: string, value: string): void {
   localStorage.setItem(key, value);
+}
+
+function resolvePlayerLabelForSave(args: {
+  side: "W" | "B";
+  controller: GameController;
+}): string {
+  const configuredName = resolveConfiguredLocalPlayerName(args.side);
+  if (configuredName) return configuredName;
+  const displayName = args.controller.getPlayerShellSnapshot().players[args.side].displayName?.trim() ?? "";
+  const selectId = args.side === "W" ? "aiWhiteSelect" : "aiBlackSelect";
+  const botSetting = (document.getElementById(selectId) as HTMLSelectElement | null)?.value ?? "human";
+  if (botSetting !== "human") return args.side === "W" ? "white" : "black";
+  return displayName || "human";
 }
 
 function updatePlayerColorBadge(driver: unknown, rulesetId: string, boardSize: number): void {
@@ -134,6 +149,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   let boardViewportMode = readBoardViewportMode();
   applyBoardViewportMode(boardViewportMode);
   let hudController: GameController | null = null;
+  let boardPlayerNames: ReturnType<typeof bindBoardPlayerNameOverlay> | null = null;
 
   const gameTitleEl = document.getElementById("gameTitle");
   if (gameTitleEl) setStackWorksGameTitle(gameTitleEl, activeVariant.displayName);
@@ -176,6 +192,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     applyBoardViewportModeToSvg(svg, boardViewportMode, { boardSize: activeVariant.boardSize });
     applyBoardCoords();
     hudController?.refreshView();
+    boardPlayerNames?.sync();
   });
 
   const showResizeIconToggle = document.getElementById("showResizeIconToggle") as HTMLInputElement | null;
@@ -292,6 +309,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   hudController = controller;
   controller.bind();
   shell.bindController(controller);
+  boardPlayerNames = bindBoardPlayerNameOverlay({ svg, controller, isFlipped });
 
   bindOfflineNavGuard(controller, activeVariant.variantId);
 
@@ -449,6 +467,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       writeBoolPref(LS_OPT_KEYS.flipBoard, flipBoardToggle.checked);
       setBoardFlipped(svg, flipBoardToggle.checked);
       applyBoardCoords();
+      boardPlayerNames?.sync();
     });
   }
 
@@ -488,12 +507,22 @@ window.addEventListener("DOMContentLoaded", async () => {
         hm.replaceAll(snap.states as any, snap.notation, snap.currentIndex);
         const stateFromHistory = driver.getHistoryCurrent();
         const currentState = stateFromHistory ?? driver.getState();
-        saveGameToFile(currentState, hm, activeVariant.defaultSaveName);
+        const filename = buildPlayerNamedSaveFilename({
+          gameLabel: "lasca",
+          state: currentState,
+          resolvePlayerLabel: (side) => resolvePlayerLabelForSave({ side, controller }),
+        });
+        saveGameToFile(currentState, hm, filename);
         return;
       }
 
       const currentState = controller.getState();
-      saveGameToFile(currentState, history, activeVariant.defaultSaveName);
+      const filename = buildPlayerNamedSaveFilename({
+        gameLabel: "lasca",
+        state: currentState,
+        resolvePlayerLabel: (side) => resolvePlayerLabelForSave({ side, controller }),
+      });
+      saveGameToFile(currentState, history, filename);
     });
   }
 

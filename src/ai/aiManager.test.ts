@@ -164,6 +164,7 @@ describe("AIManager paused-turn sticky toast", () => {
     localStorage.setItem("lasca.ai.white", "human");
     localStorage.setItem("lasca.ai.black", "easy");
     localStorage.setItem("lasca.ai.paused", "true");
+    localStorage.setItem("lasca.checkers.theme", "checkers");
 
     const controller = new FakeController(
       { toMove: "B", phase: "idle", board: new Map(), meta: { rulesetId: "checkers_us", boardSize: 8 } },
@@ -177,6 +178,27 @@ describe("AIManager paused-turn sticky toast", () => {
 
     expect(controller.sticky.key).toBe("aiPausedTapResume");
     expect(controller.sticky.text).toBe("Black to Play. Tap here or press spacebar to resume bot");
+    expect(localStorage.getItem("lasca.ai.paused")).toBe("true");
+  });
+
+  it("uses Light/Dark terminology immediately in the sticky resume toast when Checkers pieces are changed", () => {
+    localStorage.setItem("lasca.ai.white", "human");
+    localStorage.setItem("lasca.ai.black", "easy");
+    localStorage.setItem("lasca.ai.paused", "true");
+    localStorage.setItem("lasca.checkers.theme", "glass");
+
+    const controller = new FakeController(
+      { toMove: "B", phase: "idle", board: new Map(), meta: { rulesetId: "checkers_us", boardSize: 8 } },
+      [{ index: 0, toMove: "B", isCurrent: true, notation: "" }]
+    ) as any;
+
+    const mgr = new AIManager(controller);
+    mgr.bind();
+
+    vi.runAllTimers();
+
+    expect(controller.sticky.key).toBe("aiPausedTapResume");
+    expect(controller.sticky.text).toBe("Dark to Play. Tap here or press spacebar to resume bot");
     expect(localStorage.getItem("lasca.ai.paused")).toBe("true");
   });
 

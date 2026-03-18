@@ -24,7 +24,7 @@ import {
   normalizeLastMoveHighlightStyle,
   normalizeMoveHintStyle,
 } from "./render/highlightStyles";
-import { saveGameToFile, loadGameFromFile } from "./game/saveLoad";
+import { buildPlayerNamedSaveFilename, saveGameToFile, loadGameFromFile } from "./game/saveLoad";
 import { createSfxManager } from "./ui/sfx";
 import type { Stack } from "./types";
 import { bindPlaybackControls } from "./ui/playbackControls.ts";
@@ -44,8 +44,10 @@ import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { initGameShell } from "./ui/shell/gameShell";
 import { GameSection } from "./config/shellState";
+import { resolveConfiguredLocalPlayerName } from "./shared/localPlayerNames";
 import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
 import { applyBoardViewportModeToSvg } from "./render/boardViewport";
+import { bindBoardPlayerNameOverlay } from "./render/boardPlayerNames";
 import {
   applyBoardViewportMode,
   BOARD_VIEWPORT_MODE_CHANGED_EVENT,
@@ -93,6 +95,19 @@ function writeStringPref(key: string, value: string): void {
   localStorage.setItem(key, value);
 }
 
+function resolvePlayerLabelForSave(args: {
+  side: "W" | "B";
+  controller: GameController;
+}): string {
+  const configuredName = resolveConfiguredLocalPlayerName(args.side);
+  if (configuredName) return configuredName;
+  const displayName = args.controller.getPlayerShellSnapshot().players[args.side].displayName?.trim() ?? "";
+  const selectId = args.side === "W" ? "botWhiteSelect" : "botBlackSelect";
+  const botSetting = (document.getElementById(selectId) as HTMLSelectElement | null)?.value ?? "human";
+  if (botSetting !== "human") return args.side === "W" ? "white" : "black";
+  return displayName || "human";
+}
+
 window.addEventListener("DOMContentLoaded", async () => {
   const variant = getVariantById(ACTIVE_VARIANT_ID);
   const appRoot = document.getElementById("appRoot") as HTMLElement | null;
@@ -131,6 +146,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   let boardViewportMode = readBoardViewportMode();
   applyBoardViewportMode(boardViewportMode);
   let hudController: GameController | null = null;
+  let boardPlayerNames: ReturnType<typeof bindBoardPlayerNameOverlay> | null = null;
 
   const gameTitleEl = document.getElementById("gameTitle");
   if (gameTitleEl) {
@@ -232,6 +248,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     applyBoardCoords();
     syncBoardCoordsInSquaresLock();
     hudController?.refreshView();
+    boardPlayerNames?.sync();
   });
 
   const themeManager = createThemeManager(svg);
@@ -314,6 +331,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   hudController = controller;
   controller.bind();
   shell.bindController(controller);
+  boardPlayerNames = bindBoardPlayerNameOverlay({ svg, controller, isFlipped });
 
   bindOfflineNavGuard(controller, ACTIVE_VARIANT_ID);
 
@@ -481,6 +499,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       setBoardFlipped(svg, flipBoardToggle.checked);
       applyBoardCoords();
       controller.refreshView();
+      boardPlayerNames?.sync();
     });
   }
 
@@ -570,7 +589,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (saveGameBtn) {
     saveGameBtn.addEventListener("click", () => {
       const currentState = controller.getState();
-      saveGameToFile(currentState, history, "columns_chess-save.json");
+      const filename = buildPlayerNamedSaveFilename({
+        gameLabel: "columns chess",
+        state: currentState,
+        resolvePlayerLabel: (side) => resolvePlayerLabelForSave({ side, controller }),
+      });
+      saveGameToFile(currentState, history, filename);
     });
   }
   if (loadGameBtn && loadGameInput) {
