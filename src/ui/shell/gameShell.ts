@@ -69,6 +69,11 @@ function resolveServerAssetUrl(serverUrl: string, assetUrl: string): string {
   }
 }
 
+function isLegacyMenuLayoutActive(): boolean {
+  if (typeof document === "undefined") return false;
+  return document.body.dataset.panelLayout === "menu";
+}
+
 function ensureGameShellStyles(): void {
   if (document.getElementById(GAME_SHELL_STYLE_ID)) return;
 
@@ -141,6 +146,7 @@ function ensureGameShellStyles(): void {
       align-items: center;
       grid-template-columns: auto auto minmax(0, 1fr);
       gap: 10px;
+      --game-shell-compact-left-offset: 0px;
       padding: 10px 12px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       background:
@@ -662,6 +668,76 @@ function ensureGameShellStyles(): void {
         display: none !important;
       }
 
+      body[data-panel-layout="menu"] .gameShellRoot {
+        grid-template-rows: auto minmax(0, 1fr);
+      }
+
+      body[data-panel-layout="menu"] .gameShellCompactBar {
+        display: grid !important;
+        gap: 8px;
+        padding-top: 10px;
+        padding-right: 12px;
+        padding-bottom: 10px;
+        padding-left: calc(12px + var(--game-shell-compact-left-offset, 0px));
+        z-index: 71;
+      }
+
+      body[data-panel-layout="menu"] .gameShellCompactBarBrand {
+        display: inline-flex;
+      }
+
+      body[data-panel-layout="menu"] .gameShellCompactTrigger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        position: static;
+        min-width: 64px;
+        min-height: 34px;
+        padding: 7px 12px;
+        box-shadow: none;
+      }
+
+      body[data-panel-layout="menu"] .gameShellCompactOverlay {
+        display: block !important;
+      }
+
+      body[data-panel-layout="menu"] .gameShellHeader {
+        position: fixed;
+        top: 58px;
+        left: 10px;
+        right: 10px;
+        max-width: min(720px, calc(100vw - 20px));
+        max-height: calc(var(--app-height, 100dvh) - 78px);
+        overflow: auto;
+        z-index: 72;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-6px) scale(0.985);
+        transition:
+          opacity 140ms ease,
+          transform 140ms ease;
+        display: grid !important;
+      }
+
+      body[data-panel-layout="menu"] .gameShellRoot.navOpen .gameShellCompactOverlay {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      body[data-panel-layout="menu"] .gameShellRoot.navOpen .gameShellHeader {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0) scale(1);
+      }
+
+      body[data-panel-layout="menu"] .gameShellRoot.navOpen .gameShellCompactTrigger {
+        background: rgba(28, 28, 28, 0.9);
+      }
+
+      body[data-panel-layout="menu"] .gameShellBoardStage > .gameShellPlayerPanel {
+        padding-left: 62px;
+      }
+
       .gameShellAppSlot > #appRoot > #centerArea.gameShellCenterArea {
         justify-content: flex-start;
         align-items: stretch;
@@ -777,7 +853,7 @@ function ensureGameShellStyles(): void {
         padding-top: max(6px, env(safe-area-inset-top));
         padding-right: max(10px, env(safe-area-inset-right));
         padding-bottom: 6px;
-        padding-left: max(10px, env(safe-area-inset-left));
+        padding-left: calc(max(10px, env(safe-area-inset-left)) + var(--game-shell-compact-left-offset, 0px));
         z-index: 71;
       }
 
@@ -1043,6 +1119,8 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
 
   const isCompactMode = (): boolean => Boolean(compactMedia?.matches);
 
+  const usesCompactShellControls = (): boolean => isCompactMode() || isLegacyMenuLayoutActive();
+
   const syncCompactState = (): void => {
     const expanded = shell.classList.contains("navOpen");
     compactTrigger.setAttribute("aria-expanded", expanded ? "true" : "false");
@@ -1054,23 +1132,56 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
   };
 
   const openCompactMenu = (): void => {
-    if (!isCompactMode()) return;
+    if (!usesCompactShellControls()) return;
     shell.classList.add("navOpen");
     syncCompactState();
   };
 
   const toggleCompactMenu = (): void => {
-    if (!isCompactMode()) return;
+    if (!usesCompactShellControls()) return;
     shell.classList.toggle("navOpen");
     syncCompactState();
   };
 
   const handleCompactViewportChange = (): void => {
-    if (!isCompactMode()) {
+    if (!usesCompactShellControls()) {
       closeCompactMenu();
     } else {
       syncCompactState();
     }
+    scheduleLegacyHamburgerOffsetSync();
+  };
+
+  let legacyHamburgerOffsetFrame: number | null = null;
+
+  const syncLegacyHamburgerOffset = (): void => {
+    let offsetPx = 0;
+
+    if (usesCompactShellControls() && document.body.dataset.panelLayout === "menu") {
+      const legacyHamburger = document.getElementById("panelLayoutHamburger") as HTMLElement | null;
+      if (legacyHamburger) {
+        const computed = window.getComputedStyle(legacyHamburger);
+        const visible = computed.display !== "none" && computed.visibility !== "hidden";
+        if (visible) {
+          const legacyRect = legacyHamburger.getBoundingClientRect();
+          const compactRect = compactBar.getBoundingClientRect();
+          const overlapsVertically = legacyRect.bottom > compactRect.top && legacyRect.top < compactRect.bottom;
+          if (legacyRect.width > 0 && legacyRect.height > 0 && overlapsVertically) {
+            offsetPx = Math.max(0, Math.ceil(legacyRect.right - compactRect.left + 8));
+          }
+        }
+      }
+    }
+
+    compactBar.style.setProperty("--game-shell-compact-left-offset", `${offsetPx}px`);
+  };
+
+  const scheduleLegacyHamburgerOffsetSync = (): void => {
+    if (legacyHamburgerOffsetFrame !== null) return;
+    legacyHamburgerOffsetFrame = window.requestAnimationFrame(() => {
+      legacyHamburgerOffsetFrame = null;
+      syncLegacyHamburgerOffset();
+    });
   };
 
   compactTrigger.addEventListener("click", toggleCompactMenu);
@@ -1078,6 +1189,10 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
   compactOverlay.addEventListener("click", closeCompactMenu);
 
   compactMedia?.addEventListener?.("change", handleCompactViewportChange);
+  window.addEventListener("resize", scheduleLegacyHamburgerOffsetSync);
+  window.visualViewport?.addEventListener("resize", scheduleLegacyHamburgerOffsetSync);
+  window.addEventListener("panelLayoutModeChanged", scheduleLegacyHamburgerOffsetSync);
+  document.addEventListener("click", () => scheduleLegacyHamburgerOffsetSync());
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeCompactMenu();
@@ -1525,6 +1640,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
 
   setActiveSection(opts.activeSectionId ?? (opts.navItems?.[0]?.id ?? ""));
   syncCompactState();
+  scheduleLegacyHamburgerOffsetSync();
 
   return {
     setActiveSection,
