@@ -167,7 +167,9 @@ If you want help using the Start Page itself (launcher UI), see [Start Page Help
 
 - **AI (Game Panel → AI):** For Lasca/Dama/Damasca, set Light and/or Dark to an AI difficulty. If both sides are AI, the game can auto-play.
 - **Chess Bot (Game Panel → Bot):** For Classic Chess, set White and/or Black to a bot tier (Beginner / Intermediate / Strong). The bot warms up on first load.
-- **Local Stockfish server (optional):** If in-browser Stockfish is flaky on your device, you can run a local HTTP Stockfish service and point the client at it with `VITE_STOCKFISH_SERVER_URL`.
+- **Stockfish over HTTP:** Classic Chess prefers an HTTP Stockfish API when one is available.
+  - In production, point the UI at your main game server and expose Stockfish there as `/api/stockfish`.
+  - In local dev, you can still run the standalone helper service and point the client at it with `VITE_STOCKFISH_SERVER_URL`.
   - Same machine: `http://127.0.0.1:8799`
   - LAN device: use your PC's LAN IP (e.g. `http://192.168.1.50:8799`) — `127.0.0.1` will not work from a phone.
 - **Speed:** Adjusts the pause between AI moves.

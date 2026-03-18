@@ -103,6 +103,7 @@ import { hashPassword, verifyPassword } from "./auth/password.ts";
 import { SessionStore } from "./auth/sessionStore.ts";
 import { clearCookie, parseCookieHeader, setCookie } from "./auth/httpCookies.ts";
 import { makeIpRateLimiter } from "./auth/rateLimit.ts";
+import { StockfishService } from "./stockfishService.ts";
 
 function avatarsDirPath(authDir: string): string {
   return path.join(authDir, "avatars");
@@ -208,6 +209,7 @@ type ServerOpts = {
   snapshotEvery?: number;
   disconnectGraceMs?: number;
   sessionTtlMs?: number;
+  stockfishEngineJs?: string;
 };
 
 const randId = () => secureRandomHex(16);
@@ -535,6 +537,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
   const sessions = new SessionStore(sessionTtlMs);
   const snapshotEvery = Math.max(1, Number(opts.snapshotEvery ?? 20));
   const disconnectGraceMs = Math.max(0, Number(opts.disconnectGraceMs ?? 120_000));
+  const stockfish = new StockfishService({ engineJsPath: opts.stockfishEngineJs });
 
   const rooms = new Map<RoomId, Room>();
   const streamClients = new Map<RoomId, Set<express.Response>>();
@@ -1395,6 +1398,56 @@ export function createLascaApp(opts: ServerOpts = {}): {
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true });
+  });
+
+  app.get("/api/stockfish/health", (_req, res) => {
+    const health = stockfish.getHealth();
+    if (!health.ok) {
+      res.status(503).json(health);
+      return;
+    }
+    res.json(health);
+  });
+
+  app.post("/api/stockfish/bestmove", async (req, res) => {
+    try {
+      const fen = typeof req.body?.fen === "string" ? req.body.fen : "";
+      const movetimeMs = Number(req.body?.movetimeMs);
+      const skill = Number.isFinite(req.body?.skill) ? Number(req.body.skill) : undefined;
+      const timeoutMs = Number.isFinite(req.body?.timeoutMs) ? Number(req.body.timeoutMs) : undefined;
+
+      if (!fen.trim() || !Number.isFinite(movetimeMs) || movetimeMs <= 0) {
+        throw new Error("missing fen or movetimeMs");
+      }
+
+      const uci = await stockfish.bestMove({ fen, movetimeMs, skill, timeoutMs });
+      res.json({ ok: true, uci });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Stockfish bestmove failed";
+      res.status(500).json({ ok: false, error: msg });
+    }
+  });
+
+  app.post("/api/stockfish/evaluate", async (req, res) => {
+    try {
+      const fen = typeof req.body?.fen === "string" ? req.body.fen : "";
+      const movetimeMs = Number.isFinite(req.body?.movetimeMs) ? Number(req.body.movetimeMs) : 200;
+      const timeoutMs = Number.isFinite(req.body?.timeoutMs) ? Number(req.body.timeoutMs) : undefined;
+
+      if (!fen.trim()) {
+        throw new Error("missing fen");
+      }
+
+      const score = await stockfish.evaluate({ fen, movetimeMs, timeoutMs });
+      if (!score) {
+        res.json({ ok: false, error: "no score" });
+        return;
+      }
+      res.json({ ok: true, ...score });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Stockfish evaluate failed";
+      res.status(500).json({ ok: false, error: msg });
+    }
   });
 
   // MP4C: accounts + cookie sessions (authn/authz).
@@ -2940,6 +2993,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
 
     // Wait for any queued persistence to finish.
     await Promise.all(Array.from(rooms.values()).map((r) => r.persistChain.catch(() => undefined)));
+    await stockfish.shutdown();
   }
 
   return { app, rooms, gamesDir, authDir, attachWebSockets, shutdown };
@@ -2952,6 +3006,7 @@ export async function startLascaServer(args: {
   snapshotEvery?: number;
   disconnectGraceMs?: number;
   sessionTtlMs?: number;
+  stockfishEngineJs?: string;
 }): Promise<{
   app: express.Express;
   server: Server;
@@ -2965,6 +3020,7 @@ export async function startLascaServer(args: {
     snapshotEvery: args.snapshotEvery,
     disconnectGraceMs: args.disconnectGraceMs,
     sessionTtlMs: args.sessionTtlMs,
+    stockfishEngineJs: args.stockfishEngineJs,
   });
   await ensureGamesDir(gamesDir);
   await ensureAuthDir(authDir);

@@ -97,6 +97,32 @@ function normalizeEvalScoreToWhitePerspective(score: EvalScore, fen: string): Ev
   return { cp: isWhiteToMove ? score.cp : -score.cp };
 }
 
+function normalizeBaseUrl(raw: string): string {
+  const value = String(raw || "").trim();
+  return value.endsWith("/") ? value.slice(0, -1) : value;
+}
+
+function canUseSameOriginStockfish(): boolean {
+  if (typeof window === "undefined") return false;
+  const host = String(window.location.hostname || "").toLowerCase();
+  return Boolean(host && host !== "localhost" && host !== "127.0.0.1");
+}
+
+function resolveDefaultStockfishServerUrl(): string | null {
+  const env = (import.meta as any).env ?? {};
+  const explicit = typeof env.VITE_STOCKFISH_SERVER_URL === "string" ? normalizeBaseUrl(env.VITE_STOCKFISH_SERVER_URL) : "";
+  if (explicit) return explicit;
+
+  const mainServer = typeof env.VITE_SERVER_URL === "string" ? normalizeBaseUrl(env.VITE_SERVER_URL) : "";
+  if (mainServer) return `${mainServer}/api/stockfish`;
+
+  if (canUseSameOriginStockfish()) {
+    return `${normalizeBaseUrl(window.location.origin)}/api/stockfish`;
+  }
+
+  return null;
+}
+
 export class ChessBotManager {
   private controller: GameController;
   private engineFactory: () => UciEngine;
@@ -124,7 +150,8 @@ export class ChessBotManager {
 
   private prewarmStarted = false;
   private warmupToastStartMs: number | null = null;
-  private readonly warmupToastEscalateMs = 5000;
+  private readonly browserWarmupToastEscalateMs = 5000;
+  private readonly serverWarmupToastEscalateMs = 65_000;
   private warmupEscalationTimer: number | null = null;
   private warmupToastShown = false;
   private warmupToastShownError = false;
@@ -156,6 +183,10 @@ export class ChessBotManager {
 
   private engineLabel(): string {
     return this.serverEngineUrl ? "Stockfish server" : "Stockfish";
+  }
+
+  private warmupEscalateMs(): number {
+    return this.serverEngineUrl ? this.serverWarmupToastEscalateMs : this.browserWarmupToastEscalateMs;
   }
 
   // ── Public evaluation API ──────────────────────────────────────────────────
@@ -386,11 +417,7 @@ export class ChessBotManager {
 
   constructor(controller: GameController, opts?: { engineFactory?: () => UciEngine }) {
     this.controller = controller;
-    this.serverEngineUrl =
-      (import.meta as any).env?.VITE_STOCKFISH_SERVER_URL &&
-      String((import.meta as any).env.VITE_STOCKFISH_SERVER_URL).trim().length > 0
-        ? String((import.meta as any).env.VITE_STOCKFISH_SERVER_URL).trim()
-        : null;
+    this.serverEngineUrl = resolveDefaultStockfishServerUrl();
 
     this.engineFactory =
       opts?.engineFactory ??
@@ -606,10 +633,11 @@ export class ChessBotManager {
     // If warmup is silent (common on initial load), we still want a single
     // escalation to the actionable error toast after a short budget.
     if (this.warmupEscalationTimer === null) {
+      const escalateMs = this.warmupEscalateMs();
       this.warmupEscalationTimer = window.setTimeout(() => {
         this.warmupEscalationTimer = null;
         if (!this.engineReady) this.showWarmupToast(true);
-      }, this.warmupToastEscalateMs);
+      }, escalateMs);
     }
 
     // For a configured Stockfish server, if it's down/unreachable we want an immediate
@@ -622,9 +650,10 @@ export class ChessBotManager {
           const engine = this.ensureEngine();
           await engine.init({ timeoutMs: fastProbeTimeoutMs });
           // Don't set engineReady here; the main warmup below will do it.
-        } catch {
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
           // Immediate, actionable message.
-          if (!this.engineReady) this.showWarmupToast(true);
+          if (!this.engineReady && !msg.includes("Timeout: health")) this.showWarmupToast(true);
         }
       })();
     }
@@ -634,7 +663,7 @@ export class ChessBotManager {
     // switching to the actionable "server not available" toast.
     if (showToast) this.showWarmupToast(false);
 
-    const serverWarmupBudgetMs = 5000;
+    const serverWarmupBudgetMs = this.serverWarmupToastEscalateMs;
     const warmupStartMs = Date.now();
     let serverErrorToastTimer: number | null = null;
 
@@ -716,10 +745,10 @@ export class ChessBotManager {
     }
 
     // Never let the non-error Stockfish toast stick around indefinitely.
-    // After a short budget, escalate to the actionable error toast.
+    // After the current warmup budget, escalate to the actionable error toast.
     const now = Date.now();
     if (this.warmupToastStartMs === null) this.warmupToastStartMs = now;
-    if (!isError && now - this.warmupToastStartMs >= this.warmupToastEscalateMs) {
+    if (!isError && now - this.warmupToastStartMs >= this.warmupEscalateMs()) {
       isError = true;
     }
 
@@ -746,7 +775,7 @@ export class ChessBotManager {
 
     const msg = (() => {
       if (isError && this.serverEngineUrl) {
-        return "Stockfish bot srever not available. Tap to allow fallbabck moves";
+        return "Stockfish server not available. Tap to allow fallback moves.";
       }
       if (isError) {
         return `${engineLabel} failed to start (yet)${lanHint}. Tap to allow fallback moves.`;
