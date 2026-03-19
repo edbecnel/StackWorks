@@ -6,5 +6,7 @@ services:
     buildCommand: npm ci
     startCommand: npm start
     envVars:
+      - key: LASCA_DATA_DIR
+        value: /var/data/stackworks/games
       - key: LASCA_ADMIN_TOKEN
         sync: false

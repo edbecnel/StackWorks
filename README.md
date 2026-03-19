@@ -256,6 +256,41 @@ npm install
 - `npm run preview` - Preview production build
 - `npm run deploy` - Deploy to GitHub Pages
 
+### Render Deployment
+
+The multiplayer server can run on Render using [render.yaml](render.yaml), but avatar uploads and auth profile data only persist across deploys if you attach a persistent disk to the web service.
+
+Required Render settings for `stackworks-server`:
+
+1. Create or open the `stackworks-server` web service.
+2. Ensure the service is on a paid Render plan.
+3. Add a persistent disk in the Render dashboard.
+4. Set the disk mount path to `/var/data/stackworks`.
+5. Choose an initial disk size such as `1 GB`.
+6. Confirm the service environment includes `LASCA_DATA_DIR=/var/data/stackworks/games`.
+
+What this does:
+
+- Game persistence is stored under `/var/data/stackworks/games`.
+- Auth profile data is stored under `/var/data/stackworks/auth`.
+- Uploaded avatar files are stored under `/var/data/stackworks/auth/avatars`.
+
+Important Render constraints:
+
+- Only files written under the disk mount path are persistent.
+- Services with persistent disks cannot scale to multiple instances.
+- Adding a disk disables zero-downtime deploys for that service.
+
+Verification after deploy:
+
+1. Upload an avatar from the Start Page account UI.
+2. Redeploy or restart the Render service.
+3. Confirm the avatar still appears after reload.
+4. Optionally inspect these paths in the Render Shell:
+
+- `/var/data/stackworks/auth/users.json`
+- `/var/data/stackworks/auth/avatars`
+
 ### Debug scripts
 
 - `node scripts/debug-check-save.mjs <path-to-save.json>` - Developer helper to inspect a save file and report whether `current` matches `history.states[history.currentIndex]` (and show a small diff / closest snapshot when it doesn’t).
