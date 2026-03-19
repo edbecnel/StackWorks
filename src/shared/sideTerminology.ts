@@ -21,7 +21,7 @@ export function getSideLabelsForRuleset(
   })();
 
   // Chess-like games always use White/Black.
-  if (rulesetId === "chess" || rulesetId === "columns_chess") {
+  if (rulesetId === "chess" || rulesetId === "chess_classic" || rulesetId === "columns_chess") {
     return { W: "White", B: "Black" };
   }
 

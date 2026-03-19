@@ -24,6 +24,14 @@ export type PlayerPresence = {
 
 export type PresenceByPlayerId = Record<PlayerId, PlayerPresence>;
 
+export type OnlineBotSeatRequest = {
+  color: PlayerColor;
+  /** Optional bot display name to surface in room/lobby UI. */
+  displayName?: string;
+};
+
+export type LocalSeatPlayerIdsByColor = Partial<Record<PlayerColor, PlayerId>>;
+
 export type PlayerIdentity = {
   /** Stable per-device guest identifier (informational only; not authorization). */
   guestId?: string;
@@ -73,6 +81,8 @@ export type CreateRoomRequest = {
   visibility?: RoomVisibility;
   /** Immutable per game; only settable at create. */
   rules?: RoomRules;
+  /** Optional local bot-controlled seats that should be seated immediately. */
+  botSeats?: OnlineBotSeatRequest[];
 };
 
 export type CreateRoomResponse =
@@ -90,6 +100,8 @@ export type CreateRoomResponse =
       visibility?: RoomVisibility;
       /** Present when the room is private and server generated a spectator token. */
       watchToken?: string;
+      /** All seats controlled by the creating machine, keyed by color. */
+      localSeatPlayerIdsByColor?: LocalSeatPlayerIdsByColor;
     }
   | OnlineError;
 

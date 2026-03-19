@@ -45,6 +45,9 @@ import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { initGameShell } from "./ui/shell/gameShell";
 import { GameSection } from "./config/shellState";
 import { resolveConfiguredLocalPlayerName } from "./shared/localPlayerNames";
+import { installPlayerBotSelector, syncPlayerBotSelector } from "./ui/bot/playerBotSelector";
+import type { OnlineGameDriver } from "./driver/gameDriver";
+import { hasConfiguredOnlineLocalBot } from "./shared/onlineLocalSeats";
 import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
 import { applyBoardViewportModeToSvg } from "./render/boardViewport";
 import { bindBoardPlayerNameOverlay } from "./render/boardPlayerNames";
@@ -128,7 +131,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       { id: "play", label: "Play", targetSelector: "#boardWrap" },
       { id: "status", label: "Status", targetSelector: '#leftSidebar .panelSection[data-section="status"]' },
       { id: "tools", label: "Tools", targetSelector: '#leftSidebar .panelSection[data-section="optionsActions"]' },
-      { id: "bot", label: "Bot", targetSelector: '#leftSidebar .panelSection[data-section="bot"]' },
+      { id: "bot", label: "Players", targetSelector: '#leftSidebar .panelSection[data-section="bot"]' },
       { id: "history", label: "History", targetSelector: '#rightSidebar .panelSection[data-section="moveHistory"]' },
       { id: "rules", label: "Rules", targetSelector: '#rightSidebar .panelSection[data-section="rules"]' },
     ],
@@ -334,6 +337,18 @@ window.addEventListener("DOMContentLoaded", async () => {
   boardPlayerNames = bindBoardPlayerNameOverlay({ svg, controller, isFlipped });
 
   bindOfflineNavGuard(controller, ACTIVE_VARIANT_ID);
+  installPlayerBotSelector({
+    storageSelectId: "botWhiteSelect",
+    roleSelectId: "botWhiteRoleSelect",
+    levelSelectId: "botWhiteLevelSelect",
+    levelWrapId: "botWhiteLevelWrap",
+  });
+  installPlayerBotSelector({
+    storageSelectId: "botBlackSelect",
+    roleSelectId: "botBlackRoleSelect",
+    levelSelectId: "botBlackLevelSelect",
+    levelWrapId: "botBlackLevelWrap",
+  });
 
   // Analysis graphics: right-drag (desktop) and touch gestures (analysis mode only).
   const boardVizTools = installBoardVisualizationTools(svg, {
@@ -360,11 +375,22 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   bindStartPageConfirm(controller, ACTIVE_VARIANT_ID);
 
-  // Offline-only: Bot controls (Columns Chess fallback bot).
-  if (driver.mode !== "online") {
+  const onlineLocalBotEnabled =
+    driver.mode === "online" && hasConfiguredOnlineLocalBot({ driver: driver as OnlineGameDriver, variantId: ACTIVE_VARIANT_ID });
+
+  // Bot controls (Columns Chess fallback bot).
+  if (driver.mode !== "online" || onlineLocalBotEnabled) {
     const bot = new ColumnsChessBotManager(controller);
     bot.bind();
     controller.addAnalysisModeChangeCallback((enabled) => bot.setAnalysisModeActive(enabled));
+    if (driver.mode === "online") {
+      const elW = document.getElementById("botWhiteSelect") as HTMLSelectElement | null;
+      const elB = document.getElementById("botBlackSelect") as HTMLSelectElement | null;
+      if (elW) elW.disabled = true;
+      if (elB) elB.disabled = true;
+      syncPlayerBotSelector("botWhiteSelect");
+      syncPlayerBotSelector("botBlackSelect");
+    }
   } else {
     // Hide bot panel in online mode.
     const botSection = document.querySelector('[data-section="bot"]') as HTMLElement | null;

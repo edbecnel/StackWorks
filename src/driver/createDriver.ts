@@ -5,10 +5,12 @@ import { LocalDriver } from "./localDriver.ts";
 import { RemoteDriver } from "./remoteDriver.ts";
 import { serializeWireGameState, serializeWireHistory, type WireSnapshot } from "../shared/wireState.ts";
 import { getGuestIdentity } from "../shared/guestIdentity.ts";
+import { buildOnlineBotSeatRequests, loadOnlineLocalSeatRecord, saveOnlineLocalSeatRecord } from "../shared/onlineLocalSeats.ts";
 import type {
   CreateRoomResponse,
   JoinRoomResponse,
   GetRoomSnapshotResponse,
+  LocalSeatPlayerIdsByColor,
 } from "../shared/onlineProtocol.ts";
 
 export function selectDriverMode(args: { search: string; envMode?: string | undefined }): DriverMode {
@@ -54,6 +56,10 @@ type OnlineResumeRecord = {
   displayName?: string;
   savedAtMs: number;
 };
+
+function resolveCreatorColor(prefColor: "W" | "B" | null): "W" | "B" {
+  return prefColor === "B" || prefColor === "W" ? prefColor : "W";
+}
 
 let pendingStartupMessage: string | null = null;
 
@@ -390,6 +396,8 @@ export async function createDriverAsync(args: {
       const variantId = args.state.meta?.variantId;
       if (!variantId) throw new Error("Cannot create online room: missing state.meta.variantId");
       const guest = getGuestIdentity();
+      const creatorColor = resolveCreatorColor(q.prefColor);
+      const botSeats = buildOnlineBotSeatRequests({ variantId, creatorColor });
       const res = await postJson<
         {
           variantId: any;
@@ -399,6 +407,7 @@ export async function createDriverAsync(args: {
           preferredColor?: "W" | "B";
           visibility?: "public" | "private";
           rules?: { drawByThreefold?: boolean };
+          botSeats?: Array<{ color: "W" | "B"; displayName?: string }>;
         },
         CreateRoomResponse
       >(
@@ -408,10 +417,10 @@ export async function createDriverAsync(args: {
           variantId,
           snapshot: wireSnapshot,
           ...(guest?.guestId ? { guestId: guest.guestId } : {}),
-          ...(guest?.displayName ? { displayName: guest.displayName } : {}),
           rules: { drawByThreefold: readThreefoldPrefForOnlineCreate() },
           ...(q.prefColor ? { preferredColor: q.prefColor } : {}),
           ...(q.visibility ? { visibility: q.visibility } : {}),
+          ...(botSeats.length ? { botSeats } : {}),
         }
       );
       const anyRes: any = res;
@@ -431,6 +440,7 @@ export async function createDriverAsync(args: {
         driver.setRemoteIds({ serverUrl: q.serverUrl, roomId: anyRes.roomId, playerId: anyRes.playerId });
       }
       if (anyRes.color === "W" || anyRes.color === "B") driver.setPlayerColor(anyRes.color);
+      driver.setLocalSeatPlayerIdsByColor((anyRes.localSeatPlayerIdsByColor ?? null) as LocalSeatPlayerIdsByColor | null);
       await driver.connectFromSnapshot(
         { serverUrl: q.serverUrl, roomId: anyRes.roomId, playerId: anyRes.playerId },
         anyRes.snapshot,
@@ -445,6 +455,13 @@ export async function createDriverAsync(args: {
         playerId: anyRes.playerId,
         color: anyRes.color === "W" || anyRes.color === "B" ? anyRes.color : undefined,
       });
+      if (anyRes.roomId && anyRes.localSeatPlayerIdsByColor) {
+        saveOnlineLocalSeatRecord({
+          serverUrl: q.serverUrl,
+          roomId: anyRes.roomId,
+          localSeatPlayerIdsByColor: anyRes.localSeatPlayerIdsByColor as LocalSeatPlayerIdsByColor,
+        });
+      }
       logJoinUrl({ serverUrl: q.serverUrl, roomId: anyRes.roomId });
 
       // If the room is private, also log a spectate link gated by watchToken.
@@ -484,10 +501,12 @@ export async function createDriverAsync(args: {
     // If we already have a resume token for this room, prefer reconnecting directly.
     // This avoids spamming the server with a join attempt (and noisy 400s) on stale join links.
     const rec0 = tryLoadOnlineResumeRecord({ serverUrl: q.serverUrl, roomId: q.roomId });
+    const localSeatRecord0 = loadOnlineLocalSeatRecord({ serverUrl: q.serverUrl, roomId: q.roomId });
     if (rec0?.playerId) {
       try {
         driver.setRemoteIds({ serverUrl: q.serverUrl, roomId: q.roomId, playerId: rec0.playerId });
         if (rec0.color === "W" || rec0.color === "B") driver.setPlayerColor(rec0.color);
+        driver.setLocalSeatPlayerIdsByColor(localSeatRecord0);
         const snap = await getJson<GetRoomSnapshotResponse>(
           q.serverUrl,
           `/api/room/${encodeURIComponent(q.roomId)}?playerId=${encodeURIComponent(rec0.playerId)}`
@@ -522,7 +541,6 @@ export async function createDriverAsync(args: {
         {
           roomId: q.roomId,
           ...(guest?.guestId ? { guestId: guest.guestId } : {}),
-          ...(guest?.displayName ? { displayName: guest.displayName } : {}),
           ...(q.prefColor ? { preferredColor: q.prefColor } : {}),
         }
       );
@@ -537,6 +555,7 @@ export async function createDriverAsync(args: {
         if (rec?.playerId) {
           driver.setRemoteIds({ serverUrl: q.serverUrl, roomId: q.roomId, playerId: rec.playerId });
           if (rec.color === "W" || rec.color === "B") driver.setPlayerColor(rec.color);
+          driver.setLocalSeatPlayerIdsByColor(loadOnlineLocalSeatRecord({ serverUrl: q.serverUrl, roomId: q.roomId }));
           const snap = await getJson<GetRoomSnapshotResponse>(
             q.serverUrl,
             `/api/room/${encodeURIComponent(q.roomId)}?playerId=${encodeURIComponent(rec.playerId)}`
@@ -607,6 +626,7 @@ export async function createDriverAsync(args: {
       driver.setRemoteIds({ serverUrl: q.serverUrl, roomId: anyRes.roomId, playerId: anyRes.playerId });
     }
     if (anyRes.color === "W" || anyRes.color === "B") driver.setPlayerColor(anyRes.color);
+    driver.setLocalSeatPlayerIdsByColor(loadOnlineLocalSeatRecord({ serverUrl: q.serverUrl, roomId: anyRes.roomId ?? q.roomId }));
     await driver.connectFromSnapshot(
       { serverUrl: q.serverUrl, roomId: anyRes.roomId, playerId: anyRes.playerId },
       anyRes.snapshot,
@@ -662,6 +682,7 @@ export async function createDriverAsync(args: {
   try {
     driver.setRemoteIds({ serverUrl: q.serverUrl, roomId: q.roomId, playerId: q.playerId });
     if (q.color) driver.setPlayerColor(q.color);
+    driver.setLocalSeatPlayerIdsByColor(loadOnlineLocalSeatRecord({ serverUrl: q.serverUrl, roomId: q.roomId }));
     const snap = await getJson<GetRoomSnapshotResponse>(
       q.serverUrl,
       `/api/room/${encodeURIComponent(q.roomId)}?playerId=${encodeURIComponent(q.playerId)}`

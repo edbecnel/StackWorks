@@ -9,6 +9,7 @@ import { difficultyForPlayer } from "./aiTypes.ts";
 import { createPrng } from "../shared/prng.ts";
 import { sideLabelForRuleset } from "../shared/sideTerminology.ts";
 import { applySignedInNameToLocalBotSelects } from "../ui/bot/localBotSelectIdentity.ts";
+import { syncPlayerBotSelector } from "../ui/bot/playerBotSelector";
 
 const LS_KEYS = {
   white: "lasca.ai.white",
@@ -545,6 +546,8 @@ export class AIManager {
     // programmatically and the selects should reflect that immediately).
     if (this.elWhite) this.elWhite.value = this.settings.white;
     if (this.elBlack) this.elBlack.value = this.settings.black;
+    syncPlayerBotSelector("aiWhiteSelect");
+    syncPlayerBotSelector("aiBlackSelect");
     if (this.elDelay) this.elDelay.value = String(this.settings.delayMs);
 
     if (this.elDelayLabel) this.elDelayLabel.textContent = `${this.settings.delayMs} ms`;

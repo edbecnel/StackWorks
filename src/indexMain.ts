@@ -2,7 +2,7 @@ import { DEFAULT_THEME_ID, getThemeById, THEMES } from "./theme/themes";
 import { DEFAULT_VARIANT_ID, VARIANTS, getVariantById, isVariantId } from "./variants/variantRegistry";
 import type { VariantId } from "./variants/variantTypes";
 import type { GetLobbyResponse, GetRoomMetaResponse, LobbyRoomSummary, PlayerColor, RoomVisibility } from "./shared/onlineProtocol.ts";
-import { getGuestDisplayName, setGuestDisplayName } from "./shared/guestIdentity.ts";
+import { setGuestDisplayName } from "./shared/guestIdentity.ts";
 import { createSfxManager } from "./ui/sfx";
 import type { AuthMeResponse, AuthOkResponse, AuthErrorResponse, AuthUser } from "./shared/authProtocol.ts";
 import { listCountryOptions, listTimeZones, normalizeCountryCode, resolveCountryName, resolveLocalTimeZone } from "./shared/profileMetadata.ts";
@@ -19,6 +19,11 @@ import { readBoardViewportMode, writeBoardViewportMode } from "./ui/boardViewpor
 import { createLobbyIdentityChip } from "./ui/lobby/lobbyIdentityChip";
 import { initStartPageAppShell } from "./ui/shell/appShell";
 import { readShellState } from "./config/shellState";
+import { installPlayerBotSelector, syncPlayerBotSelector } from "./ui/bot/playerBotSelector";
+import {
+  deriveOnlineLaunchIdentity as deriveOnlineLaunchIdentityFromSeatConfig,
+  resolveOnlineHumanSeat,
+} from "./shared/onlineHumanSeat.ts";
 
 const LS_KEYS = {
   theme: "lasca.theme",
@@ -75,6 +80,8 @@ const LS_KEYS = {
   lobbyMineOnly: "lasca.lobby.mineOnly",
   localPlayerLight: "lasca.local.nameLight",
   localPlayerDark: "lasca.local.nameDark",
+  onlineSeatOwnerLight: "lasca.online.seatOwnerLight",
+  onlineSeatOwnerDark: "lasca.online.seatOwnerDark",
 } as const;
 
 const START_SPLASH_MS = 3500;
@@ -572,13 +579,10 @@ window.addEventListener("DOMContentLoaded", () => {
   const elOnlineActionLabel =
     (document.querySelector('label[for="launchOnlineAction"]') as HTMLElement | null) ?? null;
   const elOnlineAction = byId<HTMLSelectElement>("launchOnlineAction");
-  const elOnlineNameLabel = byId<HTMLElement>("launchOnlineNameLabel");
-  const elOnlineName = byId<HTMLInputElement>("launchOnlineName");
+  const elOnlineOptions = (document.getElementById("launchOnlineOptions") as HTMLElement | null) ?? null;
   const elOnlineVisibilityLabel = byId<HTMLElement>("launchOnlineVisibilityLabel");
   const elOnlineVisibility = byId<HTMLSelectElement>("launchOnlineVisibility");
   const elOnlineHint = (document.getElementById("launchOnlineHint") as HTMLElement | null) ?? null;
-  const elOnlinePrefColorLabel = byId<HTMLElement>("launchOnlinePrefColorLabel");
-  const elOnlinePrefColor = byId<HTMLSelectElement>("launchOnlinePrefColor");
   const elOnlinePlayerIdLabel = byId<HTMLElement>("launchOnlinePlayerIdLabel");
   const elOnlinePlayerId = byId<HTMLInputElement>("launchOnlinePlayerId");
   const elOnlineRoomIdLabel = byId<HTMLElement>("launchOnlineRoomIdLabel");
@@ -645,10 +649,14 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const elAiWhite = byId<HTMLSelectElement>("launchAiWhite");
   const elAiBlack = byId<HTMLSelectElement>("launchAiBlack");
+  const elAiWhiteRoleSelect = byId<HTMLSelectElement>("launchAiWhiteRoleSelect");
+  const elAiBlackRoleSelect = byId<HTMLSelectElement>("launchAiBlackRoleSelect");
   const elPlayerNameLight = (document.getElementById("launchPlayerNameLight") as HTMLInputElement | null) ?? null;
   const elPlayerNameDark = (document.getElementById("launchPlayerNameDark") as HTMLInputElement | null) ?? null;
-  const elAiWhiteLabel = (document.querySelector('label[for="launchAiWhite"]') as HTMLElement | null) ?? null;
-  const elAiBlackLabel = (document.querySelector('label[for="launchAiBlack"]') as HTMLElement | null) ?? null;
+  const elOnlineSeatOwnerLight = (document.getElementById("launchOnlineSeatOwnerLight") as HTMLSelectElement | null) ?? null;
+  const elOnlineSeatOwnerDark = (document.getElementById("launchOnlineSeatOwnerDark") as HTMLSelectElement | null) ?? null;
+  const elAiWhiteLabel = (document.querySelector('label[for="launchAiWhiteRoleSelect"]') as HTMLElement | null) ?? null;
+  const elAiBlackLabel = (document.querySelector('label[for="launchAiBlackRoleSelect"]') as HTMLElement | null) ?? null;
   const elAiDelay = byId<HTMLInputElement>("launchAiDelay");
   const elAiDelayReset = byId<HTMLButtonElement>("launchAiDelayReset");
   const elAiDelayLabel = byId<HTMLElement>("launchAiDelayLabel");
@@ -689,6 +697,219 @@ window.addEventListener("DOMContentLoaded", () => {
     message?: string;
   }): void => {
     // app shell mounts later in startup; keep account refresh safe before that.
+  };
+  let signedInAccountDisplayName = "";
+  let syncingOnlineHumanSeat = false;
+
+  const readStoredPlayerName = (side: "W" | "B"): string => {
+    try {
+      return localStorage.getItem(side === "W" ? LS_KEYS.localPlayerLight : LS_KEYS.localPlayerDark)?.trim() ?? "";
+    } catch {
+      return "";
+    }
+  };
+
+  const writeStoredPlayerName = (side: "W" | "B", name: string): void => {
+    try {
+      localStorage.setItem(side === "W" ? LS_KEYS.localPlayerLight : LS_KEYS.localPlayerDark, name);
+    } catch {
+      // ignore
+    }
+  };
+
+  const writeOnlinePreferredColor = (color: "W" | "B"): void => {
+    try {
+      localStorage.setItem(LS_KEYS.onlinePrefColor, color);
+    } catch {
+      // ignore
+    }
+  };
+
+  const readOnlineSeatOwner = (side: "W" | "B"): "remote" | "local" => {
+    try {
+      const raw = localStorage.getItem(side === "W" ? LS_KEYS.onlineSeatOwnerLight : LS_KEYS.onlineSeatOwnerDark);
+      return raw === "local" ? "local" : "remote";
+    } catch {
+      return "remote";
+    }
+  };
+
+  const writeOnlineSeatOwner = (side: "W" | "B", owner: "remote" | "local"): void => {
+    try {
+      localStorage.setItem(side === "W" ? LS_KEYS.onlineSeatOwnerLight : LS_KEYS.onlineSeatOwnerDark, owner);
+    } catch {
+      // ignore
+    }
+  };
+
+  const syncOnlineSeatOwnerSelect = (side: "W" | "B", select: HTMLSelectElement | null): void => {
+    if (!select) return;
+
+    const accountName = signedInAccountDisplayName.trim();
+    const optionSig = accountName ? `remote|local:${accountName}` : "remote";
+    if (select.dataset.optionsSig !== optionSig) {
+      const remoteOption = document.createElement("option");
+      remoteOption.value = "remote";
+      remoteOption.textContent = "Online player";
+
+      const options = [remoteOption];
+      if (accountName) {
+        const localOption = document.createElement("option");
+        localOption.value = "local";
+        localOption.textContent = accountName;
+        options.push(localOption);
+      }
+
+      select.replaceChildren(...options);
+      select.dataset.optionsSig = optionSig;
+    }
+
+    const storedOwner = readOnlineSeatOwner(side);
+    const nextValue = storedOwner === "local" && accountName ? "local" : "remote";
+    select.value = nextValue;
+  };
+
+  const setOnlineSeatOwnerControlVisibility = (args: {
+    textInput: HTMLInputElement | null;
+    ownerSelect: HTMLSelectElement | null;
+    showTextInput: boolean;
+  }): void => {
+    if (args.textInput) {
+      args.textInput.hidden = !args.showTextInput;
+      args.textInput.disabled = !args.showTextInput;
+      args.textInput.style.display = args.showTextInput ? "" : "none";
+    }
+    if (args.ownerSelect) {
+      args.ownerSelect.hidden = args.showTextInput;
+      args.ownerSelect.disabled = args.showTextInput;
+      args.ownerSelect.style.display = args.showTextInput ? "none" : "";
+    }
+  };
+
+  const prefillLocalPlayerNamesFromSignedInAccount = (): void => {
+    if (!elPlayerNameLight || !elPlayerNameDark) return;
+    if (elPlayMode.value === "online") return;
+
+    const accountName = signedInAccountDisplayName.trim();
+    if (!accountName) return;
+
+    const lightStored = readStoredPlayerName("W");
+    const darkStored = readStoredPlayerName("B");
+
+    if (!lightStored) {
+      elPlayerNameLight.value = accountName;
+      writeStoredPlayerName("W", accountName);
+    }
+    if (!darkStored) {
+      elPlayerNameDark.value = accountName;
+      writeStoredPlayerName("B", accountName);
+    }
+  };
+
+  const setHumanRoleOptionDisabled = (roleSelect: HTMLSelectElement, disabled: boolean): void => {
+    const humanOption = Array.from(roleSelect.options).find((option) => option.value === "human") ?? null;
+    if (humanOption) humanOption.disabled = disabled;
+  };
+
+  const syncOnlinePlayerSeatInputs = (): void => {
+    if (!elPlayerNameLight || !elPlayerNameDark) return;
+
+    const playMode = (elPlayMode.value === "online" ? "online" : "local") as PlayMode;
+    const lightStored = readStoredPlayerName("W");
+    const darkStored = readStoredPlayerName("B");
+    const accountName = signedInAccountDisplayName.trim();
+
+    if (playMode !== "online") {
+      setHumanRoleOptionDisabled(elAiWhiteRoleSelect, false);
+      setHumanRoleOptionDisabled(elAiBlackRoleSelect, false);
+      elAiWhiteRoleSelect.disabled = false;
+      elAiBlackRoleSelect.disabled = false;
+      setOnlineSeatOwnerControlVisibility({
+        textInput: elPlayerNameLight,
+        ownerSelect: elOnlineSeatOwnerLight,
+        showTextInput: true,
+      });
+      setOnlineSeatOwnerControlVisibility({
+        textInput: elPlayerNameDark,
+        ownerSelect: elOnlineSeatOwnerDark,
+        showTextInput: true,
+      });
+      elPlayerNameLight.readOnly = false;
+      elPlayerNameDark.readOnly = false;
+      elPlayerNameLight.value = lightStored;
+      elPlayerNameDark.value = darkStored;
+      elPlayerNameLight.placeholder = "Player name (optional)";
+      elPlayerNameDark.placeholder = "Player name (optional)";
+      syncPlayerBotSelector("launchAiWhite");
+      syncPlayerBotSelector("launchAiBlack");
+      return;
+    }
+
+    if (syncingOnlineHumanSeat) return;
+
+    syncOnlineSeatOwnerSelect("W", elOnlineSeatOwnerLight);
+    syncOnlineSeatOwnerSelect("B", elOnlineSeatOwnerDark);
+
+    const preferredColor = readPreferredColor(LS_KEYS.onlinePrefColor, "auto");
+    const resolvedHumanSeat = resolveOnlineHumanSeat({
+      whiteRole: elAiWhite.value === "human" ? "human" : "bot",
+      blackRole: elAiBlack.value === "human" ? "human" : "bot",
+      whiteOwner: readOnlineSeatOwner("W"),
+      blackOwner: readOnlineSeatOwner("B"),
+      preferredColor,
+    });
+
+    const whiteLocalHuman = elAiWhite.value === "human" && readOnlineSeatOwner("W") === "local" && Boolean(accountName);
+    const blackLocalHuman = elAiBlack.value === "human" && readOnlineSeatOwner("B") === "local" && Boolean(accountName);
+    if (whiteLocalHuman && blackLocalHuman && resolvedHumanSeat) {
+      syncingOnlineHumanSeat = true;
+      const remoteSide = resolvedHumanSeat === "W" ? "B" : "W";
+      writeOnlineSeatOwner(remoteSide, "remote");
+      syncOnlineSeatOwnerSelect("W", elOnlineSeatOwnerLight);
+      syncOnlineSeatOwnerSelect("B", elOnlineSeatOwnerDark);
+      syncingOnlineHumanSeat = false;
+    }
+
+    if (resolvedHumanSeat) writeOnlinePreferredColor(resolvedHumanSeat);
+
+    setHumanRoleOptionDisabled(elAiWhiteRoleSelect, false);
+    setHumanRoleOptionDisabled(elAiBlackRoleSelect, false);
+
+    if (elAiWhite.value === "human") {
+      setOnlineSeatOwnerControlVisibility({
+        textInput: elPlayerNameLight,
+        ownerSelect: elOnlineSeatOwnerLight,
+        showTextInput: false,
+      });
+      syncOnlineSeatOwnerSelect("W", elOnlineSeatOwnerLight);
+    } else {
+      setOnlineSeatOwnerControlVisibility({
+        textInput: elPlayerNameLight,
+        ownerSelect: elOnlineSeatOwnerLight,
+        showTextInput: true,
+      });
+      elPlayerNameLight.value = lightStored;
+      elPlayerNameLight.readOnly = false;
+      elPlayerNameLight.placeholder = "Bot name (optional)";
+    }
+
+    if (elAiBlack.value === "human") {
+      setOnlineSeatOwnerControlVisibility({
+        textInput: elPlayerNameDark,
+        ownerSelect: elOnlineSeatOwnerDark,
+        showTextInput: false,
+      });
+      syncOnlineSeatOwnerSelect("B", elOnlineSeatOwnerDark);
+    } else {
+      setOnlineSeatOwnerControlVisibility({
+        textInput: elPlayerNameDark,
+        ownerSelect: elOnlineSeatOwnerDark,
+        showTextInput: true,
+      });
+      elPlayerNameDark.value = darkStored;
+      elPlayerNameDark.readOnly = false;
+      elPlayerNameDark.placeholder = "Bot name (optional)";
+    }
   };
 
   const populateAccountCountryOptions = (): void => {
@@ -736,6 +957,31 @@ window.addEventListener("DOMContentLoaded", () => {
   populateAccountCountryOptions();
   populateAccountTimeZoneOptions();
 
+  installPlayerBotSelector({
+    storageSelectId: "launchAiWhite",
+    roleSelectId: "launchAiWhiteRoleSelect",
+    levelSelectId: "launchAiWhiteLevelSelect",
+    levelWrapId: "launchAiWhiteLevelWrap",
+  });
+  installPlayerBotSelector({
+    storageSelectId: "launchAiBlack",
+    roleSelectId: "launchAiBlackRoleSelect",
+    levelSelectId: "launchAiBlackLevelSelect",
+    levelWrapId: "launchAiBlackLevelWrap",
+  });
+
+  elAiWhiteRoleSelect.addEventListener("change", () => {
+    if (elPlayMode.value !== "online") return;
+    if (elAiWhiteRoleSelect.value !== "human") return;
+    writeOnlineSeatOwner("W", "remote");
+  });
+
+  elAiBlackRoleSelect.addEventListener("change", () => {
+    if (elPlayMode.value !== "online") return;
+    if (elAiBlackRoleSelect.value !== "human") return;
+    writeOnlineSeatOwner("B", "remote");
+  });
+
   const envServerUrl = (import.meta as any)?.env?.VITE_SERVER_URL as string | undefined;
   const defaultServerUrl = (() => {
     if (typeof envServerUrl === "string" && envServerUrl.trim()) return envServerUrl.trim();
@@ -766,12 +1012,12 @@ window.addEventListener("DOMContentLoaded", () => {
     if (next === lastConfiguredServerUrl) return;
     lastConfiguredServerUrl = next;
 
-    // If we're currently viewing online UI, refresh dependent panels.
+    // Refresh account state regardless of play mode; lobby still only matters online.
     try {
       syncAvailability();
+      void refreshAccountUi();
       if (elPlayMode.value === "online") {
         void fetchLobby();
-        void refreshAccountUi();
       }
     } catch {
       // ignore
@@ -873,13 +1119,16 @@ window.addEventListener("DOMContentLoaded", () => {
 
     const user = me.user;
     if (!user) {
+      signedInAccountDisplayName = "";
       setAccountStatus("Account: signed out");
       syncAccountFormFromUser(null);
       syncShellAccountState({ status: "signed-out" });
+      syncOnlinePlayerSeatInputs();
       return;
     }
 
     const name = typeof user.displayName === "string" ? user.displayName : "(no name)";
+    signedInAccountDisplayName = name.trim();
     const email = typeof user.email === "string" ? user.email : "";
     const countryName = user.countryName ?? resolveCountryName(user.countryCode ?? "") ?? null;
     const timeZone = user.timeZone ?? null;
@@ -897,12 +1146,9 @@ window.addEventListener("DOMContentLoaded", () => {
       message: "Profile identity is reused across the shell and multiplayer account tools.",
     });
 
-    // Convenience: if the Online Name input is blank or still the default placeholder value,
-    // prefill it from the account display name so MP4C can be exercised end-to-end in UI.
-    const currentOnlineName = (elOnlineName.value || "").trim();
-    if (!currentOnlineName || currentOnlineName.toLowerCase() === "guest") {
-      elOnlineName.value = name;
-    }
+    prefillLocalPlayerNamesFromSignedInAccount();
+    syncOnlinePlayerSeatInputs();
+    syncOnlineIdentityFromBotSection();
   };
 
   const withAccountBusy = async (fn: () => Promise<void>): Promise<void> => {
@@ -1859,8 +2105,6 @@ window.addEventListener("DOMContentLoaded", () => {
   localStorage.setItem(LS_KEYS.onlineAction, "create");
   elOnlineVisibility.value = readVisibility(LS_KEYS.onlineVisibility, "public");
   elOnlineRoomId.value = localStorage.getItem(LS_KEYS.onlineRoomId) ?? "";
-  elOnlinePrefColor.value = readPreferredColor(LS_KEYS.onlinePrefColor, "auto");
-  elOnlineName.value = getGuestDisplayName() ?? "";
 
   if (elShowResizeIcon) elShowResizeIcon.checked = readBool(LS_KEYS.optShowResizeIcon, false);
   if (elShowPlayerNames) elShowPlayerNames.checked = readBool(LS_KEYS.optShowPlayerNames, true);
@@ -1919,6 +2163,8 @@ window.addEventListener("DOMContentLoaded", () => {
     elAiWhite.value = chessBotSideToDifficulty(localStorage.getItem(CHESSBOT_LS_KEYS.white));
     elAiBlack.value = chessBotSideToDifficulty(localStorage.getItem(CHESSBOT_LS_KEYS.black));
   }
+  syncPlayerBotSelector("launchAiWhite");
+  syncPlayerBotSelector("launchAiBlack");
 
   const initialDelayKey = initialVariant === "columns_chess"
     ? LS_KEYS.columnsBotDelayMs
@@ -1932,7 +2178,7 @@ window.addEventListener("DOMContentLoaded", () => {
   if (elPlayerNameLight) elPlayerNameLight.value = localStorage.getItem(LS_KEYS.localPlayerLight) ?? "";
   if (elPlayerNameDark) elPlayerNameDark.value = localStorage.getItem(LS_KEYS.localPlayerDark) ?? "";
 
-  // Populate player name datalist + pre-fill empty inputs from the signed-in account.
+  // Populate player name datalist from the signed-in account.
   void (async () => {
     try {
       const serverUrl = resolveConfiguredServerUrl();
@@ -1949,15 +2195,10 @@ window.addEventListener("DOMContentLoaded", () => {
         opt.value = name;
         datalist.appendChild(opt);
       }
-      // Pre-fill whichever input is still empty.
-      if (elPlayerNameLight && !elPlayerNameLight.value) {
-        elPlayerNameLight.value = name;
-        localStorage.setItem(LS_KEYS.localPlayerLight, name);
-      }
-      if (elPlayerNameDark && !elPlayerNameDark.value) {
-        elPlayerNameDark.value = name;
-        localStorage.setItem(LS_KEYS.localPlayerDark, name);
-      }
+      signedInAccountDisplayName = name;
+      prefillLocalPlayerNamesFromSignedInAccount();
+      syncOnlinePlayerSeatInputs();
+      syncOnlineIdentityFromBotSection();
     } catch { /* ignore */ }
   })();
 
@@ -2020,6 +2261,24 @@ window.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem(LS_KEYS.aiDelayMs, String(delayMs));
   };
 
+  const readOnlineLaunchIdentity = (): { guestName: string; prefColor: PreferredColor } => {
+    return deriveOnlineLaunchIdentityFromSeatConfig({
+      whiteRole: elAiWhite.value === "human" ? "human" : "bot",
+      blackRole: elAiBlack.value === "human" ? "human" : "bot",
+      whiteOwner: readOnlineSeatOwner("W"),
+      blackOwner: readOnlineSeatOwner("B"),
+      preferredColor: readPreferredColor(LS_KEYS.onlinePrefColor, "auto"),
+      signedInDisplayName: signedInAccountDisplayName,
+      lightName: readStoredPlayerName("W"),
+      darkName: readStoredPlayerName("B"),
+    });
+  };
+
+  const syncOnlineIdentityFromBotSection = (): void => {
+    const { guestName } = readOnlineLaunchIdentity();
+    setGuestDisplayName(guestName);
+  };
+
   // When switching into playable-area viewport mode, we force "Inside squares"
   // on and lock it. Preserve the user's previous selection so it can be
   // restored when switching back to framed mode.
@@ -2037,13 +2296,36 @@ window.addEventListener("DOMContentLoaded", () => {
   if (elPlayerNameLight) {
     elPlayerNameLight.addEventListener("input", () => {
       localStorage.setItem(LS_KEYS.localPlayerLight, elPlayerNameLight.value.trim());
+      syncOnlineIdentityFromBotSection();
     });
   }
   if (elPlayerNameDark) {
     elPlayerNameDark.addEventListener("input", () => {
       localStorage.setItem(LS_KEYS.localPlayerDark, elPlayerNameDark.value.trim());
+      syncOnlineIdentityFromBotSection();
     });
   }
+  elOnlineSeatOwnerLight?.addEventListener("change", () => {
+    writeOnlineSeatOwner("W", elOnlineSeatOwnerLight.value === "local" ? "local" : "remote");
+    if (elOnlineSeatOwnerLight.value === "local" && elAiBlack.value === "human") {
+      writeOnlineSeatOwner("B", "remote");
+    }
+    syncOnlinePlayerSeatInputs();
+    syncOnlineIdentityFromBotSection();
+    syncAvailability();
+  });
+  elOnlineSeatOwnerDark?.addEventListener("change", () => {
+    writeOnlineSeatOwner("B", elOnlineSeatOwnerDark.value === "local" ? "local" : "remote");
+    if (elOnlineSeatOwnerDark.value === "local" && elAiWhite.value === "human") {
+      writeOnlineSeatOwner("W", "remote");
+    }
+    syncOnlinePlayerSeatInputs();
+    syncOnlineIdentityFromBotSection();
+    syncAvailability();
+  });
+
+  syncOnlinePlayerSeatInputs();
+  syncOnlineIdentityFromBotSection();
 
   const syncAvailability = () => {
     const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
@@ -2063,12 +2345,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
       if (elAiWhiteLabel) elAiWhiteLabel.textContent = wLabel;
       if (elAiBlackLabel) elAiBlackLabel.textContent = bLabel;
-
-      // Keep online preferred color dropdown consistent with variant terminology.
-      for (const opt of Array.from(elOnlinePrefColor.options)) {
-        if (opt.value === "W") opt.textContent = wLabel;
-        if (opt.value === "B") opt.textContent = bLabel;
-      }
     }
 
     syncThemeConstraintsForVariant(vId);
@@ -2081,7 +2357,6 @@ window.addEventListener("DOMContentLoaded", () => {
     const isColumnsChess = vId === "columns_chess";
     const isClassicChess = vId === "chess_classic";
     const isCheckers = v.rulesetId === "checkers_us";
-    const showBotControls = playMode !== "online";
     const usesColumnsChessBoard = isColumnsChess || isClassicChess;
     const supportsModernLastMoveStyle = true;
     const supportsAnalysisSquareStyle = isColumnsChess || isClassicChess;
@@ -2177,7 +2452,7 @@ window.addEventListener("DOMContentLoaded", () => {
         '<option value="medium">Intermediate</option>' +
         '<option value="advanced">Strong</option>';
 
-      const columnsBotOptions = '<option value="human">Human</option><option value="bot">Bot</option>';
+      const columnsBotOptions = '<option value="human">Human</option><option value="bot">Standard</option>';
 
       if (isColumnsChess) {
         setOptions(elAiWhite, "columns", columnsBotOptions);
@@ -2185,6 +2460,8 @@ window.addEventListener("DOMContentLoaded", () => {
 
         elAiWhite.value = readColumnsBotSide(LS_KEYS.columnsBotWhite, "human");
         elAiBlack.value = readColumnsBotSide(LS_KEYS.columnsBotBlack, "human");
+        syncPlayerBotSelector("launchAiWhite");
+        syncPlayerBotSelector("launchAiBlack");
 
         const delayMs = readDelayMs(LS_KEYS.columnsBotDelayMs, 1000);
         elAiDelay.value = String(delayMs);
@@ -2203,6 +2480,8 @@ window.addEventListener("DOMContentLoaded", () => {
           elAiWhite.value = chessBotSideToDifficulty(localStorage.getItem(CHESSBOT_LS_KEYS.white));
           elAiBlack.value = chessBotSideToDifficulty(localStorage.getItem(CHESSBOT_LS_KEYS.black));
         }
+        syncPlayerBotSelector("launchAiWhite");
+        syncPlayerBotSelector("launchAiBlack");
 
         const delayKey = isClassicChess ? CHESSBOT_LS_KEYS.delay : LS_KEYS.aiDelayMs;
         const delayMs = readDelayMs(delayKey, 1000);
@@ -2211,31 +2490,22 @@ window.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    const isAiGame = elAiWhite.value !== "human" || elAiBlack.value !== "human";
+    if (elBotSection) elBotSection.style.display = "";
 
-    // Allow bot selection for Columns Chess and Classic Chess.
-    if (elBotSection) elBotSection.style.display = showBotControls ? "" : "none";
-
-    elAiWhite.disabled = !showBotControls;
-    elAiBlack.disabled = !showBotControls;
+    elAiWhite.disabled = false;
+    elAiBlack.disabled = false;
+    syncPlayerBotSelector("launchAiWhite");
+    syncPlayerBotSelector("launchAiBlack");
+    syncOnlinePlayerSeatInputs();
     // Delay is a built-in AI throttle; Classic Chess bots use Stockfish movetime presets instead.
     // Columns Chess bot uses this delay setting.
-    elAiDelay.disabled = !showBotControls;
-    elAiDelayReset.disabled = !showBotControls;
-
-    // Online (2 players) requires both sides Human.
-    const onlineOpt = Array.from(elPlayMode.options).find((o) => o.value === "online") ?? null;
-    if (onlineOpt) onlineOpt.disabled = isAiGame;
-    if (isAiGame && elPlayMode.value === "online") {
-      elPlayMode.value = "local";
-    }
-    elPlayMode.disabled = isAiGame;
+    elAiDelay.disabled = false;
+    elAiDelayReset.disabled = false;
 
     const serverUrl = resolveConfiguredServerUrl();
 
     if (elAccountSection) {
-      // Account is only meaningful for online play (MP4C auth testing).
-      elAccountSection.style.display = playMode === "online" ? "" : "none";
+      elAccountSection.style.display = "";
     }
 
     let ok = baseOk;
@@ -2244,9 +2514,22 @@ window.addEventListener("DOMContentLoaded", () => {
     if (!baseOk) {
       warning = `${v.displayName} is not available yet in this build.`;
     } else if (playMode === "online") {
+      const whiteHuman = elAiWhite.value === "human";
+      const blackHuman = elAiBlack.value === "human";
+      const localHumanSeat = resolveOnlineHumanSeat({
+        whiteRole: whiteHuman ? "human" : "bot",
+        blackRole: blackHuman ? "human" : "bot",
+        whiteOwner: readOnlineSeatOwner("W"),
+        blackOwner: readOnlineSeatOwner("B"),
+        preferredColor: readPreferredColor(LS_KEYS.onlinePrefColor, "auto"),
+      });
+
       if (!serverUrl) {
         ok = false;
         warning = "Online mode is not configured.";
+      } else if (whiteHuman && blackHuman && !localHumanSeat) {
+        ok = false;
+        warning = "Choose your seat by selecting your player name for one Human player.";
       }
     }
 
@@ -2277,10 +2560,10 @@ window.addEventListener("DOMContentLoaded", () => {
       localStorage.setItem(LS_KEYS.onlineAction, "create");
       elOnlineVisibility.value = readVisibility(LS_KEYS.onlineVisibility, (elOnlineVisibility.value as any) ?? "public");
       elOnlineRoomId.value = localStorage.getItem(LS_KEYS.onlineRoomId) ?? "";
-      elOnlineName.value = getGuestDisplayName() ?? "";
     } catch {
       // ignore
     }
+    syncOnlineIdentityFromBotSection();
     syncOnlineVisibility();
     syncAvailability();
     onConfiguredServerUrlMaybeChanged();
@@ -2349,17 +2632,8 @@ window.addEventListener("DOMContentLoaded", () => {
     syncAvailability();
   });
 
-  elOnlineName.addEventListener("input", () => {
-    setGuestDisplayName(elOnlineName.value);
-  });
-
   elOnlineVisibility.addEventListener("change", () => {
     localStorage.setItem(LS_KEYS.onlineVisibility, elOnlineVisibility.value);
-    syncAvailability();
-  });
-
-  elOnlinePrefColor.addEventListener("change", () => {
-    localStorage.setItem(LS_KEYS.onlinePrefColor, elOnlinePrefColor.value);
     syncAvailability();
   });
 
@@ -2471,6 +2745,8 @@ window.addEventListener("DOMContentLoaded", () => {
       localStorage.setItem(CHESSBOT_LS_KEYS.paused, "false");
     }
 
+    syncOnlinePlayerSeatInputs();
+    syncOnlineIdentityFromBotSection();
     syncOnlineVisibility();
     syncAvailability();
   });
@@ -2487,63 +2763,24 @@ window.addEventListener("DOMContentLoaded", () => {
       localStorage.setItem(CHESSBOT_LS_KEYS.paused, "false");
     }
 
+    syncOnlinePlayerSeatInputs();
+    syncOnlineIdentityFromBotSection();
     syncOnlineVisibility();
     syncAvailability();
   });
 
   function syncOnlineVisibility(): void {
-    const isAiGame = elAiWhite.value !== "human" || elAiBlack.value !== "human";
-
-    // Online (2 players) requires both sides Human.
-    const onlineOpt = Array.from(elPlayMode.options).find((o) => o.value === "online") ?? null;
-    if (onlineOpt) onlineOpt.disabled = isAiGame;
-    if (isAiGame && elPlayMode.value === "online") {
-      elPlayMode.value = "local";
-    }
-    elPlayMode.disabled = isAiGame;
-
     const playMode = (elPlayMode.value === "online" ? "online" : "local") as PlayMode;
     const onlineAction: OnlineAction = "create";
 
     const showOnline = playMode === "online";
     // When local/offline, hide the online controls entirely to avoid confusion.
+    if (elOnlineOptions) elOnlineOptions.style.display = showOnline ? "" : "none";
     elOnlineActionLabel && (elOnlineActionLabel.style.display = showOnline ? "" : "none");
     elOnlineAction.style.display = showOnline ? "" : "none";
     elOnlineAction.disabled = !showOnline;
 
-    elOnlineNameLabel.style.display = showOnline ? "" : "none";
-    elOnlineName.style.display = showOnline ? "" : "none";
-    if (!showOnline) {
-      elOnlineName.disabled = true;
-    } else {
-      elOnlineName.disabled = false;
-      // Ensure the field reflects the currently saved guest name.
-      elOnlineName.value = getGuestDisplayName() ?? "";
-    }
-
     if (elOnlineHint) elOnlineHint.style.display = showOnline ? "" : "none";
-
-    // Online color preference is only meaningful for Create.
-    const showPrefColor = showOnline;
-    const allowNonAuto = showOnline && onlineAction === "create";
-
-    elOnlinePrefColorLabel.style.display = showPrefColor ? "" : "none";
-    elOnlinePrefColor.style.display = showPrefColor ? "" : "none";
-    elOnlinePrefColor.disabled = !allowNonAuto;
-
-    // Only allow Light/Dark options for Create.
-    for (const opt of Array.from(elOnlinePrefColor.options)) {
-      const v = opt.value;
-      if (v === "W" || v === "B") opt.disabled = !allowNonAuto;
-    }
-
-    if (!allowNonAuto) {
-      // Don't persist this to localStorage; it's action-dependent.
-      elOnlinePrefColor.value = "auto";
-    } else {
-      // Restore user's saved preference when returning to Create.
-      elOnlinePrefColor.value = readPreferredColor(LS_KEYS.onlinePrefColor, "auto");
-    }
 
     const showPlayerId = false;
     elOnlinePlayerIdLabel.style.display = showPlayerId ? "" : "none";
@@ -2597,7 +2834,8 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     const serverUrl = resolveConfiguredServerUrl();
-    const prefColor = (elOnlinePrefColor.value === "W" || elOnlinePrefColor.value === "B") ? elOnlinePrefColor.value : "auto";
+    const { guestName, prefColor } = readOnlineLaunchIdentity();
+    setGuestDisplayName(guestName);
     const visibility = (elOnlineVisibility.value === "private" ? "private" : "public") as RoomVisibility;
 
     await launchOnline({

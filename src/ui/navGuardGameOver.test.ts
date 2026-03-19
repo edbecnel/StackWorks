@@ -1,13 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { bindOfflineNavGuard } from "./offlineNavGuard";
+import { resetConfirmedNavigationAllowanceForTests } from "./navigationPromptGate";
 import { bindStartPageConfirm } from "./startPageConfirm";
 import { createInitialGameStateForVariant } from "../game/state";
 import type { GameController, HistoryChangeReason } from "../controller/gameController";
 import type { VariantId } from "../variants/variantTypes";
 
 describe("navigation guards", () => {
-  it("does not warn after game over (offline back/refresh + Start Page)", () => {
+  it("uses only one prompt for confirmed navigation and stops warning after game over", () => {
     vi.useFakeTimers();
 
     // Minimal controller stub used by the guards.
@@ -26,45 +27,62 @@ describe("navigation guards", () => {
       showStickyToast: () => {},
     } as unknown as GameController;
 
-    // ---- Start Page confirm
     document.body.innerHTML = `<a id="start" href="./">Start Page</a>`;
-    // Ensure repeated runs don't no-op due to the "bound" flag.
     delete (document as unknown as Record<string, unknown>)["__lascaStartPageConfirmBound"];
+    delete (window as unknown as Record<string, unknown>)["__lascaOfflineNavGuardBound"];
+    resetConfirmedNavigationAllowanceForTests();
 
     bindStartPageConfirm(controller, variantId);
+    bindOfflineNavGuard(controller, variantId);
 
-    // Mark the game as begun.
     for (const cb of historyListeners) cb("move");
 
     const startLink = document.getElementById("start") as HTMLAnchorElement;
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
 
-    // In-progress: should prompt and cancel when user declines.
+    // In-progress Start Page click: one custom prompt only, and cancel on decline.
     isOver = false;
-    const inProgressClickOk = startLink.dispatchEvent(
+    const declinedStartClick = startLink.dispatchEvent(
       new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }),
     );
     expect(confirmSpy).toHaveBeenCalledTimes(1);
-    expect(inProgressClickOk).toBe(false);
+    expect(declinedStartClick).toBe(false);
 
-    // ---- Offline back/refresh guard
-    delete (window as unknown as Record<string, unknown>)["__lascaOfflineNavGuardBound"];
-
-    const historyBackSpy = vi.spyOn(window.history, "back").mockImplementation(() => {});
-
-    bindOfflineNavGuard(controller, variantId);
-
-    // Mark the game as begun for the offline guard too.
-    for (const cb of historyListeners) cb("move");
-
-    // In-progress: beforeunload should be blocked.
-    isOver = false;
+    // In-progress refresh/close still uses the native beforeunload prompt.
     const beforeUnload1 = new Event("beforeunload", { cancelable: true }) as unknown as BeforeUnloadEvent;
-    // Ensure returnValue is writable in jsdom.
     Object.defineProperty(beforeUnload1, "returnValue", { value: undefined, writable: true });
     window.dispatchEvent(beforeUnload1);
     expect(beforeUnload1.defaultPrevented).toBe(true);
     expect((beforeUnload1 as unknown as { returnValue?: unknown }).returnValue).toBe("");
+
+    // Accepted Start Page click should not trigger a second native prompt.
+    confirmSpy.mockReset();
+    confirmSpy.mockReturnValue(true);
+
+    const startClickOk = startLink.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }),
+    );
+    expect(startClickOk).toBe(true);
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+
+    const beforeUnloadAfterStart = new Event("beforeunload", { cancelable: true }) as unknown as BeforeUnloadEvent;
+    Object.defineProperty(beforeUnloadAfterStart, "returnValue", { value: undefined, writable: true });
+    window.dispatchEvent(beforeUnloadAfterStart);
+    expect(beforeUnloadAfterStart.defaultPrevented).toBe(false);
+
+    const historyBackSpy = vi.spyOn(window.history, "back").mockImplementation(() => {});
+
+    confirmSpy.mockClear();
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  vi.advanceTimersByTime(0);
+
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(historyBackSpy).toHaveBeenCalled();
+
+    const beforeUnloadAfterBack = new Event("beforeunload", { cancelable: true }) as unknown as BeforeUnloadEvent;
+    Object.defineProperty(beforeUnloadAfterBack, "returnValue", { value: undefined, writable: true });
+    window.dispatchEvent(beforeUnloadAfterBack);
+    expect(beforeUnloadAfterBack.defaultPrevented).toBe(false);
 
     // Game over: beforeunload should NOT be blocked.
     isOver = true;
@@ -76,7 +94,7 @@ describe("navigation guards", () => {
     // Game over: back (popstate) should not prompt.
     confirmSpy.mockClear();
     window.dispatchEvent(new PopStateEvent("popstate"));
-    vi.runAllTimers();
+    vi.advanceTimersByTime(0);
 
     expect(confirmSpy).toHaveBeenCalledTimes(0);
     expect(historyBackSpy).toHaveBeenCalled();
@@ -97,5 +115,6 @@ describe("navigation guards", () => {
 
     confirmSpy.mockRestore();
     historyBackSpy.mockRestore();
+    resetConfirmedNavigationAllowanceForTests();
   });
 });

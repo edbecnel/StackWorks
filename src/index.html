@@ -846,67 +846,190 @@
               <option value="local">Local (offline)</option>
               <option value="online">Online (2 players)</option>
             </select>
-
-            <label for="launchOnlineAction">Online</label>
-            <select id="launchOnlineAction" class="panelSelect">
-              <option value="create">Create room</option>
-            </select>
-
-            <label id="launchOnlineNameLabel" for="launchOnlineName"
-              >Name</label
-            >
-            <input
-              id="launchOnlineName"
-              class="panelSelect"
-              type="text"
-              autocomplete="nickname"
-              inputmode="text"
-              placeholder="Guest"
-            />
-
-            <label id="launchOnlineVisibilityLabel" for="launchOnlineVisibility"
-              >Room</label
-            >
-            <select id="launchOnlineVisibility" class="panelSelect">
-              <option value="public">Public (spectators allowed)</option>
-              <option value="private">Private (no spectators)</option>
-            </select>
-
-            <label id="launchOnlinePrefColorLabel" for="launchOnlinePrefColor"
-              >Color</label
-            >
-            <select id="launchOnlinePrefColor" class="panelSelect">
-              <option value="auto">Auto</option>
-              <option value="W">Light</option>
-              <option value="B">Dark</option>
-            </select>
-
-            <label id="launchOnlinePlayerIdLabel" for="launchOnlinePlayerId"
-              >Player ID</label
-            >
-            <input
-              id="launchOnlinePlayerId"
-              class="panelSelect"
-              type="text"
-              autocomplete="off"
-              readonly
-              placeholder="—"
-            />
-
-            <label id="launchOnlineRoomIdLabel" for="launchOnlineRoomId"
-              >Room ID</label
-            >
-            <input
-              id="launchOnlineRoomId"
-              class="panelSelect"
-              type="text"
-              autocomplete="off"
-              placeholder="Paste room ID"
-            />
           </div>
-          <div id="launchOnlineHint" class="hint" style="margin-left: 0">
-            Online Create logs a join link in the browser console (F12). To
-            Join/Spectate/Rejoin, use the Lobby list.
+
+          <div id="launchOnlineOptions">
+            <div class="row">
+              <label for="launchOnlineAction">Online</label>
+              <select id="launchOnlineAction" class="panelSelect">
+                <option value="create">Create room</option>
+              </select>
+
+              <label
+                id="launchOnlineVisibilityLabel"
+                for="launchOnlineVisibility"
+                >Room</label
+              >
+              <select id="launchOnlineVisibility" class="panelSelect">
+                <option value="public">Public (spectators allowed)</option>
+                <option value="private">Private (no spectators)</option>
+              </select>
+
+              <label id="launchOnlinePlayerIdLabel" for="launchOnlinePlayerId"
+                >Player ID</label
+              >
+              <input
+                id="launchOnlinePlayerId"
+                class="panelSelect"
+                type="text"
+                autocomplete="off"
+                readonly
+                placeholder="—"
+              />
+
+              <label id="launchOnlineRoomIdLabel" for="launchOnlineRoomId"
+                >Room ID</label
+              >
+              <input
+                id="launchOnlineRoomId"
+                class="panelSelect"
+                type="text"
+                autocomplete="off"
+                placeholder="Paste room ID"
+              />
+            </div>
+            <div id="launchOnlineHint" class="hint" style="margin-left: 0">
+              Online Create logs a join link in the browser console (F12). Use
+              the Bot section names and sides for your online identity and seat
+              preference. To Join/Spectate/Rejoin, use the Lobby list.
+            </div>
+          </div>
+        </details>
+
+        <details
+          class="panelSection"
+          aria-label="Players"
+          open
+          data-start-section="bot"
+        >
+          <summary class="panelSectionSummary">Players</summary>
+          <div class="hint" style="margin-left: 0; margin-bottom: 10px">
+            Choose <b>Human</b> or <b>Bot</b> for each side. When <b>Bot</b>
+            is selected, choose the bot level below.
+          </div>
+          <div
+            class="row"
+            style="grid-template-columns: max-content minmax(0, 1fr)"
+          >
+            <label for="launchAiWhiteRoleSelect">Light</label>
+            <div style="display: flex; flex-direction: column; gap: 4px">
+              <select id="launchAiWhiteRoleSelect" class="panelSelect">
+                <option value="human">Human</option>
+                <option value="bot">Bot</option>
+              </select>
+              <div id="launchAiWhiteLevelWrap" hidden style="display: none">
+                <select
+                  id="launchAiWhiteLevelSelect"
+                  class="panelSelect"
+                ></select>
+              </div>
+              <select
+                id="launchAiWhite"
+                class="panelSelect"
+                hidden
+                aria-hidden="true"
+                tabindex="-1"
+              >
+                <option value="human">Human</option>
+                <option value="easy">Beginner</option>
+                <option value="medium">Intermediate</option>
+                <option value="advanced">Strong</option>
+              </select>
+              <input
+                id="launchPlayerNameLight"
+                class="panelSelect"
+                type="text"
+                list="launchPlayerNameSuggestions"
+                autocomplete="off"
+                placeholder="Player name (optional)"
+                maxlength="40"
+              />
+              <select
+                id="launchOnlineSeatOwnerLight"
+                class="panelSelect"
+                hidden
+                disabled
+                style="display: none"
+              >
+                <option value="remote">Online player</option>
+              </select>
+            </div>
+
+            <label for="launchAiBlackRoleSelect">Dark</label>
+            <div style="display: flex; flex-direction: column; gap: 4px">
+              <select id="launchAiBlackRoleSelect" class="panelSelect">
+                <option value="human">Human</option>
+                <option value="bot">Bot</option>
+              </select>
+              <div id="launchAiBlackLevelWrap" hidden style="display: none">
+                <select
+                  id="launchAiBlackLevelSelect"
+                  class="panelSelect"
+                ></select>
+              </div>
+              <select
+                id="launchAiBlack"
+                class="panelSelect"
+                hidden
+                aria-hidden="true"
+                tabindex="-1"
+              >
+                <option value="human">Human</option>
+                <option value="easy">Beginner</option>
+                <option value="medium">Intermediate</option>
+                <option value="advanced">Strong</option>
+              </select>
+              <input
+                id="launchPlayerNameDark"
+                class="panelSelect"
+                type="text"
+                list="launchPlayerNameSuggestions"
+                autocomplete="off"
+                placeholder="Player name (optional)"
+                maxlength="40"
+              />
+              <select
+                id="launchOnlineSeatOwnerDark"
+                class="panelSelect"
+                hidden
+                disabled
+                style="display: none"
+              >
+                <option value="remote">Online player</option>
+              </select>
+            </div>
+
+            <!-- Shared datalist for both player name inputs; populated by JS once auth resolves -->
+            <datalist id="launchPlayerNameSuggestions"></datalist>
+
+            <label for="launchAiDelay">Speed</label>
+            <div style="display: flex; gap: 6px; align-items: center">
+              <input
+                id="launchAiDelay"
+                type="range"
+                min="0"
+                max="5000"
+                step="100"
+                value="500"
+                style="flex: 0 1 140px; width: 140px"
+              />
+              <button id="launchAiDelayReset" class="panelBtn" type="button">
+                ↺
+              </button>
+              <div
+                id="launchAiDelayLabel"
+                style="
+                  min-width: 52px;
+                  text-align: left;
+                  font-variant-numeric: tabular-nums;
+                "
+              >
+                500 ms
+              </div>
+            </div>
+          </div>
+          <div class="hint" style="margin-left: 0">
+            Set a side to a bot to auto-play that color.
           </div>
         </details>
 
@@ -1072,89 +1195,6 @@
             panel is for testing MP4C auth and profile identity, including
             country and time-zone preferences; it does not change seat tokens or
             online authority rules yet.
-          </div>
-        </details>
-
-        <details
-          class="panelSection"
-          aria-label="Bot"
-          open
-          data-start-section="bot"
-        >
-          <summary class="panelSectionSummary">Bot</summary>
-          <div
-            class="row"
-            style="grid-template-columns: max-content minmax(0, 1fr)"
-          >
-            <label for="launchAiWhite">Light</label>
-            <div style="display: flex; flex-direction: column; gap: 4px">
-              <select id="launchAiWhite" class="panelSelect">
-                <option value="human">Human</option>
-                <option value="easy">Beginner</option>
-                <option value="medium">Intermediate</option>
-                <option value="advanced">Strong</option>
-              </select>
-              <input
-                id="launchPlayerNameLight"
-                class="panelSelect"
-                type="text"
-                list="launchPlayerNameSuggestions"
-                autocomplete="off"
-                placeholder="Player name (optional)"
-                maxlength="40"
-              />
-            </div>
-
-            <label for="launchAiBlack">Dark</label>
-            <div style="display: flex; flex-direction: column; gap: 4px">
-              <select id="launchAiBlack" class="panelSelect">
-                <option value="human">Human</option>
-                <option value="easy">Beginner</option>
-                <option value="medium">Intermediate</option>
-                <option value="advanced">Strong</option>
-              </select>
-              <input
-                id="launchPlayerNameDark"
-                class="panelSelect"
-                type="text"
-                list="launchPlayerNameSuggestions"
-                autocomplete="off"
-                placeholder="Player name (optional)"
-                maxlength="40"
-              />
-            </div>
-
-            <!-- Shared datalist for both player name inputs; populated by JS once auth resolves -->
-            <datalist id="launchPlayerNameSuggestions"></datalist>
-
-            <label for="launchAiDelay">Speed</label>
-            <div style="display: flex; gap: 6px; align-items: center">
-              <input
-                id="launchAiDelay"
-                type="range"
-                min="0"
-                max="5000"
-                step="100"
-                value="500"
-                style="flex: 0 1 140px; width: 140px"
-              />
-              <button id="launchAiDelayReset" class="panelBtn" type="button">
-                ↺
-              </button>
-              <div
-                id="launchAiDelayLabel"
-                style="
-                  min-width: 52px;
-                  text-align: left;
-                  font-variant-numeric: tabular-nums;
-                "
-              >
-                500 ms
-              </div>
-            </div>
-          </div>
-          <div class="hint" style="margin-left: 0">
-            Set a side to a bot to auto-play that color.
           </div>
         </details>
       </div>

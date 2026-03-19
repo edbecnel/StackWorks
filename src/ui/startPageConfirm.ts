@@ -3,6 +3,7 @@ import { createInitialGameStateForVariant } from "../game/state";
 import { checkCurrentPlayerLost } from "../game/gameOver";
 import type { GameController, HistoryChangeReason } from "../controller/gameController";
 import type { VariantId } from "../variants/variantTypes";
+import { allowConfirmedNavigation } from "./navigationPromptGate";
 
 function isPlainLeftClick(e: MouseEvent): boolean {
   return e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
@@ -60,7 +61,10 @@ export function bindStartPageConfirm(controller: GameController, variantId: Vari
           ? "The current game will be suspended. You may return to this game to continue before the game pause/wait period expires. Continue to the Start Page?"
           : "Leaving this page will lose the current game. Continue to the Start Page?";
       const ok = window.confirm(msg);
-      if (ok) return;
+      if (ok) {
+        allowConfirmedNavigation();
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
     },

@@ -1553,10 +1553,20 @@
 
           <div class="panelSection" data-section="ai">
             <div class="sectionHeader" data-toggle="ai">
-              <h3>Bot</h3>
+              <h3>Players</h3>
               <span class="collapseBtn">▼</span>
             </div>
             <div class="sectionContent">
+              <div
+                style="
+                  font-size: 11px;
+                  color: rgba(255, 255, 255, 0.62);
+                  margin-bottom: 10px;
+                "
+              >
+                Choose <b>Human</b> or <b>Bot</b> for each side. When <b>Bot</b>
+                is selected, choose the level below.
+              </div>
               <div
                 style="
                   display: grid;
@@ -1567,21 +1577,71 @@
                   font-size: 12px;
                 "
               >
-                <label for="aiWhiteSelect">Light</label>
-                <select id="aiWhiteSelect" class="panelSelect">
-                  <option value="human" selected>Human</option>
-                  <option value="easy">Beginner</option>
-                  <option value="medium">Intermediate</option>
-                  <option value="advanced">Strong</option>
-                </select>
+                <label for="aiWhiteRoleSelect">Light</label>
+                <div
+                  style="
+                    display: flex;
+                    width: 100%;
+                    flex-direction: column;
+                    gap: 4px;
+                  "
+                >
+                  <select id="aiWhiteRoleSelect" class="panelSelect">
+                    <option value="human">Human</option>
+                    <option value="bot">Bot</option>
+                  </select>
+                  <div id="aiWhiteLevelWrap" hidden style="display: none">
+                    <select
+                      id="aiWhiteLevelSelect"
+                      class="panelSelect"
+                    ></select>
+                  </div>
+                  <select
+                    id="aiWhiteSelect"
+                    class="panelSelect"
+                    hidden
+                    aria-hidden="true"
+                    tabindex="-1"
+                  >
+                    <option value="human" selected>Human</option>
+                    <option value="easy">Beginner</option>
+                    <option value="medium">Intermediate</option>
+                    <option value="advanced">Strong</option>
+                  </select>
+                </div>
 
-                <label for="aiBlackSelect">Dark</label>
-                <select id="aiBlackSelect" class="panelSelect">
-                  <option value="human" selected>Human</option>
-                  <option value="easy">Beginner</option>
-                  <option value="medium">Intermediate</option>
-                  <option value="advanced">Strong</option>
-                </select>
+                <label for="aiBlackRoleSelect">Dark</label>
+                <div
+                  style="
+                    display: flex;
+                    width: 100%;
+                    flex-direction: column;
+                    gap: 4px;
+                  "
+                >
+                  <select id="aiBlackRoleSelect" class="panelSelect">
+                    <option value="human">Human</option>
+                    <option value="bot">Bot</option>
+                  </select>
+                  <div id="aiBlackLevelWrap" hidden style="display: none">
+                    <select
+                      id="aiBlackLevelSelect"
+                      class="panelSelect"
+                    ></select>
+                  </div>
+                  <select
+                    id="aiBlackSelect"
+                    class="panelSelect"
+                    hidden
+                    aria-hidden="true"
+                    tabindex="-1"
+                  >
+                    <option value="human" selected>Human</option>
+                    <option value="easy">Beginner</option>
+                    <option value="medium">Intermediate</option>
+                    <option value="advanced">Strong</option>
+                  </select>
+                </div>
 
                 <label for="aiDelay">Speed</label>
                 <div style="display: flex; gap: 6px; align-items: center">

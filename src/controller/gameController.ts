@@ -997,7 +997,11 @@ export class GameController {
   private onlineHasOpponent(): boolean {
     if (this.driver.mode !== "online") return true;
     const remote = this.driver as OnlineGameDriver;
+    const controlsColor = (remote as OnlineGameDriver & { controlsColor?: (color: Player) => boolean }).controlsColor;
     const selfId = remote.getPlayerId();
+    const localColor = remote.getPlayerColor();
+    const opponentColor = localColor === "W" ? "B" : localColor === "B" ? "W" : null;
+    if (opponentColor && typeof controlsColor === "function" && controlsColor(opponentColor)) return true;
     if (!selfId || selfId === "spectator") return false;
     const presence = remote.getPresence();
     if (!presence) return false;
@@ -1044,10 +1048,12 @@ export class GameController {
 
   private isLocalPlayersTurn(): boolean {
     if (this.driver.mode !== "online") return true;
-    const color = (this.driver as OnlineGameDriver).getPlayerColor();
-    if (!color) return false;
+    const remote = this.driver as OnlineGameDriver & { controlsColor?: (color: Player) => boolean };
+    const color = remote.getPlayerColor();
     // Per multiplayer checklist: no play allowed until both seats are filled.
     if (!this.onlineHasOpponent()) return false;
+    if (typeof remote.controlsColor === "function") return remote.controlsColor(this.state.toMove as Player);
+    if (!color) return false;
     return this.state.toMove === color;
   }
 
@@ -1840,8 +1846,13 @@ export class GameController {
   private isBlockedByDisconnectedOpponent(): boolean {
     if (this.driver.mode !== "online") return false;
     try {
-      const remote = this.driver as OnlineGameDriver;
+      const remote = this.driver as OnlineGameDriver & { controlsColor?: (color: Player) => boolean };
       const selfId = remote.getPlayerId();
+      const localColor = remote.getPlayerColor();
+      const opponentColor = localColor === "W" ? "B" : localColor === "B" ? "W" : null;
+      if (opponentColor && typeof remote.controlsColor === "function" && remote.controlsColor(opponentColor)) {
+        return false;
+      }
       const presence = remote.getPresence();
       if (presence && selfId && selfId !== "spectator") {
         const opponentId = Object.keys(presence).find((pid) => pid !== selfId) ?? null;
@@ -3018,7 +3029,7 @@ export class GameController {
       };
     }
 
-    const remote = this.driver as OnlineGameDriver;
+    const remote = this.driver as OnlineGameDriver & { controlsColor?: (color: Player) => boolean };
     const selfId = remote.getPlayerId();
     const localColor = remote.getPlayerColor();
     const serverUrl = remote.getServerUrl();
@@ -3062,6 +3073,7 @@ export class GameController {
     const selfPresence = presence?.[selfId] ?? null;
     const opponentId = presence ? (Object.keys(presence).find((pid) => pid !== selfId) ?? null) : null;
     const opponentPresence = opponentId ? (presence?.[opponentId] ?? null) : null;
+    const opponentIsLocal = typeof remote.controlsColor === "function" && remote.controlsColor(opponentColor);
 
     const selfNameRaw = identity?.[selfId]?.displayName;
     const selfIdentity = identity?.[selfId] ?? null;
@@ -3080,8 +3092,8 @@ export class GameController {
       presenceEntry: selfPresence,
     });
     const opponentStatus = this.getPresenceStatus({
-      waiting: !opponentPresence,
-      presenceEntry: opponentPresence,
+      waiting: !opponentPresence && !opponentIsLocal,
+      presenceEntry: opponentIsLocal ? { connected: true, lastSeenAt: new Date().toISOString() } : opponentPresence,
     });
 
     const selfGraceUntil = this.formatPresenceDeadline(selfPresence?.graceUntil);
@@ -3094,7 +3106,9 @@ export class GameController {
         : "Waiting for the opponent move.";
 
     let opponentDetail = this.state.toMove === opponentColor ? "Opponent to move." : "Watching for the next move.";
-    if (!opponentPresence) {
+    if (opponentIsLocal) {
+      opponentDetail = this.state.toMove === opponentColor ? "Local bot to move." : "Local bot is ready.";
+    } else if (!opponentPresence) {
       opponentDetail = "Waiting for opponent to join.";
     } else if (opponentPresence.inGrace && opponentGraceUntil) {
       opponentDetail = `Reconnect grace until ${opponentGraceUntil}.`;
@@ -3133,14 +3147,14 @@ export class GameController {
           color: opponentColor,
           displayName: opponentName,
           sideLabel: this.sideLabel(opponentColor),
-          roleLabel: `Opponent · ${this.sideLabel(opponentColor)}`,
+          roleLabel: `${opponentIsLocal ? "Local bot" : "Opponent"} · ${this.sideLabel(opponentColor)}`,
           detailText: opponentDetail,
           status: opponentStatus.status,
           statusText: opponentStatusText,
           avatarUrl: this.resolveShellAvatarUrl(serverUrl, opponentIdentity?.avatarUrl),
           countryCode: opponentIdentity?.countryCode ?? null,
           countryName: opponentIdentity?.countryName ?? null,
-          isLocal: false,
+          isLocal: opponentIsLocal,
         }),
       },
     };
@@ -3458,17 +3472,20 @@ export class GameController {
         hidden: true,
       });
     } else {
-      const remote = this.driver as OnlineGameDriver;
+      const remote = this.driver as OnlineGameDriver & { controlsColor?: (color: Player) => boolean };
       const selfId = remote.getPlayerId();
       const presence = remote.getPresence();
       const localColor = remote.getPlayerColor();
 
       const opponentColor = localColor === "B" ? "W" : "B";
+      const opponentIsLocal = typeof remote.controlsColor === "function" && remote.controlsColor(opponentColor);
 
       let status: "connected" | "in_grace" | "disconnected" | "waiting" = "waiting";
       let graceUntil: string | null = null;
 
-      if (!presence || !selfId || selfId === "spectator") {
+      if (opponentIsLocal) {
+        status = "connected";
+      } else if (!presence || !selfId || selfId === "spectator") {
         status = "waiting";
       } else {
         const opponentId = Object.keys(presence).find((pid) => pid !== selfId) ?? null;

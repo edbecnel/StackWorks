@@ -30,6 +30,7 @@ import { createDriverAsync, consumeStartupMessage } from "./driver/createDriver.
 import type { OnlineGameDriver } from "./driver/gameDriver.ts";
 import { createSfxManager } from "./ui/sfx";
 import { createPrng } from "./shared/prng.ts";
+import { hasConfiguredOnlineLocalBot } from "./shared/onlineLocalSeats.ts";
 import { resolveConfiguredLocalPlayerName } from "./shared/localPlayerNames";
 import {
   applyCheckerboardTheme,
@@ -48,6 +49,7 @@ import { initGameShell } from "./ui/shell/gameShell";
 import { GameSection } from "./config/shellState";
 import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
 import { ensureBoardCoordsInSquaresOption } from "./ui/boardCoordsInSquaresOption";
+import { installPlayerBotSelector, syncPlayerBotSelector } from "./ui/bot/playerBotSelector";
 import { applyBoardViewportModeToSvg } from "./render/boardViewport";
 import { bindBoardPlayerNameOverlay } from "./render/boardPlayerNames";
 import {
@@ -250,8 +252,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   let controllerForSync: GameController | null = null;
 
   const syncBotSideLabels = () => {
-    const elAiWhiteLabel = (document.querySelector('label[for="aiWhiteSelect"]') as HTMLElement | null) ?? null;
-    const elAiBlackLabel = (document.querySelector('label[for="aiBlackSelect"]') as HTMLElement | null) ?? null;
+    const elAiWhiteLabel = (document.querySelector('label[for="aiWhiteRoleSelect"]') as HTMLElement | null) ?? null;
+    const elAiBlackLabel = (document.querySelector('label[for="aiBlackRoleSelect"]') as HTMLElement | null) ?? null;
     if (elAiWhiteLabel) elAiWhiteLabel.textContent = sideLabel("W");
     if (elAiBlackLabel) elAiBlackLabel.textContent = sideLabel("B");
   };
@@ -634,8 +636,24 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   bindEvaluationPanel(controller);
 
-  // Online (2 players): disable in-game AI controls entirely.
-  if (driver.mode === "online") {
+  installPlayerBotSelector({
+    storageSelectId: "aiWhiteSelect",
+    roleSelectId: "aiWhiteRoleSelect",
+    levelSelectId: "aiWhiteLevelSelect",
+    levelWrapId: "aiWhiteLevelWrap",
+  });
+  installPlayerBotSelector({
+    storageSelectId: "aiBlackSelect",
+    roleSelectId: "aiBlackRoleSelect",
+    levelSelectId: "aiBlackLevelSelect",
+    levelWrapId: "aiBlackLevelWrap",
+  });
+
+  const onlineLocalBotEnabled =
+    driver.mode === "online" && hasConfiguredOnlineLocalBot({ driver: driver as OnlineGameDriver, variantId: ACTIVE_VARIANT_ID });
+
+  // Online (2 players): disable in-game AI controls unless this client owns a configured local bot seat.
+  if (driver.mode === "online" && !onlineLocalBotEnabled) {
     const aiSection = document.querySelector(
       '.panelSection[data-section="ai"]',
     ) as HTMLElement | null;
@@ -661,11 +679,21 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (elDelayReset) elDelayReset.disabled = true;
     if (elPause) elPause.disabled = true;
     if (elStep) elStep.disabled = true;
+    syncPlayerBotSelector("aiWhiteSelect");
+    syncPlayerBotSelector("aiBlackSelect");
   } else {
     // AI (human vs AI / AI vs AI)
     const aiManager = new AIManager(controller);
     aiManager.bind();
     controller.addAnalysisModeChangeCallback((enabled) => aiManager.setAnalysisModeActive(enabled));
+    if (driver.mode === "online") {
+      const elW = document.getElementById("aiWhiteSelect") as HTMLSelectElement | null;
+      const elB = document.getElementById("aiBlackSelect") as HTMLSelectElement | null;
+      if (elW) elW.disabled = true;
+      if (elB) elB.disabled = true;
+      syncPlayerBotSelector("aiWhiteSelect");
+      syncPlayerBotSelector("aiBlackSelect");
+    }
   }
 
   if (boardCoordsToggle) {

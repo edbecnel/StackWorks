@@ -359,6 +359,36 @@ npx cross-env PORT=8790 VITE_SERVER_URL=http://localhost:8790 npm run online:dev
 
 This usually means the server process does **not** have `LASCA_ADMIN_TOKEN` set.
 
+If the Admin UI shows this message:
+
+- `Delete failed: the admin delete route is not enabled on this server.`
+
+that means the client page loaded correctly, but the backend on port `8788` was started without `LASCA_ADMIN_TOKEN` in that process environment.
+
+Most common local cause:
+
+- you started the client only, or
+- you started `npm run online:server` / `npm run online:dev` in a shell where `LASCA_ADMIN_TOKEN` was not set first.
+
+Recommended local fix in PowerShell:
+
+```powershell
+$env:LASCA_ADMIN_TOKEN = "change-me-please"
+npm run online:dev
+```
+
+Or backend only:
+
+```powershell
+$env:LASCA_ADMIN_TOKEN = "change-me-please"
+npm run online:server
+```
+
+Then in `http://localhost:8080/admin.html` use:
+
+- **Server URL**: `http://localhost:8788`
+- **Admin token**: `change-me-please`
+
 Confirm from the same shell used to start the server:
 
 - PowerShell: `Get-ChildItem Env:LASCA_ADMIN_TOKEN`

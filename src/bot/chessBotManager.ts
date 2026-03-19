@@ -13,6 +13,7 @@ import { StockfishUciEngine } from "./stockfishEngine.ts";
 import { HttpUciEngine } from "./httpEngine.ts";
 import { pickFallbackMoveChess } from "./chessFallback.ts";
 import { applySignedInNameToLocalBotSelects } from "../ui/bot/localBotSelectIdentity.ts";
+import { syncPlayerBotSelector } from "../ui/bot/playerBotSelector";
 
 export type { EvalScore };
 
@@ -856,6 +857,8 @@ export class ChessBotManager {
   private refreshUI(): void {
     if (this.elWhite) this.elWhite.value = this.settings.white;
     if (this.elBlack) this.elBlack.value = this.settings.black;
+    syncPlayerBotSelector("botWhiteSelect");
+    syncPlayerBotSelector("botBlackSelect");
     if (this.elDelay) this.elDelay.value = String(this.settings.delayMs);
     if (this.elDelayLabel) this.elDelayLabel.textContent = `${this.settings.delayMs} ms`;
     if (this.elDelayReset) this.elDelayReset.title = `Reset to default speed (${DEFAULT_DELAY_MS} ms)`;

@@ -34,7 +34,9 @@ import type {
   GetRoomWatchTokenResponse,
   JoinRoomRequest,
   JoinRoomResponse,
+  LocalSeatPlayerIdsByColor,
   LobbyRoomSummary,
+  OnlineBotSeatRequest,
   SubmitMoveRequest,
   SubmitMoveResponse,
   FinalizeCaptureChainRequest,
@@ -1939,6 +1941,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
 
       const preferredColor = (body as any)?.preferredColor;
       const creatorColor: PlayerColor = preferredColor === "B" || preferredColor === "W" ? preferredColor : "W";
+      const botSeatsRaw = Array.isArray((body as any)?.botSeats) ? ((body as any).botSeats as OnlineBotSeatRequest[]) : [];
 
       const rulesRaw = (body as any)?.rules;
       const rules: RoomRules = {
@@ -1989,6 +1992,29 @@ export function createLascaApp(opts: ServerOpts = {}): {
       }
 
       setPresence(room, playerId, { connected: true, lastSeenAt: nowIso() });
+
+      const localSeatPlayerIdsByColor: LocalSeatPlayerIdsByColor = {
+        [creatorColor]: playerId,
+      };
+
+      const seenBotColors = new Set<PlayerColor>([creatorColor]);
+      for (const seat of botSeatsRaw) {
+        const color = seat?.color === "B" || seat?.color === "W" ? seat.color : null;
+        if (!color || seenBotColors.has(color)) continue;
+        seenBotColors.add(color);
+
+        const botPlayerId: PlayerId = randId();
+        room.players.set(botPlayerId, color);
+        room.colorsTaken.add(color);
+
+        const botDisplayName = sanitizeDisplayName((seat as any)?.displayName);
+        if (botDisplayName) {
+          setIdentity(room, botPlayerId, { displayName: botDisplayName });
+        }
+
+        localSeatPlayerIdsByColor[color] = botPlayerId;
+      }
+
       rooms.set(roomId, room);
 
       // Persist creation event and initial snapshot.
@@ -2019,6 +2045,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
         clock: room.clock ?? undefined,
         visibility: room.visibility,
         watchToken: room.watchToken ?? undefined,
+        localSeatPlayerIdsByColor,
       };
       broadcastRoomSnapshot(room);
       res.json(response);

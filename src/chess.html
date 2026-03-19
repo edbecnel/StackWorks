@@ -1652,10 +1652,20 @@
 
           <div class="panelSection" data-section="bot">
             <div class="sectionHeader" data-toggle="bot">
-              <h3>Bot</h3>
+              <h3>Players</h3>
               <span class="collapseBtn">▼</span>
             </div>
             <div class="sectionContent">
+              <div
+                style="
+                  font-size: 11px;
+                  color: rgba(255, 255, 255, 0.62);
+                  margin-bottom: 10px;
+                "
+              >
+                Choose <b>Human</b> or <b>Bot</b> for each side. When <b>Bot</b>
+                is selected, choose the level below.
+              </div>
               <div
                 style="
                   display: grid;
@@ -1666,29 +1676,83 @@
                   font-size: 12px;
                 "
               >
-                <label for="botWhiteSelect">White</label>
-                <select
-                  id="botWhiteSelect"
-                  class="panelSelect"
-                  style="width: 100%"
+                <label for="botWhiteRoleSelect">White</label>
+                <div
+                  style="
+                    display: flex;
+                    width: 100%;
+                    flex-direction: column;
+                    gap: 4px;
+                  "
                 >
-                  <option value="human">Human</option>
-                  <option value="beginner">Beginner</option>
-                  <option value="intermediate">Intermediate</option>
-                  <option value="strong">Strong</option>
-                </select>
+                  <select
+                    id="botWhiteRoleSelect"
+                    class="panelSelect"
+                    style="width: 100%"
+                  >
+                    <option value="human">Human</option>
+                    <option value="bot">Bot</option>
+                  </select>
+                  <div id="botWhiteLevelWrap" hidden style="display: none">
+                    <select
+                      id="botWhiteLevelSelect"
+                      class="panelSelect"
+                      style="width: 100%"
+                    ></select>
+                  </div>
+                  <select
+                    id="botWhiteSelect"
+                    class="panelSelect"
+                    style="width: 100%"
+                    hidden
+                    aria-hidden="true"
+                    tabindex="-1"
+                  >
+                    <option value="human">Human</option>
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="strong">Strong</option>
+                  </select>
+                </div>
 
-                <label for="botBlackSelect">Black</label>
-                <select
-                  id="botBlackSelect"
-                  class="panelSelect"
-                  style="width: 100%"
+                <label for="botBlackRoleSelect">Black</label>
+                <div
+                  style="
+                    display: flex;
+                    width: 100%;
+                    flex-direction: column;
+                    gap: 4px;
+                  "
                 >
-                  <option value="human">Human</option>
-                  <option value="beginner">Beginner</option>
-                  <option value="intermediate">Intermediate</option>
-                  <option value="strong">Strong</option>
-                </select>
+                  <select
+                    id="botBlackRoleSelect"
+                    class="panelSelect"
+                    style="width: 100%"
+                  >
+                    <option value="human">Human</option>
+                    <option value="bot">Bot</option>
+                  </select>
+                  <div id="botBlackLevelWrap" hidden style="display: none">
+                    <select
+                      id="botBlackLevelSelect"
+                      class="panelSelect"
+                      style="width: 100%"
+                    ></select>
+                  </div>
+                  <select
+                    id="botBlackSelect"
+                    class="panelSelect"
+                    style="width: 100%"
+                    hidden
+                    aria-hidden="true"
+                    tabindex="-1"
+                  >
+                    <option value="human">Human</option>
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="strong">Strong</option>
+                  </select>
+                </div>
 
                 <label for="botDelay">Speed</label>
                 <div style="display: flex; gap: 6px; align-items: center">

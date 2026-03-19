@@ -65,6 +65,9 @@ import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { initGameShell } from "./ui/shell/gameShell";
 import { GameSection } from "./config/shellState";
 import { resetChessBotSelectorsToHuman } from "./ui/chessBotSelectors";
+import { installPlayerBotSelector, syncPlayerBotSelector } from "./ui/bot/playerBotSelector";
+import type { OnlineGameDriver } from "./driver/gameDriver";
+import { hasConfiguredOnlineLocalBot } from "./shared/onlineLocalSeats";
 
 const ACTIVE_VARIANT_ID: VariantId = "chess_classic";
 
@@ -164,7 +167,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       { id: "play", label: "Play", targetSelector: "#boardWrap" },
       { id: "status", label: "Status", targetSelector: '#leftSidebar .panelSection[data-section="status"]' },
       { id: "tools", label: "Tools", targetSelector: '#leftSidebar .panelSection[data-section="optionsActions"]' },
-      { id: "bot", label: "Bot", targetSelector: '#leftSidebar .panelSection[data-section="bot"]' },
+      { id: "bot", label: "Players", targetSelector: '#leftSidebar .panelSection[data-section="bot"]' },
       { id: "history", label: "History", targetSelector: '#rightSidebar .panelSection[data-section="moveHistory"]' },
       { id: "rules", label: "Rules", targetSelector: '#rightSidebar .panelSection[data-section="rules"]' },
     ],
@@ -706,15 +709,44 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
 
   bindStartPageConfirm(controller, ACTIVE_VARIANT_ID);
+  installPlayerBotSelector({
+    storageSelectId: "botWhiteSelect",
+    roleSelectId: "botWhiteRoleSelect",
+    levelSelectId: "botWhiteLevelSelect",
+    levelWrapId: "botWhiteLevelWrap",
+  });
+  installPlayerBotSelector({
+    storageSelectId: "botBlackSelect",
+    roleSelectId: "botBlackRoleSelect",
+    levelSelectId: "botBlackLevelSelect",
+    levelWrapId: "botBlackLevelWrap",
+  });
+
+  const onlineLocalBotEnabled =
+    driver.mode === "online" && hasConfiguredOnlineLocalBot({ driver: driver as OnlineGameDriver, variantId: ACTIVE_VARIANT_ID });
 
   // Offline-only: Bot controls (classic chess only).
   // Create bot before eval panel so the panel can reference it for engine eval mode.
-  const bot = driver.mode !== "online" ? (() => {
+  const bot = driver.mode !== "online" || onlineLocalBotEnabled ? (() => {
     const b = new ChessBotManager(controller);
     b.bind();
     controller.addAnalysisModeChangeCallback((enabled) => b.setAnalysisModeActive(enabled));
+    if (driver.mode === "online") {
+      const elW = document.getElementById("botWhiteSelect") as HTMLSelectElement | null;
+      const elB = document.getElementById("botBlackSelect") as HTMLSelectElement | null;
+      if (elW) elW.disabled = true;
+      if (elB) elB.disabled = true;
+      syncPlayerBotSelector("botWhiteSelect");
+      syncPlayerBotSelector("botBlackSelect");
+    }
     return b;
   })() : null;
+
+  if (driver.mode === "online" && !onlineLocalBotEnabled) {
+    resetChessBotSelectorsToHuman();
+    const botSection = document.querySelector('[data-section="bot"]') as HTMLElement | null;
+    if (botSection) botSection.style.display = "none";
+  }
 
   // Apply start-page player name prefs to the SVG name overlay (offline only).
   if (driver.mode !== "online") {

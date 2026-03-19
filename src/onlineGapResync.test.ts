@@ -11,6 +11,19 @@ describe("MP6 hardening (client)", () => {
     vi.useRealTimers();
   });
 
+  it("keeps controlsColor callable after method extraction", () => {
+    const initial = createInitialGameStateForVariant("chess_classic" as any);
+    const driver = new RemoteDriver(initial);
+
+    driver.setRemoteIds({ serverUrl: "http://example.invalid", roomId: "room-1", playerId: "p1" });
+    driver.setPlayerColor("W");
+
+    const controlsColor = driver.controlsColor;
+
+    expect(controlsColor("W")).toBe(true);
+    expect(controlsColor("B")).toBe(false);
+  });
+
   it("detects snapshot version gaps and triggers a resync", async () => {
     const initial = createInitialGameStateForVariant("lasca_7_classic" as any);
     const history = new HistoryManager();

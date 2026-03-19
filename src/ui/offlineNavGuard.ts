@@ -3,6 +3,7 @@ import { createInitialGameStateForVariant } from "../game/state";
 import { checkCurrentPlayerLost } from "../game/gameOver";
 import type { GameController, HistoryChangeReason } from "../controller/gameController";
 import type { VariantId } from "../variants/variantTypes";
+import { allowConfirmedNavigation, consumeConfirmedNavigationAllowance } from "./navigationPromptGate";
 
 export function bindOfflineNavGuard(controller: GameController, variantId: VariantId): void {
   if (typeof window === "undefined" || typeof document === "undefined") return;
@@ -60,6 +61,7 @@ export function bindOfflineNavGuard(controller: GameController, variantId: Varia
 
   // Refresh / close-tab / navigation-away: browsers only allow a native prompt.
   const onBeforeUnload = (e: BeforeUnloadEvent) => {
+    if (consumeConfirmedNavigationAllowance()) return;
     if (!shouldWarnLoss()) return;
     e.preventDefault();
     // Most browsers ignore custom strings, but setting returnValue triggers the confirm.
@@ -95,6 +97,7 @@ export function bindOfflineNavGuard(controller: GameController, variantId: Varia
     showWarnToast();
     const ok = window.confirm(confirmText);
     if (ok) {
+      allowConfirmedNavigation();
       allowRealBack = true;
       window.setTimeout(() => window.history.back(), 0);
       return;

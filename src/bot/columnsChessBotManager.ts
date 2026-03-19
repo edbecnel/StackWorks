@@ -3,6 +3,7 @@ import type { Player } from "../types.ts";
 import { createPrng } from "../shared/prng.ts";
 import { pickFallbackMoveColumnsChess } from "./columnsChessFallback.ts";
 import { applySignedInNameToLocalBotSelects } from "../ui/bot/localBotSelectIdentity.ts";
+import { syncPlayerBotSelector } from "../ui/bot/playerBotSelector";
 
 export type ColumnsBotSideSetting = "human" | "bot";
 
@@ -291,6 +292,8 @@ export class ColumnsChessBotManager {
   private refreshUI(): void {
     if (this.elWhite) this.elWhite.value = this.settings.white;
     if (this.elBlack) this.elBlack.value = this.settings.black;
+    syncPlayerBotSelector("botWhiteSelect");
+    syncPlayerBotSelector("botBlackSelect");
     if (this.elDelay) this.elDelay.value = String(this.settings.delayMs);
     if (this.elDelayLabel) this.elDelayLabel.textContent = `${this.settings.delayMs} ms`;
 

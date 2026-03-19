@@ -13,6 +13,7 @@ import type {
   GetRoomSnapshotResponse,
   JoinRoomResponse,
   IdentityByPlayerId,
+  LocalSeatPlayerIdsByColor,
   PresenceByPlayerId,
   RoomRules,
   ReplayEvent,
@@ -53,6 +54,7 @@ export class RemoteDriver implements GameDriver {
   private history: HistoryManager;
   private ids: RemoteIds | null = null;
   private playerColor: "W" | "B" | null = null;
+  private localPlayerIdsByColor: LocalSeatPlayerIdsByColor = {};
   private lastStateHash: string;
   private lastStateVersion: number = -1;
   private eventSource: EventSource | null = null;
@@ -97,11 +99,31 @@ export class RemoteDriver implements GameDriver {
 
   setPlayerColor(color: "W" | "B"): void {
     this.playerColor = color;
+    if (this.ids?.playerId) {
+      this.localPlayerIdsByColor = {
+        ...this.localPlayerIdsByColor,
+        [color]: this.ids.playerId,
+      };
+    }
+  }
+
+  setLocalSeatPlayerIdsByColor(next: LocalSeatPlayerIdsByColor | null | undefined): void {
+    const base: LocalSeatPlayerIdsByColor = {};
+    if (this.playerColor && this.ids?.playerId) base[this.playerColor] = this.ids.playerId;
+    this.localPlayerIdsByColor = {
+      ...base,
+      ...(next?.W ? { W: next.W } : {}),
+      ...(next?.B ? { B: next.B } : {}),
+    };
   }
 
   getPlayerColor(): "W" | "B" | null {
     return this.playerColor;
   }
+
+  controlsColor = (color: "W" | "B"): boolean => {
+    return typeof this.localPlayerIdsByColor[color] === "string" && this.localPlayerIdsByColor[color]!.trim().length > 0;
+  };
 
   getRoomId(): string | null {
     return this.ids?.roomId ?? null;
@@ -113,6 +135,19 @@ export class RemoteDriver implements GameDriver {
 
   getPlayerId(): string | null {
     return this.ids?.playerId ?? null;
+  }
+
+  private playerIdForColor(color: "W" | "B"): string | null {
+    const mapped = this.localPlayerIdsByColor[color];
+    if (typeof mapped === "string" && mapped.trim()) return mapped.trim();
+    if (this.playerColor === color) return this.ids?.playerId ?? null;
+    return null;
+  }
+
+  private requireActiveTurnPlayerId(): string {
+    const playerId = this.playerIdForColor((this.state.toMove === "B" ? "B" : "W"));
+    if (!playerId) throw new Error("Local machine does not control the active seat");
+    return playerId;
   }
 
   getPresence(): PresenceByPlayerId | null {
@@ -583,7 +618,7 @@ export class RemoteDriver implements GameDriver {
     try {
       res = await this.postJson<SubmitMoveRequest, SubmitMoveResponse>("/api/submitMove", {
         roomId: ids.roomId,
-        playerId: ids.playerId,
+        playerId: this.requireActiveTurnPlayerId(),
         move: _move,
         expectedStateVersion: this.lastStateVersion >= 0 ? this.lastStateVersion : undefined,
       });
@@ -624,7 +659,7 @@ export class RemoteDriver implements GameDriver {
       args.rulesetId === "dama"
         ? {
             roomId: ids.roomId,
-            playerId: ids.playerId,
+            playerId: this.requireActiveTurnPlayerId(),
             rulesetId: "dama",
             landing: args.landing,
             jumpedSquares: Array.from(args.jumpedSquares),
@@ -632,7 +667,7 @@ export class RemoteDriver implements GameDriver {
           }
         : {
             roomId: ids.roomId,
-            playerId: ids.playerId,
+            playerId: this.requireActiveTurnPlayerId(),
             rulesetId: args.rulesetId,
             landing: args.landing,
             expectedStateVersion: this.lastStateVersion >= 0 ? this.lastStateVersion : undefined,
@@ -665,7 +700,7 @@ export class RemoteDriver implements GameDriver {
     const ids = this.requireIds();
     const req: EndTurnRequest = {
       roomId: ids.roomId,
-      playerId: ids.playerId,
+      playerId: this.requireActiveTurnPlayerId(),
       ...(notation ? { notation } : {}),
       expectedStateVersion: this.lastStateVersion >= 0 ? this.lastStateVersion : undefined,
     };

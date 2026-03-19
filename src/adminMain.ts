@@ -360,7 +360,9 @@ async function deleteRoom(roomIdRaw: string, opts: { refreshAfter: boolean; sour
     if (res.status === 404) {
       detail =
         "Delete failed: the admin delete route is not enabled on this server. " +
-        "For local development, start the backend with LASCA_ADMIN_TOKEN set and enter the same token here.";
+        "For local development, start the backend with LASCA_ADMIN_TOKEN set before launching the server, for example: " +
+        "$env:LASCA_ADMIN_TOKEN = \"change-me-please\"; npm run online:dev " +
+        "or $env:LASCA_ADMIN_TOKEN = \"change-me-please\"; npm run online:server, then enter the same token here.";
     } else if (res.status === 403) {
       detail = "Delete failed: the admin token was rejected by the server.";
     }

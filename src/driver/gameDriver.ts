@@ -55,6 +55,7 @@ export interface OnlineGameDriver extends GameDriver {
   getRoomId(): string | null;
   getPlayerId(): string | null;
   getPlayerColor(): "W" | "B" | null;
+  controlsColor(color: "W" | "B"): boolean;
 
   /** Latest server-reported presence info (if available). */
   getPresence(): import("../shared/onlineProtocol.ts").PresenceByPlayerId | null;
