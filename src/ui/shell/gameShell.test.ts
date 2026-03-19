@@ -102,7 +102,7 @@ describe("initGameShell desktop shell navigation", () => {
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
   });
 
-  it("shows the signed-in local account name on the bottom board-side panel during local play", async () => {
+  it("preserves configured local player names and applies the signed-in avatar only to the matching side", async () => {
     vi.useFakeTimers();
 
     document.body.innerHTML = `
@@ -124,7 +124,8 @@ describe("initGameShell desktop shell navigation", () => {
       json: async () => ({
         ok: true,
         user: {
-          displayName: "Local Account",
+          displayName: "EdB",
+          avatarUrl: "/api/auth/avatar/edb.png",
         },
       }),
     }));
@@ -139,7 +140,7 @@ describe("initGameShell desktop shell navigation", () => {
       players: {
         W: {
           color: "W",
-          displayName: "White",
+          displayName: "Senet",
           sideLabel: "White",
           roleLabel: "Local match",
           detailText: "To move.",
@@ -150,7 +151,7 @@ describe("initGameShell desktop shell navigation", () => {
         },
         B: {
           color: "B",
-          displayName: "Black",
+          displayName: "EdB",
           sideLabel: "Black",
           roleLabel: "Local match",
           detailText: "Waiting for the next turn.",
@@ -184,12 +185,112 @@ describe("initGameShell desktop shell navigation", () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    const names = Array.from(document.querySelectorAll(".gameShellPlayerName")).map((el) => el.textContent?.trim());
-    const roles = Array.from(document.querySelectorAll(".gameShellPlayerRole")).map((el) => el.textContent?.trim());
+    const panels = Array.from(document.querySelectorAll(".gameShellPlayerPanel"));
+    const whitePanel = panels.find((panel) => (panel.querySelector(".gameShellPlayerName")?.textContent ?? "").trim() === "Senet") as HTMLElement | undefined;
+    const blackPanel = panels.find((panel) => (panel.querySelector(".gameShellPlayerName")?.textContent ?? "").trim() === "EdB") as HTMLElement | undefined;
+    const whiteImage = whitePanel?.querySelector(".gameShellPlayerAvatarImage") as HTMLImageElement | null;
+    const blackImage = blackPanel?.querySelector(".gameShellPlayerAvatarImage") as HTMLImageElement | null;
+    const roles = panels.map((panel) => panel.querySelector(".gameShellPlayerRole")?.textContent?.trim());
 
     expect(fetchMock).toHaveBeenCalledWith("http://localhost:3000/api/auth/me", { credentials: "include" });
-    expect(names.at(-1)).toBe("Local Account");
+    expect(whitePanel).toBeDefined();
+    expect(blackPanel).toBeDefined();
+    expect(whiteImage).toBeNull();
+    expect(blackImage?.getAttribute("src")).toBe("http://localhost:3000/api/auth/avatar/edb.png");
     expect(roles.at(-1)).toBe("You · White");
+  });
+
+  it("uses the configured multiplayer server for local auth/avatar lookups", async () => {
+    localStorage.setItem("lasca.online.serverUrl", "http://localhost:8788");
+
+    document.body.innerHTML = `
+      <div id="host">
+        <div id="appRoot">
+          <div id="leftSidebar" class="sidebar"><div class="sidebarBody"></div></div>
+          <div id="centerArea">
+            <div id="boardWrap">
+              <svg viewBox="0 0 1000 1000"></svg>
+            </div>
+          </div>
+          <div id="rightSidebar" class="sidebar"><div class="sidebarBody"></div></div>
+        </div>
+      </div>
+    `;
+
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        user: {
+          displayName: "EdB",
+          avatarUrl: "/api/auth/avatar/edb.png",
+        },
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const snapshot: PlayerShellSnapshot = {
+      mode: "local",
+      transportStatus: "connected",
+      serverUrl: null,
+      viewerColor: null,
+      viewerRole: "offline",
+      players: {
+        W: {
+          color: "W",
+          displayName: "White",
+          sideLabel: "White",
+          roleLabel: "Local match",
+          detailText: "To move.",
+          status: "offline",
+          statusText: "Local play",
+          isLocal: false,
+          isActiveTurn: true,
+        },
+        B: {
+          color: "B",
+          displayName: "EdB",
+          sideLabel: "Black",
+          roleLabel: "Local match",
+          detailText: "Waiting for the next turn.",
+          status: "offline",
+          statusText: "Local play",
+          isLocal: false,
+          isActiveTurn: false,
+        },
+      },
+    };
+
+    const controller = {
+      getPlayerShellSnapshot: () => snapshot,
+      addHistoryChangeCallback: vi.fn(),
+      addShellSnapshotChangeCallback: vi.fn(),
+      addAnalysisModeChangeCallback: vi.fn(),
+    };
+
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+    const shell = initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Local auth server test",
+      gameSection: GameSection.Play,
+      navItems: [],
+    });
+
+    shell.bindController(controller as any);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const matchingPanel = Array.from(document.querySelectorAll(".gameShellPlayerPanel")).find((panel) =>
+      (panel.querySelector(".gameShellPlayerName")?.textContent ?? "").trim() === "EdB",
+    ) as HTMLElement | undefined;
+    const image = matchingPanel?.querySelector(".gameShellPlayerAvatarImage") as HTMLImageElement | null;
+
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:8788/api/auth/me", { credentials: "include" });
+    expect(matchingPanel).toBeDefined();
+    expect(image?.getAttribute("src")).toBe("http://localhost:8788/api/auth/avatar/edb.png");
   });
 
   it("labels a local bot-controlled side as Bot instead of You", async () => {
@@ -537,6 +638,6 @@ describe("initGameShell desktop shell navigation", () => {
 
     expect(fetchMock).toHaveBeenCalled();
     expect(matchingPanel).toBeDefined();
-    expect(image?.getAttribute("src")).toBe("/api/auth/avatar/local-account.png");
+    expect(image?.getAttribute("src")).toBe("http://localhost:3000/api/auth/avatar/local-account.png");
   });
 });

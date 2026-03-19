@@ -55,6 +55,8 @@ type LocalViewerIdentityOverride = {
   avatarUrl?: string;
 };
 
+const ONLINE_SERVER_URL_LS_KEY = "lasca.online.serverUrl";
+
 function normalizeDisplayName(value: string | null | undefined): string {
   return typeof value === "string" ? value.trim().toLocaleLowerCase() : "";
 }
@@ -82,6 +84,22 @@ function resolveServerAssetUrl(serverUrl: string, assetUrl: string): string {
   } catch {
     return assetUrl;
   }
+}
+
+function resolveLocalAuthServerBaseUrl(): string | null {
+  const envServerUrl = (import.meta as any)?.env?.VITE_SERVER_URL;
+  if (typeof envServerUrl === "string" && envServerUrl.trim()) {
+    return envServerUrl.trim().replace(/\/$/, "");
+  }
+  try {
+    const storedServerUrl = localStorage.getItem(ONLINE_SERVER_URL_LS_KEY)?.trim() ?? "";
+    if (storedServerUrl) return storedServerUrl.replace(/\/$/, "");
+  } catch {
+    // ignore storage lookup failures
+  }
+  if (typeof window === "undefined") return null;
+  if (!/^https?:$/i.test(window.location.protocol)) return null;
+  return window.location.origin.replace(/\/$/, "");
 }
 
 function isLegacyMenuLayoutActive(): boolean {
@@ -1518,12 +1536,6 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
           }
           return { ...snapshot, players: nextPlayers };
         }
-        const bottomIdentity = nextPlayers[bottomColor];
-        nextPlayers[bottomColor] = {
-          ...bottomIdentity,
-          ...(localViewerIdentityOverride?.displayName ? { displayName: localViewerIdentityOverride.displayName } : {}),
-          ...(localViewerIdentityOverride?.avatarUrl ? { avatarUrl: localViewerIdentityOverride.avatarUrl } : {}),
-        };
         const signedInName = normalizeDisplayName(localViewerIdentityOverride?.displayName);
         const signedInAvatarUrl = localViewerIdentityOverride?.avatarUrl?.trim() ?? "";
         if (signedInName && signedInAvatarUrl) {
@@ -1541,16 +1553,15 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     };
 
     const loadSignedInViewerOverride = async (snapshot: PlayerShellSnapshot): Promise<void> => {
-      const authUrl = (() => {
+      const authBaseUrl = (() => {
         if (snapshot.mode === "online") {
           if (snapshot.viewerRole !== "player" || !snapshot.viewerColor || !snapshot.serverUrl) return null;
-          return `${snapshot.serverUrl.replace(/\/$/, "")}/api/auth/me`;
+          return snapshot.serverUrl.replace(/\/$/, "");
         }
-        if (typeof window === "undefined") return null;
-        if (!/^https?:$/i.test(window.location.protocol)) return null;
-        return `${window.location.origin.replace(/\/$/, "")}/api/auth/me`;
+        return resolveLocalAuthServerBaseUrl();
       })();
-      if (!authUrl) return;
+      if (!authBaseUrl) return;
+      const authUrl = `${authBaseUrl}/api/auth/me`;
 
       try {
         const res = await fetch(authUrl, {
@@ -1571,7 +1582,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
           if (!rawDisplayName && !rawAvatarUrl) return;
           localViewerIdentityOverride = {
             ...(rawDisplayName ? { displayName: rawDisplayName } : {}),
-            ...(rawAvatarUrl ? { avatarUrl: rawAvatarUrl } : {}),
+            ...(rawAvatarUrl ? { avatarUrl: resolveServerAssetUrl(authBaseUrl, rawAvatarUrl) } : {}),
           };
         }
         syncPanels();
