@@ -34,6 +34,161 @@ Equivalent (manual):
 npx cross-env VITE_EMIT_ADMIN=1 vite build
 ```
 
+### Production URL behavior: why `/admin` can open the Start Page
+
+If `https://stackworks.games/admin` opens the Start Page instead of the admin UI, the usual cause is that the deployed static build does not contain `admin.html`.
+
+That happens when the site was built with the normal production command:
+
+```bash
+npm run build
+```
+
+instead of the admin-aware build:
+
+```bash
+npm run build:admin
+```
+
+The repo already contains a clean-URL rule in [public/\_redirects](../public/_redirects):
+
+- `/admin.html /admin 301`
+
+So once `admin.html` is present in the deployed output, `/admin` should work again.
+
+If `admin.html` is missing from the deploy, many static hosts fall back to the main entry page, which is why `/admin` appears to "default to the Start Page".
+
+## Production fix for `https://stackworks.games/admin`
+
+Use this checklist whenever the admin page stops working in production.
+
+### 1) Build the client with the admin entry enabled
+
+From the repo root, run:
+
+```bash
+npm run build:admin
+```
+
+Equivalent manual command:
+
+```bash
+npx cross-env VITE_EMIT_ADMIN=1 vite build
+```
+
+### 2) Verify the build output before deploying
+
+Confirm these files exist in `dist/`:
+
+- `dist/admin.html`
+- `dist/admin-help.html`
+- `dist/_redirects`
+
+If `dist/admin.html` is missing, `https://stackworks.games/admin` will not work.
+
+### 3) Deploy that build output
+
+Deploy the contents of `dist/` produced by `npm run build:admin`.
+
+Do not deploy a `dist/` folder produced by plain `npm run build` if you need the admin page in production.
+
+### Cloudflare Pages setup
+
+For Cloudflare Pages, the important settings are the build command and output directory.
+
+Recommended Pages settings for `stackworks.games` if you want `/admin` available in production:
+
+- Build command: `npm run build:admin`
+- Build output directory: `dist`
+
+Why this works:
+
+- Cloudflare Pages will deploy the contents of `dist/`.
+- Vite will include `admin.html` and `admin-help.html` only when `VITE_EMIT_ADMIN=1`, which `npm run build:admin` already sets.
+- Cloudflare Pages supports `_redirects` files that are present in the final build output, so the existing redirect rule from [public/\_redirects](../public/_redirects) can map `/admin` to the built admin entry.
+
+Cloudflare dashboard steps:
+
+1. Open the Cloudflare dashboard.
+2. Go to Workers & Pages.
+3. Select the Pages project that serves `stackworks.games`: "stackworks"
+4. Open **Settings**.
+5. Select 'Production' from the 'Choose Environment' dropdown.
+6. Select **Build configuration**.
+7. Set the build command to `npm run build:admin`.
+8. Set the build output directory to `dist`.
+9. Select Save.
+10. Trigger a new production deployment so the saved build settings are actually used.
+
+Important: **Save does not rebuild the current production deployment by itself.** It updates the project configuration that the next deployment will use.
+
+Use one of these deployment paths after saving:
+
+#### Option A: push a new commit to the production branch
+
+If Cloudflare Pages is connected to your git repo, the simplest path is:
+
+1. Push a new commit to the production branch.
+2. Cloudflare Pages will start a new production build automatically.
+3. That new build will use `npm run build:admin` and output `dist`.
+
+#### Option B: redeploy from the Cloudflare dashboard
+
+If you want to apply the saved build settings immediately without making another git commit:
+
+1. Open the same Pages project in Cloudflare.
+2. Go to **Deployments**.
+3. Find the most recent successful production deployment.
+4. Click on the 'View details' link.
+5. Choose the 'Retry deployment' for that deployment.
+
+The exact label can vary slightly in the Cloudflare UI over time, but the goal is to start a new production build from the latest source revision after the build settings have been saved.
+
+#### Option C: create a fresh manual deployment if your workflow uses direct uploads
+
+If this Pages project is not deploying from git, start a new deployment using the newly built output after saving the settings.
+
+Optional verification after the deploy finishes:
+
+1. Open `https://stackworks.games/admin.html`
+2. Open `https://stackworks.games/admin`
+3. Confirm both routes open the Admin UI instead of the Start Page.
+
+If `admin.html` works but `/admin` does not, confirm the deployed build still contains `_redirects` and that Cloudflare Pages is serving the static Pages output rather than a different routing layer.
+
+### 4) Verify the production routes
+
+After deploy, check both URLs:
+
+- `https://stackworks.games/admin.html`
+- `https://stackworks.games/admin`
+
+Expected result: both should open the Admin UI.
+
+If `admin.html` works but `/admin` does not, the deployed host is not honoring the `_redirects` file and the host-level redirect/rewrite config needs to be checked.
+
+If both URLs open the Start Page, the deployed client build still does not include `admin.html`.
+
+## Should Cloudflare always use `npm run build:admin`?
+
+Short answer: use `npm run build:admin` by default for the Cloudflare Pages project that powers `stackworks.games` if you want the production admin route to keep working consistently.
+
+Recommended policy:
+
+- Use `npm run build:admin` for the production Cloudflare Pages build if `https://stackworks.games/admin` is an intentional operator workflow.
+- Use plain `npm run build` only if you intentionally do **not** want the admin pages deployed.
+
+Tradeoff:
+
+- `npm run build:admin` makes the admin static entry available in the deployed bundle.
+- It does **not** by itself grant admin access; destructive actions still require the server-side `LASCA_ADMIN_TOKEN`.
+- So the main downside is not security of the API, but that the admin UI becomes present in the deployed client bundle.
+
+Practical recommendation for this repo:
+
+- For `stackworks.games` production on Cloudflare Pages: yes, make `npm run build:admin` the default build command if you expect to use `/admin` going forward.
+- For local builds, GitHub Pages, or public-only builds where you do not want the admin entry present: keep using `npm run build`.
+
 ### Admin API
 
 Room deletion endpoint:
@@ -132,6 +287,12 @@ Open:
 
 (If Vite chose a different port, use that port.)
 
+For production, use:
+
+- `https://stackworks.games/admin`
+
+If that falls back to the Start Page, see `Production fix for https://stackworks.games/admin` above.
+
 ### 4) Fill in the form
 
 - **Server URL**: `http://localhost:8788`
@@ -219,6 +380,10 @@ If you are serving `dist/` (static hosting), `admin.html` is only present when t
 ```bash
 npm run build:admin
 ```
+
+Production symptom to remember:
+
+- `/admin` opening the Start Page usually means the deployed static bundle was built without `VITE_EMIT_ADMIN=1`.
 
 ## Deploy notes: Vite `base` (GitHub Pages vs custom domains)
 
