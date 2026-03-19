@@ -55,6 +55,10 @@ type LocalViewerIdentityOverride = {
   avatarUrl?: string;
 };
 
+function normalizeDisplayName(value: string | null | undefined): string {
+  return typeof value === "string" ? value.trim().toLocaleLowerCase() : "";
+}
+
 function readDesktopPanelMode(): DesktopPanelMode {
   try {
     const raw = localStorage.getItem(DESKTOP_PANEL_MODE_LS_KEY);
@@ -1500,6 +1504,18 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
       }
       if (snapshot.mode === "local") {
         if (isLocalBotSide(bottomColor, opts.appRoot)) {
+          const signedInName = normalizeDisplayName(localViewerIdentityOverride?.displayName);
+          const signedInAvatarUrl = localViewerIdentityOverride?.avatarUrl?.trim() ?? "";
+          if (signedInName && signedInAvatarUrl) {
+            for (const color of ["W", "B"] as const) {
+              const identity = nextPlayers[color];
+              if (normalizeDisplayName(identity.displayName) !== signedInName) continue;
+              nextPlayers[color] = {
+                ...identity,
+                avatarUrl: identity.avatarUrl?.trim() ? identity.avatarUrl : signedInAvatarUrl,
+              };
+            }
+          }
           return { ...snapshot, players: nextPlayers };
         }
         const bottomIdentity = nextPlayers[bottomColor];
@@ -1508,6 +1524,18 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
           ...(localViewerIdentityOverride?.displayName ? { displayName: localViewerIdentityOverride.displayName } : {}),
           ...(localViewerIdentityOverride?.avatarUrl ? { avatarUrl: localViewerIdentityOverride.avatarUrl } : {}),
         };
+        const signedInName = normalizeDisplayName(localViewerIdentityOverride?.displayName);
+        const signedInAvatarUrl = localViewerIdentityOverride?.avatarUrl?.trim() ?? "";
+        if (signedInName && signedInAvatarUrl) {
+          for (const color of ["W", "B"] as const) {
+            const identity = nextPlayers[color];
+            if (normalizeDisplayName(identity.displayName) !== signedInName) continue;
+            nextPlayers[color] = {
+              ...identity,
+              avatarUrl: identity.avatarUrl?.trim() ? identity.avatarUrl : signedInAvatarUrl,
+            };
+          }
+        }
       }
       return { ...snapshot, players: nextPlayers };
     };

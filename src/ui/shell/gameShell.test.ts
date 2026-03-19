@@ -444,4 +444,99 @@ describe("initGameShell desktop shell navigation", () => {
     expect(roles.at(-1)).toBe("You · White");
     expect(metaChips).toContain("You");
   });
+
+  it("uses the signed-in avatar for a matching local player name even when that side is not the bottom viewer panel", async () => {
+    localStorage.setItem("lasca.local.nameDark", "Local Account");
+
+    document.body.innerHTML = `
+      <div id="host">
+        <div id="appRoot">
+          <div id="leftSidebar" class="sidebar"><div class="sidebarBody"></div></div>
+          <div id="centerArea">
+            <div id="boardWrap">
+              <svg viewBox="0 0 1000 1000"></svg>
+            </div>
+            <select id="aiWhiteSelect"><option value="human">Human</option><option value="easy" selected>Easy</option></select>
+            <select id="aiBlackSelect"><option value="human" selected>Human</option><option value="easy">Easy</option></select>
+          </div>
+          <div id="rightSidebar" class="sidebar"><div class="sidebarBody"></div></div>
+        </div>
+      </div>
+    `;
+
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        user: {
+          displayName: "Local Account",
+          avatarUrl: "/api/auth/avatar/local-account.png",
+        },
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const snapshot: PlayerShellSnapshot = {
+      mode: "local",
+      transportStatus: "connected",
+      serverUrl: null,
+      viewerColor: null,
+      viewerRole: "offline",
+      players: {
+        W: {
+          color: "W",
+          displayName: "White",
+          sideLabel: "White",
+          roleLabel: "Local match",
+          detailText: "To move.",
+          status: "offline",
+          statusText: "Local play",
+          isLocal: false,
+          isActiveTurn: true,
+        },
+        B: {
+          color: "B",
+          displayName: "Black",
+          sideLabel: "Black",
+          roleLabel: "Local match",
+          detailText: "Waiting for the next turn.",
+          status: "offline",
+          statusText: "Local play",
+          isLocal: false,
+          isActiveTurn: false,
+        },
+      },
+    };
+
+    const controller = {
+      getPlayerShellSnapshot: () => snapshot,
+      addHistoryChangeCallback: vi.fn(),
+      addShellSnapshotChangeCallback: vi.fn(),
+      addAnalysisModeChangeCallback: vi.fn(),
+    };
+
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+    const shell = initGameShell({
+      appRoot,
+      variantId: "checkers_8_us",
+      breadcrumb: "Play / Checkers",
+      title: "Checkers",
+      subtitle: "Local auth avatar match test",
+      gameSection: GameSection.Play,
+      navItems: [],
+    });
+
+    shell.bindController(controller as any);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const matchingPanel = Array.from(document.querySelectorAll(".gameShellPlayerPanel")).find((panel) =>
+      (panel.querySelector(".gameShellPlayerName")?.textContent ?? "").trim() === "Local Account",
+    ) as HTMLElement | undefined;
+    const image = matchingPanel?.querySelector(".gameShellPlayerAvatarImage") as HTMLImageElement | null;
+
+    expect(fetchMock).toHaveBeenCalled();
+    expect(matchingPanel).toBeDefined();
+    expect(image?.getAttribute("src")).toBe("/api/auth/avatar/local-account.png");
+  });
 });
