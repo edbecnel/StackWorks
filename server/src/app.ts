@@ -1265,6 +1265,26 @@ export function createLascaApp(opts: ServerOpts = {}): {
     return Boolean((room.state as any)?.forcedGameOver?.message);
   }
 
+  function computeLobbyRoomStatus(state: any, seatsOpen: PlayerColor[]): { status: "waiting" | "in_game" | "game_over"; statusReason?: string } {
+    if (!state || typeof state !== "object") {
+      return {
+        status: seatsOpen.length > 0 ? "waiting" : "in_game",
+      };
+    }
+    const forcedMsg = typeof state?.forcedGameOver?.message === "string" ? state.forcedGameOver.message.trim() : "";
+    const result = checkCurrentPlayerLost(state as any);
+    const reason = forcedMsg || (typeof result.reason === "string" ? result.reason.trim() : "");
+    if (reason) {
+      return {
+        status: "game_over",
+        statusReason: reason,
+      };
+    }
+    return {
+      status: seatsOpen.length > 0 ? "waiting" : "in_game",
+    };
+  }
+
   function maybeApplyDamascaThreefold(room: Room): void {
     if (isRoomOver(room)) return;
     const rulesetId = (room.state as any)?.meta?.rulesetId ?? "lasca";
@@ -2204,6 +2224,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
       const limit = Math.max(1, Math.min(500, Number.parseInt(limitRaw || "200", 10) || 200));
 
       const includeFull = req.query.includeFull === "1" || req.query.includeFull === "true";
+      const isAdminView = isAdminAuthorized(req);
 
       type LobbyCandidate = LobbyRoomSummary & { sortMs: number };
       const byId = new Map<RoomId, LobbyCandidate>();
@@ -2211,16 +2232,14 @@ export function createLascaApp(opts: ServerOpts = {}): {
       const consider = (cand: LobbyCandidate): void => {
         // Enforce discoverability rules.
         const isFull = cand.seatsOpen.length === 0;
-        if (!includeFull && isFull) return;
-        if (cand.visibility === "private" && isFull) return;
+        if (!includeFull && isFull && !isAdminView) return;
+        if (cand.visibility === "private" && isFull && !isAdminView) return;
         const prev = byId.get(cand.roomId);
         if (!prev || cand.sortMs > prev.sortMs) byId.set(cand.roomId, cand);
       };
 
       // First: active rooms in memory (authoritative, freshest).
       for (const room of rooms.values()) {
-        if (isRoomOver(room)) continue;
-
         // Admin safety: if a room's persisted folder/snapshot was deleted on disk,
         // it should no longer show as active (and should be dropped from memory).
         // This allows an admin to remove rooms by deleting their folder.
@@ -2243,13 +2262,14 @@ export function createLascaApp(opts: ServerOpts = {}): {
         const hostDisplayName = typeof hostNameRaw === "string" ? hostNameRaw.trim() : "";
         const hostIdentity = room.creatorPlayerId ? identity?.[room.creatorPlayerId] : undefined;
 
-        const status = seatsOpen.length > 0 ? "waiting" : "in_game";
+        const { status, statusReason } = computeLobbyRoomStatus(room.state, seatsOpen);
 
         consider({
           roomId: room.roomId,
           variantId: room.variantId,
           visibility: room.visibility,
           status,
+          ...(statusReason ? { statusReason } : {}),
           createdAt: room.createdAtIso,
           ...(hostDisplayName ? { hostDisplayName } : {}),
           ...(hostIdentity ? { hostIdentity } : {}),
@@ -2290,8 +2310,12 @@ export function createLascaApp(opts: ServerOpts = {}): {
           }
           if (!file?.meta) continue;
 
-          const forcedOver = Boolean((file.snapshot as any)?.state?.forcedGameOver?.message);
-          if (forcedOver) continue;
+          let persistedState: any = null;
+          try {
+            persistedState = deserializeWireGameState((file.snapshot as any)?.state as any);
+          } catch {
+            persistedState = null;
+          }
 
           const visibility: RoomVisibility = isValidVisibility((file.meta as any).visibility)
             ? ((file.meta as any).visibility as any)
@@ -2354,13 +2378,14 @@ export function createLascaApp(opts: ServerOpts = {}): {
           const metaCreatedAt = typeof (file.meta as any)?.createdAtIso === "string" ? String((file.meta as any).createdAtIso).trim() : "";
           const fallbackCreatedMs = Math.min(stat?.birthtimeMs ?? sortMs, sortMs);
           const createdAt = metaCreatedAt || (fallbackCreatedMs > 0 ? new Date(fallbackCreatedMs).toISOString() : undefined);
-          const status = seatsOpen.length > 0 ? "waiting" : "in_game";
+          const { status, statusReason } = computeLobbyRoomStatus(persistedState, seatsOpen);
 
           consider({
             roomId,
             variantId: file.meta.variantId,
             visibility,
             status,
+            ...(statusReason ? { statusReason } : {}),
             ...(createdAt ? { createdAt } : {}),
             ...(hostDisplayName ? { hostDisplayName } : {}),
             ...(hostIdentity ? { hostIdentity } : {}),

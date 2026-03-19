@@ -299,7 +299,7 @@ export type GetRoomWatchTokenResponse =
 
 // --- Lobby / matchmaking ---
 
-export type LobbyRoomStatus = "waiting" | "in_game";
+export type LobbyRoomStatus = "waiting" | "in_game" | "game_over";
 
 export type LobbyIdentityByColor = Partial<Record<PlayerColor, PlayerIdentity>>;
 
@@ -309,6 +309,8 @@ export type LobbyRoomSummary = {
   visibility: RoomVisibility;
   /** Server-derived status for UI display. */
   status?: LobbyRoomStatus;
+  /** Optional terminal reason when status is game_over. */
+  statusReason?: string;
   /** ISO timestamp when the room was created (best-effort; may be omitted for older persisted rooms). */
   createdAt?: string;
   /** Optional room host display name (best-effort; informational only). */

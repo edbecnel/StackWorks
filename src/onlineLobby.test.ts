@@ -291,4 +291,64 @@ describe("MP3 lobby", () => {
       await rmWithRetries(tmpRoot);
     }
   });
+
+  it("includes finished rooms with a terminal reason when full rooms are requested", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "lasca-online-lobby-game-over-"));
+    const gamesDir = path.join(tmpRoot, "games");
+    const s = await startLascaServer({ port: 0, gamesDir });
+
+    try {
+      const initial = createInitialGameStateForVariant("lasca_7_classic" as any);
+      const history = new HistoryManager();
+      history.push(initial);
+
+      const createRes = await fetch(`${s.url}/api/create`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          variantId: "lasca_7_classic",
+          snapshot: {
+            state: serializeWireGameState(initial),
+            history: serializeWireHistory(history.exportSnapshots()),
+            stateVersion: 0,
+          },
+        }),
+      }).then((r) => r.json() as Promise<any>);
+
+      expect(createRes.error).toBeUndefined();
+      const roomId = String(createRes.roomId || "");
+      const hostPlayerId = String(createRes.playerId || "");
+      expect(roomId).toBeTruthy();
+      expect(hostPlayerId).toBeTruthy();
+
+      const joinRes = await fetch(`${s.url}/api/join`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ roomId }),
+      }).then((r) => r.json() as Promise<any>);
+
+      expect(joinRes.error).toBeUndefined();
+      expect(joinRes.playerId).toBeTruthy();
+
+      const resignRes = await fetch(`${s.url}/api/resign`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ roomId, playerId: hostPlayerId }),
+      }).then((r) => r.json() as Promise<any>);
+
+      expect(resignRes.error).toBeUndefined();
+
+      const lobby = await fetch(`${s.url}/api/lobby?includeFull=1`).then((r) => r.json() as Promise<any>);
+      expect(lobby.error).toBeUndefined();
+      const rooms = Array.isArray(lobby.rooms) ? lobby.rooms : [];
+      const item = rooms.find((x: any) => x?.roomId === roomId);
+      expect(item).toBeTruthy();
+      expect(item?.status).toBe("game_over");
+      expect(String(item?.statusReason ?? "").toLowerCase()).toContain("resigned");
+    } finally {
+      const closing = new Promise<void>((resolve) => s.server.close(() => resolve()));
+      await closing;
+      await rmWithRetries(tmpRoot);
+    }
+  });
 });

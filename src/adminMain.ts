@@ -77,15 +77,17 @@ function getToken(): string {
   return (byId<HTMLInputElement>("adminToken").value || "").trim();
 }
 
-function buildLobbyUrl(serverUrl: string, includeFull: boolean, limit: number): string {
+function buildLobbyUrl(serverUrl: string, includeFull: boolean, limit: number, adminToken?: string): string {
   const q = new URLSearchParams();
   q.set("limit", String(limit));
   if (includeFull) q.set("includeFull", "1");
+  const token = typeof adminToken === "string" ? adminToken.trim() : "";
+  if (token) q.set("adminToken", token);
   return `${serverUrl}/api/lobby?${q.toString()}`;
 }
 
-async function fetchLobby(serverUrl: string, includeFull: boolean, limit: number): Promise<LobbyRoomSummary[]> {
-  const url = buildLobbyUrl(serverUrl, includeFull, limit);
+async function fetchLobby(serverUrl: string, includeFull: boolean, limit: number, adminToken?: string): Promise<LobbyRoomSummary[]> {
+  const url = buildLobbyUrl(serverUrl, includeFull, limit, adminToken);
   const res = await fetch(url, {
     method: "GET",
     headers: { Accept: "application/json" },
@@ -141,6 +143,10 @@ function roomSub(room: LobbyRoomSummary): string {
   }
   if (room.status === "waiting") parts.push("waiting");
   if (room.status === "in_game") parts.push("in game");
+  if (room.status === "game_over") parts.push("game over");
+  if (typeof room.statusReason === "string" && room.statusReason.trim()) {
+    parts.push(room.statusReason.trim());
+  }
   if (!room.hostIdentity && typeof room.hostDisplayName === "string" && room.hostDisplayName.trim()) {
     parts.push(`host: ${room.hostDisplayName.trim()}`);
   }
@@ -398,12 +404,13 @@ async function refreshLobby(): Promise<void> {
   const includeFull = byId<HTMLInputElement>("adminIncludeFull").checked;
   const limitRaw = byId<HTMLInputElement>("adminLobbyLimit").value;
   const limit = clamp(Math.round(Number(limitRaw)), 1, 1000);
+  const adminToken = getToken();
   byId<HTMLInputElement>("adminLobbyLimit").value = String(limit);
   writeInt(LS_KEYS.lobbyLimit, limit);
 
   setStatus("Loading lobby…", "info");
   try {
-    const rooms = await fetchLobby(serverUrl, includeFull, limit);
+    const rooms = await fetchLobby(serverUrl, includeFull, limit, adminToken);
     lastRooms = rooms;
     renderLobby(rooms);
     byId<HTMLSpanElement>("adminLobbySummary").textContent = `${rooms.length} rooms`;

@@ -1689,7 +1689,15 @@ window.addEventListener("DOMContentLoaded", () => {
       rid.textContent = r.roomId;
       title.appendChild(rid);
 
-      const status = r.status === "in_game" ? "Status: In game" : r.status === "waiting" ? "Status: Waiting" : "";
+      const status =
+        r.status === "game_over"
+          ? "Status: Game over"
+          : r.status === "in_game"
+            ? "Status: In game"
+            : r.status === "waiting"
+              ? "Status: Waiting"
+              : "";
+      const statusReason = typeof r.statusReason === "string" ? r.statusReason.trim() : "";
       const createdAtMs = typeof r.createdAt === "string" ? Date.parse(r.createdAt) : NaN;
       const age = Number.isFinite(createdAtMs) ? `Age: ${formatAgeShort(Date.now() - createdAtMs)}` : "";
 
@@ -1723,7 +1731,7 @@ window.addEventListener("DOMContentLoaded", () => {
         ? `Players: ${lightName ? `${wLabel}=${lightName}` : `${wLabel}=—`} · ${darkName ? `${bLabel}=${darkName}` : `${bLabel}=—`}`
         : "";
 
-      sub.textContent = [status, age, host, open, taken, players, r.visibility === "public" ? "Public" : "Private"]
+      sub.textContent = [status, statusReason, age, host, open, taken, players, r.visibility === "public" ? "Public" : "Private"]
         .filter(Boolean)
         .join(" · ");
 
@@ -1741,9 +1749,13 @@ window.addEventListener("DOMContentLoaded", () => {
       joinBtn.className = "panelBtn";
       const resume = serverUrl ? readOnlineResumeRecord(serverUrl, r.roomId) : null;
       const canRejoin = Boolean(resume);
+      const isGameOver = r.status === "game_over";
       joinBtn.textContent = canRejoin ? "Rejoin" : "Join";
       // Rejoin should be available even if the room is full.
-      joinBtn.disabled = canRejoin ? false : r.seatsOpen.length === 0;
+      joinBtn.disabled = canRejoin ? false : (r.seatsOpen.length === 0 || isGameOver);
+      if (!canRejoin && isGameOver) {
+        joinBtn.title = statusReason || "This game has ended.";
+      }
       joinBtn.addEventListener("click", () => {
         elPlayMode.value = "online";
         localStorage.setItem(LS_KEYS.playMode, "online");

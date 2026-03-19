@@ -3046,6 +3046,7 @@ export class GameController {
     countryCode?: string | null;
     countryName?: string | null;
     isLocal: boolean;
+    isActiveTurn?: boolean;
   }): PlayerIdentity {
     return {
       color: args.color,
@@ -3059,7 +3060,17 @@ export class GameController {
       countryCode: args.countryCode ?? null,
       countryName: args.countryName ?? null,
       isLocal: args.isLocal,
-      isActiveTurn: this.state.toMove === args.color,
+      isActiveTurn: args.isActiveTurn ?? (this.state.toMove === args.color),
+    };
+  }
+
+  private getShellTerminalStatus(): { statusText: string; detailText: string } | null {
+    const isTerminal = this.isGameOver || Boolean((this.state as any)?.forcedGameOver);
+    if (!isTerminal) return null;
+
+    return {
+      statusText: "Game over",
+      detailText: this.computeTerminalStatusMessage(),
     };
   }
 
@@ -3081,26 +3092,30 @@ export class GameController {
 
   getPlayerShellSnapshot(): PlayerShellSnapshot {
     const pendingDrawOffer = this.readPendingDrawOffer(this.state);
+    const terminalStatus = this.getShellTerminalStatus();
+    const hasTerminalStatus = Boolean(terminalStatus);
     const defaultPlayers: Record<Player, PlayerIdentity> = {
       W: this.createShellPlayerIdentity({
         color: "W",
         displayName: this.resolveLocalShellDisplayName("W"),
         sideLabel: this.sideLabel("W"),
         roleLabel: "Local match",
-        detailText: this.state.toMove === "W" ? "To move." : "Waiting for the next turn.",
+        detailText: terminalStatus?.detailText ?? (this.state.toMove === "W" ? "To move." : "Waiting for the next turn."),
         status: "offline",
-        statusText: "Local play",
+        statusText: terminalStatus?.statusText ?? "Local play",
         isLocal: false,
+        isActiveTurn: !hasTerminalStatus && this.state.toMove === "W",
       }),
       B: this.createShellPlayerIdentity({
         color: "B",
         displayName: this.resolveLocalShellDisplayName("B"),
         sideLabel: this.sideLabel("B"),
         roleLabel: "Local match",
-        detailText: this.state.toMove === "B" ? "To move." : "Waiting for the next turn.",
+        detailText: terminalStatus?.detailText ?? (this.state.toMove === "B" ? "To move." : "Waiting for the next turn."),
         status: "offline",
-        statusText: "Local play",
+        statusText: terminalStatus?.statusText ?? "Local play",
         isLocal: false,
+        isActiveTurn: !hasTerminalStatus && this.state.toMove === "B",
       }),
     };
 
@@ -3146,24 +3161,28 @@ export class GameController {
             displayName: whiteIdentity?.displayName?.trim() || this.sideLabel("W"),
             sideLabel: this.sideLabel("W"),
             roleLabel: viewerRole === "spectator" ? "Spectator view" : "Seat pending",
-            detailText: waitingText,
+            detailText: terminalStatus?.detailText ?? waitingText,
             ...this.getPresenceStatus({ waiting: !hasSeatMapping, spectating: selfId === "spectator" }),
+            statusText: terminalStatus?.statusText ?? this.getPresenceStatus({ waiting: !hasSeatMapping, spectating: selfId === "spectator" }).text,
             avatarUrl: this.resolveShellAvatarUrl(serverUrl, whiteIdentity?.avatarUrl),
             countryCode: whiteIdentity?.countryCode ?? null,
             countryName: whiteIdentity?.countryName ?? null,
             isLocal: false,
+            isActiveTurn: !hasTerminalStatus && this.state.toMove === "W",
           }),
           B: this.createShellPlayerIdentity({
             color: "B",
             displayName: blackIdentity?.displayName?.trim() || this.sideLabel("B"),
             sideLabel: this.sideLabel("B"),
             roleLabel: viewerRole === "spectator" ? "Spectator view" : "Seat pending",
-            detailText: waitingText,
+            detailText: terminalStatus?.detailText ?? waitingText,
             ...this.getPresenceStatus({ waiting: !hasSeatMapping, spectating: selfId === "spectator" }),
+            statusText: terminalStatus?.statusText ?? this.getPresenceStatus({ waiting: !hasSeatMapping, spectating: selfId === "spectator" }).text,
             avatarUrl: this.resolveShellAvatarUrl(serverUrl, blackIdentity?.avatarUrl),
             countryCode: blackIdentity?.countryCode ?? null,
             countryName: blackIdentity?.countryName ?? null,
             isLocal: false,
+            isActiveTurn: !hasTerminalStatus && this.state.toMove === "B",
           }),
         },
       };
@@ -3226,7 +3245,12 @@ export class GameController {
     let nextSelfStatusText = selfStatusText;
     let nextOpponentStatusText = opponentStatusText;
 
-    if (pendingDrawOffer) {
+    if (terminalStatus) {
+      nextSelfStatusText = terminalStatus.statusText;
+      nextOpponentStatusText = terminalStatus.statusText;
+      selfDetail = terminalStatus.detailText;
+      opponentDetail = terminalStatus.detailText;
+    } else if (pendingDrawOffer) {
       const offeredByLocalPlayer = pendingDrawOffer.offeredBy === localColor;
       nextSelfStatusText = offeredByLocalPlayer ? "Offer sent" : "Offer draw";
       nextOpponentStatusText = offeredByLocalPlayer ? "Offer draw" : "Offer sent";
@@ -3257,6 +3281,7 @@ export class GameController {
           countryCode: selfIdentity?.countryCode ?? null,
           countryName: selfIdentity?.countryName ?? null,
           isLocal: true,
+          isActiveTurn: !hasTerminalStatus && this.state.toMove === localColor,
         }),
         [opponentColor]: this.createShellPlayerIdentity({
           color: opponentColor,
@@ -3270,6 +3295,7 @@ export class GameController {
           countryCode: opponentIdentity?.countryCode ?? null,
           countryName: opponentIdentity?.countryName ?? null,
           isLocal: opponentIsLocal,
+          isActiveTurn: !hasTerminalStatus && this.state.toMove === opponentColor,
         }),
       },
     };

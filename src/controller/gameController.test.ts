@@ -1306,6 +1306,77 @@ describe("GameController online shell identities", () => {
     expect(snapshot.players.W.detailText).toBe("Watching the live game.");
     expect(snapshot.players.B.detailText).toBe("Watching the live game.");
   });
+
+  it("reports terminal outcomes in the local shell snapshot", () => {
+    const history = new HistoryManager();
+    const s: GameState = {
+      board: new Map([["r1c1", [{ owner: "W", rank: "P" }]]]),
+      toMove: "B",
+      phase: "idle",
+      meta: {
+        variantId: "chess_classic" as any,
+        rulesetId: "chess" as any,
+        boardSize: 8 as any,
+      },
+      forcedGameOver: {
+        winner: null,
+        reasonCode: "DRAW_BY_AGREEMENT",
+        message: "Draw by mutual agreement",
+      },
+    };
+    history.push(s);
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, s, history);
+    const snapshot = controller.getPlayerShellSnapshot();
+
+    expect(snapshot.players.W.statusText).toBe("Game over");
+    expect(snapshot.players.W.detailText).toBe("Draw by mutual agreement");
+    expect(snapshot.players.W.isActiveTurn).toBe(false);
+    expect(snapshot.players.B.statusText).toBe("Game over");
+    expect(snapshot.players.B.detailText).toBe("Draw by mutual agreement");
+    expect(snapshot.players.B.isActiveTurn).toBe(false);
+  });
+
+  it("prefers the terminal outcome over pending draw status in the online shell snapshot", () => {
+    const history = new HistoryManager();
+    const s: GameState = {
+      board: new Map([["r1c1", [{ owner: "W", rank: "P" }]]]),
+      toMove: "B",
+      phase: "idle",
+      meta: {
+        variantId: "chess_classic" as any,
+        rulesetId: "chess" as any,
+        boardSize: 8 as any,
+      },
+      pendingDrawOffer: { offeredBy: "W", nonce: 33 },
+      forcedGameOver: {
+        winner: null,
+        reasonCode: "DRAW_BY_AGREEMENT",
+        message: "Draw by mutual agreement",
+      },
+    };
+    history.push(s);
+
+    const driver = new FakeOnlineShellDriver();
+    driver.setPresence({
+      p1: { connected: true },
+      p2: { connected: true },
+    });
+    driver.setIdentity({
+      p1: { displayName: "Alice" },
+      p2: { displayName: "Bob" },
+    });
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, s, history, driver as any);
+    const snapshot = controller.getPlayerShellSnapshot();
+
+    expect(snapshot.players.W.statusText).toBe("Game over");
+    expect(snapshot.players.W.detailText).toBe("Draw by mutual agreement");
+    expect(snapshot.players.W.isActiveTurn).toBe(false);
+    expect(snapshot.players.B.statusText).toBe("Game over");
+    expect(snapshot.players.B.detailText).toBe("Draw by mutual agreement");
+    expect(snapshot.players.B.isActiveTurn).toBe(false);
+  });
 });
 
 describe("GameController online draw offers", () => {
