@@ -315,6 +315,120 @@
         margin-left: 24px;
       }
 
+      .playerSeatGrid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      @media (min-width: 720px) {
+        .playerSeatGrid {
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        }
+      }
+
+      .playerSeatCard {
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .playerSeatCard--light {
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.14),
+          rgba(255, 255, 255, 0.06)
+        );
+        border-color: rgba(255, 255, 255, 0.22);
+      }
+
+      .playerSeatCard--dark {
+        background: linear-gradient(
+          180deg,
+          rgba(0, 0, 0, 0.34),
+          rgba(0, 0, 0, 0.16)
+        );
+        border-color: rgba(255, 255, 255, 0.16);
+      }
+
+      .playerSeatHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .playerSeatTitle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .playerSeatSwatch {
+        width: 16px;
+        height: 16px;
+        border-radius: 999px;
+        flex: 0 0 auto;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+      }
+
+      .playerSeatCard--light .playerSeatSwatch {
+        background: linear-gradient(180deg, #fcfcfc, #bdbdbd);
+      }
+
+      .playerSeatCard--dark .playerSeatSwatch {
+        background: linear-gradient(180deg, #6e6e6e, #151515);
+      }
+
+      .playerSeatHeading {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+
+      .playerSeatLabel {
+        font-size: 13px;
+        font-weight: 800;
+        color: rgba(255, 255, 255, 0.94);
+        letter-spacing: 0.02em;
+      }
+
+      .playerSeatSubtext {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.62);
+      }
+
+      .playerSeatBadge {
+        font-size: 10px;
+        line-height: 1;
+        padding: 5px 7px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: rgba(255, 255, 255, 0.84);
+        background: rgba(255, 255, 255, 0.06);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        white-space: nowrap;
+      }
+
+      .playerSeatFields {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .playerSeatFields label {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.68);
+        margin-bottom: -2px;
+      }
+
       .footer {
         margin-top: 12px;
         display: flex;
@@ -850,11 +964,6 @@
 
           <div id="launchOnlineOptions">
             <div class="row">
-              <label for="launchOnlineAction">Online</label>
-              <select id="launchOnlineAction" class="panelSelect">
-                <option value="create">Create room</option>
-              </select>
-
               <label
                 id="launchOnlineVisibilityLabel"
                 for="launchOnlineVisibility"
@@ -889,9 +998,10 @@
               />
             </div>
             <div id="launchOnlineHint" class="hint" style="margin-left: 0">
-              Online Create logs a join link in the browser console (F12). Use
-              the Bot section names and sides for your online identity and seat
-              preference. To Join/Spectate/Rejoin, use the Lobby list.
+              Launch creates and joins a room, and logs a join link in the
+              browser console (F12). Use the Bot section names and sides for
+              your online identity and seat preference. To Join/Spectate/Rejoin,
+              use the Lobby list.
             </div>
           </div>
         </details>
@@ -907,101 +1017,143 @@
             Choose <b>Human</b> or <b>Bot</b> for each side. When <b>Bot</b>
             is selected, choose the bot level below.
           </div>
+          <div class="playerSeatGrid">
+            <section
+              class="playerSeatCard playerSeatCard--light"
+              aria-label="Light player controls"
+            >
+              <div class="playerSeatHeader">
+                <div class="playerSeatTitle">
+                  <span class="playerSeatSwatch" aria-hidden="true"></span>
+                  <div class="playerSeatHeading">
+                    <span class="playerSeatLabel">Light / White</span>
+                    <span class="playerSeatSubtext"
+                      >Controls for the light side</span
+                    >
+                  </div>
+                </div>
+                <span class="playerSeatBadge">Player 1</span>
+              </div>
+              <div class="playerSeatFields">
+                <label for="launchAiWhiteRoleSelect">Role</label>
+                <select id="launchAiWhiteRoleSelect" class="panelSelect">
+                  <option value="human">Human</option>
+                  <option value="bot">Bot</option>
+                </select>
+                <div id="launchAiWhiteLevelWrap" hidden style="display: none">
+                  <label for="launchAiWhiteLevelSelect">Bot level</label>
+                  <select
+                    id="launchAiWhiteLevelSelect"
+                    class="panelSelect"
+                  ></select>
+                </div>
+                <select
+                  id="launchAiWhite"
+                  class="panelSelect"
+                  hidden
+                  aria-hidden="true"
+                  tabindex="-1"
+                >
+                  <option value="human">Human</option>
+                  <option value="easy">Beginner</option>
+                  <option value="medium">Intermediate</option>
+                  <option value="advanced">Strong</option>
+                </select>
+                <label for="launchPlayerNameLight">Name</label>
+                <input
+                  id="launchPlayerNameLight"
+                  class="panelSelect"
+                  type="text"
+                  list="launchPlayerNameSuggestions"
+                  autocomplete="off"
+                  placeholder="Player name (optional)"
+                  maxlength="40"
+                />
+                <label for="launchOnlineSeatOwnerLight">Online owner</label>
+                <select
+                  id="launchOnlineSeatOwnerLight"
+                  class="panelSelect"
+                  hidden
+                  disabled
+                  style="display: none"
+                >
+                  <option value="remote">Online player</option>
+                </select>
+              </div>
+            </section>
+
+            <section
+              class="playerSeatCard playerSeatCard--dark"
+              aria-label="Dark player controls"
+            >
+              <div class="playerSeatHeader">
+                <div class="playerSeatTitle">
+                  <span class="playerSeatSwatch" aria-hidden="true"></span>
+                  <div class="playerSeatHeading">
+                    <span class="playerSeatLabel">Dark / Black</span>
+                    <span class="playerSeatSubtext"
+                      >Controls for the dark side</span
+                    >
+                  </div>
+                </div>
+                <span class="playerSeatBadge">Player 2</span>
+              </div>
+              <div class="playerSeatFields">
+                <label for="launchAiBlackRoleSelect">Role</label>
+                <select id="launchAiBlackRoleSelect" class="panelSelect">
+                  <option value="human">Human</option>
+                  <option value="bot">Bot</option>
+                </select>
+                <div id="launchAiBlackLevelWrap" hidden style="display: none">
+                  <label for="launchAiBlackLevelSelect">Bot level</label>
+                  <select
+                    id="launchAiBlackLevelSelect"
+                    class="panelSelect"
+                  ></select>
+                </div>
+                <select
+                  id="launchAiBlack"
+                  class="panelSelect"
+                  hidden
+                  aria-hidden="true"
+                  tabindex="-1"
+                >
+                  <option value="human">Human</option>
+                  <option value="easy">Beginner</option>
+                  <option value="medium">Intermediate</option>
+                  <option value="advanced">Strong</option>
+                </select>
+                <label for="launchPlayerNameDark">Name</label>
+                <input
+                  id="launchPlayerNameDark"
+                  class="panelSelect"
+                  type="text"
+                  list="launchPlayerNameSuggestions"
+                  autocomplete="off"
+                  placeholder="Player name (optional)"
+                  maxlength="40"
+                />
+                <label for="launchOnlineSeatOwnerDark">Online owner</label>
+                <select
+                  id="launchOnlineSeatOwnerDark"
+                  class="panelSelect"
+                  hidden
+                  disabled
+                  style="display: none"
+                >
+                  <option value="remote">Online player</option>
+                </select>
+              </div>
+            </section>
+          </div>
+
+          <!-- Shared datalist for both player name inputs; populated by JS once auth resolves -->
+          <datalist id="launchPlayerNameSuggestions"></datalist>
+
           <div
             class="row"
             style="grid-template-columns: max-content minmax(0, 1fr)"
           >
-            <label for="launchAiWhiteRoleSelect">Light</label>
-            <div style="display: flex; flex-direction: column; gap: 4px">
-              <select id="launchAiWhiteRoleSelect" class="panelSelect">
-                <option value="human">Human</option>
-                <option value="bot">Bot</option>
-              </select>
-              <div id="launchAiWhiteLevelWrap" hidden style="display: none">
-                <select
-                  id="launchAiWhiteLevelSelect"
-                  class="panelSelect"
-                ></select>
-              </div>
-              <select
-                id="launchAiWhite"
-                class="panelSelect"
-                hidden
-                aria-hidden="true"
-                tabindex="-1"
-              >
-                <option value="human">Human</option>
-                <option value="easy">Beginner</option>
-                <option value="medium">Intermediate</option>
-                <option value="advanced">Strong</option>
-              </select>
-              <input
-                id="launchPlayerNameLight"
-                class="panelSelect"
-                type="text"
-                list="launchPlayerNameSuggestions"
-                autocomplete="off"
-                placeholder="Player name (optional)"
-                maxlength="40"
-              />
-              <select
-                id="launchOnlineSeatOwnerLight"
-                class="panelSelect"
-                hidden
-                disabled
-                style="display: none"
-              >
-                <option value="remote">Online player</option>
-              </select>
-            </div>
-
-            <label for="launchAiBlackRoleSelect">Dark</label>
-            <div style="display: flex; flex-direction: column; gap: 4px">
-              <select id="launchAiBlackRoleSelect" class="panelSelect">
-                <option value="human">Human</option>
-                <option value="bot">Bot</option>
-              </select>
-              <div id="launchAiBlackLevelWrap" hidden style="display: none">
-                <select
-                  id="launchAiBlackLevelSelect"
-                  class="panelSelect"
-                ></select>
-              </div>
-              <select
-                id="launchAiBlack"
-                class="panelSelect"
-                hidden
-                aria-hidden="true"
-                tabindex="-1"
-              >
-                <option value="human">Human</option>
-                <option value="easy">Beginner</option>
-                <option value="medium">Intermediate</option>
-                <option value="advanced">Strong</option>
-              </select>
-              <input
-                id="launchPlayerNameDark"
-                class="panelSelect"
-                type="text"
-                list="launchPlayerNameSuggestions"
-                autocomplete="off"
-                placeholder="Player name (optional)"
-                maxlength="40"
-              />
-              <select
-                id="launchOnlineSeatOwnerDark"
-                class="panelSelect"
-                hidden
-                disabled
-                style="display: none"
-              >
-                <option value="remote">Online player</option>
-              </select>
-            </div>
-
-            <!-- Shared datalist for both player name inputs; populated by JS once auth resolves -->
-            <datalist id="launchPlayerNameSuggestions"></datalist>
-
             <label for="launchAiDelay">Speed</label>
             <div style="display: flex; gap: 6px; align-items: center">
               <input

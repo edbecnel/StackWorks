@@ -1009,6 +1009,33 @@ export class GameController {
     return Boolean(opponentId);
   }
 
+  private localMatchHasBotParticipant(): boolean {
+    const whiteValue = (
+      (document.getElementById("botWhiteSelect") as HTMLSelectElement | null)?.value ??
+      (document.getElementById("aiWhiteSelect") as HTMLSelectElement | null)?.value ??
+      "human"
+    ).trim().toLowerCase();
+    const blackValue = (
+      (document.getElementById("botBlackSelect") as HTMLSelectElement | null)?.value ??
+      (document.getElementById("aiBlackSelect") as HTMLSelectElement | null)?.value ??
+      "human"
+    ).trim().toLowerCase();
+    return whiteValue !== "human" || blackValue !== "human";
+  }
+
+  private onlineMatchHasBotParticipant(): boolean {
+    if (this.driver.mode !== "online") return false;
+    const remote = this.driver as OnlineGameDriver & { controlsColor?: (color: Player) => boolean };
+    const localColor = remote.getPlayerColor();
+    const opponentColor = localColor === "W" ? "B" : localColor === "B" ? "W" : null;
+    return opponentColor !== null && typeof remote.controlsColor === "function" && remote.controlsColor(opponentColor);
+  }
+
+  private drawOffersAllowed(): boolean {
+    if (this.driver.mode === "online") return !this.onlineMatchHasBotParticipant();
+    return !this.localMatchHasBotParticipant();
+  }
+
   private maybeShowOnlineWaitingInviteToast(): void {
     // Only show a "room created" waiting toast before we've ever seen an opponent.
     if (this.driver.mode !== "online") {
@@ -1472,6 +1499,33 @@ export class GameController {
     this.lastGameOverToast = null;
   }
 
+  private readPendingDrawOffer(state: GameState | null | undefined): { offeredBy: "W" | "B"; nonce: number } | null {
+    if (!state) return null;
+    const rulesetId = state.meta?.rulesetId ?? "lasca";
+    if (rulesetId === "checkers_us") {
+      return ((state as any)?.checkersUsDraw?.pendingOffer as { offeredBy: "W" | "B"; nonce: number } | undefined) ?? null;
+    }
+    return ((state as any)?.pendingDrawOffer as { offeredBy: "W" | "B"; nonce: number } | undefined) ?? null;
+  }
+
+  private maybeNotifyOnlineDrawOfferResolution(prev: GameState | null | undefined, next: GameState): void {
+    if (this.driver.mode !== "online") return;
+    const previousOffer = this.readPendingDrawOffer(prev);
+    if (!previousOffer) return;
+
+    const online = this.driver as OnlineGameDriver;
+    const localColor = online.getPlayerColor();
+    if (localColor !== "W" && localColor !== "B") return;
+    if (previousOffer.offeredBy !== localColor) return;
+
+    const nextOffer = this.readPendingDrawOffer(next);
+    if (nextOffer?.nonce === previousOffer.nonce) return;
+    if (nextOffer) return;
+
+    const accepted = String((next as any)?.forcedGameOver?.reasonCode ?? "").toUpperCase() === "DRAW_BY_AGREEMENT";
+    this.showToast(accepted ? "Draw offer accepted" : "Draw offer declined", 1800, { force: true });
+  }
+
   private sideLabel(color: "W" | "B"): string {
     const rulesetId = this.state.meta?.rulesetId ?? "lasca";
     const boardSize = (this.state.meta as any)?.boardSize as number | undefined;
@@ -1600,10 +1654,14 @@ export class GameController {
     // Don't clobber non-online sticky toasts.
     if (this.stickyToastKey && !this.stickyToastKey.startsWith("online_")) return;
 
-    const remote = this.driver as OnlineGameDriver;
+    const remote = this.driver as OnlineGameDriver & { controlsColor?: (color: Player) => boolean };
     const selfId = remote.getPlayerId();
+    const localColor = remote.getPlayerColor();
+    const opponentColor = localColor === "W" ? "B" : localColor === "B" ? "W" : null;
+    const opponentIsLocal =
+      opponentColor !== null && typeof remote.controlsColor === "function" && remote.controlsColor(opponentColor);
     const presence = remote.getPresence();
-    if (!presence || !selfId || selfId === "spectator") {
+    if ((!presence || !selfId || selfId === "spectator") && !opponentIsLocal) {
       this.setStickyToastAction(key, null);
       this.showStickyToast(key, "Opponent status: —", { force: true });
       return;
@@ -1618,7 +1676,9 @@ export class GameController {
     const who = opponentName ? `Opponent (${opponentName})` : "Opponent";
 
     let msg = `${who} status: Waiting for opponent`;
-    if (opp) {
+    if (opponentIsLocal) {
+      msg = `${who} status: Connected (local bot)`;
+    } else if (opp) {
       if (opp.connected) {
         msg = `${who} status: Connected`;
       } else if (opp.inGrace && typeof opp.graceUntil === "string") {
@@ -2695,6 +2755,7 @@ export class GameController {
       this.playSfx("gameOver");
       this.showBanner(msg, 0);
       this.showGameOverToast(msg);
+      this.maybeNotifyOnlineDrawOfferResolution(prev, next);
       this.updatePanel();
       return;
     }
@@ -2708,6 +2769,7 @@ export class GameController {
 
     // US Checkers: mutual-agreement draw offer flow.
     this.syncCheckersUsDrawOffers();
+    this.maybeNotifyOnlineDrawOfferResolution(prev, next);
     
     // Check if captures are available for the current player
     this.recomputeMandatoryCapture();
@@ -2851,6 +2913,11 @@ export class GameController {
 
   async offerDraw(): Promise<void> {
     if (this.isGameOver) return;
+
+    if (!this.drawOffersAllowed()) {
+      this.showToast("Draw offers are disabled when playing a bot", 1600);
+      return;
+    }
 
     const rulesetId = this.state.meta?.rulesetId ?? "lasca";
     const isCheckersUs = rulesetId === "checkers_us";
@@ -3035,11 +3102,19 @@ export class GameController {
     const serverUrl = remote.getServerUrl();
     const presence = remote.getPresence();
     const identity = remote.getIdentity();
+    const identityByColor = remote.getIdentityByColor();
     const viewerRole = selfId === "spectator" ? "spectator" : "player";
 
     if (!selfId || selfId === "spectator" || !localColor) {
+      const whiteIdentity = identityByColor?.W ?? null;
+      const blackIdentity = identityByColor?.B ?? null;
+      const hasSeatMapping = Boolean(whiteIdentity || blackIdentity);
       const seatCount = presence ? Object.keys(presence).length : 0;
-      const waitingText = seatCount === 0 ? "Waiting for players to join." : "Seat mapping is still loading.";
+      const waitingText = seatCount === 0
+        ? "Waiting for players to join."
+        : hasSeatMapping
+          ? "Watching the live game."
+          : "Seat mapping is still loading.";
       return {
         mode: "online",
         transportStatus: this.onlineTransportStatus,
@@ -3049,20 +3124,26 @@ export class GameController {
         players: {
           W: this.createShellPlayerIdentity({
             color: "W",
-            displayName: this.sideLabel("W"),
+            displayName: whiteIdentity?.displayName?.trim() || this.sideLabel("W"),
             sideLabel: this.sideLabel("W"),
             roleLabel: viewerRole === "spectator" ? "Spectator view" : "Seat pending",
             detailText: waitingText,
-            ...this.getPresenceStatus({ waiting: true, spectating: selfId === "spectator" }),
+            ...this.getPresenceStatus({ waiting: !hasSeatMapping, spectating: selfId === "spectator" }),
+            avatarUrl: this.resolveShellAvatarUrl(serverUrl, whiteIdentity?.avatarUrl),
+            countryCode: whiteIdentity?.countryCode ?? null,
+            countryName: whiteIdentity?.countryName ?? null,
             isLocal: false,
           }),
           B: this.createShellPlayerIdentity({
             color: "B",
-            displayName: this.sideLabel("B"),
+            displayName: blackIdentity?.displayName?.trim() || this.sideLabel("B"),
             sideLabel: this.sideLabel("B"),
             roleLabel: viewerRole === "spectator" ? "Spectator view" : "Seat pending",
             detailText: waitingText,
-            ...this.getPresenceStatus({ waiting: true, spectating: selfId === "spectator" }),
+            ...this.getPresenceStatus({ waiting: !hasSeatMapping, spectating: selfId === "spectator" }),
+            avatarUrl: this.resolveShellAvatarUrl(serverUrl, blackIdentity?.avatarUrl),
+            countryCode: blackIdentity?.countryCode ?? null,
+            countryName: blackIdentity?.countryName ?? null,
             isLocal: false,
           }),
         },
@@ -3376,12 +3457,13 @@ export class GameController {
     if (elOfferDrawBtn) {
       const rulesetId = this.state.meta?.rulesetId ?? "lasca";
       const isCheckersUs = rulesetId === "checkers_us";
+      const drawOffersAllowed = this.drawOffersAllowed();
 
       const pending = isCheckersUs
         ? Boolean((this.state as any)?.checkersUsDraw?.pendingOffer)
         : Boolean((this.state as any)?.pendingDrawOffer);
 
-      let disabled = this.isGameOver || pending;
+      let disabled = this.isGameOver || pending || !drawOffersAllowed;
 
       if (this.driver.mode === "online") {
         const online = this.driver as OnlineGameDriver;
@@ -3417,7 +3499,11 @@ export class GameController {
 
       elOfferDrawBtn.hidden = false;
       elOfferDrawBtn.disabled = disabled;
-      elOfferDrawBtn.title = pending ? "Draw offer pending" : "Offer a draw (mutual agreement)";
+      elOfferDrawBtn.title = pending
+        ? "Draw offer pending"
+        : !drawOffersAllowed
+          ? "Draw offers are disabled when playing a bot"
+          : "Offer a draw (mutual agreement)";
     }
 
     if (elTurn) elTurn.textContent = this.sideLabel(this.state.toMove);
@@ -4792,8 +4878,13 @@ export class GameController {
     // Online UX: freeze play while opponent is disconnected (until reconnect or disconnect-forfeit).
     if (this.driver.mode === "online") {
       try {
-        const remote = this.driver as OnlineGameDriver;
+        const remote = this.driver as OnlineGameDriver & { controlsColor?: (color: Player) => boolean };
         const selfId = remote.getPlayerId();
+        const localColor = remote.getPlayerColor();
+        const opponentColor = localColor === "W" ? "B" : localColor === "B" ? "W" : null;
+        if (opponentColor && typeof remote.controlsColor === "function" && remote.controlsColor(opponentColor)) {
+          // Local bot seats should never freeze the local player's input due to remote presence.
+        } else {
         const presence = remote.getPresence();
         if (presence && selfId && selfId !== "spectator") {
           const opponentId = Object.keys(presence).find((pid) => pid !== selfId) ?? null;
@@ -4816,6 +4907,7 @@ export class GameController {
             }
             return;
           }
+        }
         }
       } catch {
         // If presence isn't available, don't block input.

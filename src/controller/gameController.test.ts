@@ -786,6 +786,8 @@ describe("GameController online opponent presence toasts", () => {
     public mode = "online" as const;
     private presence: any = null;
     private identity: any = null;
+      private identityByColor: any = null;
+    private localControlledColors = new Set<string>();
 
     setPresence(p: any): void {
       this.presence = p;
@@ -793,6 +795,14 @@ describe("GameController online opponent presence toasts", () => {
 
     setIdentity(i: any): void {
       this.identity = i;
+    }
+
+    setIdentityByColor(i: any): void {
+      this.identityByColor = i;
+    }
+
+    setLocalControlledColors(colors: string[]): void {
+      this.localControlledColors = new Set(colors);
     }
 
     getPlayerId(): string {
@@ -810,6 +820,14 @@ describe("GameController online opponent presence toasts", () => {
     getIdentity(): any {
       return this.identity;
     }
+
+    getIdentityByColor(): any {
+      return this.identityByColor;
+    }
+
+    controlsColor = (color: "W" | "B"): boolean => {
+      return this.localControlledColors.has(color);
+    };
   }
 
   beforeEach(() => {
@@ -917,6 +935,77 @@ describe("GameController online opponent presence toasts", () => {
     expect((document.getElementById("onlineOpponentStatus") as HTMLElement | null)?.textContent).toBe(
       "Bob — Connected"
     );
+  });
+
+  it("shows a local bot as connected in opponent connection details", () => {
+    const history = new HistoryManager();
+    const s: GameState = {
+      board: new Map([["r1c1", [{ owner: "W", rank: "O" }]]]),
+      toMove: "W",
+      phase: "idle",
+      meta: {
+        variantId: "chess_classic" as any,
+        rulesetId: "chess" as any,
+        boardSize: 8 as any,
+      },
+    };
+    history.push(s);
+
+    const driver = new FakeOnlineDriver();
+    driver.setLocalControlledColors(["W", "B"]);
+    driver.setPresence({
+      p1: { connected: true, lastSeenAt: "2026-03-19T14:27:40.000Z" },
+      p2: { connected: false, lastSeenAt: "2026-03-19T14:27:39.000Z" },
+    });
+    driver.setIdentity({
+      p1: { displayName: "EdB" },
+      p2: { displayName: "Delaila Bot" },
+    });
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, s, history, driver as any);
+    (controller as any).showOpponentConnectionDetailsToast();
+
+    const toast = document.querySelector(".lascaToast") as HTMLElement | null;
+    expect(toast?.textContent ?? "").toContain("Opponent (Delaila Bot) status: Connected (local bot)");
+    expect(toast?.textContent ?? "").not.toContain("Disconnected");
+  });
+
+  it("does not block local clicks when a local bot seat has stale disconnected presence", async () => {
+    const history = new HistoryManager();
+    const s: GameState = {
+      board: new Map([
+        ["r6c0", [{ owner: "W", rank: "P" }]],
+        ["r1c0", [{ owner: "B", rank: "P" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+      meta: {
+        variantId: "chess_classic" as any,
+        rulesetId: "chess" as any,
+        boardSize: 8 as any,
+      },
+    };
+    history.push(s);
+
+    const driver = new FakeOnlineDriver();
+    driver.setLocalControlledColors(["W", "B"]);
+    driver.setPresence({
+      p1: { connected: true, lastSeenAt: "2026-03-19T14:27:40.000Z" },
+      p2: { connected: false, lastSeenAt: "2026-03-19T14:27:39.000Z" },
+    });
+    driver.setIdentity({
+      p1: { displayName: "EdB" },
+      p2: { displayName: "Delaila Bot" },
+    });
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, s, history, driver as any);
+    (controller as any).resolveClickedNode = () => "r6c0";
+    (controller as any).showSelection = () => {};
+    (controller as any).playSfx = () => {};
+
+    await (controller as any).onClick({ target: null } as MouseEvent);
+
+    expect((controller as any).selected).toBe("r6c0");
   });
 });
 
@@ -1054,6 +1143,7 @@ describe("GameController online shell identities", () => {
     private playerColor: "W" | "B" | null = "W";
     private presence: any = null;
     private identity: any = null;
+    private identityByColor: any = null;
 
     setViewer(playerId: string | null, playerColor: "W" | "B" | null): void {
       this.playerId = playerId;
@@ -1066,6 +1156,10 @@ describe("GameController online shell identities", () => {
 
     setIdentity(identity: any): void {
       this.identity = identity;
+    }
+
+    setIdentityByColor(identityByColor: any): void {
+      this.identityByColor = identityByColor;
     }
 
     getPlayerId(): string | null {
@@ -1082,6 +1176,10 @@ describe("GameController online shell identities", () => {
 
     getIdentity(): any {
       return this.identity;
+    }
+
+    getIdentityByColor(): any {
+      return this.identityByColor;
     }
 
     getServerUrl(): string | null {
@@ -1189,17 +1287,198 @@ describe("GameController online shell identities", () => {
       p1: { connected: true },
       p2: { connected: true },
     });
+    driver.setIdentityByColor({
+      W: { displayName: "Alice" },
+      B: { displayName: "Bob" },
+    });
 
     const controller = new GameController(mockSvg, mockPiecesLayer, null, s, history, driver as any);
     const snapshot = controller.getPlayerShellSnapshot();
 
     expect(snapshot.viewerRole).toBe("spectator");
     expect(snapshot.viewerColor).toBe(null);
+    expect(snapshot.players.W.displayName).toBe("Alice");
+    expect(snapshot.players.B.displayName).toBe("Bob");
     expect(snapshot.players.W.roleLabel).toBe("Spectator view");
     expect(snapshot.players.B.roleLabel).toBe("Spectator view");
     expect(snapshot.players.W.status).toBe("spectating");
     expect(snapshot.players.B.status).toBe("spectating");
-    expect(snapshot.players.W.detailText).toBe("Seat mapping is still loading.");
-    expect(snapshot.players.B.detailText).toBe("Seat mapping is still loading.");
+    expect(snapshot.players.W.detailText).toBe("Watching the live game.");
+    expect(snapshot.players.B.detailText).toBe("Watching the live game.");
+  });
+});
+
+describe("GameController online draw offers", () => {
+  let mockSvg: SVGSVGElement;
+  let mockPiecesLayer: SVGGElement;
+
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    document.head.innerHTML = "";
+    mockSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg") as SVGSVGElement;
+    mockPiecesLayer = document.createElementNS("http://www.w3.org/2000/svg", "g") as SVGGElement;
+    (mockSvg as any).addEventListener = () => {};
+    (mockSvg as any).querySelector = () => null;
+  });
+
+  afterEach(() => {
+    document.querySelectorAll(".lascaToastWrap").forEach((el) => el.remove());
+    vi.unstubAllGlobals();
+  });
+
+  function makeState(overrides?: Partial<GameState>): GameState {
+    return {
+      board: new Map([["r7c4", [{ owner: "W", rank: "K" }]], ["r0c4", [{ owner: "B", rank: "K" }]]]),
+      toMove: "B",
+      phase: "idle",
+      meta: { variantId: "chess_classic" as any, rulesetId: "chess" as any, boardSize: 8 as any },
+      chess: {
+        castling: {
+          W: { kingSide: false, queenSide: false },
+          B: { kingSide: false, queenSide: false },
+        },
+      },
+      ...overrides,
+    };
+  }
+
+  function makeOnlineDriver(args: {
+    playerId: string;
+    playerColor: "W" | "B";
+    history: HistoryManager;
+    controlsColor?: (color: "W" | "B") => boolean;
+    offerDrawRemote?: () => Promise<GameState>;
+    respondDrawOfferRemote?: (args: { accept: boolean }) => Promise<GameState>;
+  }): any {
+    return {
+      mode: "online" as const,
+      setState: vi.fn(),
+      getPlayerId: () => args.playerId,
+      getPlayerColor: () => args.playerColor,
+      getServerUrl: () => "http://localhost:9999",
+      getPresence: () => null,
+      getIdentity: () => null,
+      getIdentityByColor: () => null,
+      controlsColor: args.controlsColor ?? (() => false),
+      exportHistorySnapshots: () => args.history.exportSnapshots(),
+      offerDrawRemote: args.offerDrawRemote ?? vi.fn(async () => makeState()),
+      respondDrawOfferRemote: args.respondDrawOfferRemote ?? vi.fn(async () => makeState()),
+    };
+  }
+
+  it("disables the draw button for a local bot game", () => {
+    document.body.innerHTML = `
+      <div id="statusTurn"></div>
+      <div id="statusPhase"></div>
+      <div id="statusMessage"></div>
+      <select id="botWhiteSelect"><option value="human">Human</option></select>
+      <select id="botBlackSelect"><option value="beginner" selected>Beginner</option></select>
+      <button id="offerDrawBtn"></button>
+    `;
+
+    const history = new HistoryManager();
+    const initial = makeState();
+    history.push(initial);
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, initial, history);
+    (controller as any).updatePanel();
+
+    const button = document.getElementById("offerDrawBtn") as HTMLButtonElement | null;
+    expect(button?.disabled).toBe(true);
+    expect(button?.title).toBe("Draw offers are disabled when playing a bot");
+  });
+
+  it("blocks offering a draw against an online local bot", async () => {
+    const history = new HistoryManager();
+    const initial = makeState();
+    history.push(initial);
+
+    const offerDrawRemote = vi.fn(async () => makeState());
+    const driver = makeOnlineDriver({
+      playerId: "p1",
+      playerColor: "W",
+      history,
+      controlsColor: (color) => color === "B",
+      offerDrawRemote,
+    });
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, initial, history, driver as any);
+    const showToast = vi.fn();
+    (controller as any).showToast = showToast;
+
+    await controller.offerDraw();
+
+    expect(offerDrawRemote).not.toHaveBeenCalled();
+    expect(showToast).toHaveBeenCalledWith("Draw offers are disabled when playing a bot", 1600);
+  });
+
+  it("prompts the online opponent when a chess draw offer arrives", async () => {
+    const history = new HistoryManager();
+    const initial = makeState();
+    history.push(initial);
+
+    const confirmMock = vi.fn(() => false);
+    vi.stubGlobal("confirm", confirmMock);
+
+    const driver = makeOnlineDriver({
+      playerId: "p2",
+      playerColor: "B",
+      history,
+      respondDrawOfferRemote: vi.fn(async () => makeState()),
+    });
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, initial, history, driver as any);
+
+    controller.setState(makeState({ pendingDrawOffer: { offeredBy: "W", nonce: 77 } }));
+    await Promise.resolve();
+
+    expect(confirmMock).toHaveBeenCalledWith("White offers a draw. Accept?");
+    expect(driver.respondDrawOfferRemote).toHaveBeenCalledWith({ accept: false });
+  });
+
+  it("shows the offering player when a draw offer is declined online", () => {
+    const history = new HistoryManager();
+    const initial = makeState({ pendingDrawOffer: { offeredBy: "W", nonce: 91 } });
+    history.push(initial);
+
+    const driver = makeOnlineDriver({
+      playerId: "p1",
+      playerColor: "W",
+      history,
+    });
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, initial, history, driver as any);
+    const showToast = vi.fn();
+    (controller as any).showToast = showToast;
+
+    controller.setState(makeState());
+
+    expect(showToast).toHaveBeenCalledWith("Draw offer declined", 1800, { force: true });
+  });
+
+  it("shows the offering player when a draw offer is accepted online", () => {
+    const history = new HistoryManager();
+    const initial = makeState({ pendingDrawOffer: { offeredBy: "W", nonce: 92 } });
+    history.push(initial);
+
+    const driver = makeOnlineDriver({
+      playerId: "p1",
+      playerColor: "W",
+      history,
+    });
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, initial, history, driver as any);
+    const showToast = vi.fn();
+    (controller as any).showToast = showToast;
+
+    controller.setState(makeState({
+      forcedGameOver: {
+        winner: null,
+        reasonCode: "DRAW_BY_AGREEMENT",
+        message: "Draw by mutual agreement",
+      },
+    }));
+
+    expect(showToast).toHaveBeenCalledWith("Draw offer accepted", 1800, { force: true });
   });
 });

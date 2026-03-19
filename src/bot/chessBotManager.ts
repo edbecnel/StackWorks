@@ -129,6 +129,7 @@ export class ChessBotManager {
   private controller: GameController;
   private engineFactory: () => UciEngine;
   private engine: UciEngine | null = null;
+  private readonly skipAutoPauseAtStart: boolean;
 
   private engineReady = false;
   private allowFallbackDuringWarmup = false;
@@ -417,9 +418,10 @@ export class ChessBotManager {
   private autoResumeAfterTurnToastTimer: number | null = null;
   private autoResumeAfterTurnToastSig: string | null = null;
 
-  constructor(controller: GameController, opts?: { engineFactory?: () => UciEngine }) {
+  constructor(controller: GameController, opts?: { engineFactory?: () => UciEngine; skipAutoPauseAtStart?: boolean }) {
     this.controller = controller;
     this.serverEngineUrl = resolveDefaultStockfishServerUrl();
+    this.skipAutoPauseAtStart = Boolean(opts?.skipAutoPauseAtStart);
 
     this.engineFactory =
       opts?.engineFactory ??
@@ -496,8 +498,8 @@ export class ChessBotManager {
     // Classic Chess bot UX: always start paused (but only meaningful if a bot is enabled).
     // This prevents surprise moves immediately on load/launch.
     if (this.settings.white !== "human" || this.settings.black !== "human") {
-      this.settings.paused = true;
-      this.autoPausedAtStart = true;
+      this.settings.paused = this.skipAutoPauseAtStart ? false : true;
+      this.autoPausedAtStart = !this.skipAutoPauseAtStart;
       try {
         localStorage.setItem(LS_KEYS.paused, String(this.settings.paused));
       } catch {

@@ -13,6 +13,7 @@ import type {
   GetRoomSnapshotResponse,
   JoinRoomResponse,
   IdentityByPlayerId,
+  IdentityByColor,
   LocalSeatPlayerIdsByColor,
   PresenceByPlayerId,
   RoomRules,
@@ -67,6 +68,7 @@ export class RemoteDriver implements GameDriver {
   private resyncInFlight: Promise<void> | null = null;
   private lastPresence: PresenceByPlayerId | null = null;
   private lastIdentity: IdentityByPlayerId | null = null;
+  private lastIdentityByColor: IdentityByColor | null = null;
   private roomRules: RoomRules | null = null;
 
   // Burst/backpressure handling for realtime snapshots.
@@ -156,6 +158,9 @@ export class RemoteDriver implements GameDriver {
 
   getIdentity(): IdentityByPlayerId | null {
     return this.lastIdentity;
+  }
+  getIdentityByColor(): IdentityByColor | null {
+    return this.lastIdentityByColor;
   }
 
   getRoomRules(): RoomRules | null {
@@ -285,6 +290,9 @@ export class RemoteDriver implements GameDriver {
     listen("snapshot", (payload) => {
       if (payload?.presence) this.lastPresence = payload.presence as PresenceByPlayerId;
       if (payload?.identity && typeof payload.identity === "object") this.lastIdentity = payload.identity as IdentityByPlayerId;
+      if (payload?.identityByColor && typeof payload.identityByColor === "object") {
+        this.lastIdentityByColor = payload.identityByColor as IdentityByColor;
+      }
       if (payload?.rules && typeof payload.rules === "object") this.roomRules = payload.rules as RoomRules;
       const snap = payload?.snapshot as WireSnapshot | undefined;
       if (!snap) return;
@@ -363,6 +371,9 @@ export class RemoteDriver implements GameDriver {
         if (eventName === "snapshot") {
           if (payload?.presence) this.lastPresence = payload.presence as PresenceByPlayerId;
           if (payload?.identity && typeof payload.identity === "object") this.lastIdentity = payload.identity as IdentityByPlayerId;
+          if (payload?.identityByColor && typeof payload.identityByColor === "object") {
+            this.lastIdentityByColor = payload.identityByColor as IdentityByColor;
+          }
           if (payload?.rules && typeof payload.rules === "object") this.roomRules = payload.rules as RoomRules;
           const snap = payload?.snapshot as WireSnapshot | undefined;
           if (!snap) return;
@@ -592,12 +603,14 @@ export class RemoteDriver implements GameDriver {
     snapshot: WireSnapshot,
     presence?: PresenceByPlayerId | null,
     rules?: RoomRules | null,
-    identity?: IdentityByPlayerId | null
+    identity?: IdentityByPlayerId | null,
+    identityByColor?: IdentityByColor | null
   ): Promise<void> {
     this.ids = ids;
     this.lastPresence = presence ?? null;
     this.roomRules = rules ?? this.roomRules;
     this.lastIdentity = identity ?? this.lastIdentity;
+    this.lastIdentityByColor = identityByColor ?? this.lastIdentityByColor;
     this.applySnapshot(snapshot);
   }
 
@@ -607,6 +620,9 @@ export class RemoteDriver implements GameDriver {
     if ((res as any).error) throw new Error((res as any).error);
     if ((res as any).presence) this.lastPresence = (res as any).presence as PresenceByPlayerId;
     if ((res as any).identity && typeof (res as any).identity === "object") this.lastIdentity = (res as any).identity as IdentityByPlayerId;
+    if ((res as any).identityByColor && typeof (res as any).identityByColor === "object") {
+      this.lastIdentityByColor = (res as any).identityByColor as IdentityByColor;
+    }
     if ((res as any).rules && typeof (res as any).rules === "object") this.roomRules = (res as any).rules as RoomRules;
     const applied = this.applySnapshot((res as any).snapshot);
     return applied.changed;

@@ -14,6 +14,7 @@ type StartPageAppShellOptions = {
   helpHref?: string;
   onSelectGame?: (variantId: VariantId) => void;
   onSelectPlayMode?: (playMode: StartPagePlayMode) => void;
+  onOpenLobby?: () => void;
   onRequestAccountAction?: (action: "signup" | "login" | "manage" | "logout") => void;
 };
 
@@ -616,6 +617,17 @@ function resolveSectionTarget(sectionId: AppShellSectionId): HTMLElement | null 
   }
 }
 
+function openDetailsTarget(target: HTMLElement | null): void {
+  if (!target) return;
+  if (target instanceof HTMLDetailsElement) {
+    target.open = true;
+    return;
+  }
+  if (target.tagName === "DETAILS") {
+    (target as HTMLDetailsElement).open = true;
+  }
+}
+
 export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPageAppShellController {
   ensureShellStyles();
   document.body.classList.add("stackworksAppShellEnabled");
@@ -869,10 +881,17 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
     }
   };
 
-  const focusSection = (sectionId: AppShellSectionId): void => {
+  const focusSection = (sectionId: AppShellSectionId, focusOpts?: { playMode?: StartPagePlayMode }): void => {
+    if (focusOpts?.playMode) {
+      opts.onSelectPlayMode?.(focusOpts.playMode);
+    }
     setActiveSection(sectionId);
     closeNav(false);
     const target = resolveSectionTarget(sectionId);
+    openDetailsTarget(target);
+    if (sectionId === GlobalSection.Community) {
+      opts.onOpenLobby?.();
+    }
     if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
@@ -918,10 +937,10 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
     })),
   );
 
-  const quickTargets: Array<{ label: string; sectionId: AppShellSectionId }> = [
+  const quickTargets: Array<{ label: string; sectionId: AppShellSectionId; playMode?: StartPagePlayMode }> = [
     { label: "Variant selection", sectionId: "games" },
     { label: "Startup settings", sectionId: "settings" },
-    { label: "Online lobby", sectionId: "community" },
+    { label: "Online lobby", sectionId: "community", playMode: "online" },
     { label: "Account tools", sectionId: "account" },
   ];
 
@@ -930,7 +949,7 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
     button.type = "button";
     button.className = "appShellQuickLink";
     button.textContent = target.label;
-    button.addEventListener("click", () => focusSection(target.sectionId));
+    button.addEventListener("click", () => focusSection(target.sectionId, { playMode: target.playMode }));
     quickLinks.appendChild(button);
   }
 
@@ -988,7 +1007,7 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
     `;
     button.addEventListener("click", () => {
       opts.onSelectPlayMode?.(mode.id);
-      focusSection(mode.sectionId);
+      focusSection(mode.sectionId, { playMode: mode.id });
     });
     playModeButtons.set(mode.id, button);
     playModeGrid.appendChild(button);
@@ -1038,6 +1057,9 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
 
   setActiveSection(initialShellState.activeSection ?? GlobalSection.Home);
   setSelectedGame(opts.initialVariantId, { playMode: opts.initialPlayMode });
+  if (initialShellState.activeSection === GlobalSection.Community) {
+    focusSection(GlobalSection.Community, { playMode: "online" });
+  }
   syncNavState();
 
   return {

@@ -663,7 +663,8 @@ export async function createDriverAsync(args: {
         anySnap.snapshot,
         (anySnap as any).presence ?? null,
         (anySnap as any).rules ?? null,
-        (anySnap as any).identity ?? null
+        (anySnap as any).identity ?? null,
+        (anySnap as any).identityByColor ?? null
       );
       return driver;
     } catch (err) {
@@ -693,7 +694,8 @@ export async function createDriverAsync(args: {
       anySnap.snapshot,
       (anySnap as any).presence ?? null,
       (anySnap as any).rules ?? null,
-      (anySnap as any).identity ?? null
+      (anySnap as any).identity ?? null,
+      (anySnap as any).identityByColor ?? null
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

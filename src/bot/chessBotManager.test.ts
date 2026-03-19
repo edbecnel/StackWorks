@@ -13,6 +13,7 @@ class FakeController {
   public stickyShowCounts: Record<string, number> = {};
   public inputEnabled: boolean | null = null;
   public playedMoves: any[] = [];
+  public driverMode: "local" | "online" = "local";
 
   constructor(state: GameState, history: any[]) {
     this.state = state;
@@ -53,6 +54,10 @@ class FakeController {
 
   setInputEnabled(enabled: boolean): void {
     this.inputEnabled = enabled;
+  }
+
+  getDriverMode(): "local" | "online" {
+    return this.driverMode;
   }
 
   getLegalMovesForTurn(): any[] {
@@ -130,6 +135,44 @@ describe("ChessBotManager loadGame paused toast", () => {
     expect(controller.sticky.text).toContain("Black");
     expect(controller.sticky.text).toContain("Tap here or press spacebar to resume bot");
     expect(controller.stickyActionKeys).toContain("chessbot_paused_turn");
+  });
+
+  it("does not auto-pause an online human-vs-bot game at launch", async () => {
+    document.body.innerHTML = `
+      <select id="botWhiteSelect"><option value="human">Human</option><option value="beginner">Beginner</option></select>
+      <select id="botBlackSelect"><option value="human">Human</option><option value="beginner">Beginner</option></select>
+      <input id="botDelay" />
+      <button id="botDelayReset"></button>
+      <span id="botDelayLabel"></span>
+      <button id="botPauseBtn"></button>
+      <button id="botResetLearningBtn"></button>
+      <span id="botStatus"></span>
+      <div id="boardWrap"></div>
+    `;
+
+    localStorage.setItem("lasca.chessbot.white", "human");
+    localStorage.setItem("lasca.chessbot.black", "beginner");
+    localStorage.setItem("lasca.chessbot.paused", "true");
+    localStorage.setItem("lasca.chessbot.delayMs", "0");
+
+    const controller = new FakeController(mkChessState("W"), [{ index: 0, isCurrent: true }]);
+    controller.driverMode = "online";
+    const mgr = new ChessBotManager(controller as any, {
+      skipAutoPauseAtStart: true,
+      engineFactory: () => ({
+        init: async () => {},
+        terminate: () => {},
+        bestMove: async () => "",
+        evaluate: async () => null,
+      } as any),
+    });
+
+    mgr.bind();
+    await vi.runAllTimersAsync();
+
+    expect(localStorage.getItem("lasca.chessbot.paused")).toBe("false");
+    expect(controller.inputEnabled).toBe(true);
+    expect(controller.sticky.key).not.toBe("chessbot_paused_turn");
   });
 
   it("prepends the signed-in local account name to bot dropdowns", async () => {

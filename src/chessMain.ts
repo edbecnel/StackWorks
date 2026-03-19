@@ -728,7 +728,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Offline-only: Bot controls (classic chess only).
   // Create bot before eval panel so the panel can reference it for engine eval mode.
   const bot = driver.mode !== "online" || onlineLocalBotEnabled ? (() => {
-    const b = new ChessBotManager(controller);
+    const b = new ChessBotManager(controller, {
+      skipAutoPauseAtStart: driver.mode === "online",
+    });
     b.bind();
     controller.addAnalysisModeChangeCallback((enabled) => b.setAnalysisModeActive(enabled));
     if (driver.mode === "online") {

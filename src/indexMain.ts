@@ -576,9 +576,6 @@ window.addEventListener("DOMContentLoaded", () => {
   const elGlassBg = (document.getElementById("launchGlassBgSelect") as HTMLSelectElement | null) ?? null;
 
   const elPlayMode = byId<HTMLSelectElement>("launchPlayMode");
-  const elOnlineActionLabel =
-    (document.querySelector('label[for="launchOnlineAction"]') as HTMLElement | null) ?? null;
-  const elOnlineAction = byId<HTMLSelectElement>("launchOnlineAction");
   const elOnlineOptions = (document.getElementById("launchOnlineOptions") as HTMLElement | null) ?? null;
   const elOnlineVisibilityLabel = byId<HTMLElement>("launchOnlineVisibilityLabel");
   const elOnlineVisibility = byId<HTMLSelectElement>("launchOnlineVisibility");
@@ -2101,7 +2098,6 @@ window.addEventListener("DOMContentLoaded", () => {
   prefetchGamePage(elGame);
 
   elPlayMode.value = readPlayMode(LS_KEYS.playMode, "local");
-  elOnlineAction.value = "create";
   localStorage.setItem(LS_KEYS.onlineAction, "create");
   elOnlineVisibility.value = readVisibility(LS_KEYS.onlineVisibility, "public");
   elOnlineRoomId.value = localStorage.getItem(LS_KEYS.onlineRoomId) ?? "";
@@ -2217,6 +2213,9 @@ window.addEventListener("DOMContentLoaded", () => {
     onSelectPlayMode: (playMode) => {
       elPlayMode.value = playMode;
       elPlayMode.dispatchEvent(new Event("change", { bubbles: true }));
+    },
+    onOpenLobby: () => {
+      void fetchLobby();
     },
     onRequestAccountAction: (action) => {
       appShell.setActiveSection(GlobalSection.Account);
@@ -2556,7 +2555,6 @@ window.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("pageshow", () => {
     try {
       elPlayMode.value = readPlayMode(LS_KEYS.playMode, (elPlayMode.value === "online" ? "online" : "local") as PlayMode);
-      elOnlineAction.value = "create";
       localStorage.setItem(LS_KEYS.onlineAction, "create");
       elOnlineVisibility.value = readVisibility(LS_KEYS.onlineVisibility, (elOnlineVisibility.value as any) ?? "public");
       elOnlineRoomId.value = localStorage.getItem(LS_KEYS.onlineRoomId) ?? "";
@@ -2622,12 +2620,6 @@ window.addEventListener("DOMContentLoaded", () => {
   });
   elPlayMode.addEventListener("change", () => {
     localStorage.setItem(LS_KEYS.playMode, elPlayMode.value);
-    syncOnlineVisibility();
-    syncAvailability();
-  });
-
-  elOnlineAction.addEventListener("change", () => {
-    localStorage.setItem(LS_KEYS.onlineAction, elOnlineAction.value);
     syncOnlineVisibility();
     syncAvailability();
   });
@@ -2771,14 +2763,10 @@ window.addEventListener("DOMContentLoaded", () => {
 
   function syncOnlineVisibility(): void {
     const playMode = (elPlayMode.value === "online" ? "online" : "local") as PlayMode;
-    const onlineAction: OnlineAction = "create";
 
     const showOnline = playMode === "online";
     // When local/offline, hide the online controls entirely to avoid confusion.
     if (elOnlineOptions) elOnlineOptions.style.display = showOnline ? "" : "none";
-    elOnlineActionLabel && (elOnlineActionLabel.style.display = showOnline ? "" : "none");
-    elOnlineAction.style.display = showOnline ? "" : "none";
-    elOnlineAction.disabled = !showOnline;
 
     if (elOnlineHint) elOnlineHint.style.display = showOnline ? "" : "none";
 
@@ -2792,7 +2780,7 @@ window.addEventListener("DOMContentLoaded", () => {
     elOnlineRoomId.style.display = showRoomId ? "" : "none";
     elOnlineRoomId.disabled = !showRoomId;
 
-    const showVisibility = showOnline && onlineAction === "create";
+    const showVisibility = showOnline;
     elOnlineVisibilityLabel.style.display = showVisibility ? "" : "none";
     elOnlineVisibility.style.display = showVisibility ? "" : "none";
     elOnlineVisibility.disabled = !showVisibility;

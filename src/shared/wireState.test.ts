@@ -35,4 +35,19 @@ describe("wireState", () => {
     expect(back.chess?.enPassantTarget).toBe("r2c3");
     expect(back.chess?.enPassantPawn).toBe("r3c3");
   });
+
+  it("round-trips pending draw offers for non-checkers online games", () => {
+    const state: GameState = {
+      board: new Map([["r7c4", [{ owner: "W", rank: "K" }]]]),
+      toMove: "B",
+      phase: "idle",
+      meta: { variantId: "chess_classic", rulesetId: "chess", boardSize: 8 },
+      pendingDrawOffer: { offeredBy: "W", nonce: 12345 },
+    };
+
+    const wire = serializeWireGameState(state as any);
+    const back = deserializeWireGameState(wire) as GameState;
+
+    expect(back.pendingDrawOffer).toEqual({ offeredBy: "W", nonce: 12345 });
+  });
 });

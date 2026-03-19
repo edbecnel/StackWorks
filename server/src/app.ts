@@ -892,11 +892,13 @@ export function createLascaApp(opts: ServerOpts = {}): {
 
   function broadcastRoomSnapshot(room: Room): void {
       const identity = publicIdentityForRoom(room);
+      const identityByColor = identityByColorForPlayers({ players: room.players.entries(), identity });
       const payload = {
       roomId: room.roomId,
       snapshot: snapshotForRoom(room),
       presence: presenceForRoom(room),
         identity: Object.keys(identity).length > 0 ? identity : undefined,
+        identityByColor: identityByColor && Object.keys(identityByColor).length > 0 ? identityByColor : undefined,
       rules: room.rules,
       timeControl: room.timeControl,
       clock: room.clock ?? undefined,
@@ -2006,6 +2008,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
         const botPlayerId: PlayerId = randId();
         room.players.set(botPlayerId, color);
         room.colorsTaken.add(color);
+        setPresence(room, botPlayerId, { connected: true, lastSeenAt: nowIso() });
 
         const botDisplayName = sanitizeDisplayName((seat as any)?.displayName);
         if (botDisplayName) {
@@ -2481,6 +2484,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
         snapshot: snapshotForRoom(room),
         presence: presenceForRoom(room),
         identity: publicIdentityForRoom(room),
+        identityByColor: identityByColorForPlayers({ players: room.players.entries(), identity: publicIdentityForRoom(room) }),
         rules: room.rules,
         timeControl: room.timeControl,
         clock: room.clock ?? undefined,

@@ -640,4 +640,86 @@ describe("initGameShell desktop shell navigation", () => {
     expect(matchingPanel).toBeDefined();
     expect(image?.getAttribute("src")).toBe("http://localhost:3000/api/auth/avatar/local-account.png");
   });
+
+  it("does not let stored local names override online player identities", async () => {
+    localStorage.setItem("lasca.local.nameLight", "Delaila");
+    localStorage.setItem("lasca.local.nameDark", "Delaila");
+
+    document.body.innerHTML = `
+      <div id="host">
+        <div id="appRoot">
+          <div id="leftSidebar" class="sidebar"><div class="sidebarBody"></div></div>
+          <div id="centerArea">
+            <div id="boardWrap">
+              <svg viewBox="0 0 1000 1000"></svg>
+            </div>
+          </div>
+          <div id="rightSidebar" class="sidebar"><div class="sidebarBody"></div></div>
+        </div>
+      </div>
+    `;
+
+    const fetchMock = vi.fn(async () => ({ ok: false }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const snapshot: PlayerShellSnapshot = {
+      mode: "online",
+      transportStatus: "connected",
+      serverUrl: "http://localhost:9999",
+      viewerColor: "W",
+      viewerRole: "player",
+      players: {
+        W: {
+          color: "W",
+          displayName: "WhiteHost",
+          sideLabel: "White",
+          roleLabel: "You · White",
+          detailText: "Your turn.",
+          status: "online",
+          statusText: "Connected",
+          isLocal: true,
+          isActiveTurn: true,
+        },
+        B: {
+          color: "B",
+          displayName: "Senet",
+          sideLabel: "Black",
+          roleLabel: "Opponent · Black",
+          detailText: "Watching for the next move.",
+          status: "online",
+          statusText: "Connected",
+          isLocal: false,
+          isActiveTurn: false,
+        },
+      },
+    };
+
+    const controller = {
+      getPlayerShellSnapshot: () => snapshot,
+      addHistoryChangeCallback: vi.fn(),
+      addShellSnapshotChangeCallback: vi.fn(),
+      addAnalysisModeChangeCallback: vi.fn(),
+    };
+
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+    const shell = initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Online identity regression",
+      gameSection: GameSection.Play,
+      navItems: [],
+    });
+
+    shell.bindController(controller as any);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const names = Array.from(document.querySelectorAll(".gameShellPlayerName")).map((el) => el.textContent?.trim());
+
+    expect(names).toContain("WhiteHost");
+    expect(names).toContain("Senet");
+    expect(names).not.toContain("Delaila");
+  });
 });

@@ -96,7 +96,10 @@ export function bindBoardPlayerNameOverlay(args: {
   isFlipped: () => boolean;
 }): BoardPlayerNameOverlayHandle {
   const { svg, controller, isFlipped } = args;
-  const storedNames = readStoredLocalPlayerNames();
+  const initialSnapshot = controller.getPlayerShellSnapshot();
+  const storedNames = initialSnapshot.mode === "local"
+    ? readStoredLocalPlayerNames()
+    : { white: "", black: "" };
   if (storedNames.white || storedNames.black) {
     controller.setLocalPlayerDisplayNames({ W: storedNames.white, B: storedNames.black });
   }
@@ -107,8 +110,6 @@ export function bindBoardPlayerNameOverlay(args: {
     while (layer.firstChild) layer.removeChild(layer.firstChild);
 
     const snapshot = controller.getPlayerShellSnapshot();
-    if (snapshot.mode !== "local") return;
-
     const whiteName = snapshot.players.W.displayName?.trim() ?? "";
     const blackName = snapshot.players.B.displayName?.trim() ?? "";
     if (!whiteName && !blackName) return;
@@ -147,7 +148,6 @@ export function bindBoardPlayerNameOverlay(args: {
     sync: render,
     hasNames: () => {
       const snapshot = controller.getPlayerShellSnapshot();
-      if (snapshot.mode !== "local") return false;
       return Boolean(snapshot.players.W.displayName?.trim() || snapshot.players.B.displayName?.trim());
     },
   };

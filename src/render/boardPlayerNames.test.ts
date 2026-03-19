@@ -124,4 +124,116 @@ describe("bindBoardPlayerNameOverlay", () => {
     const labels = Array.from(svg.querySelectorAll("#playerNameLayer text")).map((node) => node.textContent);
     expect(labels).toEqual(["Ada", "Byron"]);
   });
+
+  it("does not seed local names into online snapshots", () => {
+    const svg = makeSvg();
+    localStorage.setItem("lasca.local.nameLight", "Ada");
+    localStorage.setItem("lasca.local.nameDark", "Byron");
+
+    const snapshot: PlayerShellSnapshot = {
+      mode: "online",
+      transportStatus: "connected",
+      serverUrl: "http://localhost:9999",
+      viewerColor: "W",
+      viewerRole: "player",
+      players: {
+        W: {
+          color: "W",
+          displayName: "Host",
+          sideLabel: "White",
+          roleLabel: "You · White",
+          detailText: "Your turn.",
+          status: "online",
+          statusText: "Connected",
+          isLocal: true,
+          isActiveTurn: true,
+        },
+        B: {
+          color: "B",
+          displayName: "Senet",
+          sideLabel: "Black",
+          roleLabel: "Opponent · Black",
+          detailText: "Watching for the next move.",
+          status: "online",
+          statusText: "Connected",
+          isLocal: false,
+          isActiveTurn: false,
+        },
+      },
+    };
+    const setLocalPlayerDisplayNames = vi.fn();
+    const controller = {
+      getPlayerShellSnapshot: () => snapshot,
+      setLocalPlayerDisplayNames,
+      addHistoryChangeCallback: vi.fn(),
+      addShellSnapshotChangeCallback: vi.fn(),
+      addAnalysisModeChangeCallback: vi.fn(),
+    };
+
+    const overlay = bindBoardPlayerNameOverlay({
+      svg,
+      controller: controller as any,
+      isFlipped: () => false,
+    });
+
+    expect(setLocalPlayerDisplayNames).not.toHaveBeenCalled();
+    expect(Array.from(svg.querySelectorAll("#playerNameLayer text")).map((node) => node.textContent)).toEqual(["Senet", "Host"]);
+    expect(overlay.hasNames()).toBe(true);
+  });
+
+  it("renders spectator names from an online shell snapshot", () => {
+    const svg = makeSvg();
+
+    const snapshot: PlayerShellSnapshot = {
+      mode: "online",
+      transportStatus: "connected",
+      serverUrl: "http://localhost:9999",
+      viewerColor: null,
+      viewerRole: "spectator",
+      players: {
+        W: {
+          color: "W",
+          displayName: "Alice",
+          sideLabel: "White",
+          roleLabel: "Spectator view",
+          detailText: "Watching the live game.",
+          status: "spectating",
+          statusText: "Spectating",
+          isLocal: false,
+          isActiveTurn: false,
+        },
+        B: {
+          color: "B",
+          displayName: "Bob",
+          sideLabel: "Black",
+          roleLabel: "Spectator view",
+          detailText: "Watching the live game.",
+          status: "spectating",
+          statusText: "Spectating",
+          isLocal: false,
+          isActiveTurn: true,
+        },
+      },
+    };
+    const controller = {
+      getPlayerShellSnapshot: () => snapshot,
+      setLocalPlayerDisplayNames: vi.fn(),
+      addHistoryChangeCallback: vi.fn(),
+      addShellSnapshotChangeCallback: vi.fn(),
+      addAnalysisModeChangeCallback: vi.fn(),
+    };
+
+    const overlay = bindBoardPlayerNameOverlay({
+      svg,
+      controller: controller as any,
+      isFlipped: () => false,
+    });
+
+    const labels = Array.from(svg.querySelectorAll("#playerNameLayer text")).map((node) => node.textContent);
+    const weights = Array.from(svg.querySelectorAll("#playerNameLayer text")).map((node) => node.getAttribute("font-weight"));
+
+    expect(labels).toEqual(["Bob", "Alice"]);
+    expect(weights).toEqual(["800", "500"]);
+    expect(overlay.hasNames()).toBe(true);
+  });
 });

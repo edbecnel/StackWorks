@@ -46,6 +46,7 @@ export type PlayerIdentity = {
 };
 
 export type IdentityByPlayerId = Record<PlayerId, PlayerIdentity>;
+export type IdentityByColor = Partial<Record<PlayerColor, PlayerIdentity>>;
 
 export type TimeControl =
   | { mode: "none" }
@@ -268,6 +269,7 @@ export type GetRoomSnapshotResponse =
       snapshot: WireSnapshot;
       presence?: PresenceByPlayerId;
       identity?: IdentityByPlayerId;
+      identityByColor?: IdentityByColor;
       rules?: RoomRules;
       timeControl?: TimeControl;
       clock?: ClockState;

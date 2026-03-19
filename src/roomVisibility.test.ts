@@ -37,6 +37,8 @@ describe("room visibility", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           variantId: "lasca_7_classic",
+          displayName: "Host",
+          preferredColor: "W",
           visibility: "private",
           snapshot: {
             state: serializeWireGameState(initial),
@@ -84,6 +86,7 @@ describe("room visibility", () => {
       const snapTokenJson = (await snapToken.json()) as any;
       expect(snapTokenJson.error).toBeUndefined();
       expect(snapTokenJson.snapshot?.state).toBeTruthy();
+      expect(snapTokenJson.identityByColor?.W?.displayName).toBe("Host");
 
       // Snapshot with valid playerId should be allowed.
       const snapPlayer = await fetch(`${s.url}/api/room/${encodeURIComponent(roomId)}?playerId=${encodeURIComponent(playerId)}`);

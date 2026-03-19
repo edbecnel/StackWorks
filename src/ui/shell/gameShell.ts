@@ -1437,13 +1437,15 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
 
     const localIdentityOverrides: Partial<Record<Player, Partial<PlayerIdentity>>> = {};
 
-    // Seed player panels with names stored from the start page.
-    try {
-      const nameLight = localStorage.getItem("lasca.local.nameLight")?.trim() ?? "";
-      const nameDark = localStorage.getItem("lasca.local.nameDark")?.trim() ?? "";
-      if (nameLight) localIdentityOverrides["W"] = { displayName: nameLight };
-      if (nameDark) localIdentityOverrides["B"] = { displayName: nameDark };
-    } catch { /* ignore */ }
+    // Local start-page names should only seed offline/local shells.
+    if (initialSnapshot.mode === "local") {
+      try {
+        const nameLight = localStorage.getItem("lasca.local.nameLight")?.trim() ?? "";
+        const nameDark = localStorage.getItem("lasca.local.nameDark")?.trim() ?? "";
+        if (nameLight) localIdentityOverrides["W"] = { displayName: nameLight };
+        if (nameDark) localIdentityOverrides["B"] = { displayName: nameDark };
+      } catch { /* ignore */ }
+    }
     let boardFitFrame: number | null = null;
 
     const fitBoardStage = (): void => {

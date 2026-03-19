@@ -62,6 +62,8 @@ export interface OnlineGameDriver extends GameDriver {
 
   /** Latest server-reported player identity info (if available). */
   getIdentity(): import("../shared/onlineProtocol.ts").IdentityByPlayerId | null;
+  /** Latest server-reported player identity metadata resolved by seat color. */
+  getIdentityByColor(): import("../shared/onlineProtocol.ts").IdentityByColor | null;
 
   /** Immutable per room; set by the creator at /api/create. */
   getRoomRules(): import("../shared/onlineProtocol.ts").RoomRules | null;
