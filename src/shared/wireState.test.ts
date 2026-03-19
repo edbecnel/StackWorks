@@ -50,4 +50,21 @@ describe("wireState", () => {
 
     expect(back.pendingDrawOffer).toEqual({ offeredBy: "W", nonce: 12345 });
   });
+
+  it("round-trips ui.lastMove for authoritative online highlights", () => {
+    const state: GameState = {
+      board: new Map([["r7c4", [{ owner: "W", rank: "K" }]]]),
+      toMove: "B",
+      phase: "idle",
+      meta: { variantId: "chess_classic", rulesetId: "chess", boardSize: 8 },
+      ui: {
+        lastMove: { from: "r6c4", to: "r4c4" },
+      },
+    };
+
+    const wire = serializeWireGameState(state as any);
+    const back = deserializeWireGameState(wire) as GameState;
+
+    expect(back.ui?.lastMove).toEqual({ from: "r6c4", to: "r4c4" });
+  });
 });

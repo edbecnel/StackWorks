@@ -110,6 +110,7 @@ export class GameController {
 
   private drawOfferInputLockActive: boolean = false;
   private lastPromptedDrawOfferNonce: number | null = null;
+  private trackedOutgoingDrawOfferNonce: number | null = null;
   private historyListeners: Array<(reason: HistoryChangeReason) => void> = [];
   private inputEnabled: boolean = true;
   private lastInputEnabled: boolean = true;
@@ -135,6 +136,8 @@ export class GameController {
   private lastGameOverToast: string | null = null;
   private lastGameOverStickyToast: string | null = null;
   private static readonly GAME_OVER_STICKY_TOAST_KEY = "game_over";
+  private static readonly DRAW_OFFER_PENDING_STICKY_TOAST_KEY = "online_draw_offer_pending";
+  private static readonly DRAW_OFFER_RESOLUTION_STICKY_TOAST_KEY = "online_draw_offer_resolution";
   private lastToastToMove: GameState["toMove"] | null = null;
   private lastCheckToastSig: string | null = null;
   private toastTimer: number | null = null;
@@ -1165,25 +1168,7 @@ export class GameController {
         return;
       }
 
-      this.state = remote.getState();
-      // Any opponent update invalidates local in-progress UI selection/chain.
-      this.lockedCaptureFrom = null;
-      this.lockedCaptureDir = null;
-      this.jumpedSquares.clear();
-      this.currentTurnNodes = [];
-      this.currentTurnHasCapture = false;
-      this.clearSelection();
-      this.renderAuthoritative();
-
-      this.recomputeMandatoryCapture();
-      this.recomputeRepetitionCounts();
-      this.checkAndHandleCurrentPlayerLost();
-      this.updatePanel();
-
-      // Opponent updates can make it our turn.
-      this.maybeToastTurnChange();
-
-      this.fireHistoryChange("move");
+      this.applyRemoteOnlineState(remote.getState());
     });
 
     if (startedRealtime) {
@@ -1215,27 +1200,7 @@ export class GameController {
           return;
         }
 
-        this.state = remote.getState();
-        // Any opponent update invalidates local in-progress UI selection/chain.
-        this.lockedCaptureFrom = null;
-        this.lockedCaptureDir = null;
-        this.jumpedSquares.clear();
-        this.currentTurnNodes = [];
-        this.currentTurnHasCapture = false;
-        this.clearSelection();
-        this.renderAuthoritative();
-
-        this.recomputeMandatoryCapture();
-        this.recomputeRepetitionCounts();
-        this.checkAndHandleCurrentPlayerLost();
-        this.updatePanel();
-
-        // Poll updates can make it our turn.
-        this.maybeToastTurnChange();
-
-        // Remote snapshots can advance history/notation; notify listeners so UI updates
-        // (e.g., move list) without requiring local input.
-        this.fireHistoryChange("move");
+        this.applyRemoteOnlineState(remote.getState());
       } catch {
         // Ignore transient network errors; server is best-effort.
       }
@@ -1510,20 +1475,65 @@ export class GameController {
 
   private maybeNotifyOnlineDrawOfferResolution(prev: GameState | null | undefined, next: GameState): void {
     if (this.driver.mode !== "online") return;
-    const previousOffer = this.readPendingDrawOffer(prev);
-    if (!previousOffer) return;
-
     const online = this.driver as OnlineGameDriver;
     const localColor = online.getPlayerColor();
     if (localColor !== "W" && localColor !== "B") return;
-    if (previousOffer.offeredBy !== localColor) return;
 
     const nextOffer = this.readPendingDrawOffer(next);
+    if (nextOffer?.offeredBy === localColor) {
+      this.trackedOutgoingDrawOfferNonce = nextOffer.nonce;
+      this.clearStickyToast(GameController.DRAW_OFFER_RESOLUTION_STICKY_TOAST_KEY);
+      return;
+    }
+
+    const previousOffer = this.readPendingDrawOffer(prev);
+    if (!previousOffer) return;
+    if (previousOffer.offeredBy !== localColor) return;
+
+    if (this.trackedOutgoingDrawOfferNonce == null) {
+      this.trackedOutgoingDrawOfferNonce = previousOffer.nonce;
+    }
+    if (this.trackedOutgoingDrawOfferNonce !== previousOffer.nonce) return;
     if (nextOffer?.nonce === previousOffer.nonce) return;
     if (nextOffer) return;
 
     const accepted = String((next as any)?.forcedGameOver?.reasonCode ?? "").toUpperCase() === "DRAW_BY_AGREEMENT";
-    this.showToast(accepted ? "Draw offer accepted" : "Draw offer declined", 1800, { force: true });
+    this.setStickyToastAction(GameController.DRAW_OFFER_RESOLUTION_STICKY_TOAST_KEY, null);
+    this.showStickyToast(
+      GameController.DRAW_OFFER_RESOLUTION_STICKY_TOAST_KEY,
+      accepted ? "Draw offer accepted" : "Draw offer declined",
+      { force: true }
+    );
+    this.trackedOutgoingDrawOfferNonce = null;
+  }
+
+  private seedTrackedOutgoingDrawOfferFromState(state: GameState): void {
+    if (this.driver.mode !== "online") {
+      this.trackedOutgoingDrawOfferNonce = null;
+      return;
+    }
+    const online = this.driver as OnlineGameDriver;
+    const localColor = online.getPlayerColor();
+    const pendingOffer = this.readPendingDrawOffer(state);
+    if ((localColor !== "W" && localColor !== "B") || !pendingOffer || pendingOffer.offeredBy !== localColor) {
+      this.trackedOutgoingDrawOfferNonce = null;
+      return;
+    }
+    this.trackedOutgoingDrawOfferNonce = pendingOffer.nonce;
+  }
+
+  private applyRemoteOnlineState(next: GameState): void {
+    // Any authoritative remote update invalidates local in-progress UI state.
+    this.lockedCaptureFrom = null;
+    this.lockedCaptureDir = null;
+    this.jumpedSquares.clear();
+    this.currentTurnNodes = [];
+    this.currentTurnHasCapture = false;
+    this.clearSelection();
+
+    this.setState(next);
+    this.renderAuthoritative();
+    this.fireHistoryChange("move");
   }
 
   private sideLabel(color: "W" | "B"): string {
@@ -1854,6 +1864,7 @@ export class GameController {
     this.state = state;
     this.history = history;
     this.driver = driver ?? new LocalDriver(state, history);
+    this.seedTrackedOutgoingDrawOfferFromState(this.state);
   }
 
   bind(): void {
@@ -2781,6 +2792,7 @@ export class GameController {
   private syncCheckersUsDrawOffers(): void {
     if (this.isGameOver) {
       this.lastPromptedDrawOfferNonce = null;
+      this.clearStickyToast(GameController.DRAW_OFFER_PENDING_STICKY_TOAST_KEY);
       if (this.drawOfferInputLockActive) {
         this.drawOfferInputLockActive = false;
         this.setInputEnabled(true);
@@ -2796,6 +2808,7 @@ export class GameController {
 
     if (!pending) {
       this.lastPromptedDrawOfferNonce = null;
+      this.clearStickyToast(GameController.DRAW_OFFER_PENDING_STICKY_TOAST_KEY);
       if (this.drawOfferInputLockActive) {
         this.drawOfferInputLockActive = false;
         this.setInputEnabled(true);
@@ -2821,13 +2834,18 @@ export class GameController {
       // Offerer does not get prompted.
       if (pending.offeredBy === localColor) {
         this.lastPromptedDrawOfferNonce = pending.nonce;
+        this.clearStickyToast(GameController.DRAW_OFFER_PENDING_STICKY_TOAST_KEY);
         return;
       }
 
       this.lastPromptedDrawOfferNonce = pending.nonce;
       const offeredByLabel = this.sideLabel(pending.offeredBy);
-      const accept = confirm(`${offeredByLabel} offers a draw. Accept?`);
-      void this.respondDrawOfferOnline({ accept });
+      const key = GameController.DRAW_OFFER_PENDING_STICKY_TOAST_KEY;
+      this.setStickyToastAction(key, () => {
+        const accept = confirm(`${offeredByLabel} offers a draw. Accept?`);
+        void this.respondDrawOfferOnline({ accept });
+      });
+      this.showStickyToast(key, `${offeredByLabel} offers a draw — tap to respond`, { force: true });
       return;
     }
 
@@ -3062,6 +3080,7 @@ export class GameController {
   }
 
   getPlayerShellSnapshot(): PlayerShellSnapshot {
+    const pendingDrawOffer = this.readPendingDrawOffer(this.state);
     const defaultPlayers: Record<Player, PlayerIdentity> = {
       W: this.createShellPlayerIdentity({
         color: "W",
@@ -3180,7 +3199,7 @@ export class GameController {
     const selfGraceUntil = this.formatPresenceDeadline(selfPresence?.graceUntil);
     const opponentGraceUntil = this.formatPresenceDeadline(opponentPresence?.graceUntil);
 
-    const selfDetail = this.onlineTransportStatus === "reconnecting"
+    let selfDetail = this.onlineTransportStatus === "reconnecting"
       ? "Re-establishing the room connection."
       : this.state.toMove === localColor
         ? "Your turn."
@@ -3204,6 +3223,21 @@ export class GameController {
       ? `Rejoining until ${opponentGraceUntil}`
       : opponentStatus.text;
 
+    let nextSelfStatusText = selfStatusText;
+    let nextOpponentStatusText = opponentStatusText;
+
+    if (pendingDrawOffer) {
+      const offeredByLocalPlayer = pendingDrawOffer.offeredBy === localColor;
+      nextSelfStatusText = offeredByLocalPlayer ? "Offer sent" : "Offer draw";
+      nextOpponentStatusText = offeredByLocalPlayer ? "Offer draw" : "Offer sent";
+      selfDetail = offeredByLocalPlayer
+        ? "Waiting for the opponent to respond to the draw offer."
+        : `${this.sideLabel(pendingDrawOffer.offeredBy)} offered a draw. Respond to continue.`;
+      opponentDetail = offeredByLocalPlayer
+        ? "Your draw offer is awaiting a response."
+        : "Waiting for your response to the draw offer.";
+    }
+
     return {
       mode: "online",
       transportStatus: this.onlineTransportStatus,
@@ -3218,7 +3252,7 @@ export class GameController {
           roleLabel: `You · ${this.sideLabel(localColor)}`,
           detailText: selfDetail,
           status: selfStatus.status,
-          statusText: selfStatusText,
+          statusText: nextSelfStatusText,
           avatarUrl: this.resolveShellAvatarUrl(serverUrl, selfIdentity?.avatarUrl),
           countryCode: selfIdentity?.countryCode ?? null,
           countryName: selfIdentity?.countryName ?? null,
@@ -3231,7 +3265,7 @@ export class GameController {
           roleLabel: `${opponentIsLocal ? "Local bot" : "Opponent"} · ${this.sideLabel(opponentColor)}`,
           detailText: opponentDetail,
           status: opponentStatus.status,
-          statusText: opponentStatusText,
+          statusText: nextOpponentStatusText,
           avatarUrl: this.resolveShellAvatarUrl(serverUrl, opponentIdentity?.avatarUrl),
           countryCode: opponentIdentity?.countryCode ?? null,
           countryName: opponentIdentity?.countryName ?? null,

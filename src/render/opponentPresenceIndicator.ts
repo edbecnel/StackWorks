@@ -11,6 +11,48 @@ type OpponentPresenceOpts = {
   hidden?: boolean;
 };
 
+function appendOpponentToken(layer: SVGGElement, args: { x: number; y: number; size: number; color: "W" | "B" }): void {
+  const token = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  token.setAttribute("transform", `translate(${args.x} ${args.y})`);
+
+  const fill = args.color === "W" ? "#f8fafc" : "#111827";
+  const stroke = args.color === "W" ? "rgba(15,23,42,0.72)" : "rgba(248,250,252,0.82)";
+
+  const base = document.createElementNS(SVG_NS, "path") as SVGPathElement;
+  base.setAttribute(
+    "d",
+    "M16.5 8.5 C12.7 8.5 9.8 11.5 9.8 15.2 C9.8 17.6 11.1 19.7 13.1 20.9 C10.2 22.3 8.3 25.1 8.0 28.7 L25.0 28.7 C24.7 25.1 22.8 22.3 19.9 20.9 C21.9 19.7 23.2 17.6 23.2 15.2 C23.2 11.5 20.3 8.5 16.5 8.5 Z"
+  );
+  base.setAttribute("fill", fill);
+  base.setAttribute("stroke", stroke);
+  base.setAttribute("stroke-width", "1.8");
+  base.setAttribute("stroke-linejoin", "round");
+  token.appendChild(base);
+
+  const plinth = document.createElementNS(SVG_NS, "rect") as SVGRectElement;
+  plinth.setAttribute("x", "6.5");
+  plinth.setAttribute("y", "27.6");
+  plinth.setAttribute("width", "20");
+  plinth.setAttribute("height", "3.4");
+  plinth.setAttribute("rx", "1.7");
+  plinth.setAttribute("fill", fill);
+  plinth.setAttribute("stroke", stroke);
+  plinth.setAttribute("stroke-width", "1.4");
+  token.appendChild(plinth);
+
+  const gloss = document.createElementNS(SVG_NS, "path") as SVGPathElement;
+  gloss.setAttribute("d", "M12.2 13.4 C13.8 10.7 17.1 9.7 19.4 10.4");
+  gloss.setAttribute("fill", "none");
+  gloss.setAttribute("stroke", args.color === "W" ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.24)");
+  gloss.setAttribute("stroke-width", "1.3");
+  gloss.setAttribute("stroke-linecap", "round");
+  token.appendChild(gloss);
+
+  const scale = args.size / 33;
+  token.setAttribute("transform", `translate(${args.x} ${args.y}) scale(${scale})`);
+  layer.appendChild(token);
+}
+
 function parseViewBox(svg: SVGSVGElement): { x: number; y: number; w: number; h: number } {
   const raw = svg.getAttribute("viewBox") ?? "";
   const parts = raw
@@ -72,15 +114,7 @@ export function renderOpponentPresenceIndicator(svg: SVGSVGElement, layer: SVGGE
   backing.setAttribute("vector-effect", "non-scaling-stroke");
   layer.appendChild(backing);
 
-  const use = document.createElementNS(SVG_NS, "use") as SVGUseElement;
-  const href = opts.opponentColor === "W" ? "#W_S" : "#B_S";
-  use.setAttribute("href", href);
-  use.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", href);
-  use.setAttribute("x", String(x));
-  use.setAttribute("y", String(y));
-  use.setAttribute("width", String(iconSize));
-  use.setAttribute("height", String(iconSize));
-  layer.appendChild(use);
+  appendOpponentToken(layer, { x, y, size: iconSize, color: opts.opponentColor });
 
   const dot = document.createElementNS(SVG_NS, "circle") as SVGCircleElement;
   dot.setAttribute("cx", String(x + iconSize - 3));

@@ -15,8 +15,9 @@ export interface GameState {
   meta?: GameMeta;
 
   /**
-   * Ephemeral UI state (not serialized over the wire).
-   * Used for client-only visual hints like last-move highlights.
+   * UI state used for visual hints like last-move highlights.
+   * Carried in multiplayer wire snapshots so both clients can render the
+   * authoritative last move consistently.
    */
   ui?: {
     lastMove?: { from: NodeId; to: NodeId };

@@ -11,6 +11,7 @@ export type WireGameState = {
   toMove: "B" | "W";
   phase: "idle" | "select" | "anim";
   meta?: GameMeta;
+  ui?: GameState["ui"];
   /** Columns Chess / chess-like aux state (castling, en passant). */
   chess?: GameState["chess"];
   forcedGameOver?: {
@@ -47,6 +48,7 @@ export function serializeWireGameState(state: any): WireGameState {
     toMove: state.toMove,
     phase: state.phase,
     meta: state.meta,
+    ui: state.ui,
     chess: state.chess,
     forcedGameOver: state.forcedGameOver,
     captureChain: state.captureChain,
@@ -62,6 +64,7 @@ export function deserializeWireGameState(wire: WireGameState): any {
     toMove: wire.toMove,
     phase: wire.phase,
     meta: wire.meta,
+    ui: (wire as any).ui,
     chess: (wire as any).chess,
     forcedGameOver: (wire as any).forcedGameOver,
     captureChain: wire.captureChain,

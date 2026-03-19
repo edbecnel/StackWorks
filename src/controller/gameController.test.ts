@@ -1347,19 +1347,29 @@ describe("GameController online draw offers", () => {
     playerColor: "W" | "B";
     history: HistoryManager;
     controlsColor?: (color: "W" | "B") => boolean;
+    state?: GameState;
+    presence?: Record<string, { connected?: boolean; inGrace?: boolean; graceUntil?: string }> | null;
+    identity?: Record<string, { displayName?: string; avatarUrl?: string; countryCode?: string; countryName?: string }> | null;
+    startRealtime?: (onUpdated: () => void) => boolean;
     offerDrawRemote?: () => Promise<GameState>;
     respondDrawOfferRemote?: (args: { accept: boolean }) => Promise<GameState>;
   }): any {
     return {
       mode: "online" as const,
+      getState: () => args.state ?? makeState(),
       setState: vi.fn(),
       getPlayerId: () => args.playerId,
       getPlayerColor: () => args.playerColor,
+      getRoomId: () => "room-1",
       getServerUrl: () => "http://localhost:9999",
-      getPresence: () => null,
-      getIdentity: () => null,
+      getPresence: () => args.presence ?? null,
+      getIdentity: () => args.identity ?? null,
       getIdentityByColor: () => null,
+      getRoomRules: () => null,
       controlsColor: args.controlsColor ?? (() => false),
+      startRealtime: args.startRealtime ?? (() => true),
+      onSseEvent: vi.fn(() => () => {}),
+      fetchLatest: vi.fn(async () => false),
       exportHistorySnapshots: () => args.history.exportSnapshots(),
       offerDrawRemote: args.offerDrawRemote ?? vi.fn(async () => makeState()),
       respondDrawOfferRemote: args.respondDrawOfferRemote ?? vi.fn(async () => makeState()),
@@ -1417,9 +1427,6 @@ describe("GameController online draw offers", () => {
     const initial = makeState();
     history.push(initial);
 
-    const confirmMock = vi.fn(() => false);
-    vi.stubGlobal("confirm", confirmMock);
-
     const driver = makeOnlineDriver({
       playerId: "p2",
       playerColor: "B",
@@ -1428,12 +1435,46 @@ describe("GameController online draw offers", () => {
     });
 
     const controller = new GameController(mockSvg, mockPiecesLayer, null, initial, history, driver as any);
+    const showStickyToast = vi.fn();
+    const setStickyToastAction = vi.fn();
+    (controller as any).showStickyToast = showStickyToast;
+    (controller as any).setStickyToastAction = setStickyToastAction;
 
     controller.setState(makeState({ pendingDrawOffer: { offeredBy: "W", nonce: 77 } }));
     await Promise.resolve();
 
-    expect(confirmMock).toHaveBeenCalledWith("White offers a draw. Accept?");
-    expect(driver.respondDrawOfferRemote).toHaveBeenCalledWith({ accept: false });
+    expect(showStickyToast).toHaveBeenCalledWith("online_draw_offer_pending", "White offers a draw — tap to respond", { force: true });
+    expect(setStickyToastAction).toHaveBeenCalled();
+    expect(driver.respondDrawOfferRemote).not.toHaveBeenCalled();
+  });
+
+  it("projects pending draw offers into the shell player snapshot", () => {
+    const history = new HistoryManager();
+    const initial = makeState({ pendingDrawOffer: { offeredBy: "W", nonce: 94 } });
+    history.push(initial);
+
+    const driver = makeOnlineDriver({
+      playerId: "p2",
+      playerColor: "B",
+      history,
+      state: initial,
+      presence: {
+        p1: { connected: true },
+        p2: { connected: true },
+      },
+      identity: {
+        p1: { displayName: "Alice" },
+        p2: { displayName: "Bob" },
+      },
+    });
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, initial, history, driver as any);
+    const snapshot = controller.getPlayerShellSnapshot();
+
+    expect(snapshot.players.B.statusText).toBe("Offer draw");
+    expect(snapshot.players.B.detailText).toBe("White offered a draw. Respond to continue.");
+    expect(snapshot.players.W.statusText).toBe("Offer sent");
+    expect(snapshot.players.W.detailText).toBe("Waiting for your response to the draw offer.");
   });
 
   it("shows the offering player when a draw offer is declined online", () => {
@@ -1448,12 +1489,12 @@ describe("GameController online draw offers", () => {
     });
 
     const controller = new GameController(mockSvg, mockPiecesLayer, null, initial, history, driver as any);
-    const showToast = vi.fn();
-    (controller as any).showToast = showToast;
+    const showStickyToast = vi.fn();
+    (controller as any).showStickyToast = showStickyToast;
 
     controller.setState(makeState());
 
-    expect(showToast).toHaveBeenCalledWith("Draw offer declined", 1800, { force: true });
+    expect(showStickyToast).toHaveBeenCalledWith("online_draw_offer_resolution", "Draw offer declined", { force: true });
   });
 
   it("shows the offering player when a draw offer is accepted online", () => {
@@ -1468,8 +1509,8 @@ describe("GameController online draw offers", () => {
     });
 
     const controller = new GameController(mockSvg, mockPiecesLayer, null, initial, history, driver as any);
-    const showToast = vi.fn();
-    (controller as any).showToast = showToast;
+    const showStickyToast = vi.fn();
+    (controller as any).showStickyToast = showStickyToast;
 
     controller.setState(makeState({
       forcedGameOver: {
@@ -1479,6 +1520,6 @@ describe("GameController online draw offers", () => {
       },
     }));
 
-    expect(showToast).toHaveBeenCalledWith("Draw offer accepted", 1800, { force: true });
+    expect(showStickyToast).toHaveBeenCalledWith("online_draw_offer_resolution", "Draw offer accepted", { force: true });
   });
 });
