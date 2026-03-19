@@ -1773,6 +1773,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
       res.setHeader("content-type", ct);
       res.setHeader("x-content-type-options", "nosniff");
       res.setHeader("cache-control", "public, max-age=3600");
+      res.setHeader("cross-origin-resource-policy", "cross-origin");
       res.send(bytes);
     } catch {
       res.status(404).json({ error: "Not found" });

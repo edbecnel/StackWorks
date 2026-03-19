@@ -226,6 +226,7 @@ describe("MP4C accounts (authn/authz)", () => {
       const get = await fetch(`${s.url}${avatarPath}`);
       expect(get.ok).toBe(true);
       expect(get.headers.get("content-type")).toContain("image/png");
+      expect(get.headers.get("cross-origin-resource-policy")).toBe("cross-origin");
       const bytes = new Uint8Array(await get.arrayBuffer());
       expect(bytes.length).toBeGreaterThan(8);
       // Signature check.
