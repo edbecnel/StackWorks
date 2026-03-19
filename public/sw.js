@@ -3,25 +3,27 @@
 //   • /assets/* and /vendor/* — content-hashed, CacheFirst (serve from SW
 //     cache forever; browser never re-downloads unless the hash changes)
 //   • /pieces/*, /icons/*     — CacheFirst (images, infrequently updated)
+//   • HTML navigations        — NetworkFirst with cached fallback so a
+//     previously visited page can be restored while offline
 //   • Everything else         — pass-through; no interception
 //
-// HTML pages are intentionally NOT cached by the SW. Serving stale HTML would
-// reference old content-hash filenames after a deploy and silently break pages.
-// The `Cache-Control: no-cache, must-revalidate` header in _headers is the
-// correct mechanism for HTML — it causes a fast conditional revalidation
-// (304 Not Modified) without a full re-download when nothing changed.
+// HTML uses NetworkFirst rather than CacheFirst so normal online visits still
+// pick up the newest deployment immediately. The cached fallback is only used
+// when the network is unavailable (for example, Safari/iOS discards a tab and
+// later needs to reconstruct the page while the device is offline).
 
 // Derive the base path from the SW's own URL so this file works regardless of
 // the Vite `base` setting (e.g. "/" for Cloudflare Pages or "/StackWorks/" for
 // GitHub Pages).
 const BASE = self.location.pathname.replace(/\/sw\.js$/, "/");
 
+const HTML_CACHE = "sw-html-v1";
 const ASSET_CACHE = "sw-assets-v5";
 const IMAGE_CACHE = "sw-images-v2";
 
 // Bump these cache names to force all clients to drop stale caches after a
 // breaking change to the SW caching strategy.
-const ALL_CACHES = new Set([ASSET_CACHE, IMAGE_CACHE]);
+const ALL_CACHES = new Set([HTML_CACHE, ASSET_CACHE, IMAGE_CACHE]);
 
 // Vendor scripts (Stockfish JS/WASM) are loaded as dedicated Workers from a
 // cross-origin-isolated page (COEP: require-corp). Chrome requires that:
@@ -60,6 +62,10 @@ function isImage(url) {
   return p.startsWith(BASE + "pieces/") || p.startsWith(BASE + "icons/");
 }
 
+function isHtmlNavigation(request) {
+  return request.mode === "navigate" || request.destination === "document";
+}
+
 // ── Install: skip waiting so the new SW takes over without a second page load.
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -84,6 +90,27 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+
+  // ── HTML pages: NetworkFirst with offline fallback ───────────────────────
+  if (isHtmlNavigation(req)) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res.ok && res.status < 400) {
+            const copy = res.clone();
+            event.waitUntil(caches.open(HTML_CACHE).then((cache) => cache.put(req, copy)));
+          }
+          return res;
+        })
+        .catch(async () => {
+          const cache = await caches.open(HTML_CACHE);
+          const cached = await cache.match(req);
+          if (cached) return cached;
+          throw new Error("offline-navigation-miss");
+        }),
+    );
+    return;
+  }
 
   // ── Hashed assets: CacheFirst ──────────────────────────────────────────────
   if (isHashedAsset(url)) {

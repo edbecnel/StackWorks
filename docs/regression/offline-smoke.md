@@ -20,4 +20,5 @@ For each page: Lasca, Lasca 8×8, Dama (Standard/International), Damasca:
 2. Make 3–5 legal moves (including a capture if available)
 3. Undo twice, Redo twice; ensure Move History scroll follows the current entry
 4. Confirm no console errors
-5. (Optional) Save game and immediately load it back
+5. Turn off network access and refresh/reopen the same previously visited page; it should still render from the cached HTML shell
+6. (Optional) Save game and immediately load it back
