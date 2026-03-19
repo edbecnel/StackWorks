@@ -8,6 +8,6 @@
   </defs>
   <text x="18" y="118" font-family="Verdana, Trebuchet MS, Arial, sans-serif" font-weight="900" letter-spacing="1.0"
         fill="url(#goldTop)" stroke="#1A1C22" stroke-width="8" paint-order="stroke" font-size="96">StackWorks</text>
-  <text x="678" y="120" font-family="Verdana, Trebuchet MS, Arial, sans-serif" font-weight="900" letter-spacing="0.2"
-        font-size="38" fill="#0D2547">.games</text>
+  <text x="678" y="118" font-family="Verdana, Trebuchet MS, Arial, sans-serif" font-weight="900" letter-spacing="0.2"
+        font-size="57" fill="#FFFFFF">.games</text>
 </svg>
