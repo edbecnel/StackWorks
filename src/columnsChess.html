@@ -13,7 +13,7 @@
       rel="icon"
       type="image/svg+xml"
       sizes="any"
-      href="./icons/stackworks-logo-icon.svg"
+      href="./icons/stackworks-icon-stackpawn-bg.svg"
     />
 
     <style>
@@ -654,6 +654,8 @@
         #appRoot {
           flex-direction: column;
           height: 100dvh;
+          justify-content: flex-start;
+          align-items: stretch;
         }
 
         /* Left panel on top, board in middle, right panel at bottom */
@@ -678,9 +680,26 @@
           height: auto;
         }
         #centerArea {
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-start;
+          align-items: stretch;
+          align-content: flex-start;
+          flex-wrap: nowrap;
           min-width: 0;
           height: auto;
+          padding-left: max(8px, env(safe-area-inset-left));
+          padding-right: max(8px, env(safe-area-inset-right));
           padding-bottom: max(10px, env(safe-area-inset-bottom));
+        }
+
+        #boardColumn {
+          align-items: stretch;
+        }
+
+        #boardWrap {
+          align-items: flex-start;
+          justify-content: flex-start;
         }
       }
     </style>
@@ -1229,7 +1248,7 @@
               <div
                 style="
                   display: grid;
-                  grid-template-columns: 52px minmax(0, 1fr);
+                  grid-template-columns: max-content minmax(0, 1fr);
                   gap: 8px 10px;
                   align-items: center;
                   justify-items: start;
@@ -1804,7 +1823,7 @@
               <div
                 style="
                   display: grid;
-                  grid-template-columns: 52px minmax(0, 1fr);
+                  grid-template-columns: max-content minmax(0, 1fr);
                   gap: 8px 2px;
                   align-items: center;
                   justify-items: start;

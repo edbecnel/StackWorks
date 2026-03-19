@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320" role="img" aria-label="StackWorks icon (stack pawn)">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#124073"/>
+      <stop offset="100%" stop-color="#081A33"/>
+    </linearGradient>
+
+    <linearGradient id="gold" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#FFF2BF"/>
+      <stop offset="48%" stop-color="#E3B84F"/>
+      <stop offset="100%" stop-color="#B97D1B"/>
+    </linearGradient>
+
+    <filter id="softShadow" x="-25%" y="-25%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+
+    <!-- pawn mask for internal groove lines -->
+    <mask id="pawnMask">
+      <rect width="320" height="320" fill="black"/>
+      <g fill="white">
+        <!-- head -->
+        <circle cx="160" cy="92" r="40"/>
+        <!-- collar -->
+        <ellipse cx="160" cy="150" rx="62" ry="22"/>
+        <!-- body (stacked/column base) -->
+        <rect x="98" y="162" width="124" height="28" rx="14" ry="14"/>
+        <rect x="88" y="190" width="144" height="30" rx="15" ry="15"/>
+        <rect x="74" y="220" width="172" height="42" rx="21" ry="21"/>
+        <rect x="64" y="258" width="192" height="18" rx="9" ry="9"/>
+      </g>
+    </mask>
+  </defs>
+
+  <!-- background -->
+  <rect x="18" y="18" width="284" height="284" rx="72" fill="url(#bg)"/>
+
+  <!-- pawn -->
+  <g filter="url(#softShadow)">
+    <g>
+      <circle cx="160" cy="92" r="40" fill="url(#gold)" stroke="#0D3568" stroke-width="10"/>
+      <ellipse cx="160" cy="150" rx="62" ry="22" fill="url(#gold)" stroke="#0D3568" stroke-width="10"/>
+
+      <rect x="98" y="162" width="124" height="28" rx="14" ry="14" fill="url(#gold)" stroke="#0D3568" stroke-width="10"/>
+      <rect x="88" y="190" width="144" height="30" rx="15" ry="15" fill="url(#gold)" stroke="#0D3568" stroke-width="10"/>
+      <rect x="74" y="220" width="172" height="42" rx="21" ry="21" fill="url(#gold)" stroke="#0D3568" stroke-width="10"/>
+      <rect x="64" y="258" width="192" height="18" rx="9" ry="9" fill="url(#gold)" stroke="#0D3568" stroke-width="10"/>
+
+      <!-- subtle inner highlight -->
+      <ellipse cx="148" cy="84" rx="18" ry="12" fill="#FFF7DB" opacity="0.55"/>
+    </g>
+
+    <!-- internal groove lines to imply 'stack/column' even at small sizes -->
+    <g mask="url(#pawnMask)" opacity="0.75">
+      <path d="M 80 206 H 240" stroke="#0A2A52" stroke-width="8" stroke-linecap="round"/>
+      <path d="M 72 238 H 248" stroke="#0A2A52" stroke-width="8" stroke-linecap="round"/>
+    </g>
+  </g>
+</svg>
