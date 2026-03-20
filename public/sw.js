@@ -19,7 +19,7 @@ const BASE = self.location.pathname.replace(/\/sw\.js$/, "/");
 
 const HTML_CACHE = "sw-html-v1";
 const ASSET_CACHE = "sw-assets-v5";
-const IMAGE_CACHE = "sw-images-v2";
+const IMAGE_CACHE = "sw-images-v3";
 
 // Bump these cache names to force all clients to drop stale caches after a
 // breaking change to the SW caching strategy.
