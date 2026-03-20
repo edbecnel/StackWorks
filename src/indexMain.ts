@@ -1305,12 +1305,6 @@ window.addEventListener("DOMContentLoaded", () => {
       });
     });
 
-    elAccountLogin?.addEventListener("click", () => {
-      void withAccountBusy(async () => {
-        await doAccountLogin();
-      });
-    });
-
     elAccountUpdateProfile?.addEventListener("click", () => {
       void withAccountBusy(async () => {
         const displayName = (elAccountDisplayName?.value || "").trim();
