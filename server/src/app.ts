@@ -47,6 +47,10 @@ import type {
   GetRoomSnapshotResponse,
   PostRoomDebugReportRequest,
   PostRoomDebugReportResponse,
+  PublishEvalRequest,
+  PublishEvalResponse,
+  PublishedEval,
+  PublishedEvalScore,
   ReplayEvent,
   ResignRequest,
   ResignResponse,
@@ -197,6 +201,7 @@ type Room = {
   visibility: RoomVisibility;
   watchToken: string | null;
   rules: RoomRules;
+  publishedEval: PublishedEval | null;
   stateVersion: number;
   rulesVersion: string;
   lastGameOverVersion: number;
@@ -499,6 +504,76 @@ function snapshotForRoom(room: Room): WireSnapshot {
     state: serializeWireGameState(room.state),
     history: serializeWireHistory(room.history.exportSnapshots()),
     stateVersion: room.stateVersion,
+  };
+}
+
+function clonePublishedEvalScore(score: PublishedEvalScore): PublishedEvalScore {
+  return "cp" in score ? { cp: score.cp } : { mate: score.mate };
+}
+
+function publishedEvalForRoom(room: Room): PublishedEval | null {
+  if (!room.publishedEval) return null;
+  return {
+    stateVersion: room.publishedEval.stateVersion,
+    score: clonePublishedEvalScore(room.publishedEval.score),
+  };
+}
+
+function isValidPublishedEvalScore(raw: any): raw is PublishedEvalScore {
+  if (!raw || typeof raw !== "object") return false;
+  if (Number.isFinite((raw as any).cp)) return true;
+  if (Number.isFinite((raw as any).mate)) return true;
+  return false;
+}
+
+function clearPublishedEval(room: Room): void {
+  room.publishedEval = null;
+}
+
+function advanceRoomStateVersion(room: Room): void {
+  clearPublishedEval(room);
+  room.stateVersion += 1;
+}
+
+function responseMetaForRoom(room: Room): {
+  presence: PresenceByPlayerId;
+  identity: IdentityByPlayerId;
+  publishedEval: PublishedEval | null;
+  timeControl: TimeControl;
+  clock?: ClockState;
+} {
+  return {
+    presence: presenceForRoom(room),
+    identity: publicIdentityForRoom(room),
+    publishedEval: publishedEvalForRoom(room),
+    timeControl: room.timeControl,
+    clock: room.clock ?? undefined,
+  };
+}
+
+function snapshotEventPayloadForRoom(room: Room): {
+  roomId: RoomId;
+  snapshot: WireSnapshot;
+  presence: PresenceByPlayerId;
+  identity?: IdentityByPlayerId;
+  identityByColor?: Partial<Record<PlayerColor, PlayerIdentity>>;
+  rules: RoomRules;
+  publishedEval: PublishedEval | null;
+  timeControl: TimeControl;
+  clock?: ClockState;
+} {
+  const identity = publicIdentityForRoom(room);
+  const identityByColor = identityByColorForPlayers({ players: room.players.entries(), identity });
+  return {
+    roomId: room.roomId,
+    snapshot: snapshotForRoom(room),
+    presence: presenceForRoom(room),
+    identity: Object.keys(identity).length > 0 ? identity : undefined,
+    identityByColor: identityByColor && Object.keys(identityByColor).length > 0 ? identityByColor : undefined,
+    rules: room.rules,
+    publishedEval: publishedEvalForRoom(room),
+    timeControl: room.timeControl,
+    clock: room.clock ?? undefined,
   };
 }
 
@@ -902,18 +977,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
   }
 
   function broadcastRoomSnapshot(room: Room): void {
-      const identity = publicIdentityForRoom(room);
-      const identityByColor = identityByColorForPlayers({ players: room.players.entries(), identity });
-      const payload = {
-      roomId: room.roomId,
-      snapshot: snapshotForRoom(room),
-      presence: presenceForRoom(room),
-        identity: Object.keys(identity).length > 0 ? identity : undefined,
-        identityByColor: identityByColor && Object.keys(identityByColor).length > 0 ? identityByColor : undefined,
-      rules: room.rules,
-      timeControl: room.timeControl,
-      clock: room.clock ?? undefined,
-    };
+    const payload = snapshotEventPayloadForRoom(room);
 
     broadcastRoomEvent(room.roomId, "snapshot", payload);
 
@@ -1154,6 +1218,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
       visibility: loadedVisibility,
       watchToken: loadedWatchToken,
       rules: loadedRules,
+      publishedEval: null,
       stateVersion: loaded.meta.stateVersion,
       rulesVersion: loaded.meta.rulesVersion,
       lastGameOverVersion: -1,
@@ -1402,7 +1467,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
       },
     };
 
-    room.stateVersion += 1;
+    advanceRoomStateVersion(room);
     try {
       await appendEvent(
         args.gamesDir,
@@ -1444,7 +1509,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
       },
     };
 
-    room.stateVersion += 1;
+    advanceRoomStateVersion(room);
     await appendEvent(
       gamesDir,
       room.roomId,
@@ -1895,15 +1960,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
       }
 
       // Initial snapshot so client can render immediately.
-      const identity = publicIdentityForRoom(room);
-      streamWrite(res, "snapshot", {
-        roomId,
-        snapshot: snapshotForRoom(room),
-        presence: presenceForRoom(room),
-        identity: Object.keys(identity).length > 0 ? identity : undefined,
-        timeControl: room.timeControl,
-        clock: room.clock ?? undefined,
-      });
+      streamWrite(res, "snapshot", snapshotEventPayloadForRoom(room));
 
       // Presence changed; notify other connected clients.
       if (playerId && room.players.has(playerId)) {
@@ -1994,6 +2051,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
         visibility,
         watchToken,
         rules,
+        publishedEval: null,
         stateVersion: 0,
         rulesVersion: SUPPORTED_RULES_VERSION,
         lastGameOverVersion: -1,
@@ -2073,11 +2131,8 @@ export function createLascaApp(opts: ServerOpts = {}): {
         playerId,
         color: creatorColor,
         snapshot: snapshotForRoom(room),
-        presence: presenceForRoom(room),
-        identity: publicIdentityForRoom(room),
+        ...responseMetaForRoom(room),
         rules: room.rules,
-        timeControl: room.timeControl,
-        clock: room.clock ?? undefined,
         visibility: room.visibility,
         watchToken: room.watchToken ?? undefined,
         localSeatPlayerIdsByColor,
@@ -2146,11 +2201,8 @@ export function createLascaApp(opts: ServerOpts = {}): {
             playerId,
             color,
             snapshot: snapshotForRoom(room),
-            presence: presenceForRoom(room),
-            identity: publicIdentityForRoom(room),
+            ...responseMetaForRoom(room),
             rules: room.rules,
-            timeControl: room.timeControl,
-            clock: room.clock ?? undefined,
           };
           broadcastRoomSnapshot(room);
           return resp;
@@ -2210,11 +2262,8 @@ export function createLascaApp(opts: ServerOpts = {}): {
           playerId,
           color,
           snapshot: snapshotForRoom(room),
-          presence: presenceForRoom(room),
-          identity: publicIdentityForRoom(room),
+          ...responseMetaForRoom(room),
           rules: room.rules,
-          timeControl: room.timeControl,
-          clock: room.clock ?? undefined,
         };
         broadcastRoomSnapshot(room);
         return resp;
@@ -2519,18 +2568,53 @@ export function createLascaApp(opts: ServerOpts = {}): {
       await room.persistChain;
       const response: GetRoomSnapshotResponse = {
         snapshot: snapshotForRoom(room),
-        presence: presenceForRoom(room),
-        identity: publicIdentityForRoom(room),
+        ...responseMetaForRoom(room),
         identityByColor: identityByColorForPlayers({ players: room.players.entries(), identity: publicIdentityForRoom(room) }),
         rules: room.rules,
-        timeControl: room.timeControl,
-        clock: room.clock ?? undefined,
       };
       res.json(response);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Snapshot failed";
       const response: GetRoomSnapshotResponse = { error: msg };
       res.status(msg === "Room is private" ? 403 : 400).json(response);
+    }
+  });
+
+  app.post("/api/publishEval", async (req, res) => {
+    try {
+      const body = req.body as PublishEvalRequest;
+      const room = await requireRoom(body.roomId);
+      const response = await queueRoomAction(room, async () => {
+        const expected = parseExpectedVersion((body as any).expectedStateVersion);
+        if (expected != null && expected !== room.stateVersion) {
+          throw new Error(`Stale request (expected v${expected}, current v${room.stateVersion})`);
+        }
+
+        requirePlayer(room, body.playerId);
+        if (isRoomOver(room)) throw new Error("Game over");
+        if (!isValidPublishedEvalScore((body as any).score)) throw new Error("Invalid score");
+
+        const rawScore = (body as any).score;
+        room.publishedEval = {
+          stateVersion: room.stateVersion,
+          score: Number.isFinite(rawScore.cp)
+            ? { cp: Number(rawScore.cp) }
+            : { mate: Math.trunc(Number(rawScore.mate)) },
+        };
+
+        const resp: PublishEvalResponse = {
+          ok: true,
+          publishedEval: publishedEvalForRoom(room),
+        };
+        broadcastRoomSnapshot(room);
+        return resp;
+      });
+
+      res.json(response);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Publish eval failed";
+      const response: PublishEvalResponse = { error: msg };
+      res.status(400).json(response);
     }
   });
 
@@ -2727,17 +2811,14 @@ export function createLascaApp(opts: ServerOpts = {}): {
         const nextToMove = (room.state as any).toMove as PlayerColor;
         onTurnSwitch(room, prevToMove, nextToMove);
 
-        room.stateVersion += 1;
+        advanceRoomStateVersion(room);
         await persistMoveApplied({ gamesDir, room, action: "SUBMIT_MOVE", move, snapshotEvery });
         await maybePersistGameOver(gamesDir, room);
 
         const resp: SubmitMoveResponse = {
           snapshot: snapshotForRoom(room),
           didPromote: Boolean(next.didPromote) || undefined,
-          presence: presenceForRoom(room),
-          identity: publicIdentityForRoom(room),
-          timeControl: room.timeControl,
-          clock: room.clock ?? undefined,
+          ...responseMetaForRoom(room),
         };
         broadcastRoomSnapshot(room);
         return resp;
@@ -2794,17 +2875,14 @@ export function createLascaApp(opts: ServerOpts = {}): {
         const nextToMove = (room.state as any).toMove as PlayerColor;
         onTurnSwitch(room, prevToMove, nextToMove);
 
-        room.stateVersion += 1;
+        advanceRoomStateVersion(room);
         await persistMoveApplied({ gamesDir, room, action: "FINALIZE_CAPTURE_CHAIN", snapshotEvery });
         await maybePersistGameOver(gamesDir, room);
 
         const resp: FinalizeCaptureChainResponse = {
           snapshot: snapshotForRoom(room),
           didPromote: Boolean(next.didPromote) || undefined,
-          presence: presenceForRoom(room),
-          identity: publicIdentityForRoom(room),
-          timeControl: room.timeControl,
-          clock: room.clock ?? undefined,
+          ...responseMetaForRoom(room),
         };
         broadcastRoomSnapshot(room);
         return resp;
@@ -2877,16 +2955,13 @@ export function createLascaApp(opts: ServerOpts = {}): {
         // US Checkers: threefold repetition is an automatic draw.
         maybeApplyCheckersUsThreefold(room);
 
-        room.stateVersion += 1;
+        advanceRoomStateVersion(room);
         await persistMoveApplied({ gamesDir, room, action: "END_TURN", snapshotEvery });
         await maybePersistGameOver(gamesDir, room);
 
         const resp: EndTurnResponse = {
           snapshot: snapshotForRoom(room),
-          presence: presenceForRoom(room),
-          identity: publicIdentityForRoom(room),
-          timeControl: room.timeControl,
-          clock: room.clock ?? undefined,
+          ...responseMetaForRoom(room),
         };
         broadcastRoomSnapshot(room);
         return resp;
@@ -2948,15 +3023,12 @@ export function createLascaApp(opts: ServerOpts = {}): {
           room.history.replaceAll(snap2.states as any, snap2.notation, snap2.currentIndex);
         }
 
-        room.stateVersion += 1;
+        advanceRoomStateVersion(room);
         await maybePersistGameOver(gamesDir, room);
 
         const resp: ClaimDrawResponse = {
           snapshot: snapshotForRoom(room),
-          presence: presenceForRoom(room),
-          identity: publicIdentityForRoom(room),
-          timeControl: room.timeControl,
-          clock: room.clock ?? undefined,
+          ...responseMetaForRoom(room),
         };
         broadcastRoomSnapshot(room);
         return resp;
@@ -3024,15 +3096,12 @@ export function createLascaApp(opts: ServerOpts = {}): {
         }
         updateClockPause(room);
 
-        room.stateVersion += 1;
+        advanceRoomStateVersion(room);
         await queuePersist(room);
 
         const resp: OfferDrawResponse = {
           snapshot: snapshotForRoom(room),
-          presence: presenceForRoom(room),
-          identity: publicIdentityForRoom(room),
-          timeControl: room.timeControl,
-          clock: room.clock ?? undefined,
+          ...responseMetaForRoom(room),
         };
         broadcastRoomSnapshot(room);
         return resp;
@@ -3117,7 +3186,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
 
         updateClockPause(room);
 
-        room.stateVersion += 1;
+        advanceRoomStateVersion(room);
         if (Boolean((body as any).accept)) {
           await maybePersistGameOver(gamesDir, room);
         } else {
@@ -3126,10 +3195,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
 
         const resp: RespondDrawOfferResponse = {
           snapshot: snapshotForRoom(room),
-          presence: presenceForRoom(room),
-          identity: publicIdentityForRoom(room),
-          timeControl: room.timeControl,
-          clock: room.clock ?? undefined,
+          ...responseMetaForRoom(room),
         };
         broadcastRoomSnapshot(room);
         return resp;
@@ -3176,7 +3242,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
           },
         };
 
-        room.stateVersion += 1;
+        advanceRoomStateVersion(room);
         room.lastGameOverVersion = room.stateVersion;
         await appendEvent(
           gamesDir,
@@ -3192,10 +3258,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
 
         const resp: ResignResponse = {
           snapshot: snapshotForRoom(room),
-          presence: presenceForRoom(room),
-          identity: publicIdentityForRoom(room),
-          timeControl: room.timeControl,
-          clock: room.clock ?? undefined,
+          ...responseMetaForRoom(room),
         };
         broadcastRoomSnapshot(room);
         return resp;

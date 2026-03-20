@@ -150,10 +150,31 @@ export class GameController {
   public getDriverMode(): GameDriver["mode"] {
     return this.driver.mode;
   }
+  public isOnlineSpectator(): boolean {
+    if (this.driver.mode !== "online") return false;
+    return (this.driver as OnlineGameDriver).getPlayerId() === "spectator";
+  }
+
+  public getOnlinePublishedEvalScore(): import("../shared/onlineProtocol.ts").PublishedEvalScore | null {
+    if (this.analysisMode || this.driver.mode !== "online") return null;
+    return (this.driver as OnlineGameDriver).getPublishedEval()?.score ?? null;
+  }
+
+  public publishOnlineEvalScore(score: import("../shared/onlineProtocol.ts").PublishedEvalScore | null): void {
+    if (!score || this.driver.mode !== "online" || this.isOnlineSpectator()) return;
+    const remote = this.driver as OnlineGameDriver;
+    const sig = `${hashGameState(this.state as any)}:${"cp" in score ? `cp:${score.cp}` : `mate:${score.mate}`}`;
+    if (sig === this.lastPublishedOnlineEvalSignature) return;
+    this.lastPublishedOnlineEvalSignature = sig;
+    void remote.publishEvalRemote(score).catch(() => {
+      // Ignore transient publish failures.
+    });
+  }
   private stickyToastKey: string | null = null;
   private stickyToastText: string | null = null;
   private stickyToastActions: Map<string, () => void> = new Map();
   private playbackToastSuppressed: boolean = false;
+  private lastPublishedOnlineEvalSignature: string | null = null;
 
   private readonly cursorMarkedSelectableStacks: Set<string> = new Set();
   private readonly cursorMarkedTargets: Set<string> = new Set();

@@ -77,6 +77,41 @@ And enter:
 - If the Admin page loads but delete actions fail with `404`, the server was started without `LASCA_ADMIN_TOKEN` in that process environment.
 - Treat the admin token like a password and do not commit it.
 
+# How to shut down the local servers
+
+## Normal shutdown
+
+If you started StackWorks in a terminal, press `Ctrl+C` in that terminal.
+
+- For `npm run online:dev`, `npm run bot:dev`, or `npm run online:dev:lan:bot`: one `Ctrl+C` usually stops the whole combined stack.
+- For separate terminals: press `Ctrl+C` once in each terminal running:
+  - the online server
+  - the Stockfish server
+  - the Vite client
+
+## If a process is still holding a port
+
+If a terminal was closed without stopping the process first, you can stop the leftover listener by port.
+
+PowerShell:
+
+```powershell
+Get-NetTCPConnection -LocalPort 8080,8788,8799 -State Listen |
+	Select-Object LocalPort, OwningProcess, State
+```
+
+Then stop the process IDs you want to remove:
+
+```powershell
+Stop-Process -Id <PID>
+```
+
+Typical local ports in this repo:
+
+- `8080` = Vite client
+- `8788` = online multiplayer server
+- `8799` = Stockfish server
+
 # Run each locally as separate commands...
 
 ## Online server:

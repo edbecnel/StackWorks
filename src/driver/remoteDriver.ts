@@ -4,18 +4,20 @@ import { HistoryManager } from "../game/historyManager.ts";
 import type {
   ClaimDrawRequest,
   ClaimDrawResponse,
-  CreateRoomResponse,
   EndTurnRequest,
   EndTurnResponse,
   FinalizeCaptureChainRequest,
   FinalizeCaptureChainResponse,
   GetReplayResponse,
   GetRoomSnapshotResponse,
-  JoinRoomResponse,
   IdentityByPlayerId,
   IdentityByColor,
   LocalSeatPlayerIdsByColor,
   PresenceByPlayerId,
+  PublishEvalRequest,
+  PublishEvalResponse,
+  PublishedEval,
+  PublishedEvalScore,
   RoomRules,
   ReplayEvent,
   ResignRequest,
@@ -69,6 +71,7 @@ export class RemoteDriver implements GameDriver {
   private lastPresence: PresenceByPlayerId | null = null;
   private lastIdentity: IdentityByPlayerId | null = null;
   private lastIdentityByColor: IdentityByColor | null = null;
+  private lastPublishedEval: PublishedEval | null = null;
   private roomRules: RoomRules | null = null;
 
   // Burst/backpressure handling for realtime snapshots.
@@ -145,6 +148,10 @@ export class RemoteDriver implements GameDriver {
     return this.ids?.playerId ?? null;
   }
 
+  getPublishedEval(): PublishedEval | null {
+    return this.lastPublishedEval;
+  }
+
   private playerIdForColor(color: "W" | "B"): string | null {
     const mapped = this.localPlayerIdsByColor[color];
     if (typeof mapped === "string" && mapped.trim()) return mapped.trim();
@@ -171,6 +178,36 @@ export class RemoteDriver implements GameDriver {
 
   getRoomRules(): RoomRules | null {
     return this.roomRules;
+  }
+
+  private normalizePublishedEval(raw: any): PublishedEval | null {
+    if (!raw || typeof raw !== "object") return null;
+    const stateVersion = Number((raw as any).stateVersion);
+    const score = (raw as any).score;
+    if (!Number.isFinite(stateVersion) || !score || typeof score !== "object") return null;
+    if (Number.isFinite((score as any).cp)) {
+      return { stateVersion: Math.trunc(stateVersion), score: { cp: Number((score as any).cp) } };
+    }
+    if (Number.isFinite((score as any).mate)) {
+      return { stateVersion: Math.trunc(stateVersion), score: { mate: Math.trunc(Number((score as any).mate)) } };
+    }
+    return null;
+  }
+
+  private publishedEvalEquals(a: PublishedEval | null, b: PublishedEval | null): boolean {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    if (a.stateVersion !== b.stateVersion) return false;
+    if ("cp" in a.score && "cp" in b.score) return a.score.cp === b.score.cp;
+    if ("mate" in a.score && "mate" in b.score) return a.score.mate === b.score.mate;
+    return false;
+  }
+
+  private applyPublishedEval(raw: any): boolean {
+    const next = this.normalizePublishedEval(raw);
+    if (this.publishedEvalEquals(this.lastPublishedEval, next)) return false;
+    this.lastPublishedEval = next;
+    return true;
   }
 
   async fetchReplayEvents(args?: { limit?: number }): Promise<ReplayEvent[]> {
@@ -294,6 +331,7 @@ export class RemoteDriver implements GameDriver {
 
     // Required event today.
     listen("snapshot", (payload) => {
+      const publishedChanged = this.applyPublishedEval(payload?.publishedEval);
       if (payload?.presence) this.lastPresence = payload.presence as PresenceByPlayerId;
       if (payload?.identity && typeof payload.identity === "object") this.lastIdentity = payload.identity as IdentityByPlayerId;
       if (payload?.identityByColor && typeof payload.identityByColor === "object") {
@@ -301,8 +339,15 @@ export class RemoteDriver implements GameDriver {
       }
       if (payload?.rules && typeof payload.rules === "object") this.roomRules = payload.rules as RoomRules;
       const snap = payload?.snapshot as WireSnapshot | undefined;
-      if (!snap) return;
+      if (!snap) {
+        if (publishedChanged) this.onRealtimeUpdate?.();
+        return;
+      }
       this.enqueueRealtimeSnapshot(snap);
+      const incomingVersion = Number.isFinite((snap as any)?.stateVersion) ? Number((snap as any).stateVersion) : null;
+      if (publishedChanged && (incomingVersion == null || incomingVersion <= this.lastStateVersion)) {
+        this.onRealtimeUpdate?.();
+      }
     });
 
     // Reserved for MP2+; wiring here avoids transport changes later.
@@ -375,6 +420,7 @@ export class RemoteDriver implements GameDriver {
         const payload = msg?.payload;
 
         if (eventName === "snapshot") {
+          const publishedChanged = this.applyPublishedEval(payload?.publishedEval);
           if (payload?.presence) this.lastPresence = payload.presence as PresenceByPlayerId;
           if (payload?.identity && typeof payload.identity === "object") this.lastIdentity = payload.identity as IdentityByPlayerId;
           if (payload?.identityByColor && typeof payload.identityByColor === "object") {
@@ -382,9 +428,16 @@ export class RemoteDriver implements GameDriver {
           }
           if (payload?.rules && typeof payload.rules === "object") this.roomRules = payload.rules as RoomRules;
           const snap = payload?.snapshot as WireSnapshot | undefined;
-          if (!snap) return;
+          if (!snap) {
+            if (publishedChanged) this.onRealtimeUpdate?.();
+            return;
+          }
           this.enqueueRealtimeSnapshot(snap);
           this.emitSseEvent("snapshot", payload);
+          const incomingVersion = Number.isFinite((snap as any)?.stateVersion) ? Number((snap as any).stateVersion) : null;
+          if (publishedChanged && (incomingVersion == null || incomingVersion <= this.lastStateVersion)) {
+            this.onRealtimeUpdate?.();
+          }
           return;
         }
 
@@ -610,13 +663,15 @@ export class RemoteDriver implements GameDriver {
     presence?: PresenceByPlayerId | null,
     rules?: RoomRules | null,
     identity?: IdentityByPlayerId | null,
-    identityByColor?: IdentityByColor | null
+    identityByColor?: IdentityByColor | null,
+    publishedEval?: PublishedEval | null
   ): Promise<void> {
     this.ids = ids;
     this.lastPresence = presence ?? null;
     this.roomRules = rules ?? this.roomRules;
     this.lastIdentity = identity ?? this.lastIdentity;
     this.lastIdentityByColor = identityByColor ?? this.lastIdentityByColor;
+    this.lastPublishedEval = this.normalizePublishedEval(publishedEval);
     this.applySnapshot(snapshot);
   }
 
@@ -630,8 +685,9 @@ export class RemoteDriver implements GameDriver {
       this.lastIdentityByColor = (res as any).identityByColor as IdentityByColor;
     }
     if ((res as any).rules && typeof (res as any).rules === "object") this.roomRules = (res as any).rules as RoomRules;
+    const publishedChanged = this.applyPublishedEval((res as any).publishedEval);
     const applied = this.applySnapshot((res as any).snapshot);
-    return applied.changed;
+    return applied.changed || publishedChanged;
   }
 
   async submitMove(_move: Move): Promise<GameState & { didPromote?: boolean }> {
@@ -654,6 +710,7 @@ export class RemoteDriver implements GameDriver {
       }
       throw e;
     }
+    this.applyPublishedEval((res as any).publishedEval);
     const next = this.applySnapshot((res as any).snapshot).next;
     (next as any).didPromote = (res as any).didPromote;
     if ((res as any).presence) this.lastPresence = (res as any).presence as PresenceByPlayerId;
@@ -711,6 +768,7 @@ export class RemoteDriver implements GameDriver {
       }
       throw e;
     }
+    this.applyPublishedEval((res as any).publishedEval);
     const next = this.applySnapshot((res as any).snapshot).next;
     (next as any).didPromote = (res as any).didPromote;
     if ((res as any).presence) this.lastPresence = (res as any).presence as PresenceByPlayerId;
@@ -741,6 +799,7 @@ export class RemoteDriver implements GameDriver {
     }
     if ((res as any).presence) this.lastPresence = (res as any).presence as PresenceByPlayerId;
     if ((res as any).identity && typeof (res as any).identity === "object") this.lastIdentity = (res as any).identity as IdentityByPlayerId;
+    this.applyPublishedEval((res as any).publishedEval);
     return this.applySnapshot((res as any).snapshot).next;
   }
 
@@ -766,6 +825,7 @@ export class RemoteDriver implements GameDriver {
     }
     if ((res as any).presence) this.lastPresence = (res as any).presence as PresenceByPlayerId;
     if ((res as any).identity && typeof (res as any).identity === "object") this.lastIdentity = (res as any).identity as IdentityByPlayerId;
+    this.applyPublishedEval((res as any).publishedEval);
     return this.applySnapshot((res as any).snapshot).next;
   }
 
@@ -792,6 +852,7 @@ export class RemoteDriver implements GameDriver {
     }
     if ((res as any).presence) this.lastPresence = (res as any).presence as PresenceByPlayerId;
     if ((res as any).identity && typeof (res as any).identity === "object") this.lastIdentity = (res as any).identity as IdentityByPlayerId;
+    this.applyPublishedEval((res as any).publishedEval);
     return this.applySnapshot((res as any).snapshot).next;
   }
 
@@ -817,6 +878,7 @@ export class RemoteDriver implements GameDriver {
     }
     if ((res as any).presence) this.lastPresence = (res as any).presence as PresenceByPlayerId;
     if ((res as any).identity && typeof (res as any).identity === "object") this.lastIdentity = (res as any).identity as IdentityByPlayerId;
+    this.applyPublishedEval((res as any).publishedEval);
     return this.applySnapshot((res as any).snapshot).next;
   }
 
@@ -843,7 +905,20 @@ export class RemoteDriver implements GameDriver {
     }
     if ((res as any).presence) this.lastPresence = (res as any).presence as PresenceByPlayerId;
     if ((res as any).identity && typeof (res as any).identity === "object") this.lastIdentity = (res as any).identity as IdentityByPlayerId;
+    this.applyPublishedEval((res as any).publishedEval);
     return this.applySnapshot((res as any).snapshot).next;
+  }
+
+  async publishEvalRemote(score: PublishedEvalScore): Promise<void> {
+    const ids = this.requireIds();
+    const res = await this.postJson<PublishEvalRequest, PublishEvalResponse>("/api/publishEval", {
+      roomId: ids.roomId,
+      playerId: ids.playerId,
+      score,
+      expectedStateVersion: this.lastStateVersion >= 0 ? this.lastStateVersion : undefined,
+    });
+    if ((res as any)?.error) throw new Error(String((res as any).error));
+    this.applyPublishedEval((res as any).publishedEval);
   }
 
   canUndo(): boolean {

@@ -94,7 +94,6 @@ const LS_OPT_KEYS = {
 
 const EVAL_BAR_GAP_PX = 3;
 const EVAL_BAR_PLAYABLE_SHIFT_LEFT_PX = 0;
-const EVAL_BAR_FRAMED_GAP_PX = 25;
 
 type ChessMovePreviewMode = "off" | "stackworks" | "stackworks-squares" | "chesscom";
 
@@ -514,10 +513,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     let barTop = squareTopLeft.y - hostRect.top;
     let barHeight = Math.max(0, squareBottomLeft.y - squareTopLeft.y);
 
-    if (metrics.mode === "framed") {
-      barTop = 0;
-      barHeight = hostRect.height;
-    } else {
+    if (metrics.mode !== "framed") {
       barLeft -= EVAL_BAR_PLAYABLE_SHIFT_LEFT_PX;
     }
 
@@ -725,6 +721,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const onlineLocalBotEnabled =
     driver.mode === "online" && hasConfiguredOnlineLocalBot({ driver: driver as OnlineGameDriver, variantId: ACTIVE_VARIANT_ID });
+  const isOnlineSpectator = driver.mode === "online" && (driver as OnlineGameDriver).getPlayerId() === "spectator";
   const botUiMode = resolveChessBotUiMode({
     driverMode: driver.mode,
     onlineLocalBotEnabled,
@@ -738,7 +735,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Offline-only: Bot controls (classic chess only).
   // Create bot before eval panel so the panel can reference it for engine eval mode.
-  const bot = botUiMode.createBotManager ? (() => {
+  const bot = botUiMode.createBotManager && !isOnlineSpectator ? (() => {
     const b = new ChessBotManager(controller, {
       skipAutoPauseAtStart: driver.mode === "online",
     });

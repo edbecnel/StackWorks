@@ -55,6 +55,7 @@ export interface OnlineGameDriver extends GameDriver {
   getRoomId(): string | null;
   getPlayerId(): string | null;
   getPlayerColor(): "W" | "B" | null;
+  getPublishedEval(): import("../shared/onlineProtocol.ts").PublishedEval | null;
   controlsColor(color: "W" | "B"): boolean;
 
   /** Latest server-reported presence info (if available). */
@@ -110,4 +111,7 @@ export interface OnlineGameDriver extends GameDriver {
 
   /** Online-only: fetch replay response (events + optional metadata). */
   fetchReplay(args?: { limit?: number }): Promise<import("../shared/onlineProtocol.ts").GetReplayResponse>;
+
+  /** Online-only: publish a locally-computed eval for the current room position. */
+  publishEvalRemote(score: import("../shared/onlineProtocol.ts").PublishedEvalScore): Promise<void>;
 }

@@ -446,7 +446,9 @@ export async function createDriverAsync(args: {
         anyRes.snapshot,
         (anyRes as any).presence ?? null,
         (anyRes as any).rules ?? null,
-        (anyRes as any).identity ?? null
+        (anyRes as any).identity ?? null,
+        null,
+        (anyRes as any).publishedEval ?? null
       );
 
       updateBrowserUrlForOnline({
@@ -517,7 +519,9 @@ export async function createDriverAsync(args: {
           anySnap.snapshot,
           (anySnap as any).presence ?? null,
           (anySnap as any).rules ?? null,
-          (anySnap as any).identity ?? null
+          (anySnap as any).identity ?? null,
+          null,
+          (anySnap as any).publishedEval ?? null
         );
         updateBrowserUrlForOnline({
           serverUrl: q.serverUrl,
@@ -566,7 +570,9 @@ export async function createDriverAsync(args: {
             anySnap.snapshot,
             (anySnap as any).presence ?? null,
             (anySnap as any).rules ?? null,
-            (anySnap as any).identity ?? null
+            (anySnap as any).identity ?? null,
+            null,
+            (anySnap as any).publishedEval ?? null
           );
           updateBrowserUrlForOnline({
             serverUrl: q.serverUrl,
@@ -592,7 +598,9 @@ export async function createDriverAsync(args: {
           anySnap.snapshot,
           (anySnap as any).presence ?? null,
           (anySnap as any).rules ?? null,
-          (anySnap as any).identity ?? null
+          (anySnap as any).identity ?? null,
+          null,
+          (anySnap as any).publishedEval ?? null
         );
         updateBrowserUrlForOnline({ serverUrl: q.serverUrl, roomId: q.roomId, playerId: "spectator" });
         setStartupMessage("Room is full — opened as spectator");
@@ -632,7 +640,9 @@ export async function createDriverAsync(args: {
       anyRes.snapshot,
       (anyRes as any).presence ?? null,
       (anyRes as any).rules ?? null,
-      (anyRes as any).identity ?? null
+      (anyRes as any).identity ?? null,
+      null,
+      (anyRes as any).publishedEval ?? null
     );
 
     updateBrowserUrlForOnline({
@@ -664,7 +674,8 @@ export async function createDriverAsync(args: {
         (anySnap as any).presence ?? null,
         (anySnap as any).rules ?? null,
         (anySnap as any).identity ?? null,
-        (anySnap as any).identityByColor ?? null
+        (anySnap as any).identityByColor ?? null,
+        (anySnap as any).publishedEval ?? null
       );
       return driver;
     } catch (err) {
@@ -695,7 +706,8 @@ export async function createDriverAsync(args: {
       (anySnap as any).presence ?? null,
       (anySnap as any).rules ?? null,
       (anySnap as any).identity ?? null,
-      (anySnap as any).identityByColor ?? null
+      (anySnap as any).identityByColor ?? null,
+      (anySnap as any).publishedEval ?? null
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

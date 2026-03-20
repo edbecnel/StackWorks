@@ -95,10 +95,10 @@ export function renderOpponentPresenceIndicator(svg: SVGSVGElement, layer: SVGGE
   const baseY =
     metrics?.mode === "playable" && metrics.squares
       ? (metrics.squares.y - desiredGapToBoard - iconSize - 6)
-      : (vb.y + 18 + iconSize + 10);
+      : (vb.y + 18);
 
-  // In playable mode, place to the right of the turn indicator.
-  const x = metrics?.mode === "playable" ? (baseX + (iconSize + 12) + 8) : baseX;
+  // Match the turn-indicator row in both framed and playable modes.
+  const x = baseX + (iconSize + 12) + 8;
   const y = baseY;
 
   const backing = document.createElementNS(SVG_NS, "rect") as SVGRectElement;

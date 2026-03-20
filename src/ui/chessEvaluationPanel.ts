@@ -430,6 +430,8 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
   let graphStateCount = 0;
   let graphEvalJobToken = 0;
   let graphRetryTimer: number | null = null;
+  const useLocalEngine = () => Boolean(bot) && !controller.isOnlineSpectator();
+  const engineAvailable = () => Boolean(bot) || controller.isOnlineSpectator();
 
   // Restore eval bar toggle from localStorage.
   const savedShowEvalBar = localStorage.getItem(LS_KEY_EVAL_BAR);
@@ -444,7 +446,7 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
     }
   };
 
-  const graphVisible = () => mode === "engine" && Boolean(bot);
+  const graphVisible = () => mode === "engine" && useLocalEngine();
 
   const renderGraph = () => {
     if (!graphSectionEl || !graphStatusEl || !graphPathEl || !graphCurrentEl) return;
@@ -644,10 +646,12 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
   const updateEngineButtonState = () => {
     for (const btn of btnEls) {
       if (btn.getAttribute("data-mode") === "engine") {
-        const available = Boolean(bot);
+        const available = engineAvailable();
         btn.disabled = !available;
         btn.title = available
-          ? "Engine evaluation (Stockfish)"
+          ? controller.isOnlineSpectator()
+            ? "Published player engine evaluation"
+            : "Engine evaluation (Stockfish)"
           : "Engine evaluation unavailable";
       }
     }
@@ -660,7 +664,7 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
       const m = clampMode(btn.getAttribute("data-mode"));
       btn.setAttribute("aria-pressed", String(m === mode));
     }
-    if (next === "engine" && bot) {
+    if (next === "engine" && useLocalEngine() && bot) {
       cachedEvalPending = true;
       bot.activateForEvaluation();
       scheduleGraphEvaluation();
@@ -673,6 +677,9 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
     if (!isChessClassic(state)) return;
     const snap = controller.getHistorySnapshots();
     const importedCurrentScore = snap.evals?.[snap.currentIndex] ?? null;
+    const publishedCurrentScore = controller.getOnlinePublishedEvalScore();
+    const localEngineActive = useLocalEngine();
+    const spectatorPublishedOnly = controller.isOnlineSpectator();
 
     const currentMode = mode;
 
@@ -680,8 +687,8 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
       // Show the numeric score labels above bars.
       if (engNumsEl) engNumsEl.style.visibility = "visible";
       const terminalScore = terminalEvalScoreForState(state);
-      const score = terminalScore ?? importedCurrentScore ?? cachedEvalScore;
-      const pending = terminalScore || importedCurrentScore ? false : cachedEvalPending;
+      const score = terminalScore ?? importedCurrentScore ?? publishedCurrentScore ?? (localEngineActive ? cachedEvalScore : null);
+      const pending = terminalScore || importedCurrentScore || publishedCurrentScore ? false : (localEngineActive ? cachedEvalPending : false);
 
       // Engine mode: render a single sigmoid eval bar spanning White/Black.
       if (barWhiteEl && barBlackEl) {
@@ -718,6 +725,8 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
         valueEl.textContent = `Engine eval: ${fmtEvalScore(terminalScore)}`;
       } else if (score !== null && !pending) {
         valueEl.textContent = `Engine eval: ${fmtEvalScore(score)}`;
+      } else if (spectatorPublishedOnly) {
+        valueEl.textContent = "Waiting for player eval…";
       } else if (bot && !bot.isEngineReady()) {
         valueEl.textContent = "Starting engine\u2026";
       } else if (pending) {
@@ -766,7 +775,7 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
   for (const btn of btnEls) {
     btn.addEventListener("click", () => {
       const next = clampMode(btn.getAttribute("data-mode"));
-      if (next === "engine" && !bot) return; // button should be disabled, but guard anyway
+      if (next === "engine" && !engineAvailable()) return;
       setMode(next);
       render();
     });
@@ -777,6 +786,7 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
     bot.addEvalChangeListener((score, pending) => {
       cachedEvalScore = score;
       cachedEvalPending = pending;
+      if (score && !pending) controller.publishOnlineEvalScore(score);
       if (mode === "engine") scheduleGraphEvaluation();
       if (mode === "engine") render();
     });
@@ -792,7 +802,7 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
   });
   updateEngineButtonState();
   // Fall back from "engine" to "material" when no bot is present.
-  if (mode === "engine" && !bot) setMode("material");
+  if (mode === "engine" && !engineAvailable()) setMode("material");
   setMode(mode);
   updateEvalBarToggleRow();
   render();

@@ -110,4 +110,36 @@ describe("MP6 hardening (client)", () => {
     expect(getJson).toHaveBeenCalledTimes(1);
     expect(getJson.mock.calls[0][0]).toBe("/api/room/room-1?playerId=p1");
   });
+
+  it("stores published eval metadata independently from duplicate snapshot versions", async () => {
+    const initial = createInitialGameStateForVariant("chess_classic" as any);
+    const history = new HistoryManager();
+    history.push(initial);
+
+    const driver = new RemoteDriver(initial);
+    await driver.connectFromSnapshot(
+      { serverUrl: "http://example.invalid", roomId: "room-1", playerId: "spectator" },
+      {
+        state: serializeWireGameState(initial),
+        history: serializeWireHistory(history.exportSnapshots()),
+        stateVersion: 4,
+      } as any,
+      null,
+      null,
+      null,
+      null,
+      null
+    );
+
+    expect(driver.getPublishedEval()).toBeNull();
+
+    (driver as any).applyPublishedEval({ stateVersion: 4, score: { cp: 42 } });
+    (driver as any).applySnapshot({
+      state: serializeWireGameState(initial),
+      history: serializeWireHistory(history.exportSnapshots()),
+      stateVersion: 4,
+    });
+
+    expect(driver.getPublishedEval()).toEqual({ stateVersion: 4, score: { cp: 42 } });
+  });
 });

@@ -8,6 +8,15 @@ export type PlayerColor = "W" | "B";
 
 export type RoomVisibility = "public" | "private";
 
+export type PublishedEvalScore =
+  | { cp: number }
+  | { mate: number };
+
+export type PublishedEval = {
+  stateVersion: number;
+  score: PublishedEvalScore;
+};
+
 export type RoomRules = {
   /** If true, threefold repetition ends the game in a draw (Lasca/Dama). */
   drawByThreefold?: boolean;
@@ -96,6 +105,7 @@ export type CreateRoomResponse =
       /** Informational per-player identity (may be partial). */
       identity?: IdentityByPlayerId;
       rules?: RoomRules;
+      publishedEval?: PublishedEval | null;
       timeControl?: TimeControl;
       clock?: ClockState;
       visibility?: RoomVisibility;
@@ -125,6 +135,7 @@ export type JoinRoomResponse =
       presence?: PresenceByPlayerId;
       identity?: IdentityByPlayerId;
       rules?: RoomRules;
+      publishedEval?: PublishedEval | null;
       timeControl?: TimeControl;
       clock?: ClockState;
     }
@@ -148,6 +159,7 @@ export type SubmitMoveResponse =
       didPromote?: boolean;
       presence?: PresenceByPlayerId;
       identity?: IdentityByPlayerId;
+      publishedEval?: PublishedEval | null;
       timeControl?: TimeControl;
       clock?: ClockState;
     }
@@ -176,6 +188,7 @@ export type FinalizeCaptureChainResponse =
       didPromote?: boolean;
       presence?: PresenceByPlayerId;
       identity?: IdentityByPlayerId;
+      publishedEval?: PublishedEval | null;
       timeControl?: TimeControl;
       clock?: ClockState;
     }
@@ -193,6 +206,7 @@ export type EndTurnResponse =
       snapshot: WireSnapshot;
       presence?: PresenceByPlayerId;
       identity?: IdentityByPlayerId;
+      publishedEval?: PublishedEval | null;
       timeControl?: TimeControl;
       clock?: ClockState;
     }
@@ -209,6 +223,7 @@ export type ResignResponse =
       snapshot: WireSnapshot;
       presence?: PresenceByPlayerId;
       identity?: IdentityByPlayerId;
+      publishedEval?: PublishedEval | null;
       timeControl?: TimeControl;
       clock?: ClockState;
     }
@@ -226,6 +241,7 @@ export type ClaimDrawResponse =
       snapshot: WireSnapshot;
       presence?: PresenceByPlayerId;
       identity?: IdentityByPlayerId;
+      publishedEval?: PublishedEval | null;
       timeControl?: TimeControl;
       clock?: ClockState;
     }
@@ -242,6 +258,7 @@ export type OfferDrawResponse =
       snapshot: WireSnapshot;
       presence?: PresenceByPlayerId;
       identity?: IdentityByPlayerId;
+      publishedEval?: PublishedEval | null;
       timeControl?: TimeControl;
       clock?: ClockState;
     }
@@ -259,6 +276,7 @@ export type RespondDrawOfferResponse =
       snapshot: WireSnapshot;
       presence?: PresenceByPlayerId;
       identity?: IdentityByPlayerId;
+      publishedEval?: PublishedEval | null;
       timeControl?: TimeControl;
       clock?: ClockState;
     }
@@ -271,8 +289,23 @@ export type GetRoomSnapshotResponse =
       identity?: IdentityByPlayerId;
       identityByColor?: IdentityByColor;
       rules?: RoomRules;
+      publishedEval?: PublishedEval | null;
       timeControl?: TimeControl;
       clock?: ClockState;
+    }
+  | OnlineError;
+
+export type PublishEvalRequest = {
+  roomId: RoomId;
+  playerId: PlayerId;
+  score: PublishedEvalScore;
+  expectedStateVersion?: number;
+};
+
+export type PublishEvalResponse =
+  | {
+      ok: true;
+      publishedEval: PublishedEval | null;
     }
   | OnlineError;
 
