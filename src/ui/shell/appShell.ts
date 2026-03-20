@@ -74,38 +74,24 @@ function ensureShellStyles(): void {
     }
 
     .appShellRail {
-      position: fixed;
-      top: 0;
-      left: 0;
-      bottom: 0;
-      width: min(82vw, 290px);
-      padding: 22px 16px 18px;
+      position: relative;
+      width: auto;
+      margin: 16px 16px 0;
+      padding: 18px 16px;
       display: flex;
       flex-direction: column;
       gap: 18px;
-      background: rgba(14, 14, 14, 0.96);
-      border-right: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
-      transform: translateX(-104%);
-      transition: transform 180ms ease;
-      z-index: 40;
-      backdrop-filter: blur(14px);
-    }
-
-    .appShellRoot.navOpen .appShellRail {
-      transform: translateX(0);
+      background:
+        linear-gradient(180deg, rgba(26, 26, 26, 0.98), rgba(18, 18, 18, 0.98)),
+        #141414;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      box-shadow: 0 18px 36px rgba(0, 0, 0, 0.24);
+      z-index: 1;
     }
 
     .appShellRailClose {
-      align-self: flex-end;
-      appearance: none;
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      background: rgba(255, 255, 255, 0.05);
-      color: rgba(255, 255, 255, 0.9);
-      border-radius: 999px;
-      min-width: 34px;
-      min-height: 34px;
-      cursor: pointer;
+      display: none;
     }
 
     .appShellBrand {
@@ -262,6 +248,10 @@ function ensureShellStyles(): void {
       justify-content: center;
       gap: 8px;
       min-height: 36px;
+    }
+
+    .appShellMenuToggle {
+      display: none;
     }
 
     .appShellMenuToggle:hover,
@@ -553,10 +543,13 @@ function ensureShellStyles(): void {
         position: sticky;
         top: 0;
         width: auto;
+        margin: 0;
         height: 100vh;
         min-height: 100vh;
         overflow: hidden;
-        transform: none;
+        padding: 22px 16px 18px;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 0;
         box-shadow: none;
         z-index: 1;
       }
@@ -837,11 +830,10 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   let currentPlayMode = opts.initialPlayMode;
 
   const syncNavState = (): void => {
-    const expanded = shell.classList.contains("navOpen");
-    menuToggle.setAttribute("aria-expanded", expanded ? "true" : "false");
-    rail.setAttribute("aria-hidden", expanded ? "false" : "true");
-    overlay.setAttribute("aria-hidden", expanded ? "false" : "true");
-    document.body.classList.toggle("stackworksAppShellNavLocked", expanded && !(desktopMedia?.matches ?? false));
+    menuToggle.setAttribute("aria-expanded", "true");
+    rail.setAttribute("aria-hidden", "false");
+    overlay.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("stackworksAppShellNavLocked");
   };
 
   const closeNav = (restoreFocus = false): void => {

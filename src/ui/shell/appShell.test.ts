@@ -63,4 +63,41 @@ describe("initStartPageAppShell", () => {
     expect(lobby.open).toBe(true);
     expect(scrollIntoView).toHaveBeenCalled();
   });
+
+  it("keeps the shell rail exposed on non-desktop viewports", () => {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockImplementation(() => ({
+        matches: false,
+        media: "(min-width: 1040px)",
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    });
+
+    document.body.innerHTML = `
+      <main id="pageRoot">
+        <div id="contentRoot">
+          <header>
+            <h1>StackWorks</h1>
+            <p class="subtle">Original subtitle</p>
+          </header>
+        </div>
+        <details id="launchLobbySection" data-start-section="lobby"><summary>Lobby</summary></details>
+        <section data-start-section="game">Game content</section>
+        <section id="launchAccountSection">Account content</section>
+        <section data-start-section="startup">Settings content</section>
+      </main>
+    `;
+
+    initStartPageAppShell({
+      contentRoot: document.getElementById("contentRoot") as HTMLElement,
+      initialVariantId: "chess_classic",
+      initialPlayMode: "local",
+    });
+
+    const rail = document.getElementById("stackworksAppShellRail") as HTMLElement;
+    expect(rail).toBeTruthy();
+    expect(rail.getAttribute("aria-hidden")).toBe("false");
+  });
 });
