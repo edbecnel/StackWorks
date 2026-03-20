@@ -104,6 +104,7 @@ export type CreateRoomResponse =
       presence?: PresenceByPlayerId;
       /** Informational per-player identity (may be partial). */
       identity?: IdentityByPlayerId;
+  identityByColor?: IdentityByColor;
       rules?: RoomRules;
       publishedEval?: PublishedEval | null;
       timeControl?: TimeControl;
@@ -134,6 +135,7 @@ export type JoinRoomResponse =
       snapshot: WireSnapshot;
       presence?: PresenceByPlayerId;
       identity?: IdentityByPlayerId;
+      identityByColor?: IdentityByColor;
       rules?: RoomRules;
       publishedEval?: PublishedEval | null;
       timeControl?: TimeControl;

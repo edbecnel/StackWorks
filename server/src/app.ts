@@ -615,11 +615,7 @@ function parseExpectedVersion(raw: any): number | null {
   return Math.trunc(n);
 }
 
-async function persistSnapshot(
-  gamesDir: string,
-  room: Room,
-  opts?: { allowCreateRoomDir?: boolean }
-): Promise<void> {
+function buildPersistedSnapshotFile(room: Room): PersistedSnapshotFile {
   const presenceRecord: Record<PlayerId, { connected: boolean; lastSeenAt: string }> = {};
   for (const [pid, p] of room.presence.entries()) {
     presenceRecord[pid] = { connected: p.connected, lastSeenAt: p.lastSeenAt };
@@ -640,7 +636,7 @@ async function persistSnapshot(
     };
   }
 
-  const file: PersistedSnapshotFile = {
+  return {
     meta: {
       roomId: room.roomId,
       variantId: room.variantId,
@@ -661,6 +657,14 @@ async function persistSnapshot(
     },
     snapshot: snapshotForRoom(room),
   };
+}
+
+async function persistSnapshot(
+  gamesDir: string,
+  room: Room,
+  opts?: { allowCreateRoomDir?: boolean }
+): Promise<void> {
+  const file = buildPersistedSnapshotFile(room);
   await writeSnapshotAtomic(gamesDir, room.roomId, file, { allowCreateRoomDir: opts?.allowCreateRoomDir });
 
   if (process.env.LASCA_PERSIST_LOG === "1") {
@@ -702,6 +706,14 @@ async function persistMoveApplied(args: {
 }
 
 async function maybePersistGameOver(gamesDir: string, room: Room): Promise<void> {
+  const capture = captureGameOverPersistence(room);
+  if (!capture) return;
+
+  await appendEvent(gamesDir, room.roomId, capture.event);
+  await writeSnapshotAtomic(gamesDir, room.roomId, capture.snapshotFile);
+}
+
+function captureGameOverPersistence(room: Room): { event: ReturnType<typeof makeGameOverEvent>; snapshotFile: PersistedSnapshotFile } | null {
   const forced = (room.state as any)?.forcedGameOver;
   const result = checkCurrentPlayerLost(room.state as any);
 
@@ -713,17 +725,15 @@ async function maybePersistGameOver(gamesDir: string, room: Room): Promise<void>
   if (room.lastGameOverVersion === room.stateVersion) return;
   room.lastGameOverVersion = room.stateVersion;
 
-  await appendEvent(
-    gamesDir,
-    room.roomId,
-    makeGameOverEvent({
+  return {
+    event: makeGameOverEvent({
       roomId: room.roomId,
       stateVersion: room.stateVersion,
       winner: (result.winner ?? forced?.winner ?? null) as any,
       reason: (result.reason ?? forced?.message ?? undefined) as any,
-    })
-  );
-  await persistSnapshot(gamesDir, room);
+    }),
+    snapshotFile: buildPersistedSnapshotFile(room),
+  };
 }
 
 export function createLascaApp(opts: ServerOpts = {}): {
@@ -948,6 +958,53 @@ export function createLascaApp(opts: ServerOpts = {}): {
         console.error("[lasca-server] persistSnapshot error", err);
       });
     return room.persistChain;
+  }
+
+  function queuePersistTask(room: Room, task: () => Promise<void>): void {
+    if (isShuttingDown) return;
+    if (tombstonedRooms.has(room.roomId)) return;
+    room.persistChain = room.persistChain
+      .then(task)
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error("[lasca-server] queued persistence error", err);
+      });
+  }
+
+  function queueCapturedMovePersistence(args: {
+    room: Room;
+    action: "SUBMIT_MOVE" | "FINALIZE_CAPTURE_CHAIN" | "END_TURN";
+    move?: any;
+  }): void {
+    const snapshot = snapshotForRoom(args.room);
+    const event = makeMoveAppliedEvent({
+      roomId: args.room.roomId,
+      stateVersion: args.room.stateVersion,
+      action: args.action,
+      move: args.move,
+      snapshot,
+      players: new Map(args.room.players),
+      colorsTaken: new Set(args.room.colorsTaken),
+    });
+    const snapshotFile = args.room.stateVersion % snapshotEvery === 0 ? buildPersistedSnapshotFile(args.room) : null;
+
+    queuePersistTask(args.room, async () => {
+      await appendEvent(gamesDir, args.room.roomId, event);
+      if (snapshotFile) {
+        await writeSnapshotAtomic(gamesDir, args.room.roomId, snapshotFile);
+      }
+    });
+  }
+
+  function queueCapturedGameOverPersistence(
+    room: Room,
+    capture: { event: ReturnType<typeof makeGameOverEvent>; snapshotFile: PersistedSnapshotFile } | null
+  ): void {
+    if (!capture) return;
+    queuePersistTask(room, async () => {
+      await appendEvent(gamesDir, room.roomId, capture.event);
+      await writeSnapshotAtomic(gamesDir, room.roomId, capture.snapshotFile);
+    });
   }
 
   function queueRoomAction<T>(room: Room, fn: () => Promise<T>): Promise<T> {
@@ -2146,6 +2203,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
         color: creatorColor,
         snapshot: snapshotForRoom(room),
         ...responseMetaForRoom(room),
+        identityByColor: identityByColorForPlayers({ players: room.players.entries(), identity: publicIdentityForRoom(room) }),
         rules: room.rules,
         visibility: room.visibility,
         watchToken: room.watchToken ?? undefined,
@@ -2216,6 +2274,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
             color,
             snapshot: snapshotForRoom(room),
             ...responseMetaForRoom(room),
+            identityByColor: identityByColorForPlayers({ players: room.players.entries(), identity: publicIdentityForRoom(room) }),
             rules: room.rules,
           };
           broadcastRoomSnapshot(room);
@@ -2277,6 +2336,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
           color,
           snapshot: snapshotForRoom(room),
           ...responseMetaForRoom(room),
+          identityByColor: identityByColorForPlayers({ players: room.players.entries(), identity: publicIdentityForRoom(room) }),
           rules: room.rules,
         };
         broadcastRoomSnapshot(room);
@@ -2826,8 +2886,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
         onTurnSwitch(room, prevToMove, nextToMove);
 
         advanceRoomStateVersion(room);
-        await persistMoveApplied({ gamesDir, room, action: "SUBMIT_MOVE", move, snapshotEvery });
-        await maybePersistGameOver(gamesDir, room);
+        const gameOverCapture = captureGameOverPersistence(room);
 
         const resp: SubmitMoveResponse = {
           snapshot: snapshotForRoom(room),
@@ -2835,6 +2894,8 @@ export function createLascaApp(opts: ServerOpts = {}): {
           ...responseMetaForRoom(room),
         };
         broadcastRoomSnapshot(room);
+        queueCapturedMovePersistence({ room, action: "SUBMIT_MOVE", move });
+        queueCapturedGameOverPersistence(room, gameOverCapture);
         return resp;
       });
 
@@ -2890,8 +2951,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
         onTurnSwitch(room, prevToMove, nextToMove);
 
         advanceRoomStateVersion(room);
-        await persistMoveApplied({ gamesDir, room, action: "FINALIZE_CAPTURE_CHAIN", snapshotEvery });
-        await maybePersistGameOver(gamesDir, room);
+        const gameOverCapture = captureGameOverPersistence(room);
 
         const resp: FinalizeCaptureChainResponse = {
           snapshot: snapshotForRoom(room),
@@ -2899,6 +2959,8 @@ export function createLascaApp(opts: ServerOpts = {}): {
           ...responseMetaForRoom(room),
         };
         broadcastRoomSnapshot(room);
+        queueCapturedMovePersistence({ room, action: "FINALIZE_CAPTURE_CHAIN" });
+        queueCapturedGameOverPersistence(room, gameOverCapture);
         return resp;
       });
 
@@ -2970,14 +3032,15 @@ export function createLascaApp(opts: ServerOpts = {}): {
         maybeApplyCheckersUsThreefold(room);
 
         advanceRoomStateVersion(room);
-        await persistMoveApplied({ gamesDir, room, action: "END_TURN", snapshotEvery });
-        await maybePersistGameOver(gamesDir, room);
+        const gameOverCapture = captureGameOverPersistence(room);
 
         const resp: EndTurnResponse = {
           snapshot: snapshotForRoom(room),
           ...responseMetaForRoom(room),
         };
         broadcastRoomSnapshot(room);
+        queueCapturedMovePersistence({ room, action: "END_TURN" });
+        queueCapturedGameOverPersistence(room, gameOverCapture);
         return resp;
       });
 
@@ -3038,13 +3101,14 @@ export function createLascaApp(opts: ServerOpts = {}): {
         }
 
         advanceRoomStateVersion(room);
-        await maybePersistGameOver(gamesDir, room);
+        const gameOverCapture = captureGameOverPersistence(room);
 
         const resp: ClaimDrawResponse = {
           snapshot: snapshotForRoom(room),
           ...responseMetaForRoom(room),
         };
         broadcastRoomSnapshot(room);
+        queueCapturedGameOverPersistence(room, gameOverCapture);
         return resp;
       });
 
@@ -3111,7 +3175,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
         updateClockPause(room);
 
         advanceRoomStateVersion(room);
-        await queuePersist(room);
+        void queuePersist(room);
 
         const resp: OfferDrawResponse = {
           snapshot: snapshotForRoom(room),
@@ -3202,9 +3266,10 @@ export function createLascaApp(opts: ServerOpts = {}): {
 
         advanceRoomStateVersion(room);
         if (Boolean((body as any).accept)) {
-          await maybePersistGameOver(gamesDir, room);
+          const gameOverCapture = captureGameOverPersistence(room);
+          queueCapturedGameOverPersistence(room, gameOverCapture);
         } else {
-          await queuePersist(room);
+          void queuePersist(room);
         }
 
         const resp: RespondDrawOfferResponse = {
@@ -3258,23 +3323,22 @@ export function createLascaApp(opts: ServerOpts = {}): {
 
         advanceRoomStateVersion(room);
         room.lastGameOverVersion = room.stateVersion;
-        await appendEvent(
-          gamesDir,
-          room.roomId,
-          makeGameOverEvent({
+        const gameOverCapture = {
+          event: makeGameOverEvent({
             roomId: room.roomId,
             stateVersion: room.stateVersion,
             winner,
             reason: "RESIGN",
-          })
-        );
-        await persistSnapshot(gamesDir, room);
+          }),
+          snapshotFile: buildPersistedSnapshotFile(room),
+        };
 
         const resp: ResignResponse = {
           snapshot: snapshotForRoom(room),
           ...responseMetaForRoom(room),
         };
         broadcastRoomSnapshot(room);
+        queueCapturedGameOverPersistence(room, gameOverCapture);
         return resp;
       });
 

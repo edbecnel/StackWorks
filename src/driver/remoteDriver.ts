@@ -69,6 +69,15 @@ export class RemoteDriver implements GameDriver {
   private onRealtimeUpdate: (() => void) | null = null;
   private realtimeListeners = new Map<string, Set<(payload: any) => void>>();
   private resyncInFlight: Promise<void> | null = null;
+  private realtimeLifecycleBound: boolean = false;
+  private readonly handleVisibilityChange = (): void => {
+    if (typeof document === "undefined") return;
+    if (document.visibilityState !== "visible") return;
+    this.handlePageResume();
+  };
+  private readonly handlePageShow = (): void => {
+    this.handlePageResume();
+  };
   private lastPresence: PresenceByPlayerId | null = null;
   private lastIdentity: IdentityByPlayerId | null = null;
   private lastIdentityByColor: IdentityByColor | null = null;
@@ -303,6 +312,7 @@ export class RemoteDriver implements GameDriver {
     if (typeof (window as any).WebSocket !== "undefined") {
       if (this.ws) return true;
       this.onRealtimeUpdate = onUpdated;
+      this.bindRealtimeLifecycleEvents();
       this.startWebSocketRealtime();
       return true;
     }
@@ -311,8 +321,17 @@ export class RemoteDriver implements GameDriver {
     if (typeof (window as any).EventSource === "undefined") return false;
     if (this.eventSource) return true;
 
-    const ids = this.requireIds();
     this.onRealtimeUpdate = onUpdated;
+    this.bindRealtimeLifecycleEvents();
+    this.startEventSourceRealtime();
+    return true;
+  }
+
+  private startEventSourceRealtime(): void {
+    if (typeof window === "undefined") return;
+    if (typeof (window as any).EventSource === "undefined") return;
+
+    const ids = this.requireIds();
 
     const url = this.toStreamUrl(ids);
     const es = new EventSource(url);
@@ -361,8 +380,39 @@ export class RemoteDriver implements GameDriver {
     es.addEventListener("error", () => {
       // ignore transient disconnects
     });
+  }
 
-    return true;
+  private bindRealtimeLifecycleEvents(): void {
+    if (this.realtimeLifecycleBound) return;
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+    document.addEventListener("visibilitychange", this.handleVisibilityChange);
+    window.addEventListener("pageshow", this.handlePageShow);
+    this.realtimeLifecycleBound = true;
+  }
+
+  private unbindRealtimeLifecycleEvents(): void {
+    if (!this.realtimeLifecycleBound) return;
+    if (typeof window !== "undefined") window.removeEventListener("pageshow", this.handlePageShow);
+    if (typeof document !== "undefined") {
+      document.removeEventListener("visibilitychange", this.handleVisibilityChange);
+    }
+    this.realtimeLifecycleBound = false;
+  }
+
+  private handlePageResume(): void {
+    if (!this.onRealtimeUpdate) return;
+    if (typeof window !== "undefined" && typeof (window as any).WebSocket !== "undefined") {
+      this.startWebSocketRealtime();
+    } else if (this.eventSource) {
+      try {
+        this.eventSource.close();
+      } catch {
+        // ignore
+      }
+      this.eventSource = null;
+      this.startEventSourceRealtime();
+    }
+    this.triggerResync("resume");
   }
 
   private scheduleWsReconnect(): void {
@@ -467,6 +517,8 @@ export class RemoteDriver implements GameDriver {
   }
 
   stopRealtime(): void {
+    this.unbindRealtimeLifecycleEvents();
+
     if (this.eventSource) {
       try {
         this.eventSource.close();

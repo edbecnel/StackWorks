@@ -3239,14 +3239,16 @@ export class GameController {
     const opponentPresence = opponentId ? (presence?.[opponentId] ?? null) : null;
     const opponentIsLocal = typeof remote.controlsColor === "function" && remote.controlsColor(opponentColor);
 
-    const selfNameRaw = identity?.[selfId]?.displayName;
-    const selfIdentity = identity?.[selfId] ?? null;
+    const selfIdentity = identity?.[selfId] ?? identityByColor?.[localColor] ?? null;
+    const selfNameRaw = identity?.[selfId]?.displayName ?? selfIdentity?.displayName;
     const selfName = typeof selfNameRaw === "string" && selfNameRaw.trim().length > 0
       ? selfNameRaw.trim()
       : "You";
 
-    const opponentNameRaw = opponentId ? identity?.[opponentId]?.displayName : null;
-    const opponentIdentity = opponentId ? (identity?.[opponentId] ?? null) : null;
+    const opponentIdentity = opponentId
+      ? (identity?.[opponentId] ?? identityByColor?.[opponentColor] ?? null)
+      : (identityByColor?.[opponentColor] ?? null);
+    const opponentNameRaw = (opponentId ? identity?.[opponentId]?.displayName : null) ?? opponentIdentity?.displayName;
     const opponentName = typeof opponentNameRaw === "string" && opponentNameRaw.trim().length > 0
       ? opponentNameRaw.trim()
       : this.sideLabel(opponentColor);

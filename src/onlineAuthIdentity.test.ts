@@ -101,6 +101,7 @@ describe("online authenticated room identity", () => {
       expect(createRes.identity?.[createRes.playerId]?.avatarUrl).toBe("https://example.com/host.png");
       expect(createRes.identity?.[createRes.playerId]?.countryCode).toBe("CA");
       expect(createRes.identity?.[createRes.playerId]?.countryName).toBeTruthy();
+      expect(createRes.identityByColor?.W?.displayName).toBe("HostAccount");
 
       const joinRes = await fetch(`${s.url}/api/join`, {
         method: "POST",
@@ -113,6 +114,8 @@ describe("online authenticated room identity", () => {
       expect(joinRes.identity?.[joinRes.playerId]?.displayName).toBe("GuestAccount");
       expect(joinRes.identity?.[joinRes.playerId]?.countryCode).toBe("GB");
       expect(joinRes.identity?.[joinRes.playerId]?.countryName).toBeTruthy();
+      expect(joinRes.identityByColor?.W?.displayName).toBe("HostAccount");
+      expect(joinRes.identityByColor?.B?.displayName).toBe("GuestAccount");
 
       const roomRes = await fetch(`${s.url}/api/room/${encodeURIComponent(createRes.roomId)}?playerId=${encodeURIComponent(createRes.playerId)}`, {
         headers: hostBearer,
@@ -121,6 +124,8 @@ describe("online authenticated room identity", () => {
       expect(roomRes.error).toBeUndefined();
       expect(roomRes.identity?.[createRes.playerId]?.avatarUrl).toBe("https://example.com/host.png");
       expect(roomRes.identity?.[joinRes.playerId]?.countryCode).toBe("GB");
+      expect(roomRes.identityByColor?.W?.displayName).toBe("HostAccount");
+      expect(roomRes.identityByColor?.B?.displayName).toBe("GuestAccount");
     } finally {
       const closing = new Promise<void>((resolve) => s.server.close(() => resolve()));
       await closing;

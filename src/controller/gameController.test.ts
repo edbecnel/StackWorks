@@ -1290,6 +1290,40 @@ describe("GameController online shell identities", () => {
     expect(snapshot.players.B.detailText).toBe("Waiting for opponent to join.");
   });
 
+  it("falls back to seat identity when the per-player identity map is incomplete", () => {
+    const history = new HistoryManager();
+    const s: GameState = {
+      board: new Map([["r1c1", [{ owner: "W", rank: "P" }]]]),
+      toMove: "B",
+      phase: "idle",
+      meta: {
+        variantId: "chess_classic" as any,
+        rulesetId: "chess" as any,
+        boardSize: 8 as any,
+      },
+    };
+    history.push(s);
+
+    const driver = new FakeOnlineShellDriver();
+    driver.setPresence({
+      p1: { connected: true },
+      p2: { connected: true },
+    });
+    driver.setIdentity({
+      p1: { displayName: "Alice" },
+    });
+    driver.setIdentityByColor({
+      W: { displayName: "Alice" },
+      B: { displayName: "Bob" },
+    });
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, s, history, driver as any);
+    const snapshot = controller.getPlayerShellSnapshot();
+
+    expect(snapshot.players.W.displayName).toBe("Alice");
+    expect(snapshot.players.B.displayName).toBe("Bob");
+  });
+
   it("shows spectator view labels when the viewer is a spectator", () => {
     const history = new HistoryManager();
     const s: GameState = {
