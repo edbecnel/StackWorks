@@ -281,8 +281,7 @@ export class AIManager {
         AIManager.TAP_RESUME_TOAST_KEY,
         isPast && canRedo
           ? `${stickySideLabel(toMove)} to Play. Tap here to redo bot move`
-          : `${stickySideLabel(toMove)} to Play. Tap here or press spacebar to resume bot`,
-        { force: true }
+          : `${stickySideLabel(toMove)} to Play. Tap here or press spacebar to resume bot`
       );
     } else {
       this.controller.clearStickyToast(AIManager.TAP_RESUME_TOAST_KEY);

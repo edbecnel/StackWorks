@@ -46,7 +46,8 @@ class FakeController {
     // ignore
   }
 
-  showStickyToast(key: string, text: string): void {
+  showStickyToast(key: string, text: string, opts?: { force?: boolean }): void {
+    if (!opts?.force && localStorage.getItem("lasca.opt.toasts") === "0") return;
     this.sticky.key = key;
     this.sticky.text = text;
   }
@@ -83,6 +84,26 @@ describe("AIManager paused-turn sticky toast", () => {
 
     expect(controller.sticky.key).toBe("aiPausedTapResume");
     expect(controller.sticky.text).toBe("Light to Play. Tap here or press spacebar to resume bot");
+  });
+
+  it("does not show the sticky tap-to-resume toast when toast notifications are disabled", () => {
+    localStorage.setItem("lasca.opt.toasts", "0");
+    localStorage.setItem("lasca.ai.white", "easy");
+    localStorage.setItem("lasca.ai.black", "human");
+    localStorage.setItem("lasca.ai.paused", "true");
+
+    const controller = new FakeController(
+      { toMove: "W", phase: "idle", board: new Map(), meta: { rulesetId: "lasca" } },
+      [{ index: 0, toMove: "W", isCurrent: true, notation: "" }]
+    ) as any;
+
+    const mgr = new AIManager(controller);
+    mgr.bind();
+
+    vi.runAllTimers();
+
+    expect(controller.sticky.key).toBeNull();
+    expect(controller.sticky.text).toBeNull();
   });
 
   it("auto-resumes after the timed turn toast once the game is no longer fresh (human moved first)", () => {

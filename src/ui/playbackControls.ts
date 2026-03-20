@@ -63,6 +63,15 @@ export function bindPlaybackControls(controller: GameController): void {
   let boardPaused = false; // true when paused by tapping the board during playback
   let lastBoardTapAtMs = 0;
   let timer: number | null = null;
+  let playbackSessionActive = false;
+
+  const syncPlaybackToastSuppression = () => {
+    const suppress = playbackSessionActive && (playing || boardPaused || controller.canRedo());
+    if (typeof (controller as any).setPlaybackToastSuppressed === "function") {
+      (controller as any).setPlaybackToastSuppressed(suppress);
+    }
+    if (!suppress) playbackSessionActive = false;
+  };
 
   const historyHasRecordedTiming = (): boolean =>
     controller.getHistory().some((h) => (h as any).emtMs !== null && (h as any).emtMs !== undefined);
@@ -130,6 +139,8 @@ export function bindPlaybackControls(controller: GameController): void {
     }
     playing = false;
     boardPaused = false;
+    playbackSessionActive = false;
+    syncPlaybackToastSuppression();
     renderButton();
   };
 
@@ -140,8 +151,13 @@ export function bindPlaybackControls(controller: GameController): void {
     }
     playing = false;
     boardPaused = true;
+    playbackSessionActive = true;
+    syncPlaybackToastSuppression();
     renderButton();
-    controller.toast("Playback paused - Press the Play button or spacebar to continue", 3000, { force: true });
+    controller.toast("Playback paused - Press the Play button or spacebar to continue", 3000, {
+      force: true,
+      allowDuringPlayback: true,
+    });
   };
 
   const stepOnce = async () => {
@@ -197,6 +213,8 @@ export function bindPlaybackControls(controller: GameController): void {
 
     boardPaused = false;
     playing = true;
+    playbackSessionActive = true;
+    syncPlaybackToastSuppression();
     renderButton();
 
     // Start immediately — the post-landing delay is applied in tick() after each move.
@@ -301,6 +319,7 @@ export function bindPlaybackControls(controller: GameController): void {
       stop();
       return;
     }
+    syncPlaybackToastSuppression();
     renderButton();
     updateRecordedTimingUI();
   });

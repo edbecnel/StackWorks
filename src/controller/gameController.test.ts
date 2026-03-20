@@ -776,6 +776,29 @@ describe("GameController loadGame reconstructs last-move hints", () => {
     const toast = document.querySelector(".lascaToast") as HTMLElement | null;
     expect(toast?.textContent).toBe("Black to Play. Tap here or press spacebar to resume bot");
   });
+
+  it("suppresses gameplay toasts while playback toast suppression is active", () => {
+    const s0: GameState = {
+      board: new Map([["r1c1", [{ owner: "W", rank: "S" }]]]),
+      toMove: "W",
+      phase: "idle",
+    };
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, s0, new HistoryManager());
+
+    controller.setPlaybackToastSuppressed(true);
+    controller.showStickyToast("playback_test", "Black to Play. Tap here or press spacebar to resume bot", { force: true });
+
+    expect(document.querySelector(".lascaToast.isVisible")).toBeNull();
+
+    controller.toast("Playback paused - Press the Play button or spacebar to continue", 3000, {
+      force: true,
+      allowDuringPlayback: true,
+    });
+
+    const toast = document.querySelector(".lascaToast") as HTMLElement | null;
+    expect(toast?.textContent).toBe("Playback paused - Press the Play button or spacebar to continue");
+  });
 });
 
 describe("GameController online opponent presence toasts", () => {

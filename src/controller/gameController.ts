@@ -153,6 +153,7 @@ export class GameController {
   private stickyToastKey: string | null = null;
   private stickyToastText: string | null = null;
   private stickyToastActions: Map<string, () => void> = new Map();
+  private playbackToastSuppressed: boolean = false;
 
   private readonly cursorMarkedSelectableStacks: Set<string> = new Set();
   private readonly cursorMarkedTargets: Set<string> = new Set();
@@ -359,8 +360,29 @@ export class GameController {
   }
 
   /** Public wrapper for page-level features that want to respect the toast preference. */
-  public toast(text: string, durationMs: number = 1400, opts?: { force?: boolean }): void {
+  public toast(text: string, durationMs: number = 1400, opts?: { force?: boolean; allowDuringPlayback?: boolean }): void {
     this.showToast(text, durationMs, opts);
+  }
+
+  public setPlaybackToastSuppressed(suppressed: boolean): void {
+    const next = Boolean(suppressed);
+    if (this.playbackToastSuppressed === next) return;
+    this.playbackToastSuppressed = next;
+
+    if (!next) return;
+
+    if (this.toastTimer) {
+      window.clearTimeout(this.toastTimer);
+      this.toastTimer = null;
+    }
+
+    this.stickyToastKey = null;
+    this.stickyToastText = null;
+
+    const el = this.toastEl;
+    if (el && typeof document !== "undefined" && document.body.contains(el)) {
+      el.classList.remove("isVisible");
+    }
   }
 
   private buildOnlineInviteLink(): string | null {
@@ -1336,7 +1358,8 @@ export class GameController {
     return wrap;
   }
 
-  private showToast(text: string, durationMs: number = 1400, opts?: { force?: boolean }): void {
+  private showToast(text: string, durationMs: number = 1400, opts?: { force?: boolean; allowDuringPlayback?: boolean }): void {
+    if (this.playbackToastSuppressed && !opts?.allowDuringPlayback) return;
     if (!opts?.force && !this.readToastPref()) return;
     const el = this.ensureToastEl();
     if (!el) return;
@@ -1370,8 +1393,9 @@ export class GameController {
     return /\bcheckmate\b/i.test(msg);
   }
 
-  public showStickyToast(key: string, text: string, opts?: { force?: boolean }): void {
+  public showStickyToast(key: string, text: string, opts?: { force?: boolean; allowDuringPlayback?: boolean }): void {
     if (!key) return;
+    if (this.playbackToastSuppressed && !opts?.allowDuringPlayback) return;
     if (!opts?.force && !this.readToastPref()) return;
     const el = this.ensureToastEl();
     if (!el) return;

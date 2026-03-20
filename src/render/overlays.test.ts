@@ -220,6 +220,29 @@ describe("drawTargetsChessCom", () => {
     expect(dot).not.toBeNull();
     expect(dot?.getAttribute("fill")).toBe("rgba(255, 255, 255, 0.34)");
   });
+
+  it("uses high-contrast dots on graph-board variants without square tiles", () => {
+    const svg = makeGraphBoardSvg();
+    const overlays = ensureOverlayLayer(svg);
+
+    drawTargetsChessCom(overlays, ["r2c2"]);
+
+    const dot = svg.querySelector(".target-dot--chesscom") as SVGCircleElement | null;
+    expect(dot).not.toBeNull();
+    expect(dot?.getAttribute("fill")).toBe("rgba(255, 255, 255, 0.34)");
+  });
+
+  it("uses high-contrast rings on occupied graph-board capture targets", () => {
+    const svg = makeGraphBoardSvg();
+    const overlays = ensureOverlayLayer(svg);
+
+    drawTargetsChessCom(overlays, ["r1c1"], ["r1c1"]);
+
+    const ring = svg.querySelector(".target-ring--chesscom") as SVGCircleElement | null;
+    expect(ring).not.toBeNull();
+    expect(ring?.getAttribute("fill")).toBe("rgba(255, 255, 255, 0.14)");
+    expect(ring?.getAttribute("stroke")).toBe("rgba(255, 255, 255, 0.74)");
+  });
 });
 
 describe("drawSelectionChessCom", () => {

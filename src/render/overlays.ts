@@ -541,6 +541,8 @@ function readSquareBrightness(svg: SVGSVGElement, nodeId: string): number | null
 }
 
 function shouldUseHighContrastTargetTone(svg: SVGSVGElement, nodeId: string): boolean {
+  const hasSquareRects = svg.querySelector("#squares rect") !== null;
+  if (!hasSquareRects) return true;
   const brightness = readSquareBrightness(svg, nodeId);
   return brightness !== null && brightness < 56;
 }

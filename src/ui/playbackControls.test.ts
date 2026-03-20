@@ -14,6 +14,7 @@ function flushMicrotasks(): Promise<void> {
 function createMockController(historyEntries: MockHistoryEntry[]) {
   const history = historyEntries.map((entry) => ({ ...entry }));
   const historyCallbacks: Array<(reason: "jump" | "load" | "push" | "replace") => void> = [];
+  const setPlaybackToastSuppressed = vi.fn();
 
   const setCurrentIndex = (nextIndex: number) => {
     history.forEach((entry, index) => {
@@ -35,6 +36,7 @@ function createMockController(historyEntries: MockHistoryEntry[]) {
       setCurrentIndex(nextIndex);
     }),
     toast: vi.fn(),
+    setPlaybackToastSuppressed,
     addHistoryChangeCallback: vi.fn((callback: (reason: "jump" | "load" | "push" | "replace") => void) => {
       historyCallbacks.push(callback);
     }),
@@ -96,5 +98,30 @@ describe("bindPlaybackControls", () => {
 
     expect(controller.jumpToHistoryAnimated).toHaveBeenCalledTimes(2);
     expect(controller.jumpToHistoryAnimated).toHaveBeenLastCalledWith(2, 230);
+  });
+
+  it("suppresses gameplay toasts during playback but allows the explicit playback-paused toast", async () => {
+    const controller = createMockController([
+      { index: 0, isCurrent: true, emtMs: null },
+      { index: 1, isCurrent: false, emtMs: 1_000 },
+      { index: 2, isCurrent: false, emtMs: 1_000 },
+    ]);
+
+    bindPlaybackControls(controller as any);
+
+    const playbackBtn = document.getElementById("playbackBtn") as HTMLButtonElement;
+    const boardSvg = document.querySelector("#boardWrap svg") as SVGSVGElement;
+
+    playbackBtn.click();
+
+    expect(controller.setPlaybackToastSuppressed).toHaveBeenCalledWith(true);
+
+    boardSvg.dispatchEvent(new Event("pointerdown", { bubbles: true, cancelable: true }));
+
+    expect(controller.toast).toHaveBeenCalledWith(
+      "Playback paused - Press the Play button or spacebar to continue",
+      3000,
+      { force: true, allowDuringPlayback: true },
+    );
   });
 });
