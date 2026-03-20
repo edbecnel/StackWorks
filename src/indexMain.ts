@@ -2225,8 +2225,14 @@ window.addEventListener("DOMContentLoaded", () => {
     },
     onRequestAccountAction: (action) => {
       appShell.setActiveSection(GlobalSection.Account);
-      document.getElementById("launchAccountSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const accountSection = document.getElementById("launchAccountSection") as HTMLDetailsElement | null;
+      if (accountSection) {
+        accountSection.open = true;
+        accountSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      const accountSummary = accountSection?.querySelector("summary") as HTMLElement | null;
       if (action === "logout") {
+        accountSummary?.focus();
         elAccountLogout?.click();
         return;
       }
@@ -2235,7 +2241,8 @@ window.addEventListener("DOMContentLoaded", () => {
         return;
       }
       if (action === "login") {
-        elAccountEmail?.focus();
+        accountSummary?.focus();
+        elAccountLogin?.click();
         return;
       }
       elAccountDisplayName?.focus();
