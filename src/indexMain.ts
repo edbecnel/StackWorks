@@ -18,7 +18,7 @@ import { applyPanelLayoutMode, installPanelLayoutStartPageOptionUI, readPanelLay
 import { readBoardViewportMode, writeBoardViewportMode } from "./ui/boardViewportMode";
 import { createLobbyIdentityChip } from "./ui/lobby/lobbyIdentityChip";
 import { initStartPageAppShell } from "./ui/shell/appShell";
-import { readShellState } from "./config/shellState";
+import { GlobalSection, readShellState } from "./config/shellState";
 import { installPlayerBotSelector, syncPlayerBotSelector } from "./ui/bot/playerBotSelector";
 import {
   deriveOnlineLaunchIdentity as deriveOnlineLaunchIdentityFromSeatConfig,
