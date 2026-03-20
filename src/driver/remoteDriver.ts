@@ -32,6 +32,7 @@ import {
   deserializeWireHistory,
   type WireSnapshot,
 } from "../shared/wireState.ts";
+import { buildSessionAuthFetchInit } from "../shared/authSessionClient";
 
 /**
  * RemoteDriver.
@@ -497,12 +498,11 @@ export class RemoteDriver implements GameDriver {
 
   private async postJson<TReq, TRes>(path: string, body: TReq): Promise<TRes> {
     const { serverUrl } = this.requireIds();
-    const res = await fetch(`${serverUrl}${path}`, {
+    const res = await fetch(`${serverUrl}${path}`, buildSessionAuthFetchInit(serverUrl, {
       method: "POST",
-      credentials: "include",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
-    });
+    }));
     const raw = await res.text();
     let json: any = null;
     try {
@@ -526,7 +526,7 @@ export class RemoteDriver implements GameDriver {
 
   private async getJson<TRes>(path: string): Promise<TRes> {
     const { serverUrl } = this.requireIds();
-    const res = await fetch(`${serverUrl}${path}`, { credentials: "include" });
+    const res = await fetch(`${serverUrl}${path}`, buildSessionAuthFetchInit(serverUrl));
     const raw = await res.text();
     let json: any = null;
     try {

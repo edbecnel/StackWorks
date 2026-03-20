@@ -7,6 +7,7 @@ import { GameSection, GlobalSection, normalizeGameSection, readShellState, updat
 import type { GameController } from "../../controller/gameController";
 import type { Player, PlayerIdentity, PlayerShellSnapshot } from "../../types";
 import type { VariantId } from "../../variants/variantTypes";
+import { buildSessionAuthFetchInit } from "../../shared/authSessionClient";
 import { isLocalBotSide } from "../../shared/localPlayerNames";
 
 export interface GameShellNavItem {
@@ -1566,9 +1567,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
       const authUrl = `${authBaseUrl}/api/auth/me`;
 
       try {
-        const res = await fetch(authUrl, {
-          credentials: "include",
-        });
+        const res = await fetch(authUrl, buildSessionAuthFetchInit(authBaseUrl));
         if (!res.ok) return;
         const body = await res.json() as AuthMeResponse;
         if (!body?.user) return;

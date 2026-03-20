@@ -56,6 +56,8 @@ describe("MP4C accounts (authn/authz)", () => {
       expect(regJson.ok).toBe(true);
       expect(regJson.user.email).toBe("test@example.com");
       expect(regJson.user.displayName).toBe("TestUser");
+      expect(typeof regJson.sessionToken).toBe("string");
+      expect(regJson.sessionToken.length).toBeGreaterThan(10);
 
       const cookie = cookiePairFromSetCookie(reg.headers.get("set-cookie"));
 
@@ -130,12 +132,61 @@ describe("MP4C accounts (authn/authz)", () => {
       }
       expect(loginJson.ok).toBe(true);
       expect(loginJson.user.email).toBe("test2@example.com");
+      expect(typeof loginJson.sessionToken).toBe("string");
 
       const cookie = cookiePairFromSetCookie(login.headers.get("set-cookie"));
       const me = await fetch(`${s.url}/api/auth/me`, { headers: { cookie } });
       const meJson = (await me.json()) as any;
       expect(me.ok).toBe(true);
       expect(meJson.user.email).toBe("test2@example.com");
+    } finally {
+      const closing = new Promise<void>((resolve) => s.server.close(() => resolve()));
+      await closing;
+      await rmWithRetries(tmpRoot);
+    }
+  }, 30_000);
+
+  it("accepts bearer session tokens for auth endpoints", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "lasca-auth-"));
+    const gamesDir = path.join(tmpRoot, "games");
+    const authDir = path.join(tmpRoot, "auth");
+
+    const s = await startLascaServer({ port: 0, gamesDir, authDir, sessionTtlMs: 60_000 });
+
+    try {
+      const reg = await fetch(`${s.url}/api/auth/register`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: "bearer@example.com",
+          password: "password12345",
+          displayName: "BearerUser",
+        }),
+      });
+
+      const regJson = (await reg.json()) as any;
+      const sessionToken = String(regJson?.sessionToken ?? "");
+      expect(sessionToken).toMatch(/^[0-9a-f]+$/i);
+
+      const me = await fetch(`${s.url}/api/auth/me`, {
+        headers: { authorization: `Bearer ${sessionToken}` },
+      });
+      const meJson = (await me.json()) as any;
+      expect(me.ok).toBe(true);
+      expect(meJson.user?.email).toBe("bearer@example.com");
+
+      const logout = await fetch(`${s.url}/api/auth/logout`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${sessionToken}` },
+      });
+      expect(logout.ok).toBe(true);
+
+      const meAfter = await fetch(`${s.url}/api/auth/me`, {
+        headers: { authorization: `Bearer ${sessionToken}` },
+      });
+      const meAfterJson = (await meAfter.json()) as any;
+      expect(meAfter.ok).toBe(true);
+      expect(meAfterJson.user).toBe(null);
     } finally {
       const closing = new Promise<void>((resolve) => s.server.close(() => resolve()));
       await closing;

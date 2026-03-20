@@ -1,3 +1,5 @@
+import { buildSessionAuthFetchInit } from "../../shared/authSessionClient";
+
 type AuthMeResponse = {
   ok: true;
   user: {
@@ -29,9 +31,7 @@ async function fetchSignedInDisplayName(serverBaseUrl?: string): Promise<string 
     const envServerUrl = (import.meta as any)?.env?.VITE_SERVER_URL as string | undefined;
     const base = serverBaseUrl ?? (typeof envServerUrl === "string" && envServerUrl.trim() ? envServerUrl.trim() : "");
     const url = base ? `${base.replace(/\/$/, "")}/api/auth/me` : "/api/auth/me";
-    const res = await fetch(url, {
-      credentials: "include",
-    });
+    const res = await fetch(url, buildSessionAuthFetchInit(base || window.location.origin));
     if (!res.ok) return null;
     const body = await res.json() as AuthMeResponse;
     const displayName = typeof body?.user?.displayName === "string" ? body.user.displayName.trim() : "";

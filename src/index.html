@@ -641,6 +641,41 @@
         font-weight: 750;
       }
 
+      .accountDiagnosticRow {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .accountDiagnosticBadge {
+        display: inline-flex;
+        align-items: center;
+        padding: 5px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.06);
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.88);
+        letter-spacing: 0.02em;
+      }
+
+      .accountDiagnosticBadge[data-tone="good"] {
+        border-color: rgba(104, 200, 140, 0.28);
+        background: rgba(67, 151, 99, 0.16);
+      }
+
+      .accountDiagnosticBadge[data-tone="warn"] {
+        border-color: rgba(232, 191, 112, 0.28);
+        background: rgba(202, 157, 78, 0.14);
+      }
+
+      .accountDiagnosticText {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.62);
+      }
+
       .accountActions {
         margin-top: 10px;
         display: flex;
@@ -1221,6 +1256,16 @@
           <summary class="panelSectionSummary">Account (optional)</summary>
 
           <div id="launchAccountStatus" class="accountStatus">—</div>
+          <div id="launchAccountDiagnosticRow" class="accountDiagnosticRow">
+            <span
+              id="launchAccountDiagnosticBadge"
+              class="accountDiagnosticBadge"
+              >Session: checking</span
+            >
+            <span id="launchAccountDiagnosticText" class="accountDiagnosticText"
+              >Using the configured multiplayer server.</span
+            >
+          </div>
 
           <form id="accountLoginForm" autocomplete="on" method="post">
             <div class="row" style="margin-top: 10px">

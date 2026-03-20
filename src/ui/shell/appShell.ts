@@ -232,6 +232,9 @@ function ensureShellStyles(): void {
       grid-template-columns: auto minmax(0, 1fr) auto;
       gap: 12px;
       align-items: center;
+      position: sticky;
+      top: max(8px, env(safe-area-inset-top));
+      z-index: 12;
       padding: 14px 16px;
       border-radius: 20px;
       border: 1px solid rgba(255, 255, 255, 0.08);
@@ -566,6 +569,12 @@ function ensureShellStyles(): void {
       .appShellMain {
         height: 100vh;
         padding: 20px 20px 24px 0;
+      }
+
+      .appShellHeader {
+        position: relative;
+        top: auto;
+        z-index: 1;
       }
 
       .appShellBody {

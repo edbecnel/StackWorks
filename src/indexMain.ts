@@ -21,6 +21,12 @@ import { initStartPageAppShell } from "./ui/shell/appShell";
 import { GlobalSection, readShellState } from "./config/shellState";
 import { installPlayerBotSelector, syncPlayerBotSelector } from "./ui/bot/playerBotSelector";
 import {
+  buildSessionAuthFetchInit,
+  clearAuthSessionToken,
+  persistAuthSessionFromPayload,
+  readAuthSessionToken,
+} from "./shared/authSessionClient";
+import {
   deriveOnlineLaunchIdentity as deriveOnlineLaunchIdentityFromSeatConfig,
   resolveOnlineHumanSeat,
 } from "./shared/onlineHumanSeat.ts";
@@ -593,6 +599,8 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const elAccountSection = (document.getElementById("launchAccountSection") as HTMLElement | null) ?? null;
   const elAccountStatus = (document.getElementById("launchAccountStatus") as HTMLElement | null) ?? null;
+  const elAccountDiagnosticBadge = (document.getElementById("launchAccountDiagnosticBadge") as HTMLElement | null) ?? null;
+  const elAccountDiagnosticText = (document.getElementById("launchAccountDiagnosticText") as HTMLElement | null) ?? null;
   const elAccountEmail = (document.getElementById("accountEmail") as HTMLInputElement | null) ?? null;
   const elAccountPassword = (document.getElementById("accountPassword") as HTMLInputElement | null) ?? null;
   const elAccountPasswordToggle = (document.getElementById("accountPasswordToggle") as HTMLButtonElement | null) ?? null;
@@ -684,6 +692,52 @@ window.addEventListener("DOMContentLoaded", () => {
     elAccountStatus.classList.toggle("isError", Boolean(opts?.isError));
   };
 
+  const describeAccountSessionDiagnostic = (args: {
+    serverUrl: string | null;
+    status: "loading" | "signed-out" | "signed-in" | "error";
+  }): { label: string; detail: string; tone: "neutral" | "good" | "warn" } => {
+    if (!args.serverUrl) {
+      return {
+        label: "Session: no server",
+        detail: "Set a valid multiplayer server URL before the account UI can verify or persist a session.",
+        tone: "warn",
+      };
+    }
+
+    const storedToken = readAuthSessionToken(args.serverUrl);
+    if (storedToken) {
+      return {
+        label: "Session fallback saved",
+        detail: "A bearer session token is stored for this multiplayer server, so account identity can survive browsers that drop cross-site cookies.",
+        tone: "good",
+      };
+    }
+
+    if (args.status === "signed-in") {
+      return {
+        label: "Cookie session only",
+        detail: "This browser is currently relying on the auth cookie only. Logging in again on this build will also store a fallback token.",
+        tone: "warn",
+      };
+    }
+
+    return {
+      label: "No saved fallback",
+      detail: "No bearer fallback token is currently stored for this multiplayer server.",
+      tone: "neutral",
+    };
+  };
+
+  const setAccountDiagnostic = (diagnostic: { label: string; detail: string; tone: "neutral" | "good" | "warn" }): void => {
+    if (elAccountDiagnosticBadge) {
+      elAccountDiagnosticBadge.textContent = diagnostic.label;
+      if (diagnostic.tone === "neutral") delete elAccountDiagnosticBadge.dataset.tone;
+      else elAccountDiagnosticBadge.dataset.tone = diagnostic.tone;
+      elAccountDiagnosticBadge.title = diagnostic.detail;
+    }
+    if (elAccountDiagnosticText) elAccountDiagnosticText.textContent = diagnostic.detail;
+  };
+
   let syncShellAccountState = (_state: {
     status: "loading" | "signed-out" | "signed-in" | "error";
     displayName?: string;
@@ -692,6 +746,9 @@ window.addEventListener("DOMContentLoaded", () => {
     countryName?: string | null;
     timeZone?: string | null;
     message?: string;
+    diagnosticLabel?: string;
+    diagnosticDetail?: string;
+    diagnosticTone?: "neutral" | "good" | "warn";
   }): void => {
     // app shell mounts later in startup; keep account refresh safe before that.
   };
@@ -1056,15 +1113,7 @@ window.addEventListener("DOMContentLoaded", () => {
       const serverUrl = resolveServerUrlForAccount();
       if (!serverUrl) return { ok: false, status: 0, json: { error: "Invalid Server URL" } };
 
-      const res = await fetch(`${serverUrl}${path}`,
-        {
-          credentials: "include",
-          ...(init ?? {}),
-          headers: {
-            ...(init?.headers ?? {}),
-          },
-        }
-      );
+      const res = await fetch(`${serverUrl}${path}`, buildSessionAuthFetchInit(serverUrl, init));
 
       const raw = await res.text();
       let json: any = null;
@@ -1088,21 +1137,39 @@ window.addEventListener("DOMContentLoaded", () => {
     const serverUrl = resolveServerUrlForAccount();
     if (!serverUrl) {
       setAccountStatus("Account: set a valid Server URL first.", { isError: true });
+      const diagnostic = describeAccountSessionDiagnostic({ serverUrl: null, status: "error" });
+      setAccountDiagnostic(diagnostic);
       syncShellAccountState({
         status: "error",
         message: "Set a valid multiplayer server URL to use account features.",
+        diagnosticLabel: diagnostic.label,
+        diagnosticDetail: diagnostic.detail,
+        diagnosticTone: diagnostic.tone,
       });
       return;
     }
 
     setAccountStatus("Account: checking session…");
-    syncShellAccountState({ status: "loading", message: "Contacting the configured multiplayer server." });
+    const loadingDiagnostic = describeAccountSessionDiagnostic({ serverUrl, status: "loading" });
+    setAccountDiagnostic(loadingDiagnostic);
+    syncShellAccountState({
+      status: "loading",
+      message: "Contacting the configured multiplayer server.",
+      diagnosticLabel: loadingDiagnostic.label,
+      diagnosticDetail: loadingDiagnostic.detail,
+      diagnosticTone: loadingDiagnostic.tone,
+    });
     const r = await fetchAuthJson<AuthMeResponse>("/api/auth/me");
     if (!r.ok) {
       setAccountStatus(`Account: ${String((r.json as any)?.error ?? "Request failed")}`, { isError: true });
+      const diagnostic = describeAccountSessionDiagnostic({ serverUrl, status: "error" });
+      setAccountDiagnostic(diagnostic);
       syncShellAccountState({
         status: "error",
         message: String((r.json as any)?.error ?? "Request failed"),
+        diagnosticLabel: diagnostic.label,
+        diagnosticDetail: diagnostic.detail,
+        diagnosticTone: diagnostic.tone,
       });
       return;
     }
@@ -1110,16 +1177,32 @@ window.addEventListener("DOMContentLoaded", () => {
     const me = r.json as any;
     if (!me || me.ok !== true) {
       setAccountStatus("Account: unexpected response", { isError: true });
-      syncShellAccountState({ status: "error", message: "Unexpected account response." });
+      const diagnostic = describeAccountSessionDiagnostic({ serverUrl, status: "error" });
+      setAccountDiagnostic(diagnostic);
+      syncShellAccountState({
+        status: "error",
+        message: "Unexpected account response.",
+        diagnosticLabel: diagnostic.label,
+        diagnosticDetail: diagnostic.detail,
+        diagnosticTone: diagnostic.tone,
+      });
       return;
     }
 
     const user = me.user;
     if (!user) {
+      clearAuthSessionToken(serverUrl);
+      const diagnostic = describeAccountSessionDiagnostic({ serverUrl, status: "signed-out" });
       signedInAccountDisplayName = "";
       setAccountStatus("Account: signed out");
+      setAccountDiagnostic(diagnostic);
       syncAccountFormFromUser(null);
-      syncShellAccountState({ status: "signed-out" });
+      syncShellAccountState({
+        status: "signed-out",
+        diagnosticLabel: diagnostic.label,
+        diagnosticDetail: diagnostic.detail,
+        diagnosticTone: diagnostic.tone,
+      });
       syncOnlinePlayerSeatInputs();
       return;
     }
@@ -1129,9 +1212,11 @@ window.addEventListener("DOMContentLoaded", () => {
     const email = typeof user.email === "string" ? user.email : "";
     const countryName = user.countryName ?? resolveCountryName(user.countryCode ?? "") ?? null;
     const timeZone = user.timeZone ?? null;
+    const diagnostic = describeAccountSessionDiagnostic({ serverUrl, status: "signed-in" });
     setAccountStatus(
       `Account: signed in as ${name}${email ? ` (${email})` : ""}${countryName ? ` · ${countryName}` : ""}${timeZone ? ` · ${timeZone}` : ""}`,
     );
+    setAccountDiagnostic(diagnostic);
     syncAccountFormFromUser(user);
     syncShellAccountState({
       status: "signed-in",
@@ -1141,6 +1226,9 @@ window.addEventListener("DOMContentLoaded", () => {
       countryName,
       timeZone,
       message: "Profile identity is reused across the shell and multiplayer account tools.",
+      diagnosticLabel: diagnostic.label,
+      diagnosticDetail: diagnostic.detail,
+      diagnosticTone: diagnostic.tone,
     });
 
     prefillLocalPlayerNamesFromSignedInAccount();
@@ -1244,6 +1332,7 @@ window.addEventListener("DOMContentLoaded", () => {
       }
 
       const ok = r.json as any;
+      persistAuthSessionFromPayload(resolveServerUrlForAccount(), ok);
       setAccountStatus(`Account: signed in as ${ok?.user?.displayName ?? "(unknown)"}`);
 
       // Best-effort: nudge the browser to offer saving credentials.
@@ -1296,6 +1385,7 @@ window.addEventListener("DOMContentLoaded", () => {
           setAccountStatus("Account: unexpected response", { isError: true });
           return;
         }
+        persistAuthSessionFromPayload(resolveServerUrlForAccount(), ok);
         setAccountStatus(`Account: registered as ${ok.user.displayName} (${ok.user.email})`);
 
         // Best-effort: on first registration, offer to save immediately.
@@ -1392,6 +1482,7 @@ window.addEventListener("DOMContentLoaded", () => {
           setAccountStatus(`Account: ${String((r.json as any)?.error ?? "Logout failed")}`, { isError: true });
           return;
         }
+        clearAuthSessionToken(resolveServerUrlForAccount());
         setAccountStatus("Account: signed out");
         await refreshAccountUi();
       });
@@ -2185,7 +2276,8 @@ window.addEventListener("DOMContentLoaded", () => {
     try {
       const serverUrl = resolveConfiguredServerUrl();
       if (!serverUrl) return;
-      const res = await fetch(`${serverUrl.replace(/\/$/, "")}/api/auth/me`, { credentials: "include" });
+      const normalizedServerUrl = serverUrl.replace(/\/$/, "");
+      const res = await fetch(`${normalizedServerUrl}/api/auth/me`, buildSessionAuthFetchInit(normalizedServerUrl));
       if (!res.ok) return;
       const body = await res.json() as { ok: boolean; user?: { displayName?: string } | null };
       const name = typeof body?.user?.displayName === "string" ? body.user.displayName.trim() : "";

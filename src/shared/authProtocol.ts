@@ -40,6 +40,7 @@ export type UpdateProfileRequest = {
 export type AuthOkResponse = {
   ok: true;
   user: AuthUser;
+  sessionToken?: string;
 };
 
 export type AuthMeResponse =

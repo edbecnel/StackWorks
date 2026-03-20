@@ -6,6 +6,7 @@ import { RemoteDriver } from "./remoteDriver.ts";
 import { serializeWireGameState, serializeWireHistory, type WireSnapshot } from "../shared/wireState.ts";
 import { getGuestIdentity } from "../shared/guestIdentity.ts";
 import { buildOnlineBotSeatRequests, loadOnlineLocalSeatRecord, saveOnlineLocalSeatRecord } from "../shared/onlineLocalSeats.ts";
+import { buildSessionAuthFetchInit } from "../shared/authSessionClient";
 import type {
   CreateRoomResponse,
   JoinRoomResponse,
@@ -296,12 +297,11 @@ function parseOnlineQuery(search: string, envServerUrl?: string | undefined): On
 }
 
 async function postJson<TReq, TRes>(serverUrl: string, path: string, body: TReq): Promise<TRes> {
-  const res = await fetch(`${serverUrl}${path}`, {
+  const res = await fetch(`${serverUrl}${path}`, buildSessionAuthFetchInit(serverUrl, {
     method: "POST",
-    credentials: "include",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
-  });
+  }));
   const raw = await res.text();
   let json: any = null;
   try {
@@ -324,7 +324,7 @@ async function postJson<TReq, TRes>(serverUrl: string, path: string, body: TReq)
 }
 
 async function getJson<TRes>(serverUrl: string, path: string): Promise<TRes> {
-  const res = await fetch(`${serverUrl}${path}`, { credentials: "include" });
+  const res = await fetch(`${serverUrl}${path}`, buildSessionAuthFetchInit(serverUrl));
   const raw = await res.text();
   let json: any = null;
   try {

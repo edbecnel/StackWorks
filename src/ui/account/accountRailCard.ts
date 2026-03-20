@@ -6,6 +6,9 @@ export type AccountRailCardState = {
   countryName?: string | null;
   timeZone?: string | null;
   message?: string;
+  diagnosticLabel?: string;
+  diagnosticDetail?: string;
+  diagnosticTone?: "neutral" | "good" | "warn";
 };
 
 type AccountRailCardOptions = {
@@ -112,6 +115,16 @@ function ensureStyles(): void {
       background: rgba(255, 255, 255, 0.04);
       font-size: 10px;
       color: rgba(255, 255, 255, 0.84);
+    }
+
+    .accountRailCardChip[data-tone="good"] {
+      border-color: rgba(104, 200, 140, 0.28);
+      background: rgba(67, 151, 99, 0.16);
+    }
+
+    .accountRailCardChip[data-tone="warn"] {
+      border-color: rgba(232, 191, 112, 0.28);
+      background: rgba(202, 157, 78, 0.14);
     }
 
     .accountRailCardActions {
@@ -223,6 +236,18 @@ export function createAccountRailCard(
           timeZone.textContent = state.timeZone;
           meta.appendChild(timeZone);
         }
+        body.appendChild(meta);
+      }
+
+      if (state.diagnosticLabel) {
+        const meta = document.createElement("div");
+        meta.className = "accountRailCardMeta";
+        const diagnostic = document.createElement("span");
+        diagnostic.className = "accountRailCardChip";
+        diagnostic.textContent = state.diagnosticLabel;
+        if (state.diagnosticTone && state.diagnosticTone !== "neutral") diagnostic.dataset.tone = state.diagnosticTone;
+        if (state.diagnosticDetail) diagnostic.title = state.diagnosticDetail;
+        meta.appendChild(diagnostic);
         body.appendChild(meta);
       }
 

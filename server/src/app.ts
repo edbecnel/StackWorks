@@ -229,6 +229,21 @@ const randId = () => secureRandomHex(16);
 const AUTH_COOKIE_NAME = "lasca.sid";
 const DEFAULT_SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14; // 14 days
 
+function parseBearerSessionId(req: express.Request): string | null {
+  const raw = typeof req.headers.authorization === "string" ? req.headers.authorization.trim() : "";
+  if (!raw) return null;
+  const match = /^Bearer\s+(.+)$/i.exec(raw);
+  const token = match?.[1]?.trim() ?? "";
+  return token || null;
+}
+
+function resolveSessionIdFromRequest(req: express.Request): string | null {
+  const cookies = parseCookieHeader(typeof req.headers.cookie === "string" ? req.headers.cookie : undefined);
+  const cookieSessionId = cookies[AUTH_COOKIE_NAME];
+  if (cookieSessionId) return String(cookieSessionId);
+  return parseBearerSessionId(req);
+}
+
 function isRequestSecure(req: express.Request): boolean {
   if ((req as any).secure) return true;
   const xfProtoRaw = typeof req.headers["x-forwarded-proto"] === "string" ? req.headers["x-forwarded-proto"] : "";
@@ -1586,8 +1601,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
   // Attach auth session (cookie-based). Session state is currently in-memory.
   app.use((req, _res, next) => {
     try {
-      const cookies = parseCookieHeader(typeof req.headers.cookie === "string" ? req.headers.cookie : undefined);
-      const sid = cookies[AUTH_COOKIE_NAME];
+      const sid = resolveSessionIdFromRequest(req);
       const session = sid ? sessions.get(String(sid)) : null;
       (req as any).auth = session ? { userId: session.userId, sessionId: session.sessionId } : null;
     } catch {
@@ -1700,7 +1714,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
         partitioned: cookieOpts.partitioned,
       });
 
-      const response: AuthOkResponse = { ok: true, user: publicUser(user) };
+      const response: AuthOkResponse = { ok: true, user: publicUser(user), sessionToken: session.sessionId };
       res.json(response);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Register failed";
@@ -1731,7 +1745,7 @@ export function createLascaApp(opts: ServerOpts = {}): {
         partitioned: cookieOpts.partitioned,
       });
 
-      const response: AuthOkResponse = { ok: true, user: publicUser(user) };
+      const response: AuthOkResponse = { ok: true, user: publicUser(user), sessionToken: session.sessionId };
       res.json(response);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Login failed";

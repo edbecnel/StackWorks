@@ -28,6 +28,12 @@ function cookiePairFromSetCookie(setCookie: string | null): string {
   return pair;
 }
 
+function bearerHeaderFromAuthResponse(body: any): Record<string, string> {
+  const token = typeof body?.sessionToken === "string" ? body.sessionToken : "";
+  expect(token).toMatch(/^[0-9a-f]+$/i);
+  return { authorization: `Bearer ${token}` };
+}
+
 describe("online authenticated room identity", () => {
   it("surfaces avatar and country metadata from authenticated accounts in room identity", async () => {
     const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "lasca-online-auth-identity-"));
@@ -51,11 +57,13 @@ describe("online authenticated room identity", () => {
           timeZone: "America/Toronto",
         }),
       });
+      const hostRegJson = await hostReg.json() as any;
       const hostCookie = cookiePairFromSetCookie(hostReg.headers.get("set-cookie"));
+      const hostBearer = bearerHeaderFromAuthResponse(hostRegJson);
 
       const hostPatch = await fetch(`${s.url}/api/auth/me`, {
         method: "PATCH",
-        headers: { "content-type": "application/json", cookie: hostCookie },
+        headers: { "content-type": "application/json", ...hostBearer },
         body: JSON.stringify({ avatarUrl: "https://example.com/host.png" }),
       }).then((response) => response.json() as Promise<any>);
       expect(hostPatch.ok).toBe(true);
@@ -72,11 +80,12 @@ describe("online authenticated room identity", () => {
           timeZone: "Europe/London",
         }),
       });
-      const guestCookie = cookiePairFromSetCookie(guestReg.headers.get("set-cookie"));
+      const guestRegJson = await guestReg.json() as any;
+      const guestBearer = bearerHeaderFromAuthResponse(guestRegJson);
 
       const createRes = await fetch(`${s.url}/api/create`, {
         method: "POST",
-        headers: { "content-type": "application/json", cookie: hostCookie },
+        headers: { "content-type": "application/json", ...hostBearer },
         body: JSON.stringify({
           variantId: "lasca_7_classic",
           snapshot: {
@@ -95,7 +104,7 @@ describe("online authenticated room identity", () => {
 
       const joinRes = await fetch(`${s.url}/api/join`, {
         method: "POST",
-        headers: { "content-type": "application/json", cookie: guestCookie },
+        headers: { "content-type": "application/json", ...guestBearer },
         body: JSON.stringify({ roomId: createRes.roomId }),
       }).then((response) => response.json() as Promise<any>);
 
@@ -106,7 +115,7 @@ describe("online authenticated room identity", () => {
       expect(joinRes.identity?.[joinRes.playerId]?.countryName).toBeTruthy();
 
       const roomRes = await fetch(`${s.url}/api/room/${encodeURIComponent(createRes.roomId)}?playerId=${encodeURIComponent(createRes.playerId)}`, {
-        headers: { cookie: hostCookie },
+        headers: hostBearer,
       }).then((response) => response.json() as Promise<any>);
 
       expect(roomRes.error).toBeUndefined();
