@@ -17,12 +17,24 @@ export function parseCookieHeader(raw: string | undefined): Record<string, strin
   return out;
 }
 
-export function clearCookie(res: express.Response, name: string): void {
+export function clearCookie(
+  res: express.Response,
+  name: string,
+  opts?: { secure?: boolean; sameSite?: "Lax" | "None"; partitioned?: boolean },
+): void {
   // Set expired cookie. Keep attributes matching setCookie() defaults.
-  res.setHeader(
-    "Set-Cookie",
-    `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`
-  );
+  const secure = Boolean(opts?.secure);
+  const sameSite = opts?.sameSite ?? (secure ? "None" : "Lax");
+  const partitioned = Boolean(opts?.partitioned);
+  const parts: string[] = [];
+  parts.push(`${name}=`);
+  parts.push("Path=/");
+  parts.push("HttpOnly");
+  parts.push(`SameSite=${sameSite}`);
+  if (secure) parts.push("Secure");
+  if (partitioned) parts.push("Partitioned");
+  parts.push("Max-Age=0");
+  res.setHeader("Set-Cookie", parts.join("; "));
 }
 
 export function setCookie(args: {
@@ -32,6 +44,7 @@ export function setCookie(args: {
   maxAgeSeconds: number;
   secure: boolean;
   sameSite: "Lax" | "None";
+  partitioned?: boolean;
 }): void {
   const parts: string[] = [];
   parts.push(`${args.name}=${encodeURIComponent(args.value)}`);
@@ -39,6 +52,7 @@ export function setCookie(args: {
   parts.push("HttpOnly");
   parts.push(`SameSite=${args.sameSite}`);
   if (args.secure) parts.push("Secure");
+  if (args.partitioned) parts.push("Partitioned");
   parts.push(`Max-Age=${Math.max(0, Math.floor(args.maxAgeSeconds))}`);
   args.res.setHeader("Set-Cookie", parts.join("; "));
 }

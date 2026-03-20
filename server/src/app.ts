@@ -232,6 +232,17 @@ function isRequestSecure(req: express.Request): boolean {
   return process.env.LASCA_COOKIE_SECURE === "1";
 }
 
+function getAuthCookieOptions(req: express.Request): { secure: boolean; sameSite: "Lax" | "None"; partitioned: boolean } {
+  const secure = isRequestSecure(req);
+  return {
+    secure,
+    sameSite: secure ? "None" : "Lax",
+    // Partitioned cookies keep cross-site auth working in browsers that block
+    // regular third-party cookies (notably Chrome Incognito).
+    partitioned: secure,
+  };
+}
+
 function isValidEmail(raw: any): raw is string {
   if (typeof raw !== "string") return false;
   const s = raw.trim();
@@ -1612,16 +1623,16 @@ export function createLascaApp(opts: ServerOpts = {}): {
         ...(timeZone ? { timeZone } : {}),
       });
 
-      const secure = isRequestSecure(req);
-      const sameSite = secure ? "None" : "Lax";
+      const cookieOpts = getAuthCookieOptions(req);
       const session = sessions.create(user.userId);
       setCookie({
         res,
         name: AUTH_COOKIE_NAME,
         value: session.sessionId,
         maxAgeSeconds: Math.floor(sessionTtlMs / 1000),
-        secure,
-        sameSite,
+        secure: cookieOpts.secure,
+        sameSite: cookieOpts.sameSite,
+        partitioned: cookieOpts.partitioned,
       });
 
       const response: AuthOkResponse = { ok: true, user: publicUser(user) };
@@ -1643,16 +1654,16 @@ export function createLascaApp(opts: ServerOpts = {}): {
       const ok = await verifyPassword(String(body.password), user.password);
       if (!ok) throw new Error("Invalid credentials");
 
-      const secure = isRequestSecure(req);
-      const sameSite = secure ? "None" : "Lax";
+      const cookieOpts = getAuthCookieOptions(req);
       const session = sessions.create(user.userId);
       setCookie({
         res,
         name: AUTH_COOKIE_NAME,
         value: session.sessionId,
         maxAgeSeconds: Math.floor(sessionTtlMs / 1000),
-        secure,
-        sameSite,
+        secure: cookieOpts.secure,
+        sameSite: cookieOpts.sameSite,
+        partitioned: cookieOpts.partitioned,
       });
 
       const response: AuthOkResponse = { ok: true, user: publicUser(user) };
@@ -1664,13 +1675,14 @@ export function createLascaApp(opts: ServerOpts = {}): {
   });
 
   app.post("/api/auth/logout", (req, res) => {
+    const cookieOpts = getAuthCookieOptions(req);
     try {
       const auth = (req as any).auth as { sessionId: string } | null;
       if (auth?.sessionId) sessions.delete(auth.sessionId);
-      clearCookie(res, AUTH_COOKIE_NAME);
+      clearCookie(res, AUTH_COOKIE_NAME, cookieOpts);
       res.json({ ok: true });
     } catch {
-      clearCookie(res, AUTH_COOKIE_NAME);
+      clearCookie(res, AUTH_COOKIE_NAME, cookieOpts);
       res.json({ ok: true });
     }
   });

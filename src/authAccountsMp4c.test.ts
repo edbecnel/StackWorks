@@ -143,6 +143,55 @@ describe("MP4C accounts (authn/authz)", () => {
     }
   }, 30_000);
 
+  it("issues partitioned secure auth cookies for HTTPS-origin requests", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "lasca-auth-"));
+    const gamesDir = path.join(tmpRoot, "games");
+    const authDir = path.join(tmpRoot, "auth");
+
+    const s = await startLascaServer({ port: 0, gamesDir, authDir, sessionTtlMs: 60_000 });
+
+    try {
+      const reg = await fetch(`${s.url}/api/auth/register`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-forwarded-proto": "https",
+        },
+        body: JSON.stringify({
+          email: "secure@example.com",
+          password: "password12345",
+          displayName: "SecureUser",
+        }),
+      });
+
+      expect(reg.ok).toBe(true);
+      const setCookie = reg.headers.get("set-cookie");
+      expect(setCookie).toContain("SameSite=None");
+      expect(setCookie).toContain("Secure");
+      expect(setCookie).toContain("Partitioned");
+
+      const cookie = cookiePairFromSetCookie(setCookie);
+      const logout = await fetch(`${s.url}/api/auth/logout`, {
+        method: "POST",
+        headers: {
+          cookie,
+          "x-forwarded-proto": "https",
+        },
+      });
+
+      expect(logout.ok).toBe(true);
+      const cleared = logout.headers.get("set-cookie");
+      expect(cleared).toContain("SameSite=None");
+      expect(cleared).toContain("Secure");
+      expect(cleared).toContain("Partitioned");
+      expect(cleared).toContain("Max-Age=0");
+    } finally {
+      const closing = new Promise<void>((resolve) => s.server.close(() => resolve()));
+      await closing;
+      await rmWithRetries(tmpRoot);
+    }
+  }, 30_000);
+
   it("applies best-effort country and time-zone defaults from request headers", async () => {
     const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "lasca-auth-"));
     const gamesDir = path.join(tmpRoot, "games");
