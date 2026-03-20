@@ -6,6 +6,7 @@ import { buildOnlineBotSeatRequests, hasConfiguredOnlineLocalBot } from "./onlin
 function createOnlineDriver(args: {
   playerColor?: "W" | "B" | null;
   controls?: Partial<Record<"W" | "B", boolean>>;
+  localBotColors?: Partial<Record<"W" | "B", boolean>>;
 }): OnlineGameDriver {
   return {
     mode: "online",
@@ -29,6 +30,7 @@ function createOnlineDriver(args: {
     getPlayerId: () => "player-1",
     getPlayerColor: () => args.playerColor ?? null,
     controlsColor: (color) => Boolean(args.controls?.[color]),
+    isLocalBotColor: (color: "W" | "B") => Boolean(args.localBotColors?.[color]),
     getPresence: () => null,
     getIdentity: () => null,
     getRoomRules: () => null,
@@ -50,10 +52,22 @@ describe("onlineLocalSeats", () => {
 
     expect(
       hasConfiguredOnlineLocalBot({
-        driver: createOnlineDriver({ playerColor: "B", controls: { W: true, B: true } }),
+        driver: createOnlineDriver({ playerColor: "B", controls: { W: true, B: true }, localBotColors: { W: true } }),
         variantId: "chess_classic",
       }),
     ).toBe(true);
+
+    expect(
+      hasConfiguredOnlineLocalBot({
+        driver: createOnlineDriver({ playerColor: "B", controls: { B: true } }),
+        variantId: "chess_classic",
+      }),
+    ).toBe(false);
+  });
+
+  it("does not treat a human-controlled online seat as a local bot when only offline bot prefs are set", () => {
+    localStorage.setItem("lasca.chessbot.white", "human");
+    localStorage.setItem("lasca.chessbot.black", "strong");
 
     expect(
       hasConfiguredOnlineLocalBot({

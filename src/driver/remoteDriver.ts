@@ -127,6 +127,12 @@ export class RemoteDriver implements GameDriver {
     return typeof this.localPlayerIdsByColor[color] === "string" && this.localPlayerIdsByColor[color]!.trim().length > 0;
   };
 
+  isLocalBotColor = (color: "W" | "B"): boolean => {
+    const mapped = this.localPlayerIdsByColor[color];
+    if (typeof mapped !== "string" || !mapped.trim()) return false;
+    return mapped.trim() !== (this.ids?.playerId ?? "").trim();
+  };
+
   getRoomId(): string | null {
     return this.ids?.roomId ?? null;
   }

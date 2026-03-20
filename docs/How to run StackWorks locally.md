@@ -12,6 +12,71 @@ npm run bot:dev
 
 npm run online:dev:lan:bot
 
+# Using the Admin page locally (requires `LASCA_ADMIN_TOKEN`)
+
+The Admin page at `http://localhost:8080/admin.html` only works when the online backend was started with `LASCA_ADMIN_TOKEN` set.
+
+Use the same token value in both places:
+
+- Server environment variable: `LASCA_ADMIN_TOKEN`
+- Admin page field: `Admin token`
+
+## PowerShell: combined online + Stockfish + LAN client + Admin
+
+Set the token before starting the stack:
+
+```powershell
+$env:LASCA_ADMIN_TOKEN = "change-me-please"
+npm run online:dev:lan:bot
+```
+
+Then open:
+
+- `http://localhost:8080/admin.html`
+
+And enter:
+
+- Server URL: `http://localhost:8788`
+- Admin token: `change-me-please`
+
+## PowerShell: separate commands + Admin
+
+Start the online server with the token set:
+
+```powershell
+$env:LASCA_ADMIN_TOKEN = "change-me-please"
+npm run online:server
+```
+
+Start the Stockfish server in another terminal:
+
+```powershell
+npm run stockfish:server
+```
+
+Start the client in another terminal:
+
+```powershell
+$env:VITE_SERVER_URL='http://localhost:8788'
+$env:VITE_STOCKFISH_SERVER_URL='http://127.0.0.1:8799'
+npm run dev
+```
+
+Then open:
+
+- `http://localhost:8080/admin.html`
+
+And enter:
+
+- Server URL: `http://localhost:8788`
+- Admin token: the same value as `LASCA_ADMIN_TOKEN`
+
+## Important notes for local Admin access
+
+- If the backend was started before `LASCA_ADMIN_TOKEN` was set, restart the backend after setting it.
+- If the Admin page loads but delete actions fail with `404`, the server was started without `LASCA_ADMIN_TOKEN` in that process environment.
+- Treat the admin token like a password and do not commit it.
+
 # Run each locally as separate commands...
 
 ## Online server:

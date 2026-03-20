@@ -648,7 +648,7 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
         btn.disabled = !available;
         btn.title = available
           ? "Engine evaluation (Stockfish)"
-          : "Engine evaluation — requires offline Stockfish (not available in online mode)";
+          : "Engine evaluation unavailable";
       }
     }
   };

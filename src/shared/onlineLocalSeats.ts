@@ -84,11 +84,18 @@ export function hasConfiguredOnlineLocalBot(args: {
   driver: OnlineGameDriver;
   variantId: VariantId;
 }): boolean {
-  const anyDriver = args.driver as OnlineGameDriver & { controlsColor?: (color: PlayerColor) => boolean };
+  const anyDriver = args.driver as OnlineGameDriver & {
+    controlsColor?: (color: PlayerColor) => boolean;
+    isLocalBotColor?: (color: PlayerColor) => boolean;
+  };
+  const playerColor = typeof anyDriver.getPlayerColor === "function" ? anyDriver.getPlayerColor() : null;
   return (["W", "B"] as const).some((color) => {
     if (!isConfiguredBotColor(args.variantId, color)) return false;
-    if (typeof anyDriver.controlsColor === "function") return anyDriver.controlsColor(color);
-    return anyDriver.getPlayerColor() === color;
+    if (typeof anyDriver.isLocalBotColor === "function") return anyDriver.isLocalBotColor(color);
+    if (typeof anyDriver.controlsColor === "function") {
+      return anyDriver.controlsColor(color) && playerColor !== color;
+    }
+    return false;
   });
 }
 

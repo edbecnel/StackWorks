@@ -45,6 +45,7 @@ import { bindChessEvaluationPanel } from "./ui/chessEvaluationPanel.ts";
 import { installBoardVisualizationTools } from "./ui/boardVisualizationTools";
 import { setStackWorksGameTitle } from "./ui/gameTitle";
 import { bindTouchAnnotationPalette } from "./ui/touchAnnotationPalette";
+import { resolveChessBotUiMode } from "./ui/chessBotUiMode.ts";
 import {
   bindAnalysisToggleButton,
   bindFullScreenButton,
@@ -724,16 +725,26 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const onlineLocalBotEnabled =
     driver.mode === "online" && hasConfiguredOnlineLocalBot({ driver: driver as OnlineGameDriver, variantId: ACTIVE_VARIANT_ID });
+  const botUiMode = resolveChessBotUiMode({
+    driverMode: driver.mode,
+    onlineLocalBotEnabled,
+  });
+
+  if (botUiMode.resetSelectorsToHuman) {
+    resetChessBotSelectorsToHuman();
+    const botSection = document.querySelector('[data-section="bot"]') as HTMLElement | null;
+    if (botSection && !botUiMode.showBotSection) botSection.style.display = "none";
+  }
 
   // Offline-only: Bot controls (classic chess only).
   // Create bot before eval panel so the panel can reference it for engine eval mode.
-  const bot = driver.mode !== "online" || onlineLocalBotEnabled ? (() => {
+  const bot = botUiMode.createBotManager ? (() => {
     const b = new ChessBotManager(controller, {
       skipAutoPauseAtStart: driver.mode === "online",
     });
     b.bind();
     controller.addAnalysisModeChangeCallback((enabled) => b.setAnalysisModeActive(enabled));
-    if (driver.mode === "online") {
+    if (botUiMode.disableBotSelectors) {
       const elW = document.getElementById("botWhiteSelect") as HTMLSelectElement | null;
       const elB = document.getElementById("botBlackSelect") as HTMLSelectElement | null;
       if (elW) elW.disabled = true;
@@ -743,12 +754,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
     return b;
   })() : null;
-
-  if (driver.mode === "online" && !onlineLocalBotEnabled) {
-    resetChessBotSelectorsToHuman();
-    const botSection = document.querySelector('[data-section="bot"]') as HTMLElement | null;
-    if (botSection) botSection.style.display = "none";
-  }
 
   // Apply start-page player name prefs to the SVG name overlay (offline only).
   if (driver.mode !== "online") {
