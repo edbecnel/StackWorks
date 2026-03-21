@@ -33,6 +33,7 @@ import {
   type WireSnapshot,
 } from "../shared/wireState.ts";
 import { buildSessionAuthFetchInit } from "../shared/authSessionClient";
+import { checkCurrentPlayerLost } from "../game/gameOver.ts";
 
 /**
  * RemoteDriver.
@@ -98,6 +99,7 @@ export class RemoteDriver implements GameDriver {
   private lastIdentityByColor: IdentityByColor | null = null;
   private lastPublishedEval: PublishedEval | null = null;
   private roomRules: RoomRules | null = null;
+  private historyReviewEnabled: boolean = false;
 
   // Burst/backpressure handling for realtime snapshots.
   // Strategy: coalesce snapshots (keep only the latest), apply at most once per tick.
@@ -113,6 +115,7 @@ export class RemoteDriver implements GameDriver {
     this.history = new HistoryManager();
     this.history.push(state);
     this.lastStateHash = hashGameState(state as any);
+    this.historyReviewEnabled = this.computeHistoryReviewEnabled(state);
   }
 
   getState(): GameState {
@@ -888,6 +891,7 @@ export class RemoteDriver implements GameDriver {
     const h = deserializeWireHistory(snapshot.history);
     this.history.replaceAll(h.states as any, h.notation, h.currentIndex, (h as any).emtMs, (h as any).evals);
     this.state = nextState;
+    this.historyReviewEnabled = this.computeHistoryReviewEnabled(nextState);
     this.lastStateHash = hashGameState(nextState as any);
 
     // Server-provided monotonic version is the authoritative change detector.
@@ -1188,40 +1192,62 @@ export class RemoteDriver implements GameDriver {
     this.applyPublishedEval((res as any).publishedEval);
   }
 
+  private computeHistoryReviewEnabled(state: GameState): boolean {
+    const terminal = checkCurrentPlayerLost(state);
+    return Boolean(terminal.winner || terminal.reason);
+  }
+
+  private canReviewFinishedHistory(): boolean {
+    return this.historyReviewEnabled;
+  }
+
   canUndo(): boolean {
-    return false;
+    return this.canReviewFinishedHistory() && this.history.canUndo();
   }
 
   canRedo(): boolean {
-    return false;
+    return this.canReviewFinishedHistory() && this.history.canRedo();
   }
 
   undo(): GameState | null {
-    return null;
+    if (!this.canReviewFinishedHistory()) return null;
+    const next = this.history.undo();
+    if (next) this.state = next;
+    return next;
   }
 
   redo(): GameState | null {
-    return null;
+    if (!this.canReviewFinishedHistory()) return null;
+    const next = this.history.redo();
+    if (next) this.state = next;
+    return next;
   }
 
-  jumpToHistory(_index: number): GameState | null {
-    return null;
+  jumpToHistory(index: number): GameState | null {
+    if (!this.canReviewFinishedHistory()) return null;
+    const next = this.history.jumpTo(index);
+    if (next) this.state = next;
+    return next;
   }
 
   clearHistory(): void {
     this.history.clear();
+    this.historyReviewEnabled = false;
   }
 
   pushHistory(state: GameState, notation?: string, emtMs?: number | null): void {
     // In online mode, server is authoritative; local pushes are ignored.
     // We still update local state for UI consistency.
     this.state = state;
+    this.historyReviewEnabled = this.computeHistoryReviewEnabled(state);
     void notation;
     void emtMs;
   }
 
   replaceHistory(snap: HistorySnapshots): void {
     this.history.replaceAll(snap.states as any, snap.notation, snap.currentIndex, snap.emtMs, snap.evals);
+    const latest = snap.states[snap.states.length - 1] ?? this.state;
+    this.historyReviewEnabled = this.computeHistoryReviewEnabled(latest);
   }
 
   exportHistorySnapshots(): HistorySnapshots {

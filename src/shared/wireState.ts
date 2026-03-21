@@ -34,6 +34,8 @@ export type WireHistory = {
   states: WireGameState[];
   notation: string[];
   currentIndex: number;
+  emtMs?: Array<number | null>;
+  evals?: Array<import("../bot/uciEngine.ts").EvalScore | null>;
 };
 
 export type WireSnapshot = {
@@ -74,18 +76,38 @@ export function deserializeWireGameState(wire: WireGameState): any {
   };
 }
 
-export function serializeWireHistory(history: { states: any[]; notation: string[]; currentIndex: number }): WireHistory {
+export function serializeWireHistory(history: {
+  states: any[];
+  notation: string[];
+  currentIndex: number;
+  emtMs?: Array<number | null>;
+  evals?: Array<import("../bot/uciEngine.ts").EvalScore | null>;
+}): WireHistory {
   return {
     states: history.states.map(serializeWireGameState),
     notation: [...history.notation],
     currentIndex: history.currentIndex,
+    ...(Array.isArray(history.emtMs) ? { emtMs: [...history.emtMs] } : {}),
+    ...(Array.isArray(history.evals)
+      ? { evals: history.evals.map((score) => (score ? { ...score } : null)) }
+      : {}),
   };
 }
 
-export function deserializeWireHistory(wire: WireHistory): { states: any[]; notation: string[]; currentIndex: number } {
+export function deserializeWireHistory(wire: WireHistory): {
+  states: any[];
+  notation: string[];
+  currentIndex: number;
+  emtMs?: Array<number | null>;
+  evals?: Array<import("../bot/uciEngine.ts").EvalScore | null>;
+} {
   return {
     states: wire.states.map(deserializeWireGameState),
     notation: Array.isArray(wire.notation) ? [...wire.notation] : [],
     currentIndex: Number.isInteger(wire.currentIndex) ? wire.currentIndex : wire.states.length - 1,
+    ...(Array.isArray((wire as any).emtMs) ? { emtMs: [...(wire as any).emtMs] } : {}),
+    ...(Array.isArray((wire as any).evals)
+      ? { evals: (wire as any).evals.map((score: any) => (score ? { ...score } : null)) }
+      : {}),
   };
 }

@@ -61,6 +61,7 @@ import {
   readBoardViewportMode,
 } from "./ui/boardViewportMode";
 import { resolveConfiguredLocalPlayerName } from "./shared/localPlayerNames";
+import { resolveExportPlayerName } from "./shared/playerExportNames";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { initGameShell } from "./ui/shell/gameShell";
@@ -571,8 +572,15 @@ window.addEventListener("DOMContentLoaded", async () => {
     const explicitName = (side === "W" ? playerWhiteName : playerBlackName).trim();
     const botSelectId = side === "W" ? "botWhiteSelect" : "botBlackSelect";
     const botSetting = (document.getElementById(botSelectId) as HTMLSelectElement | null)?.value ?? "human";
-    if (botSetting !== "human") return side === "W" ? "white" : "black";
-    return explicitName || "human";
+    const onlineIdentityByColor = driver.mode === "online"
+      ? (driver as OnlineGameDriver).getIdentityByColor()
+      : null;
+    return resolveExportPlayerName({
+      side,
+      explicitName,
+      botSetting,
+      identityByColor: onlineIdentityByColor,
+    });
   };
 
   const resolvedPlayerNameForSave = (side: "W" | "B"): string => {
