@@ -1335,7 +1335,17 @@ export class GameController {
 
   private ensureToastEl(): HTMLDivElement | null {
     if (typeof document === "undefined") return null;
-    if (this.toastEl && document.body.contains(this.toastEl)) return this.toastEl;
+    const boardWrap = document.getElementById("boardWrap") as HTMLElement | null;
+    const centerArea = document.getElementById("centerArea") as HTMLElement | null;
+    const toastAnchor = boardWrap ?? centerArea ?? document.body;
+    if (this.toastEl && document.body.contains(this.toastEl)) {
+      if (this.toastEl.parentElement !== toastAnchor) {
+        this.toastEl.parentElement?.removeChild(this.toastEl);
+        toastAnchor.appendChild(this.toastEl);
+        this.toastEl.classList.toggle("lascaToastWrap--viewport", toastAnchor === document.body);
+      }
+      return this.toastEl;
+    }
 
     // Inject styles once.
     const styleId = "lasca-toast-style";
@@ -1344,13 +1354,18 @@ export class GameController {
       style.id = styleId;
       style.textContent = `
         .lascaToastWrap {
-          position: fixed;
-          left: 50%;
-          top: 50%;
-          transform: translate(-50%, -50%);
+          position: absolute;
+          inset: 0;
           z-index: 99999;
-          pointer-events: auto;
+          pointer-events: none;
           display: none;
+          align-items: center;
+          justify-content: center;
+          padding: 16px;
+          box-sizing: border-box;
+        }
+        .lascaToastWrap--viewport {
+          position: fixed;
         }
         .lascaToast {
           max-width: min(92vw, 560px);
@@ -1368,8 +1383,9 @@ export class GameController {
           transform: scale(0.98);
           transition: opacity 140ms ease, transform 140ms ease;
           cursor: pointer;
+          pointer-events: auto;
         }
-        .lascaToastWrap.isVisible { display: block; }
+        .lascaToastWrap.isVisible { display: flex; }
         .lascaToastWrap.isVisible .lascaToast {
           opacity: 1;
           transform: scale(1);
@@ -1380,6 +1396,7 @@ export class GameController {
 
     const wrap = document.createElement("div");
     wrap.className = "lascaToastWrap";
+  if (toastAnchor === document.body) wrap.classList.add("lascaToastWrap--viewport");
     wrap.setAttribute("aria-live", "polite");
     wrap.setAttribute("role", "status");
 
@@ -1438,7 +1455,7 @@ export class GameController {
       if (ke.key === "Enter" || ke.key === " ") dismiss(e);
     });
     wrap.appendChild(inner);
-    document.body.appendChild(wrap);
+    toastAnchor.appendChild(wrap);
     this.toastEl = wrap;
     return wrap;
   }

@@ -265,7 +265,7 @@ describe("GameController turn toast indicates capture", () => {
   let mockPiecesLayer: SVGGElement;
 
   beforeEach(() => {
-    document.body.innerHTML = "";
+    document.body.innerHTML = '<div id="boardWrap" style="position: relative;"></div>';
     document.head.innerHTML = "";
 
     mockSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg") as SVGSVGElement;
@@ -820,6 +820,7 @@ describe("GameController loadGame reconstructs last-move hints", () => {
     const toast = document.querySelector(".lascaToastWrap.isVisible .lascaToast") as HTMLElement | null;
     expect(toast?.textContent).toBe("Draw by mutual agreement");
   });
+
 });
 
 describe("GameController online opponent presence toasts", () => {

@@ -414,10 +414,12 @@ export function createThemeManager(svgRoot: SVGSVGElement, opts?: { themeStorage
     await loadSvgDefsInto(themeDefs, [theme.piecesDefs, theme.boardDefs]);
     await applyThemeCss(theme.css);
 
-    // Preload any raster <image> assets referenced by theme defs (PNG pieces).
-    // The board can render vector fallbacks, but we keep the loading overlay up
-    // until these are ready so switching themes doesn't show blank placeholders.
-    await waitForSvgImagesLoaded(svgRoot, { selector: "image", timeoutMs: 30_000 });
+    // Raster piece themes can be substantially slower to decode than vector themes.
+    // Do not block app initialization or theme-complete events on those decodes;
+    // let the browser continue loading them progressively after the SVG swap.
+    void waitForSvgImagesLoaded(svgRoot, { selector: "image", timeoutMs: 30_000 }).catch(() => {
+      // Best-effort cache warming only.
+    });
 
     // Luminous theme relies on outer glow; ensure nothing in the board template
     // (notably node outline strokes) visually sits above the piece glyphs.

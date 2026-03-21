@@ -666,7 +666,10 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Theme switching can involve slow raster PNG loads; show spinner while themes apply.
   svg.addEventListener(THEME_WILL_CHANGE_EVENT, () => boardLoading.show());
-  svg.addEventListener(THEME_DID_CHANGE_EVENT, () => boardLoading.hide());
+  svg.addEventListener(THEME_DID_CHANGE_EVENT, () => {
+    boardLoading.hide();
+    scheduleEvalBarGeometry();
+  });
   const driver = await createDriverAsync({
     state,
     history,
