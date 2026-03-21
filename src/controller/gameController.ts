@@ -1662,17 +1662,47 @@ export class GameController {
     );
 
     const countsLayer = ensureStackCountsLayer(this.svg);
+    const prevTotal = Array.from(prev.board.values()).reduce((sum, stack) => sum + (stack?.length ?? 0), 0);
+    const nextTotal = Array.from(next.board.values()).reduce((sum, stack) => sum + (stack?.length ?? 0), 0);
+    const prevToStack = prev.board.get(to) ?? [];
+    const looksLikeDirectCapture =
+      nextTotal < prevTotal &&
+      prevToStack.length > 0 &&
+      prevToStack[prevToStack.length - 1]?.owner !== mover;
+
+    const temporarilyHidden: Array<{ el: SVGElement; visibility: string }> = [];
+    if (looksLikeDirectCapture) {
+      const capturedGroup = this.piecesLayer.querySelector(`g.stack[data-node="${to}"]`) as SVGGElement | null;
+      const capturedCount = countsLayer.querySelector(`g.stackCount[data-node="${to}"]`) as SVGGElement | null;
+      for (const el of [capturedGroup, capturedCount]) {
+        if (!el || el === movingGroup) continue;
+        temporarilyHidden.push({ el, visibility: el.style.visibility });
+        el.style.visibility = "hidden";
+      }
+    }
+
     const movingCount = countsLayer.querySelector(`g.stackCount[data-node="${from}"]`) as SVGGElement | null;
-    await animateStack(
-      this.svg,
-      this.overlayLayer,
-      from,
-      to,
-      movingGroup,
-      animMs,
-      movingCount ? [movingCount] : [],
-      { easing: "linear", keepCloneAfter: true }
-    );
+    try {
+      await animateStack(
+        this.svg,
+        this.overlayLayer,
+        from,
+        to,
+        movingGroup,
+        animMs,
+        movingCount ? [movingCount] : [],
+        { easing: "linear", keepCloneAfter: true }
+      );
+    } catch (err) {
+      for (const { el, visibility } of temporarilyHidden) {
+        try {
+          el.style.visibility = visibility;
+        } catch {
+          // ignore
+        }
+      }
+      throw err;
+    }
   }
 
   private async applyRemoteOnlineState(next: GameState): Promise<void> {
@@ -1713,6 +1743,20 @@ export class GameController {
     } finally {
       this.deferTurnToastUntilAfterRender = false;
     }
+
+    try {
+      const kept = this.overlayLayer.querySelectorAll('[data-animating="true"]');
+      for (const el of Array.from(kept)) {
+        try {
+          el.remove();
+        } catch {
+          // ignore
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     this.flushDeferredTurnToast();
     this.fireHistoryChange("move");
   }

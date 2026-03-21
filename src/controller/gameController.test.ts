@@ -1036,6 +1036,32 @@ describe("GameController online transport toasts", () => {
   let mockSvg: SVGSVGElement;
   let mockPiecesLayer: SVGGElement;
 
+  function createNode(id: string, cx: number, cy: number): SVGCircleElement {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", "circle") as SVGCircleElement;
+    node.id = id;
+    node.setAttribute("cx", String(cx));
+    node.setAttribute("cy", String(cy));
+    node.setAttribute("r", "18");
+    return node;
+  }
+
+  function createRenderedStack(nodeId: string): SVGGElement {
+    const stack = document.createElementNS("http://www.w3.org/2000/svg", "g") as SVGGElement;
+    stack.setAttribute("class", "stack");
+    stack.setAttribute("data-node", nodeId);
+    const piece = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    piece.setAttribute("r", "12");
+    stack.appendChild(piece);
+    return stack;
+  }
+
+  function createStackCount(nodeId: string): SVGGElement {
+    const count = document.createElementNS("http://www.w3.org/2000/svg", "g") as SVGGElement;
+    count.setAttribute("class", "stackCount");
+    count.setAttribute("data-node", nodeId);
+    return count;
+  }
+
   class FakeOnlineTransportDriver {
     public mode = "online" as const;
     private listeners = new Map<string, Array<(payload: any) => void>>();
@@ -1119,7 +1145,6 @@ describe("GameController online transport toasts", () => {
     mockSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg") as SVGSVGElement;
     mockPiecesLayer = document.createElementNS("http://www.w3.org/2000/svg", "g") as SVGGElement;
     (mockSvg as any).addEventListener = () => {};
-    (mockSvg as any).querySelector = () => null;
   });
 
   afterEach(() => {
@@ -1251,6 +1276,106 @@ describe("GameController online transport toasts", () => {
     await Promise.resolve();
 
     expect(animateRemoteOnlineTransition).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the captured destination stack while an opponent capture animates", async () => {
+    mockPiecesLayer.id = "pieces";
+    mockSvg.appendChild(createNode("r4c4", 40, 40));
+    mockSvg.appendChild(createNode("r6c6", 60, 60));
+    mockSvg.appendChild(mockPiecesLayer);
+    document.body.appendChild(mockSvg);
+
+    const countsLayer = document.createElementNS("http://www.w3.org/2000/svg", "g") as SVGGElement;
+    countsLayer.setAttribute("id", "stackCounts");
+    countsLayer.appendChild(createStackCount("r4c4"));
+    countsLayer.appendChild(createStackCount("r6c6"));
+    mockSvg.appendChild(countsLayer);
+
+    const movingStack = createRenderedStack("r4c4");
+    const capturedStack = createRenderedStack("r6c6");
+    mockPiecesLayer.appendChild(movingStack);
+    mockPiecesLayer.appendChild(capturedStack);
+
+    const state: GameState = {
+      board: new Map([
+        ["r4c4", [{ owner: "B", rank: "Q" }]],
+        ["r6c6", [{ owner: "W", rank: "B" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+      meta: {
+        variantId: "chess_classic" as any,
+        rulesetId: "chess" as any,
+        boardSize: 8 as any,
+      },
+    };
+    const next: GameState = {
+      board: new Map([["r6c6", [{ owner: "B", rank: "Q" }]]]),
+      toMove: "W",
+      phase: "idle",
+      meta: state.meta,
+      ui: { lastMove: { from: "r4c4", to: "r6c6" } as any },
+    };
+    const history = new HistoryManager();
+    history.push(state);
+    const driver = new FakeOnlineTransportDriver(state);
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history, driver as any);
+
+    const animationPromise = (controller as any).animateRemoteOnlineTransition(state, next);
+    await Promise.resolve();
+
+    expect(capturedStack.style.visibility).toBe("hidden");
+    expect((countsLayer.querySelector('g.stackCount[data-node="r6c6"]') as SVGGElement | null)?.style.visibility).toBe(
+      "hidden"
+    );
+
+    await vi.advanceTimersByTimeAsync(500);
+    await animationPromise;
+  });
+
+  it("removes kept animation clones after applying an authoritative online state", async () => {
+    mockPiecesLayer.id = "pieces";
+    mockSvg.appendChild(createNode("r0c4", 20, 20));
+    mockSvg.appendChild(createNode("r1c4", 20, 40));
+    mockSvg.appendChild(mockPiecesLayer);
+    document.body.appendChild(mockSvg);
+
+    const state: GameState = {
+      board: new Map([
+        ["r0c4", [{ owner: "B", rank: "K" }]],
+        ["r7c4", [{ owner: "W", rank: "K" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+      meta: {
+        variantId: "chess_classic" as any,
+        rulesetId: "chess" as any,
+        boardSize: 8 as any,
+      },
+    };
+    const next: GameState = {
+      board: new Map([
+        ["r1c4", [{ owner: "B", rank: "K" }]],
+        ["r7c4", [{ owner: "W", rank: "K" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+      meta: state.meta,
+    };
+    const history = new HistoryManager();
+    history.push(state);
+    const driver = new FakeOnlineTransportDriver(state);
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history, driver as any);
+    const overlayLayer = (controller as any).overlayLayer as SVGGElement;
+    const keptWrapper = document.createElementNS("http://www.w3.org/2000/svg", "g") as SVGGElement;
+    keptWrapper.setAttribute("data-animating", "true");
+    overlayLayer.appendChild(keptWrapper);
+
+    vi.spyOn(controller as any, "animateRemoteOnlineTransition").mockResolvedValue(undefined);
+
+    await (controller as any).applyRemoteOnlineState(next);
+
+    expect(overlayLayer.querySelector('[data-animating="true"]')).toBeNull();
   });
 
   it("shows the online turn toast only after the opponent move render completes", async () => {
