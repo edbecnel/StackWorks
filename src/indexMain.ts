@@ -601,6 +601,8 @@ window.addEventListener("DOMContentLoaded", () => {
   const elLobbyRoomDialogSubtitle = (document.getElementById("launchLobbyRoomDialogSubtitle") as HTMLElement | null) ?? null;
   const elLobbyRoomDialogDetails = (document.getElementById("launchLobbyRoomDialogDetails") as HTMLElement | null) ?? null;
   const elLobbyRoomDialogPlayers = (document.getElementById("launchLobbyRoomDialogPlayers") as HTMLElement | null) ?? null;
+  const elLobbyRoomAvatarPreview = (document.getElementById("launchLobbyRoomAvatarPreview") as HTMLElement | null) ?? null;
+  const elLobbyRoomAvatarPreviewImage = (document.getElementById("launchLobbyRoomAvatarPreviewImage") as HTMLImageElement | null) ?? null;
   const elLobbyRoomDialogPrimary = (document.getElementById("launchLobbyRoomDialogPrimary") as HTMLButtonElement | null) ?? null;
   const elLobbyRoomDialogSpectate = (document.getElementById("launchLobbyRoomDialogSpectate") as HTMLButtonElement | null) ?? null;
   const elLobbyRoomDialogClose = (document.getElementById("launchLobbyRoomDialogClose") as HTMLButtonElement | null) ?? null;
@@ -703,10 +705,66 @@ window.addEventListener("DOMContentLoaded", () => {
       }
       return;
     }
+    hideLobbyRoomAvatarPreview();
     if (elLobbyRoomDialog.open) {
       if (typeof elLobbyRoomDialog.close === "function") elLobbyRoomDialog.close();
       else elLobbyRoomDialog.removeAttribute("open");
     }
+  };
+
+  const hideLobbyRoomAvatarPreview = (): void => {
+    if (!elLobbyRoomAvatarPreview || !elLobbyRoomAvatarPreviewImage) return;
+    elLobbyRoomAvatarPreview.classList.remove("isVisible");
+    elLobbyRoomAvatarPreviewImage.removeAttribute("src");
+  };
+
+  const positionLobbyRoomAvatarPreview = (x: number, y: number): void => {
+    if (!elLobbyRoomAvatarPreview) return;
+    const previewWidth = 256;
+    const previewHeight = 256;
+    const gap = 18;
+    const maxLeft = Math.max(8, window.innerWidth - previewWidth - 8);
+    const maxTop = Math.max(8, window.innerHeight - previewHeight - 8);
+    const left = Math.min(Math.max(8, x + gap), maxLeft);
+    const top = Math.min(Math.max(8, y + gap), maxTop);
+    elLobbyRoomAvatarPreview.style.left = `${left}px`;
+    elLobbyRoomAvatarPreview.style.top = `${top}px`;
+  };
+
+  const showLobbyRoomAvatarPreview = (src: string, x: number, y: number): void => {
+    if (!elLobbyRoomAvatarPreview || !elLobbyRoomAvatarPreviewImage) return;
+    if (!src) return;
+    elLobbyRoomAvatarPreviewImage.src = src;
+    positionLobbyRoomAvatarPreview(x, y);
+    elLobbyRoomAvatarPreview.classList.add("isVisible");
+  };
+
+  const bindLobbyRoomDialogAvatarPreview = (chip: HTMLElement | null): void => {
+    if (!chip) return;
+    const avatar = chip.querySelector(".lobbyIdentityAvatar") as HTMLElement | null;
+    const image = chip.querySelector("img.lobbyIdentityAvatarImage") as HTMLImageElement | null;
+    if (!avatar || !image) return;
+
+    const previewSrc = image.currentSrc || image.src;
+    if (!previewSrc) return;
+
+    avatar.tabIndex = 0;
+    avatar.title = "Preview avatar";
+
+    avatar.addEventListener("mouseenter", (event) => {
+      const mouse = event as MouseEvent;
+      showLobbyRoomAvatarPreview(previewSrc, mouse.clientX, mouse.clientY);
+    });
+    avatar.addEventListener("mousemove", (event) => {
+      const mouse = event as MouseEvent;
+      positionLobbyRoomAvatarPreview(mouse.clientX, mouse.clientY);
+    });
+    avatar.addEventListener("mouseleave", () => hideLobbyRoomAvatarPreview());
+    avatar.addEventListener("focus", () => {
+      const rect = avatar.getBoundingClientRect();
+      showLobbyRoomAvatarPreview(previewSrc, rect.right, rect.top);
+    });
+    avatar.addEventListener("blur", () => hideLobbyRoomAvatarPreview());
   };
 
   const clearLobbyRoomDialogDetails = (): void => {
@@ -809,8 +867,14 @@ window.addEventListener("DOMContentLoaded", () => {
     if (elLobbyRoomDialogPlayers) {
       const whiteChip = createLobbyIdentityChip({ serverUrl, seatLabel: labels.W, identity: whiteIdentity, color: "W" });
       const blackChip = createLobbyIdentityChip({ serverUrl, seatLabel: labels.B, identity: blackIdentity, color: "B" });
-      if (whiteChip) elLobbyRoomDialogPlayers.appendChild(whiteChip);
-      if (blackChip) elLobbyRoomDialogPlayers.appendChild(blackChip);
+      if (whiteChip) {
+        elLobbyRoomDialogPlayers.appendChild(whiteChip);
+        bindLobbyRoomDialogAvatarPreview(whiteChip);
+      }
+      if (blackChip) {
+        elLobbyRoomDialogPlayers.appendChild(blackChip);
+        bindLobbyRoomDialogAvatarPreview(blackChip);
+      }
     }
 
     if (elLobbyRoomDialogPrimary) {

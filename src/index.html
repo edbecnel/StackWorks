@@ -711,6 +711,32 @@
         max-width: 100%;
       }
 
+      .lobbyRoomAvatarPreview {
+        position: fixed;
+        z-index: 10001;
+        display: none;
+        width: 256px;
+        height: 256px;
+        padding: 8px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(16, 16, 16, 0.96);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.48);
+        pointer-events: none;
+      }
+
+      .lobbyRoomAvatarPreview.isVisible {
+        display: block;
+      }
+
+      .lobbyRoomAvatarPreview img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 12px;
+      }
+
       .lobbyRoomDialogGrid {
         display: grid;
         grid-template-columns: minmax(92px, max-content) minmax(0, 1fr);
@@ -1389,6 +1415,14 @@
               id="launchLobbyRoomDialogPlayers"
               class="lobbyRoomDialogPlayers"
             ></div>
+
+            <div
+              id="launchLobbyRoomAvatarPreview"
+              class="lobbyRoomAvatarPreview"
+              aria-hidden="true"
+            >
+              <img id="launchLobbyRoomAvatarPreviewImage" alt="" />
+            </div>
 
             <div class="lobbyRoomDialogActions">
               <button
