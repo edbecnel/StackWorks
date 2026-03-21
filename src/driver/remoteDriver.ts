@@ -65,6 +65,8 @@ export class RemoteDriver implements GameDriver {
   private ws: WebSocket | null = null;
   private wsReconnectTimer: number | null = null;
   private wsReconnectAttempt: number = 0;
+  private wsConsecutiveConnectFailures: number = 0;
+  private usingSseFallback: boolean = false;
   private transportStatus: "connected" | "reconnecting" = "connected";
   private onRealtimeUpdate: (() => void) | null = null;
   private realtimeListeners = new Map<string, Set<(payload: any) => void>>();
@@ -309,7 +311,7 @@ export class RemoteDriver implements GameDriver {
     if (typeof window === "undefined") return false;
 
     // Prefer WebSockets.
-    if (typeof (window as any).WebSocket !== "undefined") {
+    if (typeof (window as any).WebSocket !== "undefined" && !this.usingSseFallback) {
       if (this.ws) return true;
       this.onRealtimeUpdate = onUpdated;
       this.bindRealtimeLifecycleEvents();
@@ -330,6 +332,7 @@ export class RemoteDriver implements GameDriver {
   private startEventSourceRealtime(): void {
     if (typeof window === "undefined") return;
     if (typeof (window as any).EventSource === "undefined") return;
+    if (this.eventSource) return;
 
     const ids = this.requireIds();
 
@@ -382,6 +385,18 @@ export class RemoteDriver implements GameDriver {
     });
   }
 
+  private fallbackToEventSource(): void {
+    if (typeof window === "undefined") return;
+    if (typeof (window as any).EventSource === "undefined") return;
+    this.usingSseFallback = true;
+    if (this.wsReconnectTimer != null) {
+      window.clearTimeout(this.wsReconnectTimer);
+      this.wsReconnectTimer = null;
+    }
+    this.startEventSourceRealtime();
+    this.triggerResync("ws-fallback-sse");
+  }
+
   private bindRealtimeLifecycleEvents(): void {
     if (this.realtimeLifecycleBound) return;
     if (typeof window === "undefined" || typeof document === "undefined") return;
@@ -401,7 +416,7 @@ export class RemoteDriver implements GameDriver {
 
   private handlePageResume(): void {
     if (!this.onRealtimeUpdate) return;
-    if (typeof window !== "undefined" && typeof (window as any).WebSocket !== "undefined") {
+    if (typeof window !== "undefined" && typeof (window as any).WebSocket !== "undefined" && !this.usingSseFallback) {
       this.startWebSocketRealtime();
     } else if (this.eventSource) {
       try {
@@ -445,11 +460,16 @@ export class RemoteDriver implements GameDriver {
     const url = this.toWsUrl(ids.serverUrl);
     const ws = new WebSocket(url);
     this.ws = ws;
+    let opened = false;
 
     if (this.wsReconnectAttempt > 0) this.setTransportStatus("reconnecting");
 
     ws.addEventListener("open", () => {
+      if (this.ws !== ws) return;
+      opened = true;
       this.wsReconnectAttempt = 0;
+      this.wsConsecutiveConnectFailures = 0;
+      this.usingSseFallback = false;
       // JOIN handshake required by server. lastSeenVersion enables resync logic.
       const join = {
         type: "JOIN",
@@ -465,6 +485,7 @@ export class RemoteDriver implements GameDriver {
     });
 
     ws.addEventListener("message", (ev) => {
+      if (this.ws !== ws) return;
       try {
         const msg = JSON.parse(String(ev.data)) as any;
         const eventName = typeof msg?.event === "string" ? msg.event : null;
@@ -501,18 +522,30 @@ export class RemoteDriver implements GameDriver {
       }
     });
 
-    ws.addEventListener("close", () => {
-      // Reconnect loop.
+    const handleDisconnect = () => {
+      if (this.ws !== ws) return;
+      this.ws = null;
       this.wsReconnectAttempt += 1;
+      if (!opened) {
+        this.wsConsecutiveConnectFailures += 1;
+      } else {
+        this.wsConsecutiveConnectFailures = 0;
+      }
       this.setTransportStatus("reconnecting");
+      if (!opened && this.wsConsecutiveConnectFailures >= 2 && typeof (window as any).EventSource !== "undefined") {
+        this.fallbackToEventSource();
+        return;
+      }
       this.scheduleWsReconnect();
+    };
+
+    ws.addEventListener("close", () => {
+      handleDisconnect();
     });
 
     ws.addEventListener("error", () => {
       // Some browsers only fire close; be defensive.
-      this.wsReconnectAttempt += 1;
-      this.setTransportStatus("reconnecting");
-      this.scheduleWsReconnect();
+      handleDisconnect();
     });
   }
 
@@ -533,6 +566,8 @@ export class RemoteDriver implements GameDriver {
     }
     this.wsReconnectTimer = null;
     this.wsReconnectAttempt = 0;
+    this.wsConsecutiveConnectFailures = 0;
+    this.usingSseFallback = false;
 
     if (this.ws) {
       try {

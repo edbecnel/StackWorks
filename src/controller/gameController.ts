@@ -1133,7 +1133,7 @@ export class GameController {
   private startOnlinePolling(): void {
     if (this.driver.mode !== "online") return;
     const remote = this.driver as OnlineGameDriver;
-    if (this.onlinePollTimer || this.onlineRealtimeEnabled) return;
+    if (this.onlinePollTimer) return;
     
     // Presence can change without a stateVersion bump.
     // Refresh panel so opponent shows Connected immediately (no click required).
@@ -1216,10 +1216,11 @@ export class GameController {
 
     if (startedRealtime) {
       this.onlineRealtimeEnabled = true;
-      return;
     }
 
-    // Simple polling keeps both tabs in sync without websockets.
+    // Keep a light polling safety net even when realtime is available.
+    // This covers deployments where WS/SSE is accepted by the browser but delayed
+    // or buffered by the network path.
     this.onlinePollTimer = window.setInterval(async () => {
       if (this.isGameOver) return;
       try {
