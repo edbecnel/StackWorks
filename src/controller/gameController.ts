@@ -1559,7 +1559,10 @@ export class GameController {
     if (alreadyShowing && this.lastGameOverStickyToast === msg) return;
 
     this.lastGameOverStickyToast = msg;
-    this.showStickyToast(GameController.GAME_OVER_STICKY_TOAST_KEY, msg, { force: true });
+    this.showStickyToast(GameController.GAME_OVER_STICKY_TOAST_KEY, msg, {
+      force: true,
+      allowDuringPlayback: true,
+    });
   }
 
   private clearGameOverStickyToast(): void {

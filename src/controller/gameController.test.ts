@@ -799,6 +799,27 @@ describe("GameController loadGame reconstructs last-move hints", () => {
     const toast = document.querySelector(".lascaToast") as HTMLElement | null;
     expect(toast?.textContent).toBe("Playback paused - Press the Play button or spacebar to continue");
   });
+
+  it("shows terminal sticky toasts even while playback toast suppression is active", () => {
+    const s0: GameState = {
+      board: new Map([["r1c1", [{ owner: "W", rank: "S" }]]]),
+      toMove: "W",
+      phase: "idle",
+      forcedGameOver: {
+        winner: null,
+        reasonCode: "DRAW_BY_AGREEMENT",
+        message: "Draw by mutual agreement",
+      },
+    };
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, s0, new HistoryManager());
+
+    controller.setPlaybackToastSuppressed(true);
+    (controller as any).showGameOverStickyToast("Draw by mutual agreement");
+
+    const toast = document.querySelector(".lascaToastWrap.isVisible .lascaToast") as HTMLElement | null;
+    expect(toast?.textContent).toBe("Draw by mutual agreement");
+  });
 });
 
 describe("GameController online opponent presence toasts", () => {
