@@ -143,6 +143,14 @@ This repo includes a **Neo (PNG)** theme that loads chess piece images from your
   - `bp.png`, `bn.png`, `bb.png`, `br.png`, `bq.png`, `bk.png`
 - If a file is missing, the theme falls back to disc + Unicode glyphs.
 
+## Raster Piece Workflow
+
+The repo also includes raster-backed piece themes that read PNG assets from `public/pieces/raster3d/`.
+
+- To slice the bundled `source.png` sprite into the base raster set (`W_*.png` / `B_*.png`), run `npm run pieces:raster3d`.
+- To recompress existing 2D raster exports (`*_2D.png`) in place, run `npm run pieces:raster2d`.
+- The asset folder includes usage notes in `public/pieces/raster3d/README.md`.
+
 ### Basic Rules
 
 - **Movement**: Soldiers move forward diagonally one square. Officers move diagonally in any direction.

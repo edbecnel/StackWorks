@@ -27,3 +27,7 @@ Recommended:
 
 - Square images (e.g. 256x256 or 512x512)
 - Transparent background
+
+If you already have `*_2D.png` files in this folder, you can recompress them in place with:
+
+- `npm run pieces:raster2d`

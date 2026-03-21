@@ -31,7 +31,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "smoke:offline": "vitest run src/smoke/offlineSmoke.test.ts",
-    "pieces:raster3d": "node scripts/slice-raster3d.mjs"
+    "pieces:raster3d": "node scripts/slice-raster3d.mjs",
+    "pieces:raster2d": "node scripts/optimize-raster2d.mjs"
   },
   "devDependencies": {
     "@hpcc-js/wasm-graphviz": "^1.18.0",
