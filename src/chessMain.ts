@@ -19,6 +19,12 @@ import {
   type CheckerboardThemeId,
 } from "./render/checkerboardTheme";
 import {
+  getPairedCheckerboardTheme,
+  getShellThemeValueFromStoredTheme,
+  getStoredThemeIdFromShellThemeValue,
+  WOODY_CHESS_PRESET_ID,
+} from "./theme/themePresets";
+import {
   normalizeAnalysisSquareHighlightStyle,
   normalizeLastMoveHighlightStyle,
   normalizeMoveHintStyle,
@@ -217,6 +223,13 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const applyCheckerboard = (id: CheckerboardThemeId) => {
     applyCheckerboardTheme(svg, id);
+  };
+  const syncPairedTheme = (themeValue: string | null | undefined): void => {
+    const pairedTheme = getPairedCheckerboardTheme(themeValue);
+    if (!pairedTheme) return;
+    if (checkerboardThemeSelect) checkerboardThemeSelect.value = pairedTheme;
+    writeStringPref(LS_OPT_KEYS.checkerboardTheme, pairedTheme);
+    applyCheckerboard(pairedTheme);
   };
 
   if (checkerboardThemeSelect) {
@@ -624,8 +637,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   const LEGACY_THEME_KEY = "lasca.theme";
   const themeFromQueryRaw = new URLSearchParams(window.location.search).get("theme")?.trim();
   const themeFromQuery = themeFromQueryRaw && themeFromQueryRaw.length > 0 ? themeFromQueryRaw : null;
-  const normalizeChessTheme = (raw: string | null | undefined): "raster2d" | "raster3d" | "neo" => {
+  const normalizeChessTheme = (raw: string | null | undefined): "raster2d" | "raster3d" | "neo" | "candy" => {
     const v = String(raw ?? "").trim().toLowerCase();
+    if (v === "candy") return "candy";
     if (v === "neo") return "neo";
     if (v === "raster2d" || v === "2d") return "raster2d";
     if (v === "raster3d" || v === "3d") return "raster3d";
@@ -640,6 +654,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   })();
   const initialThemeId = normalizeChessTheme(themeFromQuery ?? savedTheme);
   await themeManager.setTheme(initialThemeId);
+  const initialShellThemeValue = getShellThemeValueFromStoredTheme({
+    variantId: ACTIVE_VARIANT_ID,
+    themeId: initialThemeId,
+    checkerboardThemeId: readCheckerboardTheme(),
+  });
+  syncPairedTheme(initialShellThemeValue);
 
   const piecesLayer = svg.querySelector("#pieces") as SVGGElement | null;
   if (!piecesLayer) throw new Error("Missing SVG group inside board: #pieces");
@@ -774,18 +794,30 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   bindChessEvaluationPanel(controller, bot);
 
-  // Classic Chess: theme select (2D / 3D / Neo) + Neo PNG availability hint.
-  // Note: Neo is SVG-only and does not require external assets.
+  // Classic Chess: theme select (2D / 3D / Neo / Candy).
+  // Note: Neo and Candy are SVG-only and do not require external assets.
   {
     const themeSelect = document.getElementById("columnsThemeSelect") as HTMLSelectElement | null;
 
     if (themeSelect) {
-      themeSelect.value = initialThemeId === "neo" ? "neo" : (initialThemeId === "raster2d" ? "2d" : "3d");
+      themeSelect.value =
+        initialShellThemeValue === "neo"
+          ? "neo"
+          : (initialShellThemeValue === "candy"
+            ? "candy"
+            : (initialShellThemeValue === WOODY_CHESS_PRESET_ID ? WOODY_CHESS_PRESET_ID : (initialShellThemeValue === "raster2d" ? "2d" : "3d")));
       themeSelect.disabled = false;
 
       themeSelect.addEventListener("change", async () => {
-        const picked = themeSelect.value === "neo" ? "neo" : (themeSelect.value === "2d" ? "raster2d" : "raster3d");
+        const shellThemeValue =
+          themeSelect.value === "neo"
+            ? "neo"
+            : (themeSelect.value === "candy"
+              ? "candy"
+              : (themeSelect.value === WOODY_CHESS_PRESET_ID ? WOODY_CHESS_PRESET_ID : (themeSelect.value === "2d" ? "raster2d" : "raster3d")));
+        const picked = getStoredThemeIdFromShellThemeValue(shellThemeValue);
         await themeManager.setTheme(picked);
+        syncPairedTheme(shellThemeValue);
         try {
           localStorage.setItem(THEME_KEY, picked);
         } catch {

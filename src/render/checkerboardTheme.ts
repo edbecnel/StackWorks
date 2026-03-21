@@ -1,4 +1,4 @@
-export type CheckerboardThemeId = "classic" | "green" | "blue" | "stone" | "burled" | "checkers";
+export type CheckerboardThemeId = "classic" | "green" | "blue" | "stone" | "burled" | "checkers" | "candy";
 
 export type CheckerboardThemeDef = {
   id: CheckerboardThemeId;
@@ -6,6 +6,13 @@ export type CheckerboardThemeDef = {
   light: string;
   dark: string;
   bg?: string;
+  frameStroke?: string;
+  frameStrokeOpacity?: string;
+  edgeFill?: string;
+  edgeOpacity?: string;
+  squareStroke?: string;
+  squareStrokeOpacity?: string;
+  squareStrokeWidth?: string;
 };
 
 export const DEFAULT_CHECKERBOARD_THEME_ID: CheckerboardThemeId = "classic";
@@ -57,10 +64,27 @@ export const CHECKERBOARD_THEMES: readonly CheckerboardThemeDef[] = [
     light: "#b21f1f",
     dark: "#111111",
     bg: "#1b1b1b",
+    edgeFill: "#bdbdbd",
+    edgeOpacity: "0.78",
+  },
+  {
+    id: "candy",
+    label: "Candy",
+    light: "#efe8ff",
+    dark: "#ea9689",
+    bg: "#cf6d84",
+    frameStroke: "#8c6ddb",
+    frameStrokeOpacity: "0.85",
+    edgeFill: "#5c45b8",
+    edgeOpacity: "0.92",
+    squareStroke: "#c8b5ff",
+    squareStrokeOpacity: "0.92",
+    squareStrokeWidth: "8",
   },
 ] as const;
 
 export function normalizeCheckerboardThemeId(raw: string | null | undefined): CheckerboardThemeId {
+  if (raw === "candy") return "candy";
   if (raw === "checkers") return "checkers";
   if (raw === "burled") return "burled";
   if (raw === "stone") return "stone";
@@ -833,6 +857,19 @@ export function applyCheckerboardTheme(svgRoot: SVGSVGElement, themeId: Checkerb
     }
   }
 
+  const frame = svgRoot.querySelector("#frame") as SVGGElement | null;
+  if (frame) {
+    const frameRects = Array.from(frame.querySelectorAll("rect")) as SVGRectElement[];
+    for (const rect of frameRects) {
+      const stroke = theme.frameStroke ?? "#000";
+      const strokeOpacity = theme.frameStrokeOpacity ?? "0.15";
+      rect.setAttribute("stroke", stroke);
+      rect.setAttribute("stroke-opacity", strokeOpacity);
+      rect.style.setProperty("stroke", stroke, "important");
+      rect.style.setProperty("stroke-opacity", strokeOpacity, "important");
+    }
+  }
+
   const squares = svgRoot.querySelector("#squares") as SVGGElement | null;
   if (!squares) return;
 
@@ -991,6 +1028,30 @@ export function applyCheckerboardTheme(svgRoot: SVGSVGElement, themeId: Checkerb
       } catch {
         // ignore
       }
+    }
+
+    if (theme.squareStroke) {
+      rect.setAttribute("stroke", theme.squareStroke);
+      rect.style.setProperty("stroke", theme.squareStroke, "important");
+    } else {
+      rect.removeAttribute("stroke");
+      rect.style.removeProperty("stroke");
+    }
+
+    if (theme.squareStrokeOpacity) {
+      rect.setAttribute("stroke-opacity", theme.squareStrokeOpacity);
+      rect.style.setProperty("stroke-opacity", theme.squareStrokeOpacity, "important");
+    } else {
+      rect.removeAttribute("stroke-opacity");
+      rect.style.removeProperty("stroke-opacity");
+    }
+
+    if (theme.squareStrokeWidth) {
+      rect.setAttribute("stroke-width", theme.squareStrokeWidth);
+      rect.style.setProperty("stroke-width", theme.squareStrokeWidth, "important");
+    } else {
+      rect.removeAttribute("stroke-width");
+      rect.style.removeProperty("stroke-width");
     }
   }
 

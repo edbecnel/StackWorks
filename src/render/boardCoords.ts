@@ -254,10 +254,11 @@ export function renderBoardCoords(
     : minX - step * 0.65; // left of column A, in the board's margin
 
   // Default: dark charcoal (not pure black) to match the board's built-in linework.
-  // For the Classic Checkers theme, the outer margin is dark, so use a lighter label.
+  // Some board themes override this to match custom outer margins and frame accents.
   const themeId = getCheckerboardThemeId(svg);
-  const edgeFill = themeId === "checkers" ? "#bdbdbd" : "#404040";
-  const edgeOpacity = themeId === "checkers" ? "0.78" : "0.75";
+  const theme = CHECKERBOARD_THEMES.find((item) => item.id === themeId) ?? CHECKERBOARD_THEMES[0];
+  const edgeFill = theme.edgeFill ?? "#404040";
+  const edgeOpacity = theme.edgeOpacity ?? "0.75";
 
   clearLayer(layer);
 

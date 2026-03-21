@@ -20,6 +20,12 @@ import {
   type CheckerboardThemeId,
 } from "./render/checkerboardTheme";
 import {
+  getPairedCheckerboardTheme,
+  getShellThemeValueFromStoredTheme,
+  getStoredThemeIdFromShellThemeValue,
+  WOODY_CHESS_PRESET_ID,
+} from "./theme/themePresets";
+import {
   normalizeAnalysisSquareHighlightStyle,
   normalizeLastMoveHighlightStyle,
   normalizeMoveHintStyle,
@@ -178,6 +184,13 @@ window.addEventListener("DOMContentLoaded", async () => {
   const applyCheckerboard = (id: CheckerboardThemeId) => {
     applyCheckerboardTheme(svg, id);
   };
+  const syncPairedTheme = (themeValue: string | null | undefined): void => {
+    const pairedTheme = getPairedCheckerboardTheme(themeValue);
+    if (!pairedTheme) return;
+    if (checkerboardThemeSelect) checkerboardThemeSelect.value = pairedTheme;
+    writeStringPref(LS_OPT_KEYS.checkerboardTheme, pairedTheme);
+    applyCheckerboard(pairedTheme);
+  };
 
   if (checkerboardThemeSelect) {
     checkerboardThemeSelect.value = readCheckerboardTheme();
@@ -259,8 +272,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   const themeFromQueryRaw = new URLSearchParams(window.location.search).get("theme")?.trim();
   const themeFromQuery = themeFromQueryRaw && themeFromQueryRaw.length > 0 ? themeFromQueryRaw : null;
 
-  const normalizeColumnsTheme = (raw: string | null | undefined): "columns_classic" | "raster2d" | "raster3d" | "neo" => {
+  const normalizeColumnsTheme = (raw: string | null | undefined): "columns_classic" | "raster2d" | "raster3d" | "neo" | "candy" => {
     const v = (raw ?? "").toLowerCase().trim();
+    if (v === "candy") return "candy";
     if (v === "neo") return "neo";
     if (v === "raster3d" || v === "3d") return "raster3d";
     if (v === "raster2d" || v === "2d") return "raster2d";
@@ -278,6 +292,12 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const initialThemeId = normalizeColumnsTheme(themeFromQuery ?? savedTheme);
   await themeManager.setTheme(initialThemeId);
+  const initialShellThemeValue = getShellThemeValueFromStoredTheme({
+    variantId: ACTIVE_VARIANT_ID,
+    themeId: initialThemeId,
+    checkerboardThemeId: readCheckerboardTheme(),
+  });
+  syncPairedTheme(initialShellThemeValue);
 
   const piecesLayer = svg.querySelector("#pieces") as SVGGElement | null;
   if (!piecesLayer) throw new Error("Missing SVG group inside board: #pieces");
@@ -397,24 +417,42 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (botSection) botSection.style.display = "none";
   }
 
-  // Columns Chess: theme select (Discs / 2D / 3D / Neo) + Neo PNG availability hint.
+  // Columns Chess: theme select (Discs / 2D / 3D / Neo / Candy).
   {
     const themeSelect = document.getElementById("columnsThemeSelect") as HTMLSelectElement | null;
 
-    const setSelectValueForThemeId = (themeId: "columns_classic" | "raster2d" | "raster3d" | "neo") => {
+    const setSelectValueForThemeId = (themeId: "columns_classic" | "raster2d" | "raster3d" | "neo" | "candy") => {
       if (!themeSelect) return;
-      themeSelect.value = themeId === "neo" ? "neo" : (themeId === "raster3d" ? "3d" : themeId === "raster2d" ? "2d" : "discs");
+      themeSelect.value =
+        themeId === "neo"
+          ? "neo"
+          : (themeId === "candy" ? "candy" : (themeId === "raster3d" ? "3d" : themeId === "raster2d" ? "2d" : "discs"));
     };
 
-    setSelectValueForThemeId(initialThemeId);
+    if (themeSelect) {
+      themeSelect.value =
+        initialShellThemeValue === "neo"
+          ? "neo"
+          : (initialShellThemeValue === "candy"
+            ? "candy"
+            : (initialShellThemeValue === WOODY_CHESS_PRESET_ID
+              ? WOODY_CHESS_PRESET_ID
+              : (initialShellThemeValue === "raster3d" ? "3d" : initialShellThemeValue === "raster2d" ? "2d" : "discs")));
+    }
 
     if (themeSelect) {
       themeSelect.addEventListener("change", async () => {
-        const picked =
+        const shellThemeValue =
           themeSelect.value === "neo"
             ? "neo"
-            : (themeSelect.value === "3d" ? "raster3d" : themeSelect.value === "2d" ? "raster2d" : "columns_classic");
+            : (themeSelect.value === "candy"
+              ? "candy"
+              : (themeSelect.value === WOODY_CHESS_PRESET_ID
+                ? WOODY_CHESS_PRESET_ID
+                : (themeSelect.value === "3d" ? "raster3d" : themeSelect.value === "2d" ? "raster2d" : "columns_classic")));
+        const picked = getStoredThemeIdFromShellThemeValue(shellThemeValue);
         await themeManager.setTheme(picked);
+        syncPairedTheme(shellThemeValue);
         try {
           localStorage.setItem(THEME_KEY, picked);
         } catch {

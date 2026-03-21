@@ -38,6 +38,7 @@ import {
   normalizeCheckerboardThemeId,
   type CheckerboardThemeId,
 } from "./render/checkerboardTheme";
+import { getPairedCheckerboardTheme } from "./theme/themePresets";
 import { normalizeLastMoveHighlightStyle, normalizeMoveHintStyle } from "./render/highlightStyles";
 import { createBoardLoadingOverlay } from "./ui/boardLoadingOverlay";
 import { nextPaint } from "./ui/nextPaint";
@@ -265,6 +266,16 @@ window.addEventListener("DOMContentLoaded", async () => {
   const applyCheckerboard = (id: CheckerboardThemeId) => {
     applyCheckerboardTheme(svg, id);
   };
+  const syncPairedTheme = (themeId: string | null | undefined): void => {
+    const pairedTheme = getPairedCheckerboardTheme(themeId);
+    if (!pairedTheme) return;
+    if (checkerboardThemeSelect && !checkerboardThemeSelect.disabled) {
+      checkerboardThemeSelect.value = pairedTheme;
+    }
+    writeStringPref(LS_OPT_KEYS.checkerboardTheme, pairedTheme);
+    applyCheckerboard(pairedTheme);
+    syncTerminologyUI();
+  };
 
   if (checkerboardThemeSelect) {
     checkerboardThemeSelect.value = readCheckerboardTheme();
@@ -361,6 +372,13 @@ window.addEventListener("DOMContentLoaded", async () => {
   const themeDropdown = document.getElementById("themeDropdown") as HTMLElement | null;
   const themeManager = createThemeManager(svg);
   await themeManager.bindThemeDropdown(themeDropdown);
+  syncPairedTheme(themeManager.getCurrentThemeId());
+  svg.addEventListener(THEME_CHANGE_EVENT, (event) => {
+    const themeId = event instanceof CustomEvent && typeof event.detail?.themeId === "string"
+      ? event.detail.themeId
+      : themeManager.getCurrentThemeId();
+    syncPairedTheme(themeId);
+  });
 
   const glassPieceColorsRow = document.getElementById("glassPieceColorsRow") as HTMLElement | null;
   const glassPieceColorsSelect = document.getElementById("glassPieceColorsSelect") as HTMLSelectElement | null;
