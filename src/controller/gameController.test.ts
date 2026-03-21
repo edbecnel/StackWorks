@@ -1032,6 +1032,194 @@ describe("GameController online opponent presence toasts", () => {
   });
 });
 
+describe("GameController online transport toasts", () => {
+  let mockSvg: SVGSVGElement;
+  let mockPiecesLayer: SVGGElement;
+
+  class FakeOnlineTransportDriver {
+    public mode = "online" as const;
+    private listeners = new Map<string, Array<(payload: any) => void>>();
+    private state: GameState;
+    private realtimeUpdated: (() => void) | null = null;
+
+    constructor(state: GameState) {
+      this.state = state;
+    }
+
+    getState(): GameState {
+      return this.state;
+    }
+
+    setState(state: GameState): void {
+      this.state = state;
+    }
+
+    exportHistorySnapshots() {
+      return { states: [this.state], notation: [], currentIndex: 0, emtMs: [], evals: [] };
+    }
+
+    onSseEvent(eventName: string, cb: (payload: any) => void): () => void {
+      const next = this.listeners.get(eventName) ?? [];
+      next.push(cb);
+      this.listeners.set(eventName, next);
+      return () => {
+        const current = this.listeners.get(eventName) ?? [];
+        this.listeners.set(eventName, current.filter((item) => item !== cb));
+      };
+    }
+
+    emit(eventName: string, payload: any): void {
+      for (const cb of this.listeners.get(eventName) ?? []) cb(payload);
+    }
+
+    startRealtime(onUpdated: () => void): boolean {
+      this.realtimeUpdated = onUpdated;
+      return true;
+    }
+
+    triggerRealtimeUpdate(): void {
+      this.realtimeUpdated?.();
+    }
+
+    getPlayerId(): string {
+      return "p1";
+    }
+
+    getPlayerColor(): "W" | "B" {
+      return "W";
+    }
+
+    getPresence(): any {
+      return {
+        p1: { connected: true, lastSeenAt: "2026-01-25T00:00:00.000Z" },
+        p2: { connected: true, lastSeenAt: "2026-01-25T00:00:00.000Z" },
+      };
+    }
+
+    getIdentity(): any {
+      return null;
+    }
+
+    getIdentityByColor(): any {
+      return null;
+    }
+
+    controlsColor = (color: "W" | "B"): boolean => color === "W";
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    document.body.innerHTML = `
+      <div id="onlineInfoPanel"></div>
+      <div id="onlineOpponentStatus">—</div>
+      <div id="onlineMsg">—</div>
+    `;
+    document.head.innerHTML = "";
+
+    mockSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg") as SVGSVGElement;
+    mockPiecesLayer = document.createElementNS("http://www.w3.org/2000/svg", "g") as SVGGElement;
+    (mockSvg as any).addEventListener = () => {};
+    (mockSvg as any).querySelector = () => null;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("does not show the disconnect toast for transient reconnect churn", async () => {
+    const state: GameState = {
+      board: new Map([["r1c1", [{ owner: "W", rank: "O" }]]]),
+      toMove: "W",
+      phase: "idle",
+    };
+    const history = new HistoryManager();
+    history.push(state);
+    const driver = new FakeOnlineTransportDriver(state);
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history, driver as any);
+    controller.bind();
+
+    driver.emit("transport_status", { status: "reconnecting" });
+    driver.emit("authority_status", { status: "stale" });
+    await Promise.resolve();
+
+    expect(document.querySelector(".lascaToast")?.textContent ?? "").not.toContain("Connection to server was lost");
+
+    await vi.advanceTimersByTimeAsync(600);
+    driver.emit("transport_status", { status: "connected" });
+    driver.emit("authority_status", { status: "fresh" });
+    await Promise.resolve();
+
+    const toast = document.querySelector(".lascaToast") as HTMLElement | null;
+    expect(toast?.textContent ?? "").not.toContain("Connection to server was lost");
+    expect(toast?.textContent ?? "").not.toContain("Reconnected");
+  });
+
+  it("shows the disconnect toast only after reconnecting persists", async () => {
+    const state: GameState = {
+      board: new Map([["r1c1", [{ owner: "W", rank: "O" }]]]),
+      toMove: "W",
+      phase: "idle",
+    };
+    const history = new HistoryManager();
+    history.push(state);
+    const driver = new FakeOnlineTransportDriver(state);
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history, driver as any);
+    controller.bind();
+
+    driver.emit("transport_status", { status: "reconnecting" });
+    driver.emit("authority_status", { status: "stale" });
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(1200);
+    await Promise.resolve();
+
+    const reconnectToast = document.querySelector(".lascaToast") as HTMLElement | null;
+    expect(reconnectToast?.textContent ?? "").toContain("Connection to server was lost");
+
+    driver.emit("transport_status", { status: "connected" });
+    driver.emit("authority_status", { status: "fresh" });
+    await Promise.resolve();
+
+    const reconnectedToast = document.querySelector(".lascaToast") as HTMLElement | null;
+    expect(reconnectedToast?.textContent).toBe("Reconnected");
+  });
+
+  it("preserves the selected piece across same-position online refreshes", async () => {
+    const state: GameState = {
+      board: new Map([
+        ["r1c1", [{ owner: "W", rank: "O" }]],
+        ["r2c2", [{ owner: "B", rank: "O" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+    };
+    const history = new HistoryManager();
+    history.push(state);
+    const driver = new FakeOnlineTransportDriver(state);
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history, driver as any);
+    controller.bind();
+
+    (controller as any).selected = "r1c1";
+    (controller as any).showSelection("r1c1");
+
+    driver.setState({
+      board: new Map([
+        ["r1c1", [{ owner: "W", rank: "O" }]],
+        ["r2c2", [{ owner: "B", rank: "O" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+    });
+    driver.triggerRealtimeUpdate();
+    await Promise.resolve();
+
+    expect((controller as any).selected).toBe("r1c1");
+    expect(((controller as any).currentTargets as string[]).length).toBeGreaterThan(0);
+  });
+});
+
 describe("GameController online debug copy", () => {
   let mockSvg: SVGSVGElement;
   let mockPiecesLayer: SVGGElement;
@@ -1433,6 +1621,40 @@ describe("GameController online shell identities", () => {
     expect(snapshot.players.B.statusText).toBe("Game over");
     expect(snapshot.players.B.detailText).toBe("Draw by mutual agreement");
     expect(snapshot.players.B.isActiveTurn).toBe(false);
+  });
+
+  it("uses authority-first reconnect status in the online shell snapshot", () => {
+    const history = new HistoryManager();
+    const s: GameState = {
+      board: new Map([["r1c1", [{ owner: "W", rank: "P" }]]]),
+      toMove: "W",
+      phase: "idle",
+      meta: {
+        variantId: "chess_classic" as any,
+        rulesetId: "chess" as any,
+        boardSize: 8 as any,
+      },
+    };
+    history.push(s);
+
+    const driver = new FakeOnlineShellDriver();
+    driver.setPresence({
+      p1: { connected: true },
+      p2: { connected: true },
+    });
+    driver.setIdentity({
+      p1: { displayName: "Alice" },
+      p2: { displayName: "Bob" },
+    });
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, s, history, driver as any);
+    (controller as any).onlineTransportStatus = "connected";
+    (controller as any).onlineAuthorityStatus = "stale";
+
+    const snapshot = controller.getPlayerShellSnapshot();
+
+    expect(snapshot.transportStatus).toBe("reconnecting");
+    expect(snapshot.players.W.detailText).toBe("Re-establishing the room connection.");
   });
 });
 

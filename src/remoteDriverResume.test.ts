@@ -103,27 +103,17 @@ describe("RemoteDriver page resume handling", () => {
     driver.stopRealtime();
   });
 
-  it("falls back to EventSource after repeated websocket handshake failures", async () => {
-    const sockets: Array<{ dispatch: (type: string) => void; close: ReturnType<typeof vi.fn> }> = [];
+  it("prefers EventSource over WebSocket when both are available", async () => {
+    const sockets: Array<{ close: ReturnType<typeof vi.fn> }> = [];
 
     class FakeWebSocket {
-      private listeners = new Map<string, Array<() => void>>();
       public close = vi.fn();
 
       constructor(_url: string) {
-        sockets.push({
-          dispatch: (type: string) => {
-            for (const cb of this.listeners.get(type) ?? []) cb();
-          },
-          close: this.close,
-        });
+        sockets.push({ close: this.close });
       }
 
-      addEventListener(type: string, cb: () => void): void {
-        const list = this.listeners.get(type) ?? [];
-        list.push(cb);
-        this.listeners.set(type, list);
-      }
+      addEventListener(_type: string, _cb: () => void): void {}
     }
 
     const eventSources: Array<{ close: ReturnType<typeof vi.fn> }> = [];
@@ -144,26 +134,9 @@ describe("RemoteDriver page resume handling", () => {
     const driver = new RemoteDriver(initial);
     driver.setRemoteIds({ serverUrl: "http://example.invalid", roomId: "room-1", playerId: "p1" });
 
-    const fetchLatest = vi.spyOn(driver as any, "fetchLatest").mockResolvedValue(false);
-
     expect(driver.startRealtime(() => void 0)).toBe(true);
-    expect(sockets).toHaveLength(1);
     expect(eventSources).toHaveLength(1);
-
-    sockets[0].dispatch("error");
-    sockets[0].dispatch("close");
-    await Promise.resolve();
-
-    (driver as any).startWebSocketRealtime();
-
-    expect(sockets).toHaveLength(2);
-    sockets[1].dispatch("error");
-    sockets[1].dispatch("close");
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(eventSources).toHaveLength(1);
-    expect(fetchLatest).toHaveBeenCalledTimes(1);
+    expect(sockets).toHaveLength(0);
 
     driver.stopRealtime();
   });
@@ -257,6 +230,61 @@ describe("RemoteDriver page resume handling", () => {
 
     expect(fetchLatest).toHaveBeenCalledTimes(1);
     expect(startWebSocketRealtime).toHaveBeenCalledTimes(2);
+
+    driver.stopRealtime();
+  });
+
+  it("forces authoritative recovery when a move acknowledgement stalls", async () => {
+    vi.useFakeTimers();
+
+    const initial = createInitialGameStateForVariant("chess_classic" as any);
+    const driver = new RemoteDriver(initial);
+    driver.setRemoteIds({ serverUrl: "http://example.invalid", roomId: "room-1", playerId: "p1" });
+    driver.setPlayerColor("W");
+
+    const authorityStatuses: string[] = [];
+    driver.onSseEvent("authority_status", (payload) => {
+      authorityStatuses.push(String(payload?.status ?? ""));
+    });
+    (driver as any).onRealtimeUpdate = () => void 0;
+
+    vi.spyOn(driver as any, "postJson").mockImplementation(() => new Promise(() => void 0));
+    const fetchLatest = vi.spyOn(driver as any, "fetchLatest").mockResolvedValue(false);
+
+    void driver.submitMove({ kind: "move", from: "r1c1", to: "r2c2" } as any);
+    await vi.advanceTimersByTimeAsync(1200);
+    await Promise.resolve();
+
+    expect(authorityStatuses).toContain("stale");
+    expect(fetchLatest).toHaveBeenCalledTimes(1);
+
+    driver.stopRealtime();
+  });
+
+  it("does not force authoritative recovery when a move acknowledgement returns promptly", async () => {
+    vi.useFakeTimers();
+
+    const initial = createInitialGameStateForVariant("chess_classic" as any);
+    const driver = new RemoteDriver(initial);
+    driver.setRemoteIds({ serverUrl: "http://example.invalid", roomId: "room-1", playerId: "p1" });
+    driver.setPlayerColor("W");
+    (driver as any).onRealtimeUpdate = () => void 0;
+
+    const authorityStatuses: string[] = [];
+    driver.onSseEvent("authority_status", (payload) => {
+      authorityStatuses.push(String(payload?.status ?? ""));
+    });
+
+    vi.spyOn(driver as any, "postJson").mockResolvedValue({ snapshot: {} });
+    vi.spyOn(driver as any, "applySnapshot").mockReturnValue({ next: initial as any, changed: false });
+    const fetchLatest = vi.spyOn(driver as any, "fetchLatest").mockResolvedValue(false);
+
+    await driver.submitMove({ kind: "move", from: "r1c1", to: "r2c2" } as any);
+    await vi.advanceTimersByTimeAsync(1200);
+    await Promise.resolve();
+
+    expect(authorityStatuses).not.toContain("stale");
+    expect(fetchLatest).not.toHaveBeenCalled();
 
     driver.stopRealtime();
   });

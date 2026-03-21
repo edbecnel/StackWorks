@@ -128,6 +128,9 @@ export class GameController {
   private onlinePollTimer: number | null = null;
   private onlineRealtimeEnabled: boolean = false;
   private onlineTransportStatus: "connected" | "reconnecting" = "connected";
+  private onlineAuthorityStatus: "fresh" | "stale" = "fresh";
+  private onlineReconnectToastTimer: number | null = null;
+  private onlineReconnectToastShown: boolean = false;
   private onlineDidShowConnectingToast: boolean = false;
   private onlineDidShowConnectedToast: boolean = false;
   private reportIssueHintShownForRoomId: string | null = null;
@@ -138,6 +141,7 @@ export class GameController {
   private static readonly GAME_OVER_STICKY_TOAST_KEY = "game_over";
   private static readonly DRAW_OFFER_PENDING_STICKY_TOAST_KEY = "online_draw_offer_pending";
   private static readonly DRAW_OFFER_RESOLUTION_STICKY_TOAST_KEY = "online_draw_offer_resolution";
+  private static readonly ONLINE_RECONNECT_TOAST_DELAY_MS = 1200;
   private lastToastToMove: GameState["toMove"] | null = null;
   private lastCheckToastSig: string | null = null;
   private toastTimer: number | null = null;
@@ -525,7 +529,9 @@ export class GameController {
           roomId,
           playerId,
           playerColor: remote.getPlayerColor(),
-          transport: this.onlineTransportStatus,
+          transport: this.getEffectiveOnlineTransportStatus(),
+          rawTransport: this.onlineTransportStatus,
+          authority: this.onlineAuthorityStatus,
           presence: remote.getPresence(),
         },
         game: {
@@ -1153,34 +1159,51 @@ export class GameController {
       if (this.isGameOver) return;
       const status = payload?.status === "reconnecting" ? "reconnecting" : "connected";
       if (this.onlineTransportStatus === status) return;
-      const prevStatus = this.onlineTransportStatus;
+      let suppressTurnToast = false;
       this.onlineTransportStatus = status;
       this.updatePanel();
 
-      if (status === "reconnecting") {
-        const key = "online_reconnecting";
-
-        // Don't clobber non-online sticky toasts (e.g. report issue).
-        if (!this.stickyToastKey || this.stickyToastKey === key || this.stickyToastKey.startsWith("online_")) {
-          // Click-to-dismiss is handled by the default sticky toast behavior.
-          this.setStickyToastAction(key, null);
-          this.showStickyToast(key, "Connection to server was lost — attempting to reconnect. Tap to dismiss.", {
-            force: true,
-          });
-        }
-        this.maybeShowReportIssueHintToast("Connection problem");
-      } else if (prevStatus === "reconnecting" && status === "connected") {
+      if (status === "connected" && this.onlineAuthorityStatus === "fresh") {
+        this.clearOnlineReconnectToastTimer();
+        const didShowReconnectToast = this.onlineReconnectToastShown;
+        this.onlineReconnectToastShown = false;
         this.clearStickyToast("online_reconnecting");
-        this.showToast("Reconnected", 1400);
+        if (didShowReconnectToast) {
+          this.showToast("Reconnected", 1400);
+          suppressTurnToast = true;
+          this.lastToastToMove = null;
+        }
+        this.maybeShowOnlineWaitingInviteToast();
+      }
+      if (suppressTurnToast) return;
+      this.maybeToastTurnChange();
+    });
 
-        // Restore any contextual online sticky toast (e.g. waiting invite) if applicable.
+    remote.onSseEvent("authority_status", (payload) => {
+      if (this.isGameOver) return;
+      const status = payload?.status === "stale" ? "stale" : "fresh";
+      if (this.onlineAuthorityStatus === status) return;
+      const prevStatus = this.onlineAuthorityStatus;
+      let suppressTurnToast = false;
+      this.onlineAuthorityStatus = status;
+      this.updatePanel();
+
+      if (status === "stale") {
+        this.scheduleOnlineReconnectToast();
+      } else if (prevStatus === "stale") {
+        this.clearOnlineReconnectToastTimer();
+        const didShowReconnectToast = this.onlineReconnectToastShown;
+        this.onlineReconnectToastShown = false;
+        this.clearStickyToast("online_reconnecting");
+        if (didShowReconnectToast) {
+          this.showToast("Reconnected", 1400);
+          suppressTurnToast = true;
+        }
+        this.lastToastToMove = null;
         this.maybeShowOnlineWaitingInviteToast();
       }
 
-      // On reconnect, re-toast the current turn state.
-      if (prevStatus === "reconnecting" && status === "connected") {
-        this.lastToastToMove = null;
-      }
+      if (suppressTurnToast) return;
       this.maybeToastTurnChange();
     });
 
@@ -1191,6 +1214,7 @@ export class GameController {
         this.onlineDidShowConnectedToast = true;
         this.showToast("Connected", 1100);
       }
+      this.onlineAuthorityStatus = "fresh";
 
       // If the user is exploring a local analysis line, don't clobber the sandbox position.
       // We'll resync when analysis is turned off.
@@ -1249,6 +1273,34 @@ export class GameController {
         // Ignore transient network errors; server is best-effort.
       }
     }, 750);
+  }
+
+  private clearOnlineReconnectToastTimer(): void {
+    if (this.onlineReconnectToastTimer == null || typeof window === "undefined") return;
+    window.clearTimeout(this.onlineReconnectToastTimer);
+    this.onlineReconnectToastTimer = null;
+  }
+
+  private getEffectiveOnlineTransportStatus(): "connected" | "reconnecting" {
+    return this.onlineAuthorityStatus === "stale" ? "reconnecting" : "connected";
+  }
+
+  private scheduleOnlineReconnectToast(): void {
+    if (this.onlineReconnectToastShown || this.onlineReconnectToastTimer != null || typeof window === "undefined") return;
+    this.onlineReconnectToastTimer = window.setTimeout(() => {
+      this.onlineReconnectToastTimer = null;
+      if (this.isGameOver || this.onlineAuthorityStatus !== "stale") return;
+
+      const key = "online_reconnecting";
+      if (!this.stickyToastKey || this.stickyToastKey === key || this.stickyToastKey.startsWith("online_")) {
+        this.setStickyToastAction(key, null);
+        this.showStickyToast(key, "Connection to server was lost — attempting to reconnect. Tap to dismiss.", {
+          force: true,
+        });
+        this.onlineReconnectToastShown = true;
+      }
+      this.maybeShowReportIssueHintToast("Connection problem");
+    }, GameController.ONLINE_RECONNECT_TOAST_DELAY_MS);
   }
 
   private isBothSidesAIFromPrefs(): boolean {
@@ -1569,6 +1621,26 @@ export class GameController {
   }
 
   private applyRemoteOnlineState(next: GameState): void {
+    const previousState = this.state;
+    const previousSelection = this.selected;
+    const samePosition =
+      hashGameState(previousState) === hashGameState(next) &&
+      String((previousState as any)?.forcedGameOver?.reasonCode ?? "") ===
+        String((next as any)?.forcedGameOver?.reasonCode ?? "") &&
+      String((previousState as any)?.forcedGameOver?.message ?? "") ===
+        String((next as any)?.forcedGameOver?.message ?? "");
+
+    if (samePosition) {
+      this.setState(next);
+      this.renderAuthoritative();
+      if (previousSelection && this.isOwnStack(previousSelection)) {
+        this.selected = previousSelection;
+        this.showSelection(previousSelection);
+      }
+      this.updatePanel();
+      return;
+    }
+
     // Any authoritative remote update invalidates local in-progress UI state.
     this.lockedCaptureFrom = null;
     this.lockedCaptureDir = null;
@@ -1597,7 +1669,7 @@ export class GameController {
     const suppressTurnToastForStickyResume =
       this.stickyToastKey === "chessbot_paused_turn" || this.stickyToastKey === "aiPausedTapResume";
     if (this.driver.mode === "online") {
-      if (this.onlineTransportStatus !== "connected") return;
+      if (this.getEffectiveOnlineTransportStatus() !== "connected") return;
 
       // Online play: toast on side-to-move changes (and once on startup), but
       // localize the message using player color when available.
@@ -3197,7 +3269,7 @@ export class GameController {
           : "Seat mapping is still loading.";
       return {
         mode: "online",
-        transportStatus: this.onlineTransportStatus,
+        transportStatus: this.getEffectiveOnlineTransportStatus(),
         serverUrl: remote.getServerUrl(),
         viewerColor: null,
         viewerRole: selfId === "spectator" ? "spectator" : "player",
@@ -3255,7 +3327,7 @@ export class GameController {
       : this.sideLabel(opponentColor);
 
     const selfStatus = this.getPresenceStatus({
-      transportStatus: this.onlineTransportStatus,
+      transportStatus: this.getEffectiveOnlineTransportStatus(),
       presenceEntry: selfPresence,
     });
     const opponentStatus = this.getPresenceStatus({
@@ -3266,7 +3338,7 @@ export class GameController {
     const selfGraceUntil = this.formatPresenceDeadline(selfPresence?.graceUntil);
     const opponentGraceUntil = this.formatPresenceDeadline(opponentPresence?.graceUntil);
 
-    let selfDetail = this.onlineTransportStatus === "reconnecting"
+    let selfDetail = this.onlineAuthorityStatus === "stale"
       ? "Re-establishing the room connection."
       : this.state.toMove === localColor
         ? "Your turn."
@@ -3312,7 +3384,7 @@ export class GameController {
 
     return {
       mode: "online",
-      transportStatus: this.onlineTransportStatus,
+      transportStatus: this.getEffectiveOnlineTransportStatus(),
       serverUrl: remote.getServerUrl(),
       viewerColor: localColor,
       viewerRole: "player",
@@ -3752,7 +3824,7 @@ export class GameController {
 
         // Prominent warning banner when either counter gets low.
         // Trigger at 20/10/5 plies remaining to avoid spam.
-        if (!this.isGameOver && this.onlineTransportStatus === "connected") {
+        if (!this.isGameOver && this.onlineAuthorityStatus === "fresh") {
           const thresholds = new Set([20, 10, 5]);
           const warnings: string[] = [];
           if (thresholds.has(npRem)) {
@@ -3856,7 +3928,7 @@ export class GameController {
       }
     }
     if (elMsg && !this.isGameOver) {
-      if (isOnline && this.onlineTransportStatus === "reconnecting") {
+      if (isOnline && this.onlineAuthorityStatus === "stale") {
         elMsg.textContent = "Reconnecting…";
         return;
       }

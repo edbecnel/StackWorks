@@ -53,6 +53,7 @@ type RemoteIds = {
 
 export class RemoteDriver implements GameDriver {
   readonly mode = "online" as const;
+  private static readonly PENDING_ACTION_ACK_TIMEOUT_MS = 1200;
 
   private state: GameState;
   private history: HistoryManager;
@@ -70,8 +71,13 @@ export class RemoteDriver implements GameDriver {
   private eventSourceConnected: boolean = false;
   private resumeWatchdogTimer: number | null = null;
   private lastRealtimeActivityAtMs: number = 0;
+  private lastAuthoritativeActivityAtMs: number = 0;
   private resumeRecoveryToken: number = 0;
   private transportStatus: "connected" | "reconnecting" = "connected";
+  private authoritativeStatus: "fresh" | "stale" = "fresh";
+  private authoritativeStaleTimer: number | null = null;
+  private pendingActionAckTimer: number | null = null;
+  private pendingActionToken: number = 0;
   private onRealtimeUpdate: (() => void) | null = null;
   private realtimeListeners = new Map<string, Set<(payload: any) => void>>();
   private resyncInFlight: Promise<void> | null = null;
@@ -308,11 +314,72 @@ export class RemoteDriver implements GameDriver {
     if (this.transportStatus === next) return;
     this.transportStatus = next;
     this.emitSseEvent("transport_status", { status: next });
+    if (next === "reconnecting") this.scheduleAuthoritativeStale("transport-reconnecting");
   }
 
   private markRealtimeActivity(): void {
     const now = this.nowMs();
     this.lastRealtimeActivityAtMs = now > this.lastRealtimeActivityAtMs ? now : this.lastRealtimeActivityAtMs + 1;
+  }
+
+  private clearAuthoritativeStaleTimer(): void {
+    if (this.authoritativeStaleTimer == null || typeof window === "undefined") return;
+    window.clearTimeout(this.authoritativeStaleTimer);
+    this.authoritativeStaleTimer = null;
+  }
+
+  private clearPendingActionAckTimer(): void {
+    if (this.pendingActionAckTimer == null || typeof window === "undefined") return;
+    window.clearTimeout(this.pendingActionAckTimer);
+    this.pendingActionAckTimer = null;
+  }
+
+  private setAuthoritativeStatus(next: "fresh" | "stale", reason?: string): void {
+    if (this.authoritativeStatus === next) return;
+    this.authoritativeStatus = next;
+    this.emitSseEvent("authority_status", { status: next, ...(reason ? { reason } : {}) });
+  }
+
+  private markAuthoritativeActivity(source: string): void {
+    void source;
+    const now = this.nowMs();
+    this.lastAuthoritativeActivityAtMs = now > this.lastAuthoritativeActivityAtMs
+      ? now
+      : this.lastAuthoritativeActivityAtMs + 1;
+    this.clearAuthoritativeStaleTimer();
+    this.setAuthoritativeStatus("fresh", source);
+  }
+
+  private scheduleAuthoritativeStale(reason: string): void {
+    if (typeof window === "undefined") return;
+    if (this.authoritativeStatus === "stale") return;
+    this.clearAuthoritativeStaleTimer();
+    const baselineActivityAtMs = this.lastAuthoritativeActivityAtMs;
+    this.authoritativeStaleTimer = window.setTimeout(() => {
+      this.authoritativeStaleTimer = null;
+      if (!this.onRealtimeUpdate) return;
+      if (this.lastAuthoritativeActivityAtMs > baselineActivityAtMs) return;
+      this.setAuthoritativeStatus("stale", reason);
+      this.triggerResync(`authority-stale:${reason}`);
+    }, 2000);
+  }
+
+  private beginPendingAction(label: string): number {
+    const token = ++this.pendingActionToken;
+    if (typeof window === "undefined") return token;
+    this.clearPendingActionAckTimer();
+    this.pendingActionAckTimer = window.setTimeout(() => {
+      this.pendingActionAckTimer = null;
+      if (token !== this.pendingActionToken) return;
+      this.setAuthoritativeStatus("stale", `${label}-ack-timeout`);
+      this.triggerResync(`pending-action:${label}`);
+    }, RemoteDriver.PENDING_ACTION_ACK_TIMEOUT_MS);
+    return token;
+  }
+
+  private endPendingAction(token: number): void {
+    if (token !== this.pendingActionToken) return;
+    this.clearPendingActionAckTimer();
   }
 
   private clearResumeWatchdog(): void {
@@ -338,10 +405,15 @@ export class RemoteDriver implements GameDriver {
   private restartRealtimeAfterResume(reason: string): void {
     if (!this.onRealtimeUpdate) return;
     const baselineActivityAtMs = this.lastRealtimeActivityAtMs;
-    if (typeof window !== "undefined" && typeof (window as any).WebSocket !== "undefined" && !this.usingSseFallback) {
-      this.startWebSocketRealtime();
-    }
     if (typeof window !== "undefined" && typeof (window as any).EventSource !== "undefined") {
+      if (this.ws) {
+        try {
+          this.ws.close();
+        } catch {
+          // ignore
+        }
+        this.ws = null;
+      }
       if (this.eventSource) {
         try {
           this.eventSource.close();
@@ -352,6 +424,8 @@ export class RemoteDriver implements GameDriver {
       }
       this.eventSourceConnected = false;
       this.startEventSourceRealtime();
+    } else if (typeof window !== "undefined" && typeof (window as any).WebSocket !== "undefined" && !this.usingSseFallback) {
+      this.startWebSocketRealtime();
     } else if (this.eventSource) {
       try {
         this.eventSource.close();
@@ -374,23 +448,28 @@ export class RemoteDriver implements GameDriver {
     this.onRealtimeUpdate = onUpdated;
     this.bindRealtimeLifecycleEvents();
 
-    // Keep SSE available as a backup transport whenever the browser supports it.
+    // Prefer SSE in browsers. It tolerates backgrounding and flaky edge WS paths better.
     if (typeof (window as any).EventSource !== "undefined") {
+      if (this.ws) {
+        try {
+          this.ws.close();
+        } catch {
+          // ignore
+        }
+        this.ws = null;
+      }
       this.startEventSourceRealtime();
+      return true;
     }
 
-    // Prefer WebSockets.
+    // Fallback: WebSockets when SSE is unavailable.
     if (typeof (window as any).WebSocket !== "undefined" && !this.usingSseFallback) {
       if (this.ws) return true;
       this.startWebSocketRealtime();
       return true;
     }
 
-    // Fallback: SSE.
-    if (typeof (window as any).EventSource === "undefined") return false;
-    if (this.eventSource) return true;
-    this.startEventSourceRealtime();
-    return true;
+    return false;
   }
 
   private startEventSourceRealtime(): void {
@@ -454,6 +533,7 @@ export class RemoteDriver implements GameDriver {
     es.addEventListener("error", () => {
       this.eventSourceConnected = false;
       if (this.usingSseFallback) this.setTransportStatus("reconnecting");
+      this.scheduleAuthoritativeStale("eventsource-error");
     });
   }
 
@@ -496,6 +576,7 @@ export class RemoteDriver implements GameDriver {
 
   private scheduleWsReconnect(): void {
     if (typeof window === "undefined") return;
+    if (typeof (window as any).EventSource !== "undefined") return;
     if (this.wsReconnectTimer != null) return;
 
     const attempt = this.wsReconnectAttempt;
@@ -620,6 +701,8 @@ export class RemoteDriver implements GameDriver {
   stopRealtime(): void {
     this.unbindRealtimeLifecycleEvents();
     this.clearResumeWatchdog();
+    this.clearAuthoritativeStaleTimer();
+    this.clearPendingActionAckTimer();
     this.resumeRecoveryToken += 1;
 
     if (this.eventSource) {
@@ -650,6 +733,7 @@ export class RemoteDriver implements GameDriver {
     this.ws = null;
 
     this.transportStatus = "connected";
+    this.authoritativeStatus = "fresh";
 
     this.onRealtimeUpdate = null;
   }
@@ -812,6 +896,7 @@ export class RemoteDriver implements GameDriver {
     this.lastStateVersion = nextVersion;
 
     const changed = nextVersion !== prevVersion || this.lastStateHash !== prevHash;
+    this.markAuthoritativeActivity("snapshot");
     this.setTransportStatus("connected");
     return { next: nextState, changed };
   }
@@ -832,6 +917,7 @@ export class RemoteDriver implements GameDriver {
     this.lastIdentityByColor = identityByColor ?? this.lastIdentityByColor;
     this.lastPublishedEval = this.normalizePublishedEval(publishedEval);
     this.applySnapshot(snapshot);
+    this.markAuthoritativeActivity("connectFromSnapshot");
   }
 
   async fetchLatest(): Promise<boolean> {
@@ -846,11 +932,13 @@ export class RemoteDriver implements GameDriver {
     if ((res as any).rules && typeof (res as any).rules === "object") this.roomRules = (res as any).rules as RoomRules;
     const publishedChanged = this.applyPublishedEval((res as any).publishedEval);
     const applied = this.applySnapshot((res as any).snapshot);
+    this.markAuthoritativeActivity("fetchLatest");
     return applied.changed || publishedChanged;
   }
 
   async submitMove(_move: Move): Promise<GameState & { didPromote?: boolean }> {
     const ids = this.requireIds();
+    const pendingActionToken = this.beginPendingAction("submitMove");
     let res: SubmitMoveResponse;
     try {
       res = await this.postJson<SubmitMoveRequest, SubmitMoveResponse>("/api/submitMove", {
@@ -868,6 +956,8 @@ export class RemoteDriver implements GameDriver {
         }
       }
       throw e;
+    } finally {
+      this.endPendingAction(pendingActionToken);
     }
     this.applyPublishedEval((res as any).publishedEval);
     const next = this.applySnapshot((res as any).snapshot).next;
@@ -893,6 +983,7 @@ export class RemoteDriver implements GameDriver {
       | { rulesetId: "damasca" | "damasca_classic"; state: GameState; landing: string }
   ): Promise<GameState & { didPromote?: boolean }> {
     const ids = this.requireIds();
+    const pendingActionToken = this.beginPendingAction("finalizeCaptureChain");
     const req: FinalizeCaptureChainRequest =
       args.rulesetId === "dama"
         ? {
@@ -926,6 +1017,8 @@ export class RemoteDriver implements GameDriver {
         }
       }
       throw e;
+    } finally {
+      this.endPendingAction(pendingActionToken);
     }
     this.applyPublishedEval((res as any).publishedEval);
     const next = this.applySnapshot((res as any).snapshot).next;
@@ -937,6 +1030,7 @@ export class RemoteDriver implements GameDriver {
 
   async endTurnRemote(notation?: string): Promise<GameState> {
     const ids = this.requireIds();
+    const pendingActionToken = this.beginPendingAction("endTurn");
     const req: EndTurnRequest = {
       roomId: ids.roomId,
       playerId: this.requireActiveTurnPlayerId(),
@@ -955,6 +1049,8 @@ export class RemoteDriver implements GameDriver {
         }
       }
       throw e;
+    } finally {
+      this.endPendingAction(pendingActionToken);
     }
     if ((res as any).presence) this.lastPresence = (res as any).presence as PresenceByPlayerId;
     if ((res as any).identity && typeof (res as any).identity === "object") this.lastIdentity = (res as any).identity as IdentityByPlayerId;
@@ -964,6 +1060,7 @@ export class RemoteDriver implements GameDriver {
 
   async resignRemote(): Promise<GameState> {
     const ids = this.requireIds();
+    const pendingActionToken = this.beginPendingAction("resign");
     const req: ResignRequest = {
       roomId: ids.roomId,
       playerId: ids.playerId,
@@ -981,6 +1078,8 @@ export class RemoteDriver implements GameDriver {
         }
       }
       throw e;
+    } finally {
+      this.endPendingAction(pendingActionToken);
     }
     if ((res as any).presence) this.lastPresence = (res as any).presence as PresenceByPlayerId;
     if ((res as any).identity && typeof (res as any).identity === "object") this.lastIdentity = (res as any).identity as IdentityByPlayerId;
@@ -990,6 +1089,7 @@ export class RemoteDriver implements GameDriver {
 
   async claimDrawRemote(args: { kind: "threefold" }): Promise<GameState> {
     const ids = this.requireIds();
+    const pendingActionToken = this.beginPendingAction("claimDraw");
     const req: ClaimDrawRequest = {
       roomId: ids.roomId,
       playerId: ids.playerId,
@@ -1008,6 +1108,8 @@ export class RemoteDriver implements GameDriver {
         }
       }
       throw e;
+    } finally {
+      this.endPendingAction(pendingActionToken);
     }
     if ((res as any).presence) this.lastPresence = (res as any).presence as PresenceByPlayerId;
     if ((res as any).identity && typeof (res as any).identity === "object") this.lastIdentity = (res as any).identity as IdentityByPlayerId;
@@ -1017,6 +1119,7 @@ export class RemoteDriver implements GameDriver {
 
   async offerDrawRemote(): Promise<GameState> {
     const ids = this.requireIds();
+    const pendingActionToken = this.beginPendingAction("offerDraw");
     const req: OfferDrawRequest = {
       roomId: ids.roomId,
       playerId: ids.playerId,
@@ -1034,6 +1137,8 @@ export class RemoteDriver implements GameDriver {
         }
       }
       throw e;
+    } finally {
+      this.endPendingAction(pendingActionToken);
     }
     if ((res as any).presence) this.lastPresence = (res as any).presence as PresenceByPlayerId;
     if ((res as any).identity && typeof (res as any).identity === "object") this.lastIdentity = (res as any).identity as IdentityByPlayerId;
@@ -1043,6 +1148,7 @@ export class RemoteDriver implements GameDriver {
 
   async respondDrawOfferRemote(args: { accept: boolean }): Promise<GameState> {
     const ids = this.requireIds();
+    const pendingActionToken = this.beginPendingAction("respondDrawOffer");
     const req: RespondDrawOfferRequest = {
       roomId: ids.roomId,
       playerId: ids.playerId,
@@ -1061,6 +1167,8 @@ export class RemoteDriver implements GameDriver {
         }
       }
       throw e;
+    } finally {
+      this.endPendingAction(pendingActionToken);
     }
     if ((res as any).presence) this.lastPresence = (res as any).presence as PresenceByPlayerId;
     if ((res as any).identity && typeof (res as any).identity === "object") this.lastIdentity = (res as any).identity as IdentityByPlayerId;
