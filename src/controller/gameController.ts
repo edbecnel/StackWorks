@@ -131,6 +131,9 @@ export class GameController {
   private onlineAuthorityStatus: "fresh" | "stale" = "fresh";
   private onlineReconnectToastTimer: number | null = null;
   private onlineReconnectToastShown: boolean = false;
+  private remoteOnlineApplyChain: Promise<void> = Promise.resolve();
+  private deferTurnToastUntilAfterRender: boolean = false;
+  private pendingDeferredTurnToast: boolean = false;
   private onlineDidShowConnectingToast: boolean = false;
   private onlineDidShowConnectedToast: boolean = false;
   private reportIssueHintShownForRoomId: string | null = null;
@@ -1235,7 +1238,7 @@ export class GameController {
         return;
       }
 
-      this.applyRemoteOnlineState(remote.getState());
+      this.enqueueRemoteOnlineState(remote.getState());
     });
 
     if (startedRealtime) {
@@ -1268,7 +1271,7 @@ export class GameController {
           return;
         }
 
-        this.applyRemoteOnlineState(remote.getState());
+        this.enqueueRemoteOnlineState(remote.getState());
       } catch {
         // Ignore transient network errors; server is best-effort.
       }
@@ -1283,6 +1286,14 @@ export class GameController {
 
   private getEffectiveOnlineTransportStatus(): "connected" | "reconnecting" {
     return this.onlineAuthorityStatus === "stale" ? "reconnecting" : "connected";
+  }
+
+  private enqueueRemoteOnlineState(next: GameState): void {
+    this.remoteOnlineApplyChain = this.remoteOnlineApplyChain
+      .then(() => this.applyRemoteOnlineState(next))
+      .catch(() => {
+        // ignore remote apply errors; later authoritative updates can still recover
+      });
   }
 
   private scheduleOnlineReconnectToast(): void {
@@ -1620,7 +1631,51 @@ export class GameController {
     this.trackedOutgoingDrawOfferNonce = pendingOffer.nonce;
   }
 
-  private applyRemoteOnlineState(next: GameState): void {
+  private async animateRemoteOnlineTransition(prev: GameState, next: GameState): Promise<void> {
+    if (!this.animationsEnabled || this.driver.mode !== "online") return;
+
+    const remote = this.driver as OnlineGameDriver & { controlsColor?: (color: Player) => boolean };
+    const mover = prev.toMove;
+    if (typeof remote.controlsColor === "function" && remote.controlsColor(mover)) return;
+
+    const inferred = this.inferHistoryTransition(prev, next);
+    const lm = next.ui?.lastMove;
+    const from = inferred?.from ?? lm?.from ?? null;
+    const to = inferred?.to ?? lm?.to ?? null;
+    if (!from || !to || from === to) return;
+
+    const movingGroup = this.piecesLayer.querySelector(`g.stack[data-node="${from}"]`) as SVGGElement | null;
+    if (!movingGroup) return;
+
+    const unitHopPx = computeUnitHopPx(this.svg, from);
+    const fromPos = getNodeCenter(this.svg, from);
+    const toPos = getNodeCenter(this.svg, to);
+    let hops = 1;
+    if (unitHopPx && unitHopPx > 0 && fromPos && toPos) {
+      const dist = Math.sqrt((toPos.x - fromPos.x) ** 2 + (toPos.y - fromPos.y) ** 2);
+      hops = Math.max(1, Math.round(dist / unitHopPx));
+    }
+
+    const animMs = Math.min(
+      MAX_PLAYBACK_MOVE_ANIMATION_MS,
+      DEFAULT_PLAYBACK_MOVE_ANIMATION_MS + PLAYBACK_MOVE_ANIMATION_EXTRA_HOP_MS * Math.max(0, hops - 1)
+    );
+
+    const countsLayer = ensureStackCountsLayer(this.svg);
+    const movingCount = countsLayer.querySelector(`g.stackCount[data-node="${from}"]`) as SVGGElement | null;
+    await animateStack(
+      this.svg,
+      this.overlayLayer,
+      from,
+      to,
+      movingGroup,
+      animMs,
+      movingCount ? [movingCount] : [],
+      { easing: "linear", keepCloneAfter: true }
+    );
+  }
+
+  private async applyRemoteOnlineState(next: GameState): Promise<void> {
     const previousState = this.state;
     const previousSelection = this.selected;
     const samePosition =
@@ -1649,8 +1704,16 @@ export class GameController {
     this.currentTurnHasCapture = false;
     this.clearSelection();
 
-    this.setState(next);
-    this.renderAuthoritative();
+    await this.animateRemoteOnlineTransition(previousState, next);
+
+    this.deferTurnToastUntilAfterRender = true;
+    try {
+      this.setState(next);
+      this.renderAuthoritative();
+    } finally {
+      this.deferTurnToastUntilAfterRender = false;
+    }
+    this.flushDeferredTurnToast();
     this.fireHistoryChange("move");
   }
 
@@ -2216,6 +2279,17 @@ export class GameController {
         console.error("[controller] shell snapshot listener error", err);
       }
     }
+  }
+
+  private assignControllerState(next: GameState): void {
+    this.state = next;
+    this.fireShellSnapshotChange();
+  }
+
+  private flushDeferredTurnToast(): void {
+    if (!this.pendingDeferredTurnToast) return;
+    this.pendingDeferredTurnToast = false;
+    this.maybeToastTurnChange();
   }
 
   isOver(): boolean {
@@ -2886,6 +2960,8 @@ export class GameController {
       this.showGameOverToast(msg);
       this.maybeNotifyOnlineDrawOfferResolution(prev, next);
       this.updatePanel();
+      this.pendingDeferredTurnToast = false;
+      this.fireShellSnapshotChange();
       return;
     }
     
@@ -2904,7 +2980,12 @@ export class GameController {
     this.recomputeMandatoryCapture();
     this.updatePanel();
 
-    this.maybeToastTurnChange();
+    if (this.deferTurnToastUntilAfterRender) {
+      this.pendingDeferredTurnToast = true;
+    } else {
+      this.maybeToastTurnChange();
+    }
+    this.fireShellSnapshotChange();
   }
 
   private syncCheckersUsDrawOffers(): void {
@@ -4545,7 +4626,7 @@ export class GameController {
       if (this.driver.mode === "online") {
         try {
           await (this.driver as OnlineGameDriver).fetchLatest();
-          this.state = this.driver.getState();
+          this.assignControllerState(this.driver.getState());
           this.lockedCaptureFrom = null;
           this.lockedCaptureDir = null;
           this.jumpedSquares.clear();
@@ -4587,7 +4668,7 @@ export class GameController {
     if (next.didPromote) this.playSfx("promote");
 
     const prevForAnim = this.state;
-    this.state = next;
+    this.assignControllerState(next);
     
     // Animate the move before rendering (both quiet moves and captures)
     if (this.animationsEnabled) {
@@ -4767,19 +4848,19 @@ export class GameController {
           // Dama promotes only at the end of the sequence; if we ever get here,
           // still finalize the chain correctly.
           if (this.driver.mode === "online") {
-            this.state = await (this.driver as OnlineGameDriver).finalizeCaptureChainRemote({
+            this.assignControllerState(await (this.driver as OnlineGameDriver).finalizeCaptureChainRemote({
               rulesetId: "dama",
               state: this.state,
               landing: move.to,
               jumpedSquares: this.jumpedSquares,
-            });
+            }));
           } else {
-            this.state = this.driver.finalizeCaptureChain({
+            this.assignControllerState(this.driver.finalizeCaptureChain({
               rulesetId: "dama",
               state: this.state,
               landing: move.to,
               jumpedSquares: this.jumpedSquares,
-            });
+            }));
           }
         } else if (isDamasca) {
           // Damasca should not promote mid-chain, but finalize defensively.
@@ -4787,17 +4868,17 @@ export class GameController {
             | "damasca"
             | "damasca_classic";
           if (this.driver.mode === "online") {
-            this.state = await (this.driver as OnlineGameDriver).finalizeCaptureChainRemote({
+            this.assignControllerState(await (this.driver as OnlineGameDriver).finalizeCaptureChainRemote({
               rulesetId: damascaRulesetId,
               state: this.state,
               landing: move.to,
-            });
+            }));
           } else {
-            this.state = this.driver.finalizeCaptureChain({
+            this.assignControllerState(this.driver.finalizeCaptureChain({
               rulesetId: damascaRulesetId,
               state: this.state,
               landing: move.to,
-            });
+            }));
           }
         }
         // Switch turn now
@@ -4806,14 +4887,14 @@ export class GameController {
           const boardSize = this.state.meta?.boardSize ?? 7;
           const notation = this.currentTurnNodes.map((id) => this.nodeIdToA1ForView(id, boardSize)).join(separator);
           try {
-            this.state = await (this.driver as OnlineGameDriver).endTurnRemote(notation);
+            this.assignControllerState(await (this.driver as OnlineGameDriver).endTurnRemote(notation));
           } catch (err) {
             const msg = err instanceof Error ? err.message : "End turn failed";
             this.showBanner(msg, 2500);
             return;
           }
         } else {
-          this.state = endTurn(this.state);
+          this.assignControllerState(endTurn(this.state));
         }
 
         // In Dama, finalization may remove jumped pieces and/or promote.
@@ -4883,36 +4964,36 @@ export class GameController {
       // No more captures, switch turn and end
       if (isDama) {
         if (this.driver.mode === "online") {
-          this.state = await (this.driver as OnlineGameDriver).finalizeCaptureChainRemote({
+          this.assignControllerState(await (this.driver as OnlineGameDriver).finalizeCaptureChainRemote({
             rulesetId: "dama",
             state: this.state,
             landing: move.to,
             jumpedSquares: this.jumpedSquares,
-          });
+          }));
         } else {
-          this.state = this.driver.finalizeCaptureChain({
+          this.assignControllerState(this.driver.finalizeCaptureChain({
             rulesetId: "dama",
             state: this.state,
             landing: move.to,
             jumpedSquares: this.jumpedSquares,
-          });
+          }));
         }
       } else if (isDamasca) {
         const damascaRulesetId = (rulesetId === "damasca_classic" ? "damasca_classic" : "damasca") as
           | "damasca"
           | "damasca_classic";
         if (this.driver.mode === "online") {
-          this.state = await (this.driver as OnlineGameDriver).finalizeCaptureChainRemote({
+          this.assignControllerState(await (this.driver as OnlineGameDriver).finalizeCaptureChainRemote({
             rulesetId: damascaRulesetId,
             state: this.state,
             landing: move.to,
-          });
+          }));
         } else {
-          this.state = this.driver.finalizeCaptureChain({
+          this.assignControllerState(this.driver.finalizeCaptureChain({
             rulesetId: damascaRulesetId,
             state: this.state,
             landing: move.to,
-          });
+          }));
         }
       }
       if (this.driver.mode === "online") {
@@ -4920,14 +5001,14 @@ export class GameController {
         const boardSize = this.state.meta?.boardSize ?? 7;
         const notation = this.currentTurnNodes.map((id) => this.nodeIdToA1ForView(id, boardSize)).join(separator);
         try {
-          this.state = await (this.driver as OnlineGameDriver).endTurnRemote(notation);
+          this.assignControllerState(await (this.driver as OnlineGameDriver).endTurnRemote(notation));
         } catch (err) {
           const msg = err instanceof Error ? err.message : "End turn failed";
           this.showBanner(msg, 2500);
           return;
         }
       } else {
-        this.state = endTurn(this.state);
+        this.assignControllerState(endTurn(this.state));
       }
 
       // Dama may promote during finalization even in immediate-removal mode.
@@ -5149,7 +5230,7 @@ export class GameController {
         if (top && top.owner !== this.state.toMove) {
           // Quietly switch the active side so the whole move (selection → apply) is
           // consistent without touching the sandboxed analysis history.
-          this.state = { ...this.state, toMove: top.owner };
+          this.assignControllerState({ ...this.state, toMove: top.owner });
           this.updatePanel();
         }
       }

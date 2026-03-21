@@ -1218,6 +1218,92 @@ describe("GameController online transport toasts", () => {
     expect((controller as any).selected).toBe("r1c1");
     expect(((controller as any).currentTargets as string[]).length).toBeGreaterThan(0);
   });
+
+  it("animates an opponent move when an authoritative online update arrives", async () => {
+    const state: GameState = {
+      board: new Map([
+        ["r0c4", [{ owner: "B", rank: "K" }]],
+        ["r7c4", [{ owner: "W", rank: "K" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+    const history = new HistoryManager();
+    history.push(state);
+    const driver = new FakeOnlineTransportDriver(state);
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history, driver as any);
+    const animateRemoteOnlineTransition = vi
+      .spyOn(controller as any, "animateRemoteOnlineTransition")
+      .mockResolvedValue(undefined);
+    controller.bind();
+
+    driver.setState({
+      board: new Map([
+        ["r1c4", [{ owner: "B", rank: "K" }]],
+        ["r7c4", [{ owner: "W", rank: "K" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+    });
+    driver.triggerRealtimeUpdate();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(animateRemoteOnlineTransition).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the online turn toast only after the opponent move render completes", async () => {
+    const state: GameState = {
+      board: new Map([
+        ["r0c4", [{ owner: "B", rank: "K" }]],
+        ["r7c4", [{ owner: "W", rank: "K" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+      meta: {
+        variantId: "chess_classic" as any,
+        rulesetId: "chess" as any,
+        boardSize: 8 as any,
+      },
+    };
+    const history = new HistoryManager();
+    history.push(state);
+    const driver = new FakeOnlineTransportDriver(state);
+    let releaseAnimation: (() => void) | null = null;
+    const animationGate = new Promise<void>((resolve) => {
+      releaseAnimation = resolve;
+    });
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history, driver as any);
+    vi.spyOn(controller as any, "animateRemoteOnlineTransition").mockImplementation(() => animationGate);
+    const showToast = vi.spyOn(controller as any, "showToast");
+    controller.bind();
+    (controller as any).onlineDidShowConnectedToast = true;
+    showToast.mockClear();
+    document.querySelector(".lascaToast")?.remove();
+
+    driver.setState({
+      board: new Map([
+        ["r1c4", [{ owner: "B", rank: "K" }]],
+        ["r7c4", [{ owner: "W", rank: "K" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+      meta: state.meta,
+    });
+    driver.triggerRealtimeUpdate();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(showToast).not.toHaveBeenCalled();
+
+    releaseAnimation?.();
+    await (controller as any).remoteOnlineApplyChain;
+
+    expect(showToast).toHaveBeenCalled();
+    expect(showToast.mock.calls.at(-1)?.[0]).toBe("White to Play");
+  });
 });
 
 describe("GameController online debug copy", () => {
@@ -1341,6 +1427,51 @@ describe("GameController local shell identities", () => {
     expect(snapshot.players.W.displayName).toBe("White");
     expect(snapshot.players.B.displayName).toBe("Black");
     expect(onShellSnapshotChange).toHaveBeenCalledTimes(2);
+  });
+
+  it("fires a shell snapshot update when a move flips the turn", async () => {
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r1c1", [{ owner: "W", rank: "P" }]],
+        ["r6c6", [{ owner: "B", rank: "P" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+      meta: {
+        variantId: "chess_classic" as any,
+        rulesetId: "chess" as any,
+        boardSize: 8 as any,
+      },
+    };
+    history.push(state);
+
+    const nextState: GameState = {
+      board: new Map([
+        ["r2c1", [{ owner: "W", rank: "P" }]],
+        ["r6c6", [{ owner: "B", rank: "P" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+      meta: state.meta,
+    };
+
+    const driver = {
+      mode: "local" as const,
+      submitMove: vi.fn(async () => nextState),
+      pushHistory: vi.fn(),
+      setState: vi.fn(),
+    };
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history, driver as any);
+    const onShellSnapshotChange = vi.fn();
+    controller.addShellSnapshotChangeCallback(onShellSnapshotChange);
+
+    await (controller as any).applyChosenMove({ kind: "move", from: "r1c1", to: "r2c1" });
+
+    const snapshot = controller.getState();
+    expect(snapshot.toMove).toBe("B");
+    expect(onShellSnapshotChange).toHaveBeenCalled();
   });
 });
 

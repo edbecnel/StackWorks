@@ -378,6 +378,101 @@ describe("initGameShell desktop shell navigation", () => {
     expect(metaChips).toContain("Bot");
   });
 
+  it("updates the active-turn chip when the shell snapshot flips turns", async () => {
+    document.body.innerHTML = `
+      <div id="host">
+        <div id="appRoot">
+          <div id="leftSidebar" class="sidebar"><div class="sidebarBody"></div></div>
+          <div id="centerArea">
+            <div id="boardWrap">
+              <svg viewBox="0 0 1000 1000"></svg>
+            </div>
+          </div>
+          <div id="rightSidebar" class="sidebar"><div class="sidebarBody"></div></div>
+        </div>
+      </div>
+    `;
+
+    const snapshot: PlayerShellSnapshot = {
+      mode: "online",
+      transportStatus: "connected",
+      serverUrl: "http://localhost:8788",
+      viewerColor: "W",
+      viewerRole: "player",
+      players: {
+        W: {
+          color: "W",
+          displayName: "White",
+          sideLabel: "White",
+          roleLabel: "You · White",
+          detailText: "Your turn.",
+          status: "connected",
+          statusText: "Connected",
+          isLocal: true,
+          isActiveTurn: true,
+        },
+        B: {
+          color: "B",
+          displayName: "Black",
+          sideLabel: "Black",
+          roleLabel: "Opponent · Black",
+          detailText: "Watching for the next move.",
+          status: "connected",
+          statusText: "Connected",
+          isLocal: false,
+          isActiveTurn: false,
+        },
+      },
+    };
+
+    let onHistoryChange: (() => void) | null = null;
+    const controller = {
+      getPlayerShellSnapshot: () => snapshot,
+      addHistoryChangeCallback: vi.fn((cb: () => void) => {
+        onHistoryChange = cb;
+      }),
+      addShellSnapshotChangeCallback: vi.fn(),
+      addAnalysisModeChangeCallback: vi.fn(),
+    };
+
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+    const shell = initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Turn chip sync test",
+      gameSection: GameSection.Play,
+      navItems: [],
+    });
+
+    shell.bindController(controller as any);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const getPanelByName = (displayName: string): HTMLElement => {
+      const panel = Array.from(document.querySelectorAll(".gameShellPlayerPanel")).find((el) =>
+        (el.querySelector(".gameShellPlayerName")?.textContent ?? "").trim() === displayName,
+      ) as HTMLElement | undefined;
+      expect(panel).toBeDefined();
+      return panel as HTMLElement;
+    };
+
+    const whitePanel = getPanelByName("White");
+    const blackPanel = getPanelByName("Black");
+    const getActiveChip = (panel: HTMLElement): HTMLElement => panel.querySelectorAll(".gameShellPlayerMetaChip")[2] as HTMLElement;
+
+    expect(getActiveChip(whitePanel).hidden).toBe(false);
+    expect(getActiveChip(blackPanel).hidden).toBe(true);
+
+    snapshot.players.W = { ...snapshot.players.W, isActiveTurn: false, detailText: "Waiting for the opponent move." };
+    snapshot.players.B = { ...snapshot.players.B, isActiveTurn: true, detailText: "Opponent to move." };
+    onHistoryChange?.();
+
+    expect(getActiveChip(whitePanel).hidden).toBe(true);
+    expect(getActiveChip(blackPanel).hidden).toBe(false);
+  });
+
   it("keeps the local human side tagged as You even without a signed-in profile", async () => {
     document.body.innerHTML = `
       <div id="host">
