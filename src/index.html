@@ -645,6 +645,98 @@
         color: rgba(255, 255, 255, 0.62);
       }
 
+      .lobbyRoomTrigger {
+        cursor: pointer;
+      }
+
+      .lobbyRoomTrigger:focus-visible {
+        outline: 2px solid rgba(127, 178, 255, 0.85);
+        outline-offset: 2px;
+        border-radius: 8px;
+      }
+
+      .lobbyIdentityChip.lobbyRoomTrigger:hover,
+      .lobbyIdentityChip.lobbyRoomTrigger:focus-visible {
+        background: rgba(255, 255, 255, 0.09);
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+
+      .lobbyRoomDialog {
+        width: min(92vw, 560px);
+        margin: auto;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 16px;
+        padding: 0;
+        background: rgba(18, 18, 18, 0.97);
+        color: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.42);
+      }
+
+      .lobbyRoomDialog::backdrop {
+        background: rgba(0, 0, 0, 0.58);
+        backdrop-filter: blur(3px);
+      }
+
+      .lobbyRoomDialogBody {
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .lobbyRoomDialogHeader {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .lobbyRoomDialogTitle {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 800;
+      }
+
+      .lobbyRoomDialogSub {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.68);
+      }
+
+      .lobbyRoomDialogGrid {
+        display: grid;
+        grid-template-columns: minmax(92px, max-content) minmax(0, 1fr);
+        gap: 8px 12px;
+        align-items: start;
+        font-size: 12px;
+      }
+
+      .lobbyRoomDialogLabel {
+        color: rgba(255, 255, 255, 0.62);
+      }
+
+      .lobbyRoomDialogValue {
+        min-width: 0;
+        color: rgba(255, 255, 255, 0.9);
+        overflow-wrap: anywhere;
+      }
+
+      .lobbyRoomDialogActions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      @media (max-width: 520px) {
+        .lobbyRoomDialogActions {
+          flex-direction: column-reverse;
+          align-items: stretch;
+        }
+
+        .lobbyRoomDialogActions .panelBtn {
+          width: 100%;
+        }
+      }
+
       .accountStatus {
         font-size: 11px;
         color: rgba(255, 255, 255, 0.7);
@@ -1259,6 +1351,55 @@
           </div>
           <div id="launchLobbyList" class="lobbyList"></div>
         </details>
+
+        <dialog
+          id="launchLobbyRoomDialog"
+          class="lobbyRoomDialog"
+          aria-labelledby="launchLobbyRoomDialogTitle"
+        >
+          <div class="lobbyRoomDialogBody">
+            <div class="lobbyRoomDialogHeader">
+              <h3 id="launchLobbyRoomDialogTitle" class="lobbyRoomDialogTitle">
+                Room details
+              </h3>
+              <div
+                id="launchLobbyRoomDialogSubtitle"
+                class="lobbyRoomDialogSub"
+              >
+                —
+              </div>
+            </div>
+
+            <div
+              id="launchLobbyRoomDialogDetails"
+              class="lobbyRoomDialogGrid"
+            ></div>
+
+            <div class="lobbyRoomDialogActions">
+              <button
+                id="launchLobbyRoomDialogClose"
+                class="panelBtn"
+                type="button"
+              >
+                Close
+              </button>
+              <button
+                id="launchLobbyRoomDialogSpectate"
+                class="panelBtn"
+                type="button"
+              >
+                Spectate
+              </button>
+              <button
+                id="launchLobbyRoomDialogPrimary"
+                class="panelBtn"
+                type="button"
+              >
+                Join
+              </button>
+            </div>
+          </div>
+        </dialog>
 
         <details
           class="panelSection"

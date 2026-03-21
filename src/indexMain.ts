@@ -596,6 +596,13 @@ window.addEventListener("DOMContentLoaded", () => {
   const elLobbyRefresh = (document.getElementById("launchLobbyRefresh") as HTMLButtonElement | null) ?? null;
   const elLobbyList = (document.getElementById("launchLobbyList") as HTMLElement | null) ?? null;
   const elLobbyMineOnly = (document.getElementById("launchLobbyMineOnly") as HTMLInputElement | null) ?? null;
+  const elLobbyRoomDialog = (document.getElementById("launchLobbyRoomDialog") as HTMLDialogElement | null) ?? null;
+  const elLobbyRoomDialogTitle = (document.getElementById("launchLobbyRoomDialogTitle") as HTMLElement | null) ?? null;
+  const elLobbyRoomDialogSubtitle = (document.getElementById("launchLobbyRoomDialogSubtitle") as HTMLElement | null) ?? null;
+  const elLobbyRoomDialogDetails = (document.getElementById("launchLobbyRoomDialogDetails") as HTMLElement | null) ?? null;
+  const elLobbyRoomDialogPrimary = (document.getElementById("launchLobbyRoomDialogPrimary") as HTMLButtonElement | null) ?? null;
+  const elLobbyRoomDialogSpectate = (document.getElementById("launchLobbyRoomDialogSpectate") as HTMLButtonElement | null) ?? null;
+  const elLobbyRoomDialogClose = (document.getElementById("launchLobbyRoomDialogClose") as HTMLButtonElement | null) ?? null;
 
   const elAccountSection = (document.getElementById("launchAccountSection") as HTMLElement | null) ?? null;
   const elAccountStatus = (document.getElementById("launchAccountStatus") as HTMLElement | null) ?? null;
@@ -684,6 +691,161 @@ window.addEventListener("DOMContentLoaded", () => {
   const setLobbyStatus = (text: string): void => {
     if (!elLobbyStatus) return;
     elLobbyStatus.textContent = (text || "").trim() || "—";
+  };
+
+  const setLobbyRoomDialogOpen = (open: boolean): void => {
+    if (!elLobbyRoomDialog) return;
+    if (open) {
+      if (!elLobbyRoomDialog.open) {
+        if (typeof elLobbyRoomDialog.showModal === "function") elLobbyRoomDialog.showModal();
+        else elLobbyRoomDialog.setAttribute("open", "");
+      }
+      return;
+    }
+    if (elLobbyRoomDialog.open) {
+      if (typeof elLobbyRoomDialog.close === "function") elLobbyRoomDialog.close();
+      else elLobbyRoomDialog.removeAttribute("open");
+    }
+  };
+
+  const clearLobbyRoomDialogDetails = (): void => {
+    if (!elLobbyRoomDialogDetails) return;
+    elLobbyRoomDialogDetails.textContent = "";
+  };
+
+  const appendLobbyRoomDialogDetail = (label: string, value: string): void => {
+    if (!elLobbyRoomDialogDetails) return;
+    const nextValue = (value || "").trim();
+    if (!nextValue) return;
+
+    const dt = document.createElement("div");
+    dt.className = "lobbyRoomDialogLabel";
+    dt.textContent = label;
+
+    const dd = document.createElement("div");
+    dd.className = "lobbyRoomDialogValue";
+    dd.textContent = nextValue;
+
+    elLobbyRoomDialogDetails.append(dt, dd);
+  };
+
+  const bindLobbyRoomTrigger = (el: HTMLElement | null, onActivate: () => void): void => {
+    if (!el) return;
+    el.classList.add("lobbyRoomTrigger");
+    el.tabIndex = 0;
+    el.setAttribute("role", "button");
+    if (!el.title) el.title = "Open room details";
+    el.addEventListener("click", () => onActivate());
+    el.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      onActivate();
+    });
+  };
+
+  const showLobbyRoomDialog = (r: LobbyRoomSummary, serverUrl: string): void => {
+    const variant = getVariantById(r.variantId);
+    const labels = getSideLabelsForRuleset(variant.rulesetId, { boardSize: variant.boardSize });
+    const createdAtMs = typeof r.createdAt === "string" ? Date.parse(r.createdAt) : NaN;
+    const age = Number.isFinite(createdAtMs) ? formatAgeShort(Date.now() - createdAtMs) : "";
+    const status =
+      r.status === "game_over"
+        ? "Game over"
+        : r.status === "in_game"
+          ? "In game"
+          : r.status === "waiting"
+            ? "Waiting"
+            : "Unknown";
+    const statusReason = typeof r.statusReason === "string" ? r.statusReason.trim() : "";
+    const hostDisplayName = typeof (r as any)?.hostDisplayName === "string" ? String((r as any).hostDisplayName).trim() : "";
+    const byColor = r.displayNameByColor as Partial<Record<PlayerColor, string>> | undefined;
+    const lightName = typeof byColor?.W === "string" ? byColor.W.trim() : "";
+    const darkName = typeof byColor?.B === "string" ? byColor.B.trim() : "";
+    const players = `${labels.W}: ${lightName || "—"} · ${labels.B}: ${darkName || "—"}`;
+    const openSeats = r.seatsOpen.length ? r.seatsOpen.join("/") : "—";
+    const takenSeats = r.seatsTaken.length ? r.seatsTaken.join("/") : "—";
+    const resume = serverUrl ? readOnlineResumeRecord(serverUrl, r.roomId) : null;
+    const canRejoin = Boolean(resume);
+    const isGameOver = r.status === "game_over";
+    const canJoin = !canRejoin && !isGameOver && r.seatsOpen.length > 0;
+    const canSpectate = r.visibility !== "private";
+    const fallbackVariantId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
+
+    if (elLobbyRoomDialogTitle) elLobbyRoomDialogTitle.textContent = variant.displayName;
+    if (elLobbyRoomDialogSubtitle) {
+      elLobbyRoomDialogSubtitle.textContent = `Room ${r.roomId}`;
+      elLobbyRoomDialogSubtitle.title = `Room ${r.roomId}`;
+    }
+
+    clearLobbyRoomDialogDetails();
+    appendLobbyRoomDialogDetail("Room ID", r.roomId);
+    appendLobbyRoomDialogDetail("Status", status);
+    appendLobbyRoomDialogDetail("Message", statusReason || "—");
+    appendLobbyRoomDialogDetail("Age", age || "—");
+    appendLobbyRoomDialogDetail("Visibility", r.visibility === "public" ? "Public" : "Private");
+    appendLobbyRoomDialogDetail("Open", openSeats);
+    appendLobbyRoomDialogDetail("Taken", takenSeats);
+    appendLobbyRoomDialogDetail("Players", players);
+    appendLobbyRoomDialogDetail("Host", hostDisplayName || "—");
+    if (r.timeControl?.mode === "clock") {
+      appendLobbyRoomDialogDetail(
+        "Clock",
+        `${r.timeControl.initialMs} ms + ${typeof r.timeControl.incrementMs === "number" ? r.timeControl.incrementMs : 0} ms`
+      );
+    } else if (r.timeControl?.mode === "none") {
+      appendLobbyRoomDialogDetail("Clock", "None");
+    }
+
+    if (elLobbyRoomDialogPrimary) {
+      elLobbyRoomDialogPrimary.textContent = canRejoin ? "Rejoin" : "Join";
+      elLobbyRoomDialogPrimary.disabled = !canRejoin && !canJoin;
+      elLobbyRoomDialogPrimary.title = canRejoin
+        ? "Rejoin this room using the saved seat in this browser."
+        : isGameOver
+          ? (statusReason || "This game has ended.")
+          : r.seatsOpen.length === 0
+            ? "No seats are currently open in this room."
+            : "Join this room as a player.";
+      elLobbyRoomDialogPrimary.onclick = () => {
+        if (!canRejoin && !canJoin) return;
+        setLobbyRoomDialogOpen(false);
+        elPlayMode.value = "online";
+        localStorage.setItem(LS_KEYS.playMode, "online");
+        persistStartPageLaunchPrefs();
+        void launchOnline({
+          action: canRejoin ? "rejoin" : "join",
+          serverUrl,
+          roomId: r.roomId,
+          fallbackVariantId,
+        });
+      };
+    }
+
+    if (elLobbyRoomDialogSpectate) {
+      elLobbyRoomDialogSpectate.disabled = !canSpectate;
+      elLobbyRoomDialogSpectate.title = canSpectate
+        ? "Spectate this room."
+        : "Private rooms require a secret watch link/token to spectate.";
+      elLobbyRoomDialogSpectate.onclick = () => {
+        if (!canSpectate) return;
+        setLobbyRoomDialogOpen(false);
+        elPlayMode.value = "online";
+        localStorage.setItem(LS_KEYS.playMode, "online");
+        persistStartPageLaunchPrefs();
+        void launchOnline({
+          action: "spectate",
+          serverUrl,
+          roomId: r.roomId,
+          fallbackVariantId,
+        });
+      };
+    }
+
+    if (elLobbyRoomDialogClose) {
+      elLobbyRoomDialogClose.onclick = () => setLobbyRoomDialogOpen(false);
+    }
+
+    setLobbyRoomDialogOpen(true);
   };
 
   const setAccountStatus = (text: string, opts?: { isError?: boolean }): void => {
@@ -1826,6 +1988,11 @@ window.addEventListener("DOMContentLoaded", () => {
       if (hasIdentityRow) left.appendChild(identityRow);
       left.appendChild(sub);
 
+      bindLobbyRoomTrigger(title, () => showLobbyRoomDialog(r, serverUrl));
+      bindLobbyRoomTrigger(sub, () => showLobbyRoomDialog(r, serverUrl));
+      if (whiteChip) bindLobbyRoomTrigger(whiteChip, () => showLobbyRoomDialog(r, serverUrl));
+      if (blackChip) bindLobbyRoomTrigger(blackChip, () => showLobbyRoomDialog(r, serverUrl));
+
       const right = document.createElement("div");
       right.style.display = "flex";
       right.style.gap = "8px";
@@ -1896,6 +2063,10 @@ window.addEventListener("DOMContentLoaded", () => {
   let lobbyLastKey = "";
   let lobbyLastRooms: LobbyRoomSummary[] = [];
   let lobbyLastServerUrl = "";
+
+  elLobbyRoomDialog?.addEventListener("click", (event) => {
+    if (event.target === elLobbyRoomDialog) setLobbyRoomDialogOpen(false);
+  });
 
   const fetchLobby = async (): Promise<void> => {
     if (!elLobbySection || !elLobbySection.offsetParent) return; // hidden
