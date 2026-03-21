@@ -544,6 +544,20 @@
         text-overflow: ellipsis;
       }
 
+      @media (hover: none), (pointer: coarse), (max-width: 720px) {
+        .lobbyItem {
+          align-items: flex-start;
+        }
+
+        .lobbyItemSub {
+          white-space: normal;
+          overflow: visible;
+          text-overflow: clip;
+          overflow-wrap: anywhere;
+          line-height: 1.35;
+        }
+      }
+
       .lobbyIdentityRow {
         display: flex;
         flex-wrap: wrap;

@@ -1773,6 +1773,7 @@ window.addEventListener("DOMContentLoaded", () => {
       rid.className = "mono";
       rid.textContent = r.roomId;
       title.appendChild(rid);
+      title.title = title.textContent;
 
       const status =
         r.status === "game_over"
@@ -1819,6 +1820,7 @@ window.addEventListener("DOMContentLoaded", () => {
       sub.textContent = [status, statusReason, age, host, open, taken, players, r.visibility === "public" ? "Public" : "Private"]
         .filter(Boolean)
         .join(" · ");
+      if (sub.textContent) sub.title = sub.textContent;
 
       left.appendChild(title);
       if (hasIdentityRow) left.appendChild(identityRow);
