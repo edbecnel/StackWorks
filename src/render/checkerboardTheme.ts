@@ -11,6 +11,8 @@ export type CheckerboardThemeDef = {
   edgeFill?: string;
   edgeOpacity?: string;
   squareStroke?: string;
+  lightSquareStroke?: string;
+  darkSquareStroke?: string;
   squareStrokeOpacity?: string;
   squareStrokeWidth?: string;
 };
@@ -70,16 +72,17 @@ export const CHECKERBOARD_THEMES: readonly CheckerboardThemeDef[] = [
   {
     id: "candy",
     label: "Candy",
-    light: "#efe8ff",
-    dark: "#ea9689",
+    light: "#f5efff",
+    dark: "#f4b199",
     bg: "#cf6d84",
     frameStroke: "#8c6ddb",
     frameStrokeOpacity: "0.85",
     edgeFill: "#5c45b8",
     edgeOpacity: "0.92",
-    squareStroke: "#c8b5ff",
+    lightSquareStroke: "#d7c9ff",
+    darkSquareStroke: "#c96d3d",
     squareStrokeOpacity: "0.92",
-    squareStrokeWidth: "8",
+    squareStrokeWidth: "4",
   },
 ] as const;
 
@@ -433,6 +436,38 @@ function getSquaresViewBox(svgRoot: SVGSVGElement): { x: number; y: number; w: n
   try {
     const squares = svgRoot.querySelector("#squares") as SVGGElement | null;
     if (squares) {
+      const rects = Array.from(squares.querySelectorAll("rect"));
+      let minX = Number.POSITIVE_INFINITY;
+      let minY = Number.POSITIVE_INFINITY;
+      let maxX = Number.NEGATIVE_INFINITY;
+      let maxY = Number.NEGATIVE_INFINITY;
+
+      for (const rect of rects) {
+        const xAttr = rect.getAttribute("data-checkerboard-orig-x") ?? rect.getAttribute("x");
+        const yAttr = rect.getAttribute("data-checkerboard-orig-y") ?? rect.getAttribute("y");
+        const widthAttr = rect.getAttribute("data-checkerboard-orig-width") ?? rect.getAttribute("width");
+        const heightAttr = rect.getAttribute("data-checkerboard-orig-height") ?? rect.getAttribute("height");
+
+        const x = parseNum(xAttr);
+        const y = parseNum(yAttr);
+        const width = parseNum(widthAttr);
+        const height = parseNum(heightAttr);
+        if (x == null || y == null || width == null || height == null) continue;
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(width) || !Number.isFinite(height)) continue;
+        if (width <= 0 || height <= 0) continue;
+
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x + width);
+        maxY = Math.max(maxY, y + height);
+      }
+
+      if (Number.isFinite(minX) && Number.isFinite(minY) && Number.isFinite(maxX) && Number.isFinite(maxY)) {
+        const w = maxX - minX;
+        const h = maxY - minY;
+        if (w > 0 && h > 0) return { x: minX, y: minY, w, h };
+      }
+
       const bb = squares.getBBox();
       if (Number.isFinite(bb.x) && Number.isFinite(bb.y) && Number.isFinite(bb.width) && Number.isFinite(bb.height)) {
         if (bb.width > 0 && bb.height > 0) return { x: bb.x, y: bb.y, w: bb.width, h: bb.height };
@@ -639,6 +674,35 @@ function ensureSvgDefs(svgRoot: SVGSVGElement): SVGDefsElement {
   // Insert early for predictable url(#id) resolution.
   svgRoot.insertBefore(defs, svgRoot.firstChild);
   return defs;
+}
+
+function ensureCheckerboardTileClip(
+  svgRoot: SVGSVGElement,
+  clipId: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): void {
+  const defs = ensureSvgDefs(svgRoot);
+  let clipPath = defs.querySelector(`#${clipId}`) as SVGClipPathElement | null;
+  if (!clipPath) {
+    clipPath = document.createElementNS(SVG_NS, "clipPath") as SVGClipPathElement;
+    clipPath.setAttribute("id", clipId);
+    clipPath.setAttribute("clipPathUnits", "userSpaceOnUse");
+    defs.appendChild(clipPath);
+  }
+
+  let rect = clipPath.querySelector("rect") as SVGRectElement | null;
+  if (!rect) {
+    rect = document.createElementNS(SVG_NS, "rect") as SVGRectElement;
+    clipPath.appendChild(rect);
+  }
+
+  rect.setAttribute("x", String(x));
+  rect.setAttribute("y", String(y));
+  rect.setAttribute("width", String(width));
+  rect.setAttribute("height", String(height));
 }
 
 function ensureStoneCheckerboardDefs(svgRoot: SVGSVGElement): void {
@@ -920,9 +984,29 @@ export function applyCheckerboardTheme(svgRoot: SVGSVGElement, themeId: Checkerb
   }
 
   for (const rect of rects) {
-    const x = parseNum(rect.getAttribute("x"));
-    const y = parseNum(rect.getAttribute("y"));
-    if (x == null || y == null) continue;
+    const originalXAttr = rect.getAttribute("data-checkerboard-orig-x") ?? rect.getAttribute("x");
+    const originalYAttr = rect.getAttribute("data-checkerboard-orig-y") ?? rect.getAttribute("y");
+    const originalWidthAttr = rect.getAttribute("data-checkerboard-orig-width") ?? rect.getAttribute("width");
+    const originalHeightAttr = rect.getAttribute("data-checkerboard-orig-height") ?? rect.getAttribute("height");
+
+    if (!rect.hasAttribute("data-checkerboard-orig-x") && rect.hasAttribute("x")) {
+      rect.setAttribute("data-checkerboard-orig-x", rect.getAttribute("x") ?? "");
+    }
+    if (!rect.hasAttribute("data-checkerboard-orig-y") && rect.hasAttribute("y")) {
+      rect.setAttribute("data-checkerboard-orig-y", rect.getAttribute("y") ?? "");
+    }
+    if (!rect.hasAttribute("data-checkerboard-orig-width") && rect.hasAttribute("width")) {
+      rect.setAttribute("data-checkerboard-orig-width", rect.getAttribute("width") ?? "");
+    }
+    if (!rect.hasAttribute("data-checkerboard-orig-height") && rect.hasAttribute("height")) {
+      rect.setAttribute("data-checkerboard-orig-height", rect.getAttribute("height") ?? "");
+    }
+
+    const x = parseNum(originalXAttr);
+    const y = parseNum(originalYAttr);
+    const width = parseNum(originalWidthAttr);
+    const height = parseNum(originalHeightAttr);
+    if (x == null || y == null || width == null || height == null) continue;
 
     const col = Math.round((x - start) / step);
     const row = Math.round((y - start) / step);
@@ -1030,9 +1114,28 @@ export function applyCheckerboardTheme(svgRoot: SVGSVGElement, themeId: Checkerb
       }
     }
 
-    if (theme.squareStroke) {
-      rect.setAttribute("stroke", theme.squareStroke);
-      rect.style.setProperty("stroke", theme.squareStroke, "important");
+    const squareStroke = isLight ? (theme.lightSquareStroke ?? theme.squareStroke) : (theme.darkSquareStroke ?? theme.squareStroke);
+    const strokeWidth = theme.squareStrokeWidth ? Number.parseFloat(theme.squareStrokeWidth) : null;
+    const useInsetSquareBorder = themeId === "candy" && squareStroke && strokeWidth != null && Number.isFinite(strokeWidth) && strokeWidth > 0;
+
+    rect.setAttribute("x", String(x));
+    rect.setAttribute("y", String(y));
+    rect.setAttribute("width", String(width));
+    rect.setAttribute("height", String(height));
+
+    if (useInsetSquareBorder) {
+      const clipId = `checkerboardTileClip_r${row}c${col}`;
+      ensureCheckerboardTileClip(svgRoot, clipId, x, y, width, height);
+      rect.setAttribute("clip-path", `url(#${clipId})`);
+      rect.style.setProperty("clip-path", `url(#${clipId})`, "important");
+    } else {
+      rect.removeAttribute("clip-path");
+      rect.style.removeProperty("clip-path");
+    }
+
+    if (squareStroke) {
+      rect.setAttribute("stroke", squareStroke);
+      rect.style.setProperty("stroke", squareStroke, "important");
     } else {
       rect.removeAttribute("stroke");
       rect.style.removeProperty("stroke");
@@ -1047,8 +1150,9 @@ export function applyCheckerboardTheme(svgRoot: SVGSVGElement, themeId: Checkerb
     }
 
     if (theme.squareStrokeWidth) {
-      rect.setAttribute("stroke-width", theme.squareStrokeWidth);
-      rect.style.setProperty("stroke-width", theme.squareStrokeWidth, "important");
+      const appliedStrokeWidth = useInsetSquareBorder && strokeWidth != null ? String(strokeWidth * 2) : theme.squareStrokeWidth;
+      rect.setAttribute("stroke-width", appliedStrokeWidth);
+      rect.style.setProperty("stroke-width", appliedStrokeWidth, "important");
     } else {
       rect.removeAttribute("stroke-width");
       rect.style.removeProperty("stroke-width");

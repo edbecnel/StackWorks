@@ -436,12 +436,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const themeDropdown = document.getElementById("themeDropdown") as HTMLElement | null;
   const themeManager = createThemeManager(svg, isCheckers ? { themeStorageKey: LS_CHECKERS_KEYS.theme } : undefined);
-  await themeManager.bindThemeDropdown(themeDropdown);
-  syncPairedTheme(themeManager.getCurrentThemeId());
-  svg.addEventListener(THEME_CHANGE_EVENT, (event) => {
-    const themeId = event instanceof CustomEvent && typeof event.detail?.themeId === "string"
-      ? event.detail.themeId
-      : themeManager.getCurrentThemeId();
+  await themeManager.bindThemeDropdown(themeDropdown, async (themeId) => {
     syncPairedTheme(themeId);
   });
 

@@ -8,13 +8,21 @@ export type ShellColumnsThemeValue = "columns_classic" | "raster2d" | "raster3d"
 
 export function getPairedCheckerboardTheme(themeId: string | null | undefined): CheckerboardThemeId | null {
   switch (String(themeId ?? "").trim().toLowerCase()) {
+    case "classic":
+    case "columns_classic":
+    case "metal":
+      return "classic";
     case "checkers":
       return "checkers";
+    case "glass":
+      return "blue";
     case "turtle":
       return "green";
     case "luminous":
     case "neo":
       return "blue";
+    case "porcelain":
+      return "stone";
     case "wooden":
     case WOODY_CHESS_PRESET_ID:
       return "burled";

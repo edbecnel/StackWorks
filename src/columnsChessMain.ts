@@ -297,7 +297,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     themeId: initialThemeId,
     checkerboardThemeId: readCheckerboardTheme(),
   });
-  syncPairedTheme(initialShellThemeValue);
 
   const piecesLayer = svg.querySelector("#pieces") as SVGGElement | null;
   if (!piecesLayer) throw new Error("Missing SVG group inside board: #pieces");

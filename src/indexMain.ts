@@ -2431,18 +2431,6 @@ window.addEventListener("DOMContentLoaded", () => {
           : (savedThemeBeforeColumnsChess || savedThemeBeforeChess);
         if (restore && getThemeById(restore) && !getThemeById(restore)?.hidden) elTheme.value = restore;
       }
-      const pairedBoardTheme = getPairedCheckerboardTheme(elTheme.value || (isCheckers ? "checkers" : null));
-      if (pairedBoardTheme) {
-        if (elColumnsChessBoardTheme && !elColumnsChessBoardTheme.disabled) {
-          elColumnsChessBoardTheme.value = pairedBoardTheme;
-        }
-        try {
-          localStorage.setItem(LS_KEYS.optCheckerboardTheme, pairedBoardTheme);
-          if (isCheckers) localStorage.setItem(LS_KEYS.checkersCheckerboardTheme, pairedBoardTheme);
-        } catch {
-          // ignore
-        }
-      }
       syncGlassThemeOptions();
     }
   };

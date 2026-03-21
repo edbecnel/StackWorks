@@ -489,7 +489,10 @@ export function createThemeManager(svgRoot: SVGSVGElement, opts?: { themeStorage
     updateGlassUi(currentId ?? svgRoot.getAttribute("data-theme-id"));
   }
 
-  async function bindThemeDropdown(dropdownRootEl: HTMLElement | null | undefined) {
+  async function bindThemeDropdown(
+    dropdownRootEl: HTMLElement | null | undefined,
+    onUserSelect?: (id: string) => void | Promise<void>,
+  ) {
     if (!dropdownRootEl) return;
     const items = THEMES.filter((t) => !t.hidden).map((t) => ({ id: t.id, label: t.label }));
     const saved = readSavedThemeId(themeStorageKey);
@@ -499,7 +502,12 @@ export function createThemeManager(svgRoot: SVGSVGElement, opts?: { themeStorage
       rootEl: dropdownRootEl,
       items,
       initialId: initial,
-      onSelect: async (id) => { await setTheme(id); },
+      onSelect: async (id) => {
+        await setTheme(id);
+        if (typeof onUserSelect === "function") {
+          await onUserSelect(id);
+        }
+      },
     });
     await dropdown.setSelected(initial);
   }
