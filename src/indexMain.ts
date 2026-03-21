@@ -2344,7 +2344,11 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const normalizeClassicChessTheme = normalizeClassicShellThemeValue;
 
-  const syncThemeConstraintsForVariant = (variantId: VariantId): void => {
+  const syncThemeConstraintsForVariant = (
+    variantId: VariantId,
+    opts?: { autoSyncPairedBoardOnThemeChange?: boolean },
+  ): void => {
+    const previousThemeValue = elTheme.value;
     const variant = getVariantById(variantId);
     const isColumnsChess = variantId === "columns_chess";
     const isClassicChess = variantId === "chess_classic";
@@ -2432,6 +2436,10 @@ window.addEventListener("DOMContentLoaded", () => {
         if (restore && getThemeById(restore) && !getThemeById(restore)?.hidden) elTheme.value = restore;
       }
       syncGlassThemeOptions();
+    }
+
+    if (opts?.autoSyncPairedBoardOnThemeChange && elTheme.value !== previousThemeValue) {
+      syncPairedTheme();
     }
   };
 
@@ -2759,7 +2767,7 @@ window.addEventListener("DOMContentLoaded", () => {
   syncOnlinePlayerSeatInputs();
   syncOnlineIdentityFromBotSection();
 
-  const syncAvailability = () => {
+  const syncAvailability = (opts?: { autoSyncPairedBoardOnThemeChange?: boolean }) => {
     const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
     const v = getVariantById(vId);
     const playMode = (elPlayMode.value === "online" ? "online" : "local") as PlayMode;
@@ -2779,7 +2787,7 @@ window.addEventListener("DOMContentLoaded", () => {
       if (elAiBlackLabel) elAiBlackLabel.textContent = bLabel;
     }
 
-    syncThemeConstraintsForVariant(vId);
+    syncThemeConstraintsForVariant(vId, opts);
 
     elGameNote.textContent = v.subtitle;
     localStorage.setItem(LS_KEYS.variantId, v.variantId);
@@ -3026,7 +3034,7 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   elGame.addEventListener("change", () => {
-    syncAvailability();
+    syncAvailability({ autoSyncPairedBoardOnThemeChange: true });
     prefetchGamePage(elGame);
   });
 
