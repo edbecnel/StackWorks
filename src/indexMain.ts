@@ -600,6 +600,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const elLobbyRoomDialogTitle = (document.getElementById("launchLobbyRoomDialogTitle") as HTMLElement | null) ?? null;
   const elLobbyRoomDialogSubtitle = (document.getElementById("launchLobbyRoomDialogSubtitle") as HTMLElement | null) ?? null;
   const elLobbyRoomDialogDetails = (document.getElementById("launchLobbyRoomDialogDetails") as HTMLElement | null) ?? null;
+  const elLobbyRoomDialogPlayers = (document.getElementById("launchLobbyRoomDialogPlayers") as HTMLElement | null) ?? null;
   const elLobbyRoomDialogPrimary = (document.getElementById("launchLobbyRoomDialogPrimary") as HTMLButtonElement | null) ?? null;
   const elLobbyRoomDialogSpectate = (document.getElementById("launchLobbyRoomDialogSpectate") as HTMLButtonElement | null) ?? null;
   const elLobbyRoomDialogClose = (document.getElementById("launchLobbyRoomDialogClose") as HTMLButtonElement | null) ?? null;
@@ -713,6 +714,11 @@ window.addEventListener("DOMContentLoaded", () => {
     elLobbyRoomDialogDetails.textContent = "";
   };
 
+  const clearLobbyRoomDialogPlayers = (): void => {
+    if (!elLobbyRoomDialogPlayers) return;
+    elLobbyRoomDialogPlayers.textContent = "";
+  };
+
   const appendLobbyRoomDialogDetail = (label: string, value: string): void => {
     if (!elLobbyRoomDialogDetails) return;
     const nextValue = (value || "").trim();
@@ -759,8 +765,11 @@ window.addEventListener("DOMContentLoaded", () => {
     const statusReason = typeof r.statusReason === "string" ? r.statusReason.trim() : "";
     const hostDisplayName = typeof (r as any)?.hostDisplayName === "string" ? String((r as any).hostDisplayName).trim() : "";
     const byColor = r.displayNameByColor as Partial<Record<PlayerColor, string>> | undefined;
+    const identityByColor = r.identityByColor as Partial<Record<PlayerColor, Pick<PlayerIdentity, "displayName" | "avatarUrl" | "countryCode" | "countryName">>> | undefined;
     const lightName = typeof byColor?.W === "string" ? byColor.W.trim() : "";
     const darkName = typeof byColor?.B === "string" ? byColor.B.trim() : "";
+    const whiteIdentity = identityByColor?.W ?? (lightName ? { displayName: lightName } : undefined);
+    const blackIdentity = identityByColor?.B ?? (darkName ? { displayName: darkName } : undefined);
     const players = `${labels.W}: ${lightName || "—"} · ${labels.B}: ${darkName || "—"}`;
     const openSeats = r.seatsOpen.length ? r.seatsOpen.join("/") : "—";
     const takenSeats = r.seatsTaken.length ? r.seatsTaken.join("/") : "—";
@@ -778,6 +787,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     clearLobbyRoomDialogDetails();
+    clearLobbyRoomDialogPlayers();
     appendLobbyRoomDialogDetail("Room ID", r.roomId);
     appendLobbyRoomDialogDetail("Status", status);
     appendLobbyRoomDialogDetail("Message", statusReason || "—");
@@ -794,6 +804,13 @@ window.addEventListener("DOMContentLoaded", () => {
       );
     } else if (r.timeControl?.mode === "none") {
       appendLobbyRoomDialogDetail("Clock", "None");
+    }
+
+    if (elLobbyRoomDialogPlayers) {
+      const whiteChip = createLobbyIdentityChip({ serverUrl, seatLabel: labels.W, identity: whiteIdentity, color: "W" });
+      const blackChip = createLobbyIdentityChip({ serverUrl, seatLabel: labels.B, identity: blackIdentity, color: "B" });
+      if (whiteChip) elLobbyRoomDialogPlayers.appendChild(whiteChip);
+      if (blackChip) elLobbyRoomDialogPlayers.appendChild(blackChip);
     }
 
     if (elLobbyRoomDialogPrimary) {

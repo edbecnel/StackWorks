@@ -701,6 +701,16 @@
         color: rgba(255, 255, 255, 0.68);
       }
 
+      .lobbyRoomDialogPlayers {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .lobbyRoomDialogPlayers .lobbyIdentityChip {
+        max-width: 100%;
+      }
+
       .lobbyRoomDialogGrid {
         display: grid;
         grid-template-columns: minmax(92px, max-content) minmax(0, 1fr);
@@ -1373,6 +1383,11 @@
             <div
               id="launchLobbyRoomDialogDetails"
               class="lobbyRoomDialogGrid"
+            ></div>
+
+            <div
+              id="launchLobbyRoomDialogPlayers"
+              class="lobbyRoomDialogPlayers"
             ></div>
 
             <div class="lobbyRoomDialogActions">
