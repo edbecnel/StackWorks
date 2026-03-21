@@ -699,6 +699,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const setLobbyRoomDialogOpen = (open: boolean): void => {
     if (!elLobbyRoomDialog) return;
     if (open) {
+      hideLobbyRoomAvatarPreview();
       if (!elLobbyRoomDialog.open) {
         if (typeof elLobbyRoomDialog.showModal === "function") elLobbyRoomDialog.showModal();
         else elLobbyRoomDialog.setAttribute("open", "");
@@ -748,7 +749,6 @@ window.addEventListener("DOMContentLoaded", () => {
     const previewSrc = image.currentSrc || image.src;
     if (!previewSrc) return;
 
-    avatar.tabIndex = 0;
     avatar.title = "Preview avatar";
 
     avatar.addEventListener("mouseenter", (event) => {
@@ -760,11 +760,6 @@ window.addEventListener("DOMContentLoaded", () => {
       positionLobbyRoomAvatarPreview(mouse.clientX, mouse.clientY);
     });
     avatar.addEventListener("mouseleave", () => hideLobbyRoomAvatarPreview());
-    avatar.addEventListener("focus", () => {
-      const rect = avatar.getBoundingClientRect();
-      showLobbyRoomAvatarPreview(previewSrc, rect.right, rect.top);
-    });
-    avatar.addEventListener("blur", () => hideLobbyRoomAvatarPreview());
   };
 
   const clearLobbyRoomDialogDetails = (): void => {
@@ -1549,6 +1544,50 @@ window.addEventListener("DOMContentLoaded", () => {
       elAccountPasswordToggle.title = label;
     };
 
+    const uploadAvatarFile = async (file: File): Promise<void> => {
+      if (file.size > 512 * 1024) {
+        setAccountStatus("Account: avatar too large (max 512KB)", { isError: true });
+        return;
+      }
+
+      const ct = inferAvatarContentType(file);
+      if (!ct) {
+        setAccountStatus("Account: unsupported file (use .png or .svg)", { isError: true });
+        return;
+      }
+
+      setAccountStatus("Account: uploading avatar…");
+      const r = await fetchAuthJson<AuthOkResponse>("/api/auth/me/avatar", {
+        method: "PUT",
+        headers: { "content-type": ct },
+        body: file,
+      });
+
+      if (!r.ok) {
+        setAccountStatus(`Account: ${String((r.json as any)?.error ?? "Upload failed")}`, { isError: true });
+        return;
+      }
+
+      const ok = r.json as any;
+      const nextUrl = typeof ok?.user?.avatarUrl === "string" ? ok.user.avatarUrl : "";
+      if (elAccountAvatarUrl && nextUrl) elAccountAvatarUrl.value = nextUrl;
+
+      setAccountStatus("Account: avatar uploaded");
+      await refreshAccountUi();
+    };
+
+    const queueSelectedAvatarUpload = (): void => {
+      const file = elAccountAvatarFile?.files?.[0] ?? null;
+      if (!file) return;
+      void withAccountBusy(async () => {
+        try {
+          await uploadAvatarFile(file);
+        } finally {
+          if (elAccountAvatarFile) elAccountAvatarFile.value = "";
+        }
+      });
+    };
+
     syncPasswordToggleUi();
 
     elAccountPasswordToggle?.addEventListener("click", () => {
@@ -1556,6 +1595,10 @@ window.addEventListener("DOMContentLoaded", () => {
       elAccountPassword.type = (elAccountPassword.type === "password") ? "text" : "password";
       syncPasswordToggleUi();
       elAccountPassword.focus();
+    });
+
+    elAccountAvatarFile?.addEventListener("change", () => {
+      queueSelectedAvatarUpload();
     });
 
     const doAccountLogin = async (): Promise<void> => {
@@ -1674,43 +1717,12 @@ window.addEventListener("DOMContentLoaded", () => {
     });
 
     elAccountUploadAvatar?.addEventListener("click", () => {
-      void withAccountBusy(async () => {
-        const file = elAccountAvatarFile?.files?.[0] ?? null;
-        if (!file) {
-          setAccountStatus("Account: choose a PNG or SVG file first", { isError: true });
-          return;
-        }
-
-        if (file.size > 512 * 1024) {
-          setAccountStatus("Account: avatar too large (max 512KB)", { isError: true });
-          return;
-        }
-
-        const ct = inferAvatarContentType(file);
-        if (!ct) {
-          setAccountStatus("Account: unsupported file (use .png or .svg)", { isError: true });
-          return;
-        }
-
-        setAccountStatus("Account: uploading avatar…");
-        const r = await fetchAuthJson<AuthOkResponse>("/api/auth/me/avatar", {
-          method: "PUT",
-          headers: { "content-type": ct },
-          body: file,
-        });
-
-        if (!r.ok) {
-          setAccountStatus(`Account: ${String((r.json as any)?.error ?? "Upload failed")}`, { isError: true });
-          return;
-        }
-
-        const ok = r.json as any;
-        const nextUrl = typeof ok?.user?.avatarUrl === "string" ? ok.user.avatarUrl : "";
-        if (elAccountAvatarUrl && nextUrl) elAccountAvatarUrl.value = nextUrl;
-
-        setAccountStatus("Account: avatar uploaded");
-        await refreshAccountUi();
-      });
+      const selectedFile = elAccountAvatarFile?.files?.[0] ?? null;
+      if (selectedFile) {
+        queueSelectedAvatarUpload();
+        return;
+      }
+      elAccountAvatarFile?.click();
     });
 
     elAccountLogout?.addEventListener("click", () => {
@@ -2589,6 +2601,11 @@ window.addEventListener("DOMContentLoaded", () => {
       if (action === "login") {
         accountSummary?.focus();
         elAccountLogin?.click();
+        return;
+      }
+      if (action === "avatar-upload") {
+        accountSummary?.focus();
+        elAccountAvatarFile?.click();
         return;
       }
       elAccountDisplayName?.focus();

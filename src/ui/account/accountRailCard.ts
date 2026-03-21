@@ -15,6 +15,7 @@ type AccountRailCardOptions = {
   onSignUp?: () => void;
   onLogIn?: () => void;
   onManageAccount?: () => void;
+  onAvatarUpload?: () => void;
   onLogOut?: () => void;
 };
 
@@ -63,6 +64,7 @@ function ensureStyles(): void {
     }
 
     .accountRailCardAvatar {
+      position: relative;
       width: 44px;
       height: 44px;
       border-radius: 14px;
@@ -77,11 +79,90 @@ function ensureStyles(): void {
       color: rgba(255, 255, 255, 0.9);
     }
 
+    .accountRailCardAvatar[data-can-upload="true"]::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.42);
+      opacity: 0;
+      transition: opacity 140ms ease;
+      pointer-events: none;
+    }
+
+    .accountRailCardAvatar[data-can-upload="true"]:hover::after,
+    .accountRailCardAvatar[data-can-upload="true"]:focus-within::after {
+      opacity: 1;
+    }
+
     .accountRailCardAvatar img {
       width: 100%;
       height: 100%;
       object-fit: cover;
       display: block;
+      transition: filter 140ms ease;
+    }
+
+    .accountRailCardAvatarLabel {
+      position: relative;
+      z-index: 0;
+      transition: filter 140ms ease;
+    }
+
+    .accountRailCardAvatar[data-can-upload="true"]:hover img,
+    .accountRailCardAvatar[data-can-upload="true"]:focus-within img,
+    .accountRailCardAvatar[data-can-upload="true"]:hover .accountRailCardAvatarLabel,
+    .accountRailCardAvatar[data-can-upload="true"]:focus-within .accountRailCardAvatarLabel {
+      filter: brightness(0.58);
+    }
+
+    .accountRailCardAvatarCameraButton {
+      appearance: none;
+      position: absolute;
+      inset: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: #fff;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity 140ms ease, transform 140ms ease;
+      pointer-events: none;
+      cursor: pointer;
+      z-index: 1;
+    }
+
+    .accountRailCardAvatar[data-can-upload="true"]:hover .accountRailCardAvatarCameraButton,
+    .accountRailCardAvatar[data-can-upload="true"]:focus-within .accountRailCardAvatarCameraButton {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .accountRailCardAvatarCameraButton:focus-visible {
+      outline: 2px solid rgba(255, 255, 255, 0.9);
+      outline-offset: -2px;
+      border-radius: 14px;
+    }
+
+    .accountRailCardAvatarCameraIcon {
+      width: 18px;
+      height: 18px;
+      display: block;
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+    }
+
+    @media (hover: none), (pointer: coarse) {
+      .accountRailCardAvatar[data-can-upload="true"] {
+        cursor: pointer;
+      }
+
+      .accountRailCardAvatar[data-can-upload="true"]::after,
+      .accountRailCardAvatar[data-can-upload="true"] .accountRailCardAvatarCameraButton {
+        display: none;
+      }
     }
 
     .accountRailCardName {
@@ -173,6 +254,29 @@ function createActionButton(label: string, variant: "default" | "primary", onCli
   return button;
 }
 
+function createCameraIcon(): SVGElement {
+  const svgNs = "http://www.w3.org/2000/svg";
+  const icon = document.createElementNS(svgNs, "svg");
+  icon.setAttribute("viewBox", "0 0 24 24");
+  icon.setAttribute("aria-hidden", "true");
+  icon.classList.add("accountRailCardAvatarCameraIcon");
+
+  const path = document.createElementNS(svgNs, "path");
+  path.setAttribute(
+    "d",
+    "M9 5.5 10.4 4h3.2L15 5.5H18A2.5 2.5 0 0 1 20.5 8v8a2.5 2.5 0 0 1-2.5 2.5H6A2.5 2.5 0 0 1 3.5 16V8A2.5 2.5 0 0 1 6 5.5h3Zm3 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm0 1.8a2.2 2.2 0 1 1 0 4.4 2.2 2.2 0 0 1 0-4.4Z",
+  );
+  path.setAttribute("fill", "currentColor");
+  icon.appendChild(path);
+
+  return icon;
+}
+
+function isTouchPrimaryInput(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia("(hover: none), (pointer: coarse)").matches;
+}
+
 export function createAccountRailCard(
   initialState: AccountRailCardState,
   opts: AccountRailCardOptions = {},
@@ -200,13 +304,37 @@ export function createAccountRailCard(
 
       const avatar = document.createElement("div");
       avatar.className = "accountRailCardAvatar";
+      if (opts.onAvatarUpload) avatar.dataset.canUpload = "true";
       if (state.avatarUrl) {
         const image = document.createElement("img");
         image.src = state.avatarUrl;
         image.alt = "";
         avatar.appendChild(image);
       } else {
-        avatar.textContent = renderInitial(state.displayName ?? state.email ?? "Player");
+        const label = document.createElement("span");
+        label.className = "accountRailCardAvatarLabel";
+        label.textContent = renderInitial(state.displayName ?? state.email ?? "Player");
+        avatar.appendChild(label);
+      }
+
+      if (opts.onAvatarUpload) {
+        const cameraButton = document.createElement("button");
+        cameraButton.type = "button";
+        cameraButton.className = "accountRailCardAvatarCameraButton";
+        cameraButton.setAttribute("aria-label", "Upload avatar");
+        cameraButton.appendChild(createCameraIcon());
+        cameraButton.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          opts.onAvatarUpload?.();
+        });
+        avatar.appendChild(cameraButton);
+
+        avatar.addEventListener("click", (event) => {
+          if (!isTouchPrimaryInput()) return;
+          event.preventDefault();
+          opts.onAvatarUpload?.();
+        });
       }
 
       const text = document.createElement("div");

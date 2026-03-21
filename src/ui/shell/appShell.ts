@@ -15,7 +15,7 @@ type StartPageAppShellOptions = {
   onSelectGame?: (variantId: VariantId) => void;
   onSelectPlayMode?: (playMode: StartPagePlayMode) => void;
   onOpenLobby?: () => void;
-  onRequestAccountAction?: (action: "signup" | "login" | "manage" | "logout") => void;
+  onRequestAccountAction?: (action: "signup" | "login" | "manage" | "avatar-upload" | "logout") => void;
 };
 
 type UpdateSelectedGameOptions = {
@@ -695,6 +695,7 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
       onSignUp: () => opts.onRequestAccountAction?.("signup"),
       onLogIn: () => opts.onRequestAccountAction?.("login"),
       onManageAccount: () => opts.onRequestAccountAction?.("manage"),
+      onAvatarUpload: () => opts.onRequestAccountAction?.("avatar-upload"),
       onLogOut: () => opts.onRequestAccountAction?.("logout"),
     },
   );
