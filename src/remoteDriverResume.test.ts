@@ -11,6 +11,7 @@ describe("RemoteDriver page resume handling", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
     if (typeof originalWebSocket === "undefined") {
       delete (globalThis as any).WebSocket;
       delete (window as any).WebSocket;
@@ -37,7 +38,9 @@ describe("RemoteDriver page resume handling", () => {
       get: () => visibilityState,
     });
 
-    class FakeWebSocket {}
+    class FakeWebSocket {
+      addEventListener(): void {}
+    }
     (globalThis as any).WebSocket = FakeWebSocket;
     (window as any).WebSocket = FakeWebSocket;
 
@@ -72,7 +75,9 @@ describe("RemoteDriver page resume handling", () => {
   });
 
   it("stops reacting to page resume after realtime is stopped", async () => {
-    class FakeWebSocket {}
+    class FakeWebSocket {
+      addEventListener(): void {}
+    }
     (globalThis as any).WebSocket = FakeWebSocket;
     (window as any).WebSocket = FakeWebSocket;
 
@@ -143,6 +148,7 @@ describe("RemoteDriver page resume handling", () => {
 
     expect(driver.startRealtime(() => void 0)).toBe(true);
     expect(sockets).toHaveLength(1);
+    expect(eventSources).toHaveLength(1);
 
     sockets[0].dispatch("error");
     sockets[0].dispatch("close");
@@ -158,6 +164,99 @@ describe("RemoteDriver page resume handling", () => {
 
     expect(eventSources).toHaveLength(1);
     expect(fetchLatest).toHaveBeenCalledTimes(1);
+
+    driver.stopRealtime();
+  });
+
+  it("forces a second recovery attempt when resume stays stale", async () => {
+    vi.useFakeTimers();
+
+    let visibilityState: DocumentVisibilityState = "hidden";
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => visibilityState,
+    });
+
+    class FakeWebSocket {
+      addEventListener(): void {}
+    }
+    (globalThis as any).WebSocket = FakeWebSocket;
+    (window as any).WebSocket = FakeWebSocket;
+
+    const initial = createInitialGameStateForVariant("chess_classic" as any);
+    const driver = new RemoteDriver(initial);
+    driver.setRemoteIds({ serverUrl: "http://example.invalid", roomId: "room-1", playerId: "p1" });
+
+    const fetchLatest = vi.spyOn(driver as any, "fetchLatest")
+      .mockRejectedValueOnce(new Error("resume fetch failed"))
+      .mockResolvedValue(false);
+    const startWebSocketRealtime = vi.spyOn(driver as any, "startWebSocketRealtime").mockImplementation(() => {
+      (driver as any).ws = { close: vi.fn() };
+    });
+
+    expect(driver.startRealtime(() => void 0)).toBe(true);
+    expect(startWebSocketRealtime).toHaveBeenCalledTimes(1);
+
+    visibilityState = "visible";
+    document.dispatchEvent(new Event("visibilitychange"));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fetchLatest).toHaveBeenCalledTimes(1);
+    expect(startWebSocketRealtime).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(1500);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fetchLatest).toHaveBeenCalledTimes(2);
+    expect(startWebSocketRealtime).toHaveBeenCalledTimes(3);
+
+    driver.stopRealtime();
+  });
+
+  it("does not force a second recovery attempt after fresh activity resumes", async () => {
+    vi.useFakeTimers();
+
+    let visibilityState: DocumentVisibilityState = "hidden";
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => visibilityState,
+    });
+
+    class FakeWebSocket {
+      addEventListener(): void {}
+    }
+    (globalThis as any).WebSocket = FakeWebSocket;
+    (window as any).WebSocket = FakeWebSocket;
+
+    const initial = createInitialGameStateForVariant("chess_classic" as any);
+    const driver = new RemoteDriver(initial);
+    driver.setRemoteIds({ serverUrl: "http://example.invalid", roomId: "room-1", playerId: "p1" });
+
+    const fetchLatest = vi.spyOn(driver as any, "fetchLatest").mockImplementation(async () => {
+      (driver as any).markRealtimeActivity();
+      return false;
+    });
+    const startWebSocketRealtime = vi.spyOn(driver as any, "startWebSocketRealtime").mockImplementation(() => {
+      (driver as any).ws = { close: vi.fn() };
+    });
+
+    expect(driver.startRealtime(() => void 0)).toBe(true);
+
+    visibilityState = "visible";
+    window.dispatchEvent(new Event("focus"));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fetchLatest).toHaveBeenCalledTimes(1);
+    expect(startWebSocketRealtime).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(1500);
+    await Promise.resolve();
+
+    expect(fetchLatest).toHaveBeenCalledTimes(1);
+    expect(startWebSocketRealtime).toHaveBeenCalledTimes(2);
 
     driver.stopRealtime();
   });

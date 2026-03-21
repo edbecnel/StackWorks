@@ -67,6 +67,10 @@ export class RemoteDriver implements GameDriver {
   private wsReconnectAttempt: number = 0;
   private wsConsecutiveConnectFailures: number = 0;
   private usingSseFallback: boolean = false;
+  private eventSourceConnected: boolean = false;
+  private resumeWatchdogTimer: number | null = null;
+  private lastRealtimeActivityAtMs: number = 0;
+  private resumeRecoveryToken: number = 0;
   private transportStatus: "connected" | "reconnecting" = "connected";
   private onRealtimeUpdate: (() => void) | null = null;
   private realtimeListeners = new Map<string, Set<(payload: any) => void>>();
@@ -78,6 +82,9 @@ export class RemoteDriver implements GameDriver {
     this.handlePageResume();
   };
   private readonly handlePageShow = (): void => {
+    this.handlePageResume();
+  };
+  private readonly handleWindowFocus = (): void => {
     this.handlePageResume();
   };
   private lastPresence: PresenceByPlayerId | null = null;
@@ -303,18 +310,78 @@ export class RemoteDriver implements GameDriver {
     this.emitSseEvent("transport_status", { status: next });
   }
 
+  private markRealtimeActivity(): void {
+    const now = this.nowMs();
+    this.lastRealtimeActivityAtMs = now > this.lastRealtimeActivityAtMs ? now : this.lastRealtimeActivityAtMs + 1;
+  }
+
+  private clearResumeWatchdog(): void {
+    if (this.resumeWatchdogTimer == null || typeof window === "undefined") return;
+    window.clearTimeout(this.resumeWatchdogTimer);
+    this.resumeWatchdogTimer = null;
+  }
+
+  private scheduleResumeWatchdog(baselineActivityAtMs: number = this.lastRealtimeActivityAtMs): void {
+    if (typeof window === "undefined") return;
+    this.clearResumeWatchdog();
+    const token = ++this.resumeRecoveryToken;
+    this.resumeWatchdogTimer = window.setTimeout(() => {
+      this.resumeWatchdogTimer = null;
+      if (!this.onRealtimeUpdate) return;
+      if (token !== this.resumeRecoveryToken) return;
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      if (this.lastRealtimeActivityAtMs > baselineActivityAtMs) return;
+      this.restartRealtimeAfterResume("resume-watchdog");
+    }, 1500);
+  }
+
+  private restartRealtimeAfterResume(reason: string): void {
+    if (!this.onRealtimeUpdate) return;
+    const baselineActivityAtMs = this.lastRealtimeActivityAtMs;
+    if (typeof window !== "undefined" && typeof (window as any).WebSocket !== "undefined" && !this.usingSseFallback) {
+      this.startWebSocketRealtime();
+    }
+    if (typeof window !== "undefined" && typeof (window as any).EventSource !== "undefined") {
+      if (this.eventSource) {
+        try {
+          this.eventSource.close();
+        } catch {
+          // ignore
+        }
+        this.eventSource = null;
+      }
+      this.eventSourceConnected = false;
+      this.startEventSourceRealtime();
+    } else if (this.eventSource) {
+      try {
+        this.eventSource.close();
+      } catch {
+        // ignore
+      }
+      this.eventSource = null;
+      this.startEventSourceRealtime();
+    }
+    this.triggerResync(reason);
+    this.scheduleResumeWatchdog(baselineActivityAtMs);
+  }
+
   /**
    * Starts realtime server push.
    * Returns true if started (browser-only), else false.
    */
   startRealtime(onUpdated: () => void): boolean {
     if (typeof window === "undefined") return false;
+    this.onRealtimeUpdate = onUpdated;
+    this.bindRealtimeLifecycleEvents();
+
+    // Keep SSE available as a backup transport whenever the browser supports it.
+    if (typeof (window as any).EventSource !== "undefined") {
+      this.startEventSourceRealtime();
+    }
 
     // Prefer WebSockets.
     if (typeof (window as any).WebSocket !== "undefined" && !this.usingSseFallback) {
       if (this.ws) return true;
-      this.onRealtimeUpdate = onUpdated;
-      this.bindRealtimeLifecycleEvents();
       this.startWebSocketRealtime();
       return true;
     }
@@ -322,9 +389,6 @@ export class RemoteDriver implements GameDriver {
     // Fallback: SSE.
     if (typeof (window as any).EventSource === "undefined") return false;
     if (this.eventSource) return true;
-
-    this.onRealtimeUpdate = onUpdated;
-    this.bindRealtimeLifecycleEvents();
     this.startEventSourceRealtime();
     return true;
   }
@@ -340,10 +404,17 @@ export class RemoteDriver implements GameDriver {
     const es = new EventSource(url);
     this.eventSource = es;
 
+    es.addEventListener("open", () => {
+      this.markRealtimeActivity();
+      this.eventSourceConnected = true;
+      this.setTransportStatus("connected");
+    });
+
     const listen = (eventName: string, handler: (payload: any) => void) => {
       es.addEventListener(eventName, (ev: MessageEvent) => {
         try {
           const payload = JSON.parse(String(ev.data)) as any;
+          this.markRealtimeActivity();
           handler(payload);
           this.emitSseEvent(eventName, payload);
         } catch {
@@ -381,7 +452,8 @@ export class RemoteDriver implements GameDriver {
 
     // EventSource auto-reconnects. We keep polling fallback at the controller layer.
     es.addEventListener("error", () => {
-      // ignore transient disconnects
+      this.eventSourceConnected = false;
+      if (this.usingSseFallback) this.setTransportStatus("reconnecting");
     });
   }
 
@@ -402,12 +474,16 @@ export class RemoteDriver implements GameDriver {
     if (typeof window === "undefined" || typeof document === "undefined") return;
     document.addEventListener("visibilitychange", this.handleVisibilityChange);
     window.addEventListener("pageshow", this.handlePageShow);
+    window.addEventListener("focus", this.handleWindowFocus);
     this.realtimeLifecycleBound = true;
   }
 
   private unbindRealtimeLifecycleEvents(): void {
     if (!this.realtimeLifecycleBound) return;
-    if (typeof window !== "undefined") window.removeEventListener("pageshow", this.handlePageShow);
+    if (typeof window !== "undefined") {
+      window.removeEventListener("pageshow", this.handlePageShow);
+      window.removeEventListener("focus", this.handleWindowFocus);
+    }
     if (typeof document !== "undefined") {
       document.removeEventListener("visibilitychange", this.handleVisibilityChange);
     }
@@ -415,19 +491,7 @@ export class RemoteDriver implements GameDriver {
   }
 
   private handlePageResume(): void {
-    if (!this.onRealtimeUpdate) return;
-    if (typeof window !== "undefined" && typeof (window as any).WebSocket !== "undefined" && !this.usingSseFallback) {
-      this.startWebSocketRealtime();
-    } else if (this.eventSource) {
-      try {
-        this.eventSource.close();
-      } catch {
-        // ignore
-      }
-      this.eventSource = null;
-      this.startEventSourceRealtime();
-    }
-    this.triggerResync("resume");
+    this.restartRealtimeAfterResume("resume");
   }
 
   private scheduleWsReconnect(): void {
@@ -467,6 +531,7 @@ export class RemoteDriver implements GameDriver {
     ws.addEventListener("open", () => {
       if (this.ws !== ws) return;
       opened = true;
+      this.markRealtimeActivity();
       this.wsReconnectAttempt = 0;
       this.wsConsecutiveConnectFailures = 0;
       this.usingSseFallback = false;
@@ -488,6 +553,7 @@ export class RemoteDriver implements GameDriver {
       if (this.ws !== ws) return;
       try {
         const msg = JSON.parse(String(ev.data)) as any;
+        this.markRealtimeActivity();
         const eventName = typeof msg?.event === "string" ? msg.event : null;
         const payload = msg?.payload;
 
@@ -531,7 +597,9 @@ export class RemoteDriver implements GameDriver {
       } else {
         this.wsConsecutiveConnectFailures = 0;
       }
-      this.setTransportStatus("reconnecting");
+      if (!this.eventSourceConnected) {
+        this.setTransportStatus("reconnecting");
+      }
       if (!opened && this.wsConsecutiveConnectFailures >= 2 && typeof (window as any).EventSource !== "undefined") {
         this.fallbackToEventSource();
         return;
@@ -551,6 +619,8 @@ export class RemoteDriver implements GameDriver {
 
   stopRealtime(): void {
     this.unbindRealtimeLifecycleEvents();
+    this.clearResumeWatchdog();
+    this.resumeRecoveryToken += 1;
 
     if (this.eventSource) {
       try {
@@ -560,6 +630,7 @@ export class RemoteDriver implements GameDriver {
       }
     }
     this.eventSource = null;
+    this.eventSourceConnected = false;
 
     if (this.wsReconnectTimer != null && typeof window !== "undefined") {
       window.clearTimeout(this.wsReconnectTimer);
@@ -659,6 +730,7 @@ export class RemoteDriver implements GameDriver {
     this.resyncInFlight = (async () => {
       try {
         const changed = await this.fetchLatest();
+        this.markRealtimeActivity();
         if (changed) this.onRealtimeUpdate?.();
       } catch {
         // ignore; controller layer can surface error if needed
