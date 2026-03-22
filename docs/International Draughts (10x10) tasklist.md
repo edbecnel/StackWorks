@@ -71,5 +71,7 @@
 
 ## Documentation
 
+- [ ] Add a dedicated International Draughts (10x10) help file.
+- [ ] Wire the International Draughts help file into the game UI and help navigation.
 - [ ] Add or update player-facing help text for International Draughts (10x10).
 - [ ] Document any implementation-specific assumptions where StackWorks behavior must map official rules into engine state.
