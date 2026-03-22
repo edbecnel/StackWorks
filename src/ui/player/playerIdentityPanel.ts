@@ -15,6 +15,14 @@ function isRedundantLocalStatus(identity: PlayerIdentity): boolean {
   return identity.status === "offline" && identity.statusText.trim().toLowerCase() === "local play";
 }
 
+function getActiveTurnChipText(identity: PlayerIdentity): string {
+  const normalizedDetail = identity.detailText.trim().replace(/[.!?]+$/, "");
+  if (!normalizedDetail || /^to move$/i.test(normalizedDetail)) {
+    return `${identity.sideLabel} to move`;
+  }
+  return normalizedDetail;
+}
+
 function countryCodeToFlagEmoji(countryCode: string | null | undefined): string {
   const code = typeof countryCode === "string" ? countryCode.trim().toUpperCase() : "";
   if (!/^[A-Z]{2}$/.test(code)) return "";
@@ -111,7 +119,7 @@ export function createPlayerIdentityPanel(opts: PlayerIdentityPanelOptions): Pla
     localChip.hidden = !viewerTag;
     localChip.textContent = viewerTag;
     activeChip.hidden = !identity.isActiveTurn;
-    activeChip.textContent = "To move";
+    activeChip.textContent = getActiveTurnChipText(identity);
   };
 
   update(opts.identity);

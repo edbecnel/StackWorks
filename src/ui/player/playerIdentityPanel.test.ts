@@ -39,6 +39,30 @@ describe("createPlayerIdentityPanel", () => {
     expect(chips[0]?.textContent).toBe("Black");
   });
 
+  it("uses the side label when the active detail is the generic local turn text", () => {
+    const panel = createPlayerIdentityPanel({
+      identity: makeIdentity({
+        sideLabel: "White",
+        detailText: "To move.",
+      }),
+    });
+
+    const chips = panel.element.querySelectorAll(".gameShellPlayerMetaChip");
+    expect(chips[2]?.textContent).toBe("White to move");
+  });
+
+  it("keeps the specific active detail text for non-generic turn states", () => {
+    const panel = createPlayerIdentityPanel({
+      identity: makeIdentity({
+        sideLabel: "Black",
+        detailText: "Opponent to move.",
+      }),
+    });
+
+    const chips = panel.element.querySelectorAll(".gameShellPlayerMetaChip");
+    expect(chips[2]?.textContent).toBe("Opponent to move");
+  });
+
   it("shows a Bot chip when the identity carries a bot viewer tag", () => {
     const panel = createPlayerIdentityPanel({
       identity: makeIdentity({ roleLabel: "Bot · Light", isLocal: false, viewerTag: "Bot" }),

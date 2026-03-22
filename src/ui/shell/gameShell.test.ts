@@ -464,6 +464,7 @@ describe("initGameShell desktop shell navigation", () => {
 
     expect(getActiveChip(whitePanel).hidden).toBe(false);
     expect(getActiveChip(blackPanel).hidden).toBe(true);
+    expect(getActiveChip(whitePanel).textContent?.trim()).toBe("Your turn");
 
     snapshot.players.W = { ...snapshot.players.W, isActiveTurn: false, detailText: "Waiting for the opponent move." };
     snapshot.players.B = { ...snapshot.players.B, isActiveTurn: true, detailText: "Opponent to move." };
@@ -471,6 +472,7 @@ describe("initGameShell desktop shell navigation", () => {
 
     expect(getActiveChip(whitePanel).hidden).toBe(true);
     expect(getActiveChip(blackPanel).hidden).toBe(false);
+    expect(getActiveChip(blackPanel).textContent?.trim()).toBe("Opponent to move");
   });
 
   it("keeps the local human side tagged as You even without a signed-in profile", async () => {
