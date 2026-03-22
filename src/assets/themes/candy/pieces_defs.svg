@@ -208,6 +208,34 @@
         stroke-width: 1.8;
       }
 
+      .candyOfficerMarkLight {
+        fill: #8e1454;
+        stroke: #fff4fa;
+        stroke-width: 2.2;
+        stroke-linejoin: round;
+      }
+
+      .candyOfficerMarkDark {
+        fill: #4520b7;
+        stroke: #fbf8ff;
+        stroke-width: 2.2;
+        stroke-linejoin: round;
+      }
+
+      .candyKingMarkLight {
+        fill: #8e1454;
+        stroke: #fff4fa;
+        stroke-width: 2.4;
+        stroke-linejoin: round;
+      }
+
+      .candyKingMarkDark {
+        fill: #4520b7;
+        stroke: #fbf8ff;
+        stroke-width: 2.4;
+        stroke-linejoin: round;
+      }
+
       .rasterPiece {
         image-rendering: auto;
       }
@@ -250,40 +278,41 @@
       <path d="M43 56 C46 59 51 60 56 58" fill="none" stroke-width="3.4" stroke-linecap="round" />
     </symbol>
 
+    <symbol id="candyOfficerGlyph" viewBox="0 0 100 100">
+      <path d="M50 34 L55 44 L66 45.5 L58 53.5 L60.5 64.5 L50 59 L39.5 64.5 L42 53.5 L34 45.5 L45 44 Z" />
+      <circle cx="50" cy="50" r="4.4" />
+    </symbol>
+
     <symbol id="candyCrown" viewBox="0 0 100 100">
-      <path d="M31 61 L36 44 L50 53 L64 44 L69 61 Z" />
-      <circle cx="36" cy="42" r="3.6" />
-      <circle cx="50" cy="50" r="3.6" />
-      <circle cx="64" cy="42" r="3.6" />
-      <rect x="30" y="61" width="40" height="6" rx="3" />
+      <path d="M29 63 L34 46 L42 56 L50 42 L58 56 L66 46 L71 63 Z" />
+      <circle cx="34" cy="44" r="3.8" />
+      <circle cx="50" cy="40" r="4.2" />
+      <circle cx="66" cy="44" r="3.8" />
+      <rect x="29" y="63" width="42" height="7" rx="3.5" />
+    </symbol>
+
+    <symbol id="candyKingGlyph" viewBox="0 0 100 100">
+      <path d="M34 63 L39 49 L46 57 L50 45 L54 57 L61 49 L66 63 Z" />
+      <circle cx="39" cy="47" r="2.8" />
+      <circle cx="50" cy="43" r="3.2" />
+      <circle cx="61" cy="47" r="2.8" />
+      <rect x="34" y="63" width="32" height="6" rx="3" />
     </symbol>
 
     <symbol id="candyOfficerLight" viewBox="0 0 100 100">
-      <circle cx="50" cy="50" r="18" class="candyBadgeLight" />
-      <ellipse cx="45" cy="43" rx="9" ry="7" fill="#ffffff" opacity="0.30" />
-      <use href="#candySwirl" class="candyBadgeAccentLight" />
-      <circle cx="43" cy="41" r="5.8" fill="#ffffff" opacity="0.34" />
+      <use href="#candyOfficerGlyph" class="candyOfficerMarkLight" transform="translate(50 50) scale(1.04) translate(-50 -50)" />
     </symbol>
 
     <symbol id="candyOfficerDark" viewBox="0 0 100 100">
-      <circle cx="50" cy="50" r="18" class="candyBadgeDark" />
-      <ellipse cx="45" cy="43" rx="9" ry="7" fill="#ffffff" opacity="0.22" />
-      <use href="#candySwirl" class="candyBadgeAccentDark" />
-      <circle cx="43" cy="41" r="5.8" fill="#ffffff" opacity="0.24" />
+      <use href="#candyOfficerGlyph" class="candyOfficerMarkDark" transform="translate(50 50) scale(1.04) translate(-50 -50)" />
     </symbol>
 
     <symbol id="candyKingLight" viewBox="0 0 100 100">
-      <circle cx="50" cy="50" r="20" class="candyBadgeLight" />
-      <ellipse cx="45" cy="43" rx="10" ry="8" fill="#ffffff" opacity="0.30" />
-      <use href="#candyCrown" class="candyBadgeAccentLight" transform="translate(0 -1)" />
-      <circle cx="43" cy="40" r="6" fill="#ffffff" opacity="0.34" />
+      <use href="#candyKingGlyph" class="candyKingMarkLight" transform="translate(50 50) scale(1.08) translate(-50 -54)" />
     </symbol>
 
     <symbol id="candyKingDark" viewBox="0 0 100 100">
-      <circle cx="50" cy="50" r="20" class="candyBadgeDark" />
-      <ellipse cx="45" cy="43" rx="10" ry="8" fill="#ffffff" opacity="0.22" />
-      <use href="#candyCrown" class="candyBadgeAccentDark" transform="translate(0 -1)" />
-      <circle cx="43" cy="40" r="6" fill="#ffffff" opacity="0.22" />
+      <use href="#candyKingGlyph" class="candyKingMarkDark" transform="translate(50 50) scale(1.08) translate(-50 -54)" />
     </symbol>
 
     <!-- Simple, modern silhouettes. These are intentionally original (not traced). -->

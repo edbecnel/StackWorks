@@ -103,8 +103,11 @@ export function createStackInspector(
         rulesetId: opts.rulesetId,
         themeId: config?.getThemeId?.() ?? null,
       });
+      const themeId = config?.getThemeId?.() ?? null;
       const y = columnY + (n - 1 - i) * (miniSize + gap);
-      zoomSvg.appendChild(makeUseWithTitle(href, columnX, y, miniSize, pieceTooltip(p, { rulesetId: opts.rulesetId })));
+      zoomSvg.appendChild(
+        makeUseWithTitle(href, columnX, y, miniSize, pieceTooltip(p, { rulesetId: opts.rulesetId, themeId }))
+      );
 
       if (shouldShowChessPieceCodes(opts.rulesetId)) {
         const code = chessPieceCode(p);

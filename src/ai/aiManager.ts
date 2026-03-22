@@ -377,6 +377,14 @@ export class AIManager {
     this.workerFallbackMoves.delete(requestId);
   }
 
+  private normalizeStartupPause(): void {
+    const anyBot = this.settings.white !== "human" || this.settings.black !== "human";
+    if (!anyBot) return;
+    if (this.settings.paused) return;
+    this.settings.paused = true;
+    localStorage.setItem(LS_KEYS.paused, "true");
+  }
+
   bind(): void {
     this.elWhite = document.getElementById("aiWhiteSelect") as HTMLSelectElement | null;
     this.elBlack = document.getElementById("aiBlackSelect") as HTMLSelectElement | null;
@@ -457,6 +465,11 @@ export class AIManager {
 
     // Track that we're at startup; toast behavior depends on this.
     this.pauseOrigin = "startup";
+
+    // Page refresh/startup should never present a running bot state before a
+    // move has actually been scheduled. Non-chess bot pages require an
+    // explicit resume after load.
+    this.normalizeStartupPause();
 
     // In AI-vs-AI, allow tapping the board to pause.
     this.bindBoardTapToPauseAiVsAi();

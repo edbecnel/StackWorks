@@ -86,6 +86,43 @@ describe("AIManager paused-turn sticky toast", () => {
     expect(controller.sticky.text).toBe("Light to Play. Tap here or press spacebar to resume bot");
   });
 
+  it("forces a paused startup state on refresh even if the previous bot state persisted as running", () => {
+    document.body.innerHTML = `
+      <select id="aiWhiteSelect">
+        <option value="human">human</option>
+        <option value="easy">easy</option>
+      </select>
+      <select id="aiBlackSelect">
+        <option value="human">human</option>
+        <option value="easy">easy</option>
+      </select>
+      <input id="aiDelay" />
+      <button id="aiDelayReset"></button>
+      <span id="aiDelayLabel"></span>
+      <button id="aiPauseBtn"></button>
+      <button id="aiStepBtn"></button>
+      <span id="aiInfo"></span>
+    `;
+
+    localStorage.setItem("lasca.ai.white", "easy");
+    localStorage.setItem("lasca.ai.black", "human");
+    localStorage.setItem("lasca.ai.paused", "false");
+
+    const controller = new FakeController(
+      { toMove: "W", phase: "idle", board: new Map(), meta: { rulesetId: "damasca" } },
+      [{ index: 0, toMove: "W", isCurrent: true, notation: "" }]
+    ) as any;
+
+    const mgr = new AIManager(controller);
+    mgr.bind();
+
+    vi.runAllTimers();
+
+    expect(localStorage.getItem("lasca.ai.paused")).toBe("true");
+    expect((document.getElementById("aiPauseBtn") as HTMLButtonElement).textContent).toBe("Resume bot");
+    expect(controller.sticky.text).toBe("Light to Play. Tap here or press spacebar to resume bot");
+  });
+
   it("does not show the sticky tap-to-resume toast when toast notifications are disabled", () => {
     localStorage.setItem("lasca.opt.toasts", "0");
     localStorage.setItem("lasca.ai.white", "easy");

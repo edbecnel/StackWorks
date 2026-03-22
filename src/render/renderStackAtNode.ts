@@ -53,7 +53,13 @@ export function renderStackAtNode(
 
   const baseHref = pieceToHref(top, { rulesetId, themeId });
   const href = maybeVariantStonePieceHref(svgRoot, maybeVariantWoodenPieceHref(svgRoot, baseHref, nodeId), nodeId);
-  const use = makeUseWithTitle(href, cx - half, cy - half, resolvedPieceSize, pieceTooltip(top, { rulesetId }));
+  const use = makeUseWithTitle(
+    href,
+    cx - half,
+    cy - half,
+    resolvedPieceSize,
+    pieceTooltip(top, { rulesetId, themeId })
+  );
   if (isBoardFlipped(svgRoot)) {
     use.setAttribute("transform", `rotate(180 ${cx} ${cy})`);
   }

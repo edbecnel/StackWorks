@@ -2,6 +2,7 @@ import type { Piece } from "../types";
 import { sideLabelForRuleset } from "../shared/sideTerminology";
 
 type RulesetIdLike = string | null | undefined;
+type ThemeIdLike = string | null | undefined;
 
 function usesDraughtsPieceTerminology(rulesetId?: RulesetIdLike): boolean {
   return (
@@ -13,8 +14,8 @@ function usesDraughtsPieceTerminology(rulesetId?: RulesetIdLike): boolean {
   );
 }
 
-function ownerLabel(owner: Piece["owner"], rulesetId?: RulesetIdLike): string {
-  return sideLabelForRuleset(rulesetId, owner);
+function ownerLabel(owner: Piece["owner"], rulesetId?: RulesetIdLike, themeId?: ThemeIdLike): string {
+  return sideLabelForRuleset(rulesetId, owner, { themeId });
 }
 
 function rankLabel(rank: Piece["rank"], rulesetId?: RulesetIdLike): string {
@@ -33,8 +34,11 @@ function rankLabel(rank: Piece["rank"], rulesetId?: RulesetIdLike): string {
   }
 }
 
-export function pieceTooltip(p: Piece, opts: { rulesetId?: RulesetIdLike } = {}): string {
-  const side = ownerLabel(p.owner, opts.rulesetId);
+export function pieceTooltip(
+  p: Piece,
+  opts: { rulesetId?: RulesetIdLike; themeId?: ThemeIdLike } = {}
+): string {
+  const side = ownerLabel(p.owner, opts.rulesetId, opts.themeId);
   const name = rankLabel(p.rank, opts.rulesetId);
   return `${side} ${name}`;
 }
