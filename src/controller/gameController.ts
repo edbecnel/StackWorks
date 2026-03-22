@@ -4634,12 +4634,13 @@ export class GameController {
 
     const rulesetId = this.state.meta?.rulesetId;
     const top = stack[stack.length - 1];
+    const themeId = this.svg.getAttribute("data-theme-id");
 
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g") as SVGGElement;
     g.setAttribute("class", "stack ghost");
     g.setAttribute("data-node", nodeId);
 
-    const baseHref = pieceToHref(top, { rulesetId });
+    const baseHref = pieceToHref(top, { rulesetId, themeId });
     const href = maybeVariantStonePieceHref(
       this.svg,
       maybeVariantWoodenPieceHref(this.svg, baseHref, `${nodeId}:ghost`),

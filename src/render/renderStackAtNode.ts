@@ -49,8 +49,9 @@ export function renderStackAtNode(
 
   const top = stack[stack.length - 1];
   const half = resolvedPieceSize / 2;
+  const themeId = svgRoot.getAttribute("data-theme-id");
 
-  const baseHref = pieceToHref(top, { rulesetId });
+  const baseHref = pieceToHref(top, { rulesetId, themeId });
   const href = maybeVariantStonePieceHref(svgRoot, maybeVariantWoodenPieceHref(svgRoot, baseHref, nodeId), nodeId);
   const use = makeUseWithTitle(href, cx - half, cy - half, resolvedPieceSize, pieceTooltip(top, { rulesetId }));
   if (isBoardFlipped(svgRoot)) {

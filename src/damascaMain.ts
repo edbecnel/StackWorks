@@ -274,6 +274,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
     writeStringPref(LS_OPT_KEYS.checkerboardTheme, pairedTheme);
     applyCheckerboard(pairedTheme);
+    applyBoardCoords();
     syncTerminologyUI();
   };
 
@@ -287,6 +288,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         const picked = normalizeCheckerboardThemeId(checkerboardThemeSelect.value);
         writeStringPref(LS_OPT_KEYS.checkerboardTheme, picked);
         applyCheckerboard(picked);
+        applyBoardCoords();
         syncTerminologyUI();
       });
     }
@@ -387,7 +389,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (!piecesLayer) throw new Error("Missing SVG group inside board: #pieces");
   if (!zoomTitle || !zoomHint) throw new Error("Missing inspector DOM nodes (zoomTitle/zoomHint)");
 
-  const inspector = createStackInspector(zoomTitle, zoomHint, zoomSvg);
+  const inspector = createStackInspector(zoomTitle, zoomHint, zoomSvg, {
+    getThemeId: () => svg.getAttribute("data-theme-id"),
+  });
 
   // Create initial game state and render once
   const state = createInitialGameStateForVariant(ACTIVE_VARIANT_ID);

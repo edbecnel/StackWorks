@@ -190,6 +190,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (checkerboardThemeSelect) checkerboardThemeSelect.value = pairedTheme;
     writeStringPref(LS_OPT_KEYS.checkerboardTheme, pairedTheme);
     applyCheckerboard(pairedTheme);
+    applyBoardCoords();
   };
 
   if (checkerboardThemeSelect) {
@@ -198,6 +199,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       const picked = normalizeCheckerboardThemeId(checkerboardThemeSelect.value);
       writeStringPref(LS_OPT_KEYS.checkerboardTheme, picked);
       applyCheckerboard(picked);
+      applyBoardCoords();
     });
   }
 
@@ -314,7 +316,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   zoomSvg.setAttribute("aria-label", "Stack column");
   zoomBody.replaceChildren(zoomSvg);
 
-  const inspector = createStackInspector(zoomTitle, zoomHint, zoomSvg);
+  const inspector = createStackInspector(zoomTitle, zoomHint, zoomSvg, {
+    getThemeId: () => svg.getAttribute("data-theme-id"),
+  });
 
   // Wrap the inspector so it can display coords matching the current board orientation.
   const orientedInspector = {

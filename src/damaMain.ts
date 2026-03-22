@@ -391,6 +391,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
     writeStringPref(isCheckers ? LS_CHECKERS_KEYS.checkerboardTheme : LS_OPT_KEYS.checkerboardTheme, pairedTheme);
     applyCheckerboard(pairedTheme);
+    applyBoardCoords();
     syncTerminologyUI();
   };
 
@@ -404,6 +405,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         const picked = normalizeCheckerboardThemeId(checkerboardThemeSelect.value);
         writeStringPref(isCheckers ? LS_CHECKERS_KEYS.checkerboardTheme : LS_OPT_KEYS.checkerboardTheme, picked);
         applyCheckerboard(picked);
+        applyBoardCoords();
         syncTerminologyUI();
       });
     }

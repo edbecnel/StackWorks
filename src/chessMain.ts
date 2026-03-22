@@ -230,6 +230,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (checkerboardThemeSelect) checkerboardThemeSelect.value = pairedTheme;
     writeStringPref(LS_OPT_KEYS.checkerboardTheme, pairedTheme);
     applyCheckerboard(pairedTheme);
+    applyBoardCoords();
   };
 
   if (checkerboardThemeSelect) {
@@ -238,6 +239,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       const picked = normalizeCheckerboardThemeId(checkerboardThemeSelect.value);
       writeStringPref(LS_OPT_KEYS.checkerboardTheme, picked);
       applyCheckerboard(picked);
+      applyBoardCoords();
     });
   }
 

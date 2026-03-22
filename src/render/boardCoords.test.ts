@@ -134,6 +134,19 @@ describe("renderBoardCoords (inSquare)", () => {
     expect(eight.getAttribute("transform") ?? "").toMatch(/^rotate\(180\s/);
   });
 
+  it("re-renders in-square label colors when the checkerboard theme changes", () => {
+    const svg = makeSvg8x8();
+
+    renderBoardCoords(svg, true, 8, { style: "inSquare" });
+    expect(findText(svg, "a").getAttribute("fill")).toBe("#f0d9b5");
+
+    (svg as any).__checkerboardThemeId = "candy";
+    renderBoardCoords(svg, true, 8, { style: "inSquare" });
+
+    expect(findText(svg, "a").getAttribute("fill")).toBe("#f5efff");
+    expect(findText(svg, "8").getAttribute("fill")).toBe("#f4b199");
+  });
+
   it("keeps 10x10 edge coordinates outside the board and in-square coordinates inside the board", () => {
     const svg = makeSvg10x10();
 

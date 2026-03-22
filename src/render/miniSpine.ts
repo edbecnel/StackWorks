@@ -71,6 +71,7 @@ export function drawMiniStackSpine(
   const spineH = stackH + spinePad * 2;
 
   const flipped = isBoardFlipped(svgRoot);
+  const themeId = svgRoot.getAttribute("data-theme-id");
 
   // If we're on a checkered board, prefer placing the spine inside the square,
   // pinned to the viewer-right edge. When the whole board is rotated 180°,
@@ -129,7 +130,7 @@ export function drawMiniStackSpine(
 
   for (let i = 0; i < countShown; i++) {
     const p = shown[i];
-    const baseHref = pieceToHref(p, { rulesetId });
+    const baseHref = pieceToHref(p, { rulesetId, themeId });
     const href = seedKey
       ? maybeVariantStonePieceHref(
           svgRoot,

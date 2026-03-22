@@ -3,6 +3,7 @@ import type { Player } from "../types";
 export type SideLabels = { W: string; B: string };
 
 const INTERNATIONAL_DRAUGHTS_LIGHT_DARK_THEME_IDS = new Set([
+  "candy",
   "wooden",
   "metal",
   "semiprecious",

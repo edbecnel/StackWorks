@@ -92,4 +92,17 @@ describe("themeManager.bindThemeDropdown", () => {
     expect(onUserSelect).not.toHaveBeenCalled();
     expect(createThemeDropdownMock).toHaveBeenCalledTimes(1);
   });
+
+  it("includes the Candy theme in the general dropdown items", async () => {
+    const svg = makeSvgRoot();
+    const dropdownRoot = makeDropdownRoot();
+
+    const themeManager = createThemeManager(svg);
+    await themeManager.bindThemeDropdown(dropdownRoot);
+
+    expect(createThemeDropdownMock).toHaveBeenCalledTimes(1);
+    const args = createThemeDropdownMock.mock.calls[0]?.[0];
+    expect(Array.isArray(args?.items)).toBe(true);
+    expect(args.items.some((item: { id: string }) => item.id === "candy")).toBe(true);
+  });
 });

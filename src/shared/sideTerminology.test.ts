@@ -9,7 +9,7 @@ describe("sideTerminology", () => {
   });
 
   it("uses Light/Dark for International Draughts on non-black-non-white piece themes", () => {
-    for (const themeId of ["wooden", "metal", "semiprecious", "glass", "turtle"]) {
+    for (const themeId of ["candy", "wooden", "metal", "semiprecious", "glass", "turtle"]) {
       localStorage.clear();
       localStorage.setItem("lasca.theme", themeId);
       expect(getSideLabelsForRuleset("draughts_international")).toEqual({ W: "Light", B: "Dark" });

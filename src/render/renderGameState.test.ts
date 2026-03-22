@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderGameState } from "./renderGameState.ts";
 import type { GameState } from "../game/state.ts";
+import { pieceToHref } from "../pieces/pieceToHref.ts";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -207,5 +208,10 @@ describe("renderGameState", () => {
       expect(Number(useEl.getAttribute("width"))).toBeCloseTo(51.6, 3);
       expect(Number(useEl.getAttribute("height"))).toBeCloseTo(51.6, 3);
     }
+  });
+
+  it("uses the Candy dama king symbol for promoted dama pieces", () => {
+    expect(pieceToHref({ owner: "W", rank: "O" }, { rulesetId: "dama", themeId: "candy" })).toBe("#W_DK");
+    expect(pieceToHref({ owner: "B", rank: "O" }, { rulesetId: "dama", themeId: "candy" })).toBe("#B_DK");
   });
 });

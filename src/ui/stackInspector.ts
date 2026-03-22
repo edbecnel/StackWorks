@@ -20,7 +20,8 @@ function chessPieceCode(p: { owner: string; rank: string }): string {
 export function createStackInspector(
   zoomTitle: HTMLElement,
   zoomHint: HTMLElement,
-  zoomSvg: SVGSVGElement
+  zoomSvg: SVGSVGElement,
+  config?: { getThemeId?: () => string | null }
 ) {
   let hideTimer: number | null = null;
   let pinned: boolean = false;
@@ -98,7 +99,10 @@ export function createStackInspector(
 
     for (let i = 0; i < n; i++) {
       const p = stack[i];
-      const href = pieceToHref(p, { rulesetId: opts.rulesetId });
+      const href = pieceToHref(p, {
+        rulesetId: opts.rulesetId,
+        themeId: config?.getThemeId?.() ?? null,
+      });
       const y = columnY + (n - 1 - i) * (miniSize + gap);
       zoomSvg.appendChild(makeUseWithTitle(href, columnX, y, miniSize, pieceTooltip(p, { rulesetId: opts.rulesetId })));
 

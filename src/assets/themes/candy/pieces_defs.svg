@@ -14,24 +14,150 @@
         pieces/candy/bp.svg pieces/candy/bn.svg pieces/candy/bb.svg pieces/candy/br.svg pieces/candy/bq.svg pieces/candy/bk.svg
     -->
 
-    <radialGradient id="neoDiscW" cx="35%" cy="30%" r="70%">
-      <stop offset="0%" stop-color="#fffdfd" />
-      <stop offset="55%" stop-color="#fff7fb" />
-      <stop offset="100%" stop-color="#f0d0e1" />
+    <radialGradient id="candyDiscLightFill" cx="34%" cy="24%" r="74%">
+      <stop offset="0%" stop-color="#fffefd" />
+      <stop offset="26%" stop-color="#fff7fb" />
+      <stop offset="62%" stop-color="#ffd8c8" />
+      <stop offset="100%" stop-color="#cf6d84" />
     </radialGradient>
 
-    <radialGradient id="neoDiscB" cx="35%" cy="30%" r="70%">
-      <stop offset="0%" stop-color="#c8b3ff" />
-      <stop offset="55%" stop-color="#8c71f7" />
-      <stop offset="100%" stop-color="#5c43bd" />
+    <radialGradient id="candyDiscDarkFill" cx="34%" cy="24%" r="74%">
+      <stop offset="0%" stop-color="#f4eeff" />
+      <stop offset="28%" stop-color="#ddccff" />
+      <stop offset="64%" stop-color="#9a7fe7" />
+      <stop offset="100%" stop-color="#5c45b8" />
     </radialGradient>
+
+    <radialGradient id="candyDomeLight" cx="37%" cy="28%" r="58%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.96" />
+      <stop offset="45%" stop-color="#ffeef7" stop-opacity="0.72" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </radialGradient>
+
+    <radialGradient id="candyDomeDark" cx="37%" cy="28%" r="58%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.84" />
+      <stop offset="45%" stop-color="#efe7ff" stop-opacity="0.44" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </radialGradient>
+
+    <linearGradient id="candyStripeLight" x1="18%" y1="18%" x2="84%" y2="84%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.76" />
+      <stop offset="42%" stop-color="#ffd6e6" stop-opacity="0.34" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+
+    <linearGradient id="candyStripeDark" x1="18%" y1="18%" x2="84%" y2="84%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.54" />
+      <stop offset="42%" stop-color="#e5dcff" stop-opacity="0.28" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+
+    <radialGradient id="candySpecularCoreLight" cx="30%" cy="24%" r="24%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.98" />
+      <stop offset="48%" stop-color="#ffffff" stop-opacity="0.72" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </radialGradient>
+
+    <radialGradient id="candySpecularCoreDark" cx="30%" cy="24%" r="24%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.88" />
+      <stop offset="48%" stop-color="#ffffff" stop-opacity="0.54" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </radialGradient>
+
+    <linearGradient id="candySpecularBandLight" x1="18%" y1="20%" x2="70%" y2="56%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.84" />
+      <stop offset="35%" stop-color="#ffffff" stop-opacity="0.50" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+
+    <linearGradient id="candySpecularBandDark" x1="18%" y1="20%" x2="70%" y2="56%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.66" />
+      <stop offset="35%" stop-color="#ffffff" stop-opacity="0.36" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+
+    <linearGradient id="candyRimGlossLight" x1="50%" y1="58%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0" />
+      <stop offset="68%" stop-color="#ffffff" stop-opacity="0.10" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.34" />
+    </linearGradient>
+
+    <linearGradient id="candyRimGlossDark" x1="50%" y1="58%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0" />
+      <stop offset="68%" stop-color="#ffffff" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.24" />
+    </linearGradient>
+
+    <radialGradient id="candyOuterShellLight" cx="34%" cy="24%" r="78%">
+      <stop offset="0%" stop-color="#ff9ad0" />
+      <stop offset="48%" stop-color="#ff69b5" />
+      <stop offset="100%" stop-color="#c62b7f" />
+    </radialGradient>
+
+    <radialGradient id="candyOuterShellDark" cx="34%" cy="24%" r="78%">
+      <stop offset="0%" stop-color="#cab3ff" />
+      <stop offset="48%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#5930d2" />
+    </radialGradient>
+
+    <linearGradient id="candyBezelLight" x1="18%" y1="18%" x2="82%" y2="86%">
+      <stop offset="0%" stop-color="#ffd9ea" />
+      <stop offset="35%" stop-color="#ff8fca" />
+      <stop offset="72%" stop-color="#ff5cab" />
+      <stop offset="100%" stop-color="#b41f6d" />
+    </linearGradient>
+
+    <linearGradient id="candyBezelDark" x1="18%" y1="18%" x2="82%" y2="86%">
+      <stop offset="0%" stop-color="#e7dbff" />
+      <stop offset="35%" stop-color="#b794ff" />
+      <stop offset="72%" stop-color="#8354f2" />
+      <stop offset="100%" stop-color="#5028c5" />
+    </linearGradient>
+
+    <radialGradient id="candyLensLight" cx="34%" cy="20%" r="82%">
+      <stop offset="0%" stop-color="#fffefe" />
+      <stop offset="32%" stop-color="#ffe9f5" />
+      <stop offset="72%" stop-color="#ff8dca" />
+      <stop offset="100%" stop-color="#ee4aa2" />
+    </radialGradient>
+
+    <radialGradient id="candyLensDark" cx="34%" cy="20%" r="82%">
+      <stop offset="0%" stop-color="#fcfbff" />
+      <stop offset="32%" stop-color="#ede5ff" />
+      <stop offset="72%" stop-color="#a77bff" />
+      <stop offset="100%" stop-color="#7842f0" />
+    </radialGradient>
+
+    <linearGradient id="candyInnerRimLight" x1="20%" y1="18%" x2="80%" y2="86%">
+      <stop offset="0%" stop-color="#fff7fb" stop-opacity="0.95" />
+      <stop offset="40%" stop-color="#ffb6da" stop-opacity="0.62" />
+      <stop offset="100%" stop-color="#8e1454" stop-opacity="0.95" />
+    </linearGradient>
+
+    <linearGradient id="candyInnerRimDark" x1="20%" y1="18%" x2="80%" y2="86%">
+      <stop offset="0%" stop-color="#f6f0ff" stop-opacity="0.95" />
+      <stop offset="40%" stop-color="#cdb6ff" stop-opacity="0.58" />
+      <stop offset="100%" stop-color="#4520b7" stop-opacity="0.96" />
+    </linearGradient>
+
+    <linearGradient id="candyTopGlassLight" x1="22%" y1="14%" x2="76%" y2="72%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.88" />
+      <stop offset="36%" stop-color="#ffffff" stop-opacity="0.42" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+
+    <linearGradient id="candyTopGlassDark" x1="22%" y1="14%" x2="76%" y2="72%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.78" />
+      <stop offset="36%" stop-color="#ffffff" stop-opacity="0.30" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
 
     <style>
-      .neoDiscStrokeW { stroke: #c45a79; stroke-width: 6; }
-      .neoDiscStrokeB { stroke: #f7ecff; stroke-width: 6; }
+      .candyDiscLightStroke { stroke: #b84c70; stroke-width: 6; }
+      .candyDiscDarkStroke { stroke: #f3ecff; stroke-width: 6; }
 
-      .neoInnerRingW { stroke: #c45a79; stroke-opacity: 0.16; stroke-width: 3; fill: none; }
-      .neoInnerRingB { stroke: #f7ecff; stroke-opacity: 0.14; stroke-width: 3; fill: none; }
+      .candyInnerRingLight { stroke: #b84c70; stroke-opacity: 0.22; stroke-width: 2.8; fill: none; }
+      .candyInnerRingDark { stroke: #f3ecff; stroke-opacity: 0.22; stroke-width: 2.8; fill: none; }
 
       /*
         Important UX: in the rest of the app, owner "W" should look like the
@@ -39,24 +165,48 @@
       */
       .neoPieceW {
         fill: #fff7fb;
-        stroke: #c45a79;
+        stroke: #b84c70;
         stroke-width: 3;
         stroke-linejoin: round;
         paint-order: stroke fill;
-        color: #c45a79; /* used by currentColor strokes (if any) */
+        color: #b84c70; /* used by currentColor strokes (if any) */
       }
       .neoPieceB {
-        fill: #8166f0;
-        stroke: #f7ecff;
+        fill: #7d62d4;
+        stroke: #f3ecff;
         stroke-width: 3;
         stroke-linejoin: round;
         paint-order: stroke fill;
-        color: #f7ecff;
+        color: #f3ecff;
       }
 
       .neoCut { stroke: none; }
       .neoPieceW .neoCut { fill: #a64066; }
       .neoPieceB .neoCut { fill: #f7ecff; }
+
+      .candyBadgeLight {
+        fill: #fffafc;
+        stroke: #b84c70;
+        stroke-width: 2.8;
+      }
+
+      .candyBadgeDark {
+        fill: #efe8ff;
+        stroke: #f3ecff;
+        stroke-width: 2.8;
+      }
+
+      .candyBadgeAccentLight {
+        fill: #cf6d84;
+        stroke: #b84c70;
+        stroke-width: 1.8;
+      }
+
+      .candyBadgeAccentDark {
+        fill: #5c45b8;
+        stroke: #f3ecff;
+        stroke-width: 1.8;
+      }
 
       .rasterPiece {
         image-rendering: auto;
@@ -64,15 +214,76 @@
     </style>
 
     <symbol id="neoDiscW" viewBox="0 0 100 100">
-      <circle cx="50" cy="50" r="43" fill="url(#neoDiscW)" class="neoDiscStrokeW" />
-      <circle cx="50" cy="50" r="33" class="neoInnerRingW" />
-      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#f7ecff" opacity="0.28" />
+      <ellipse cx="50" cy="84" rx="30" ry="7" fill="#a32761" opacity="0.22" />
+      <circle cx="50" cy="51" r="43" fill="url(#candyOuterShellLight)" class="candyDiscLightStroke" />
+      <circle cx="50" cy="48" r="39" fill="url(#candyBezelLight)" opacity="0.98" />
+      <circle cx="50" cy="47" r="34.5" fill="none" stroke="rgba(255,255,255,0.58)" stroke-width="2.4" />
+      <circle cx="50" cy="47.5" r="31" fill="url(#candyLensLight)" />
+      <ellipse cx="50" cy="41.5" rx="27.5" ry="22.5" fill="url(#candyDomeLight)" opacity="0.98" />
+      <circle cx="50" cy="47.5" r="28.5" fill="none" stroke="url(#candyInnerRimLight)" stroke-width="3.8" opacity="0.92" />
+      <path d="M17 67 C20 31 41 15 76 24 C57 24 39 34 22 57 Z" fill="url(#candyTopGlassLight)" opacity="0.96" />
+      <path d="M25 30 C30 24 35 23 39 26 C42 29 40 36 33 43 C27 49 24 46 22 41 C20 36 21 33 25 30 Z" fill="#ffffff" opacity="0.95" />
+      <path d="M61 33 C70 31 78 33 80 39 C82 44 77 47 70 47 C64 47 59 44 57 40 C55 36 56 34 61 33 Z" fill="#ffffff" opacity="0.22" />
+      <path d="M31 68 C34 65 38 64 41 65 C44 67 44 70 41 72 C37 75 32 75 29 72 C27 71 28 69 31 68 Z" fill="#ffffff" opacity="0.72" />
+      <path d="M28 75 C40 79 56 79 68 75" fill="none" stroke="url(#candyRimGlossLight)" stroke-width="5.8" stroke-linecap="round" opacity="0.94" />
+      <ellipse cx="60" cy="72" rx="16" ry="7" fill="#8e3655" opacity="0.10" />
     </symbol>
 
     <symbol id="neoDiscB" viewBox="0 0 100 100">
-      <circle cx="50" cy="50" r="43" fill="url(#neoDiscB)" class="neoDiscStrokeB" />
-      <circle cx="50" cy="50" r="33" class="neoInnerRingB" />
-      <ellipse cx="40" cy="36" rx="18" ry="12" fill="#f7ecff" opacity="0.10" />
+      <ellipse cx="50" cy="84" rx="30" ry="7" fill="#30156e" opacity="0.24" />
+      <circle cx="50" cy="51" r="43" fill="url(#candyOuterShellDark)" class="candyDiscDarkStroke" />
+      <circle cx="50" cy="48" r="39" fill="url(#candyBezelDark)" opacity="0.98" />
+      <circle cx="50" cy="47" r="34.5" fill="none" stroke="rgba(255,255,255,0.44)" stroke-width="2.4" />
+      <circle cx="50" cy="47.5" r="31" fill="url(#candyLensDark)" />
+      <ellipse cx="50" cy="41.5" rx="27.5" ry="22.5" fill="url(#candyDomeDark)" opacity="0.96" />
+      <circle cx="50" cy="47.5" r="28.5" fill="none" stroke="url(#candyInnerRimDark)" stroke-width="3.8" opacity="0.96" />
+      <path d="M17 67 C20 31 41 15 76 24 C57 24 39 34 22 57 Z" fill="url(#candyTopGlassDark)" opacity="0.92" />
+      <path d="M25 30 C30 24 35 23 39 26 C42 29 40 36 33 43 C27 49 24 46 22 41 C20 36 21 33 25 30 Z" fill="#ffffff" opacity="0.84" />
+      <path d="M61 33 C70 31 78 33 80 39 C82 44 77 47 70 47 C64 47 59 44 57 40 C55 36 56 34 61 33 Z" fill="#ffffff" opacity="0.18" />
+      <path d="M31 68 C34 65 38 64 41 65 C44 67 44 70 41 72 C37 75 32 75 29 72 C27 71 28 69 31 68 Z" fill="#ffffff" opacity="0.64" />
+      <path d="M28 75 C40 79 56 79 68 75" fill="none" stroke="url(#candyRimGlossDark)" stroke-width="5.8" stroke-linecap="round" opacity="0.90" />
+      <ellipse cx="60" cy="72" rx="16" ry="7" fill="#140a2d" opacity="0.16" />
+    </symbol>
+
+    <symbol id="candySwirl" viewBox="0 0 100 100">
+      <path d="M40 45 C44 38 55 37 60 42 C65 48 63 59 55 63 C47 67 37 64 34 56 C31 48 35 40 43 37" fill="none" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M43 56 C46 59 51 60 56 58" fill="none" stroke-width="3.4" stroke-linecap="round" />
+    </symbol>
+
+    <symbol id="candyCrown" viewBox="0 0 100 100">
+      <path d="M31 61 L36 44 L50 53 L64 44 L69 61 Z" />
+      <circle cx="36" cy="42" r="3.6" />
+      <circle cx="50" cy="50" r="3.6" />
+      <circle cx="64" cy="42" r="3.6" />
+      <rect x="30" y="61" width="40" height="6" rx="3" />
+    </symbol>
+
+    <symbol id="candyOfficerLight" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="18" class="candyBadgeLight" />
+      <ellipse cx="45" cy="43" rx="9" ry="7" fill="#ffffff" opacity="0.30" />
+      <use href="#candySwirl" class="candyBadgeAccentLight" />
+      <circle cx="43" cy="41" r="5.8" fill="#ffffff" opacity="0.34" />
+    </symbol>
+
+    <symbol id="candyOfficerDark" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="18" class="candyBadgeDark" />
+      <ellipse cx="45" cy="43" rx="9" ry="7" fill="#ffffff" opacity="0.22" />
+      <use href="#candySwirl" class="candyBadgeAccentDark" />
+      <circle cx="43" cy="41" r="5.8" fill="#ffffff" opacity="0.24" />
+    </symbol>
+
+    <symbol id="candyKingLight" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="20" class="candyBadgeLight" />
+      <ellipse cx="45" cy="43" rx="10" ry="8" fill="#ffffff" opacity="0.30" />
+      <use href="#candyCrown" class="candyBadgeAccentLight" transform="translate(0 -1)" />
+      <circle cx="43" cy="40" r="6" fill="#ffffff" opacity="0.34" />
+    </symbol>
+
+    <symbol id="candyKingDark" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="20" class="candyBadgeDark" />
+      <ellipse cx="45" cy="43" rx="10" ry="8" fill="#ffffff" opacity="0.22" />
+      <use href="#candyCrown" class="candyBadgeAccentDark" transform="translate(0 -1)" />
+      <circle cx="43" cy="40" r="6" fill="#ffffff" opacity="0.22" />
     </symbol>
 
     <!-- Simple, modern silhouettes. These are intentionally original (not traced). -->
@@ -138,10 +349,12 @@
     <symbol id="fallbackB_Q" viewBox="0 0 100 100"><use href="#neoDiscB" /><g class="neoPieceB"><use href="#neoQueen" /></g></symbol>
     <symbol id="fallbackB_K" viewBox="0 0 100 100"><use href="#neoDiscB" /><g class="neoPieceB"><use href="#neoKing" /></g></symbol>
 
-    <symbol id="fallbackW_S" viewBox="0 0 100 100"><use href="#neoDiscW" /><g class="neoPieceW"><use href="#neoPawn" /></g></symbol>
-    <symbol id="fallbackB_S" viewBox="0 0 100 100"><use href="#neoDiscB" /><g class="neoPieceB"><use href="#neoPawn" /></g></symbol>
-    <symbol id="fallbackW_O" viewBox="0 0 100 100"><use href="#neoDiscW" /><g class="neoPieceW"><use href="#neoKnight" /></g></symbol>
-    <symbol id="fallbackB_O" viewBox="0 0 100 100"><use href="#neoDiscB" /><g class="neoPieceB"><use href="#neoKnight" /></g></symbol>
+    <symbol id="fallbackW_S" viewBox="0 0 100 100"><use href="#neoDiscW" /></symbol>
+    <symbol id="fallbackB_S" viewBox="0 0 100 100"><use href="#neoDiscB" /></symbol>
+    <symbol id="fallbackW_O" viewBox="0 0 100 100"><use href="#neoDiscW" /><use href="#candyOfficerLight" /></symbol>
+    <symbol id="fallbackB_O" viewBox="0 0 100 100"><use href="#neoDiscB" /><use href="#candyOfficerDark" /></symbol>
+    <symbol id="fallbackW_DK" viewBox="0 0 100 100"><use href="#neoDiscW" /><use href="#candyKingLight" /></symbol>
+    <symbol id="fallbackB_DK" viewBox="0 0 100 100"><use href="#neoDiscB" /><use href="#candyKingDark" /></symbol>
 
     <!-- ===== Final symbols (PNG over fallback when available) ===== -->
     <symbol id="W_P" viewBox="0 0 100 100"><use href="#fallbackW_P" /><image class="rasterPiece" href="pieces/candy/wp.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
@@ -162,5 +375,7 @@
     <symbol id="B_S" viewBox="0 0 100 100"><use href="#fallbackB_S" /></symbol>
     <symbol id="W_O" viewBox="0 0 100 100"><use href="#fallbackW_O" /></symbol>
     <symbol id="B_O" viewBox="0 0 100 100"><use href="#fallbackB_O" /></symbol>
+    <symbol id="W_DK" viewBox="0 0 100 100"><use href="#fallbackW_DK" /></symbol>
+    <symbol id="B_DK" viewBox="0 0 100 100"><use href="#fallbackB_DK" /></symbol>
   </defs>
 </svg>
