@@ -1,6 +1,8 @@
 import type { GameController } from "../controller/gameController.ts";
 import { togglePanelLayoutMode } from "./panelLayoutMode";
 
+const TOAST_PREF_KEY = "lasca.opt.toasts";
+
 function isChessLikeRulesetId(rulesetId: string | null | undefined): boolean {
   return rulesetId === "chess" || rulesetId === "columns_chess";
 }
@@ -79,6 +81,24 @@ function clickButton(id: string): boolean {
   if (el.disabled) return false;
   el.click();
   return true;
+}
+
+function toggleToastMessages(controller: GameController): void {
+  let nextEnabled = true;
+  try {
+    nextEnabled = localStorage.getItem(TOAST_PREF_KEY) === "0";
+    localStorage.setItem(TOAST_PREF_KEY, nextEnabled ? "1" : "0");
+  } catch {
+    // ignore storage failures; still sync visible UI if present
+  }
+
+  const toastToggle = document.getElementById("toastToggle") as HTMLInputElement | null;
+  if (toastToggle) {
+    toastToggle.checked = nextEnabled;
+    toastToggle.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  controller.toast(`Toast messages ${nextEnabled ? "enabled" : "disabled"}`, 1800, { force: true });
 }
 
 function openKeyboardShortcutsPopup(controller?: GameController): void {
@@ -175,6 +195,7 @@ function openKeyboardShortcutsPopup(controller?: GameController): void {
       <li><b>Resign:</b> <code>Ctrl/Cmd+Shift+X</code></li>
       <li><b>Full Screen:</b> <code>Ctrl/Cmd+Shift+F</code></li>
       <li><b>Toggle layout:</b> <code>Ctrl/Cmd+Shift+L</code> (Panels ↔ Menu)</li>
+      <li><b>Toggle toast messages:</b> <code>Ctrl/Cmd+Alt+T</code></li>
     </ul>
 
     <h2>Playback</h2>
@@ -522,6 +543,13 @@ export function bindGameHotkeys(controller: GameController): void {
     if (mod && !ev.altKey && key === "l" && ev.shiftKey) {
       ev.preventDefault();
       togglePanelLayoutMode();
+      return;
+    }
+
+    // Toggle toast messages
+    if (mod && ev.altKey && !ev.shiftKey && key === "t") {
+      ev.preventDefault();
+      toggleToastMessages(controller);
       return;
     }
 
