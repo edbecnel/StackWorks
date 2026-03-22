@@ -860,7 +860,7 @@ function ensureGameShellStyles(): void {
       }
 
       .gameShellAppSlot > #appRoot > #centerArea.gameShellCenterArea {
-        justify-content: flex-start;
+        justify-content: center;
         align-items: stretch;
         align-content: stretch;
         flex-wrap: nowrap;
@@ -873,6 +873,7 @@ function ensureGameShellStyles(): void {
         grid-template-rows: auto minmax(0, 1fr) auto;
         gap: 6px;
         align-items: stretch;
+        margin-inline: auto;
       }
 
       .gameShellBoardStage > #boardWithEvalBar,

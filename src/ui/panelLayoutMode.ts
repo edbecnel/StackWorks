@@ -76,6 +76,26 @@ body[data-panel-layout="menu"] #centerArea {
   min-width: 0 !important;
 }
 
+/* Shared game shell already provides the top menu bar in menu layout.
+   Do not add a second reserved strip above the player info / board area. */
+body.stackworksGameShellEnabled[data-panel-layout="menu"] #centerArea {
+  padding-top: 0;
+}
+
+/* When the legacy panel-layout header is activated, place it under the shell bar
+   instead of on top of it, and keep the flyout aligned with that offset. */
+body.stackworksGameShellEnabled[data-panel-layout="menu"] #panelLayoutHeader {
+  top: 58px;
+}
+
+body.stackworksGameShellEnabled[data-panel-layout="menu"] #panelLayoutDropdown {
+  top: 58px;
+}
+
+body.stackworksGameShellEnabled[data-panel-layout="menu"][data-panel-layout-header="1"] #panelLayoutDropdown {
+  top: 104px;
+}
+
 /* Small screens (portrait/landscape): allow #centerArea to shrink even if the page
    stylesheet hard-codes a larger min-width. */
 @media (max-width: 460px) {
