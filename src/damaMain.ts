@@ -7,6 +7,9 @@ import { loadSvgFileInto } from "./render/loadSvgFile";
 import { createThemeManager, THEME_CHANGE_EVENT, THEME_DID_CHANGE_EVENT, THEME_WILL_CHANGE_EVENT } from "./theme/themeManager";
 import chessBoardSvgUrl from "./assets/chess_board.svg?url";
 import graphBoard8x8SvgUrl from "./assets/graph_board_8x8.svg?url";
+import checkerboardBlue10x10SvgUrl from "./assets/checkerboard_blue_10x10.svg?url";
+import checkerboardClassic10x10SvgUrl from "./assets/checkerboard_classic_10x10.svg?url";
+import checkerboardGreen10x10SvgUrl from "./assets/checkerboard_green_10x10.svg?url";
 import type { Player } from "./types";
 import { GameController } from "./controller/gameController.ts";
 import { ensureOverlayLayer } from "./render/overlays.ts";
@@ -66,16 +69,38 @@ function getActiveDamaVariantId(): VariantId {
   const raw = window.localStorage.getItem("lasca.variantId");
   if (raw && isVariantId(raw)) {
     const v = getVariantById(raw);
-    if (v.rulesetId === "dama" || v.rulesetId === "checkers_us") return v.variantId;
+    if (v.rulesetId === "dama" || v.rulesetId === "checkers_us" || v.rulesetId === "draughts_international") {
+      return v.variantId;
+    }
   }
   return FALLBACK_VARIANT_ID;
 }
 
 const ACTIVE_VARIANT_ID: VariantId = getActiveDamaVariantId();
 
+type TenByTenCheckerboardFamily = "classic" | "green" | "blue" | "checkers";
+
+function get10x10CheckerboardFamily(variantId: VariantId): TenByTenCheckerboardFamily {
+  if (variantId !== "draughts_10_international") return "classic";
+  const raw = window.localStorage.getItem("lasca.opt.checkerboardTheme");
+  const themeId = normalizeCheckerboardThemeId(raw);
+  if (themeId === "checkers") return "checkers";
+  if (themeId === "green") return "green";
+  if (themeId === "blue") return "blue";
+  return "classic";
+}
+
+function get10x10CheckerboardSvgByFamily(family: TenByTenCheckerboardFamily, fallbackUrl: string): string {
+  if (family === "checkers") return fallbackUrl;
+  if (family === "green") return checkerboardGreen10x10SvgUrl;
+  if (family === "blue") return checkerboardBlue10x10SvgUrl;
+  return checkerboardClassic10x10SvgUrl;
+}
+
 function saveLabelForDamaVariant(variantId: VariantId): string {
   if (variantId === "checkers_8_us") return "checkers";
   if (variantId === "dama_8_classic_international") return "dama_international";
+  if (variantId === "draughts_10_international") return "international_draughts";
   return "dama";
 }
 
@@ -284,8 +309,15 @@ window.addEventListener("DOMContentLoaded", async () => {
   boardLoading.show();
 
   const useCheckered8x8 = !isCheckers && (readOptionalBoolPref(LS_OPT_KEYS.board8x8Checkered) ?? false);
+  const usesBuiltInCheckerboard = isCheckers || activeVariant.boardSize === 10;
   const svgAsset = (() => {
-    if (isCheckers) return activeVariant.svgAsset ?? graphBoard8x8SvgUrl;
+    if (activeVariant.variantId === "draughts_10_international") {
+      return get10x10CheckerboardSvgByFamily(
+        get10x10CheckerboardFamily(activeVariant.variantId),
+        activeVariant.svgAsset ?? graphBoard8x8SvgUrl,
+      );
+    }
+    if (usesBuiltInCheckerboard) return activeVariant.svgAsset ?? graphBoard8x8SvgUrl;
     if (activeVariant.boardSize === 8 && useCheckered8x8) return chessBoardSvgUrl;
     return activeVariant.svgAsset ?? graphBoard8x8SvgUrl;
   })();
@@ -303,13 +335,13 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Apply flip early so any subsequently-created layers end up in the rotated view.
   setBoardFlipped(svg, isFlipped());
 
-  // Checkerboard theme (only relevant when using the chess-style 8x8 board)
+  // Checkerboard theme is available for built-in checkerboards and optional 8x8 checkerboards.
   const checkerboardThemeRow = document.getElementById("checkerboardThemeRow") as HTMLElement | null;
   const checkerboardThemeHelp = document.getElementById("checkerboardThemeHelp") as HTMLElement | null;
   const checkerboardThemeSelect = document.getElementById("checkerboardThemeSelect") as HTMLSelectElement | null;
 
-  const shouldShowCheckerboardTheme = activeVariant.boardSize === 8;
-  const canUseCheckerboardTheme = shouldShowCheckerboardTheme && (useCheckered8x8 || isCheckers);
+  const shouldShowCheckerboardTheme = usesBuiltInCheckerboard || activeVariant.boardSize === 8;
+  const canUseCheckerboardTheme = usesBuiltInCheckerboard || (activeVariant.boardSize === 8 && useCheckered8x8);
   if (checkerboardThemeRow) checkerboardThemeRow.style.display = shouldShowCheckerboardTheme ? "flex" : "none";
   if (checkerboardThemeHelp) {
     checkerboardThemeHelp.style.display = shouldShowCheckerboardTheme ? "block" : "none";
@@ -353,8 +385,19 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (canUseCheckerboardTheme) {
     if (checkerboardThemeSelect) {
       checkerboardThemeSelect.addEventListener("change", () => {
+        const prevFamily = activeVariant.variantId === "draughts_10_international"
+          ? get10x10CheckerboardFamily(activeVariant.variantId)
+          : null;
         const picked = normalizeCheckerboardThemeId(checkerboardThemeSelect.value);
         writeStringPref(isCheckers ? LS_CHECKERS_KEYS.checkerboardTheme : LS_OPT_KEYS.checkerboardTheme, picked);
+        if (activeVariant.variantId === "draughts_10_international") {
+          const nextFamily =
+            picked === "checkers" ? "checkers" : picked === "green" ? "green" : picked === "blue" ? "blue" : "classic";
+          if (prevFamily !== nextFamily) {
+            window.location.reload();
+            return;
+          }
+        }
         applyCheckerboard(picked);
         syncTerminologyUI();
       });
@@ -367,12 +410,15 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (board8x8CheckeredToggle) {
     const row = (board8x8CheckeredToggle.parentElement as HTMLElement | null) ?? null;
     const hint = (row?.nextElementSibling as HTMLElement | null) ?? null;
+    const canToggleCheckered8x8 = !usesBuiltInCheckerboard && activeVariant.boardSize === 8;
 
-    if (isCheckers) {
+    if (!canToggleCheckered8x8) {
       if (row) row.style.display = "none";
       if (hint) hint.style.display = "none";
       board8x8CheckeredToggle.disabled = true;
     } else {
+      if (row) row.style.display = "flex";
+      if (hint) hint.style.display = "block";
       board8x8CheckeredToggle.checked = useCheckered8x8;
       board8x8CheckeredToggle.addEventListener("change", () => {
         writeBoolPref(LS_OPT_KEYS.board8x8Checkered, board8x8CheckeredToggle.checked);
@@ -387,7 +433,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     boardCoordsToggle.checked = savedBoardCoords;
   }
 
-  const canUseInSquareCoords = activeVariant.boardSize === 8 && (useCheckered8x8 || isCheckers);
+  const canUseInSquareCoords = usesBuiltInCheckerboard || (activeVariant.boardSize === 8 && useCheckered8x8);
   const inSquaresUI = ensureBoardCoordsInSquaresOption(boardCoordsToggle);
   const savedBoardCoordsInSquares = readOptionalBoolPref(LS_OPT_KEYS.boardCoordsInSquares);
   if (inSquaresUI.toggle && savedBoardCoordsInSquares !== null) {

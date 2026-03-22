@@ -1,0 +1,215 @@
+<svg
+  id="lascaBoard"
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 1000 1000"
+  aria-label="10×10 checkers board"
+>
+  <defs id="lascaDefs">
+    <g id="lascaThemeDefs"></g>
+    <g id="lascaRuntimeDefs"></g>
+  </defs>
+
+  <g id="bgFill">
+    <rect x="0" y="0" width="1000" height="1000" fill="#1b1b1b" />
+    <rect x="60" y="60" width="880" height="880" fill="#1b1b1b" opacity="0.70" />
+  </g>
+
+  <g id="squares">
+    <rect x="100" y="100" width="80" height="80" fill="#b21f1f" />
+    <rect x="180" y="100" width="80" height="80" fill="#111111" />
+    <rect x="260" y="100" width="80" height="80" fill="#b21f1f" />
+    <rect x="340" y="100" width="80" height="80" fill="#111111" />
+    <rect x="420" y="100" width="80" height="80" fill="#b21f1f" />
+    <rect x="500" y="100" width="80" height="80" fill="#111111" />
+    <rect x="580" y="100" width="80" height="80" fill="#b21f1f" />
+    <rect x="660" y="100" width="80" height="80" fill="#111111" />
+    <rect x="740" y="100" width="80" height="80" fill="#b21f1f" />
+    <rect x="820" y="100" width="80" height="80" fill="#111111" />
+
+    <rect x="100" y="180" width="80" height="80" fill="#111111" />
+    <rect x="180" y="180" width="80" height="80" fill="#b21f1f" />
+    <rect x="260" y="180" width="80" height="80" fill="#111111" />
+    <rect x="340" y="180" width="80" height="80" fill="#b21f1f" />
+    <rect x="420" y="180" width="80" height="80" fill="#111111" />
+    <rect x="500" y="180" width="80" height="80" fill="#b21f1f" />
+    <rect x="580" y="180" width="80" height="80" fill="#111111" />
+    <rect x="660" y="180" width="80" height="80" fill="#b21f1f" />
+    <rect x="740" y="180" width="80" height="80" fill="#111111" />
+    <rect x="820" y="180" width="80" height="80" fill="#b21f1f" />
+
+    <rect x="100" y="260" width="80" height="80" fill="#b21f1f" />
+    <rect x="180" y="260" width="80" height="80" fill="#111111" />
+    <rect x="260" y="260" width="80" height="80" fill="#b21f1f" />
+    <rect x="340" y="260" width="80" height="80" fill="#111111" />
+    <rect x="420" y="260" width="80" height="80" fill="#b21f1f" />
+    <rect x="500" y="260" width="80" height="80" fill="#111111" />
+    <rect x="580" y="260" width="80" height="80" fill="#b21f1f" />
+    <rect x="660" y="260" width="80" height="80" fill="#111111" />
+    <rect x="740" y="260" width="80" height="80" fill="#b21f1f" />
+    <rect x="820" y="260" width="80" height="80" fill="#111111" />
+
+    <rect x="100" y="340" width="80" height="80" fill="#111111" />
+    <rect x="180" y="340" width="80" height="80" fill="#b21f1f" />
+    <rect x="260" y="340" width="80" height="80" fill="#111111" />
+    <rect x="340" y="340" width="80" height="80" fill="#b21f1f" />
+    <rect x="420" y="340" width="80" height="80" fill="#111111" />
+    <rect x="500" y="340" width="80" height="80" fill="#b21f1f" />
+    <rect x="580" y="340" width="80" height="80" fill="#111111" />
+    <rect x="660" y="340" width="80" height="80" fill="#b21f1f" />
+    <rect x="740" y="340" width="80" height="80" fill="#111111" />
+    <rect x="820" y="340" width="80" height="80" fill="#b21f1f" />
+
+    <rect x="100" y="420" width="80" height="80" fill="#b21f1f" />
+    <rect x="180" y="420" width="80" height="80" fill="#111111" />
+    <rect x="260" y="420" width="80" height="80" fill="#b21f1f" />
+    <rect x="340" y="420" width="80" height="80" fill="#111111" />
+    <rect x="420" y="420" width="80" height="80" fill="#b21f1f" />
+    <rect x="500" y="420" width="80" height="80" fill="#111111" />
+    <rect x="580" y="420" width="80" height="80" fill="#b21f1f" />
+    <rect x="660" y="420" width="80" height="80" fill="#111111" />
+    <rect x="740" y="420" width="80" height="80" fill="#b21f1f" />
+    <rect x="820" y="420" width="80" height="80" fill="#111111" />
+
+    <rect x="100" y="500" width="80" height="80" fill="#111111" />
+    <rect x="180" y="500" width="80" height="80" fill="#b21f1f" />
+    <rect x="260" y="500" width="80" height="80" fill="#111111" />
+    <rect x="340" y="500" width="80" height="80" fill="#b21f1f" />
+    <rect x="420" y="500" width="80" height="80" fill="#111111" />
+    <rect x="500" y="500" width="80" height="80" fill="#b21f1f" />
+    <rect x="580" y="500" width="80" height="80" fill="#111111" />
+    <rect x="660" y="500" width="80" height="80" fill="#b21f1f" />
+    <rect x="740" y="500" width="80" height="80" fill="#111111" />
+    <rect x="820" y="500" width="80" height="80" fill="#b21f1f" />
+
+    <rect x="100" y="580" width="80" height="80" fill="#b21f1f" />
+    <rect x="180" y="580" width="80" height="80" fill="#111111" />
+    <rect x="260" y="580" width="80" height="80" fill="#b21f1f" />
+    <rect x="340" y="580" width="80" height="80" fill="#111111" />
+    <rect x="420" y="580" width="80" height="80" fill="#b21f1f" />
+    <rect x="500" y="580" width="80" height="80" fill="#111111" />
+    <rect x="580" y="580" width="80" height="80" fill="#b21f1f" />
+    <rect x="660" y="580" width="80" height="80" fill="#111111" />
+    <rect x="740" y="580" width="80" height="80" fill="#b21f1f" />
+    <rect x="820" y="580" width="80" height="80" fill="#111111" />
+
+    <rect x="100" y="660" width="80" height="80" fill="#111111" />
+    <rect x="180" y="660" width="80" height="80" fill="#b21f1f" />
+    <rect x="260" y="660" width="80" height="80" fill="#111111" />
+    <rect x="340" y="660" width="80" height="80" fill="#b21f1f" />
+    <rect x="420" y="660" width="80" height="80" fill="#111111" />
+    <rect x="500" y="660" width="80" height="80" fill="#b21f1f" />
+    <rect x="580" y="660" width="80" height="80" fill="#111111" />
+    <rect x="660" y="660" width="80" height="80" fill="#b21f1f" />
+    <rect x="740" y="660" width="80" height="80" fill="#111111" />
+    <rect x="820" y="660" width="80" height="80" fill="#b21f1f" />
+
+    <rect x="100" y="740" width="80" height="80" fill="#b21f1f" />
+    <rect x="180" y="740" width="80" height="80" fill="#111111" />
+    <rect x="260" y="740" width="80" height="80" fill="#b21f1f" />
+    <rect x="340" y="740" width="80" height="80" fill="#111111" />
+    <rect x="420" y="740" width="80" height="80" fill="#b21f1f" />
+    <rect x="500" y="740" width="80" height="80" fill="#111111" />
+    <rect x="580" y="740" width="80" height="80" fill="#b21f1f" />
+    <rect x="660" y="740" width="80" height="80" fill="#111111" />
+    <rect x="740" y="740" width="80" height="80" fill="#b21f1f" />
+    <rect x="820" y="740" width="80" height="80" fill="#111111" />
+
+    <rect x="100" y="820" width="80" height="80" fill="#111111" />
+    <rect x="180" y="820" width="80" height="80" fill="#b21f1f" />
+    <rect x="260" y="820" width="80" height="80" fill="#111111" />
+    <rect x="340" y="820" width="80" height="80" fill="#b21f1f" />
+    <rect x="420" y="820" width="80" height="80" fill="#111111" />
+    <rect x="500" y="820" width="80" height="80" fill="#b21f1f" />
+    <rect x="580" y="820" width="80" height="80" fill="#111111" />
+    <rect x="660" y="820" width="80" height="80" fill="#b21f1f" />
+    <rect x="740" y="820" width="80" height="80" fill="#111111" />
+    <rect x="820" y="820" width="80" height="80" fill="#b21f1f" />
+  </g>
+
+  <g id="frame">
+    <rect
+      x="6"
+      y="6"
+      width="988"
+      height="988"
+      fill="none"
+      stroke="#000"
+      stroke-opacity="0.15"
+      stroke-width="12"
+    />
+  </g>
+
+  <g
+    id="connectors"
+    stroke="#404040"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    display="none"
+    pointer-events="none"
+  ></g>
+
+  <g id="nodes" fill="transparent" stroke="transparent" stroke-width="0" opacity="0" pointer-events="all">
+    <circle id="r0c1" cx="220" cy="140" r="30" />
+    <circle id="r0c3" cx="380" cy="140" r="30" />
+    <circle id="r0c5" cx="540" cy="140" r="30" />
+    <circle id="r0c7" cx="700" cy="140" r="30" />
+    <circle id="r0c9" cx="860" cy="140" r="30" />
+
+    <circle id="r1c0" cx="140" cy="220" r="30" />
+    <circle id="r1c2" cx="300" cy="220" r="30" />
+    <circle id="r1c4" cx="460" cy="220" r="30" />
+    <circle id="r1c6" cx="620" cy="220" r="30" />
+    <circle id="r1c8" cx="780" cy="220" r="30" />
+
+    <circle id="r2c1" cx="220" cy="300" r="30" />
+    <circle id="r2c3" cx="380" cy="300" r="30" />
+    <circle id="r2c5" cx="540" cy="300" r="30" />
+    <circle id="r2c7" cx="700" cy="300" r="30" />
+    <circle id="r2c9" cx="860" cy="300" r="30" />
+
+    <circle id="r3c0" cx="140" cy="380" r="30" />
+    <circle id="r3c2" cx="300" cy="380" r="30" />
+    <circle id="r3c4" cx="460" cy="380" r="30" />
+    <circle id="r3c6" cx="620" cy="380" r="30" />
+    <circle id="r3c8" cx="780" cy="380" r="30" />
+
+    <circle id="r4c1" cx="220" cy="460" r="30" />
+    <circle id="r4c3" cx="380" cy="460" r="30" />
+    <circle id="r4c5" cx="540" cy="460" r="30" />
+    <circle id="r4c7" cx="700" cy="460" r="30" />
+    <circle id="r4c9" cx="860" cy="460" r="30" />
+
+    <circle id="r5c0" cx="140" cy="540" r="30" />
+    <circle id="r5c2" cx="300" cy="540" r="30" />
+    <circle id="r5c4" cx="460" cy="540" r="30" />
+    <circle id="r5c6" cx="620" cy="540" r="30" />
+    <circle id="r5c8" cx="780" cy="540" r="30" />
+
+    <circle id="r6c1" cx="220" cy="620" r="30" />
+    <circle id="r6c3" cx="380" cy="620" r="30" />
+    <circle id="r6c5" cx="540" cy="620" r="30" />
+    <circle id="r6c7" cx="700" cy="620" r="30" />
+    <circle id="r6c9" cx="860" cy="620" r="30" />
+
+    <circle id="r7c0" cx="140" cy="700" r="30" />
+    <circle id="r7c2" cx="300" cy="700" r="30" />
+    <circle id="r7c4" cx="460" cy="700" r="30" />
+    <circle id="r7c6" cx="620" cy="700" r="30" />
+    <circle id="r7c8" cx="780" cy="700" r="30" />
+
+    <circle id="r8c1" cx="220" cy="780" r="30" />
+    <circle id="r8c3" cx="380" cy="780" r="30" />
+    <circle id="r8c5" cx="540" cy="780" r="30" />
+    <circle id="r8c7" cx="700" cy="780" r="30" />
+    <circle id="r8c9" cx="860" cy="780" r="30" />
+
+    <circle id="r9c0" cx="140" cy="860" r="30" />
+    <circle id="r9c2" cx="300" cy="860" r="30" />
+    <circle id="r9c4" cx="460" cy="860" r="30" />
+    <circle id="r9c6" cx="620" cy="860" r="30" />
+    <circle id="r9c8" cx="780" cy="860" r="30" />
+  </g>
+
+  <g id="pieces"></g>
+</svg>

@@ -29,24 +29,30 @@ export function renderStackAtNode(
     spinesLayer?: SVGGElement | null;
   } = {}
 ): void {
-  const { pieceSize = 86, rulesetId, boardSize, countsLayer, spinesLayer } = opts;
+  const { pieceSize, rulesetId, boardSize, countsLayer, spinesLayer } = opts;
 
-  const node = document.getElementById(nodeId) as SVGCircleElement | null;
+  const node = svgRoot.querySelector(`#${nodeId}`) as SVGCircleElement | null;
   if (!node || !stack.length) return;
 
   const cx = parseFloat(node.getAttribute("cx") || "0");
   const cy = parseFloat(node.getAttribute("cy") || "0");
+  const nodeRadius = parseFloat(node.getAttribute("r") || "0");
+  const resolvedPieceSize = Number.isFinite(pieceSize)
+    ? (pieceSize as number)
+    : nodeRadius > 0
+      ? Math.max(46, nodeRadius * 2.15)
+      : 86;
 
   const g = document.createElementNS("http://www.w3.org/2000/svg", "g") as SVGGElement;
   g.setAttribute("data-node", nodeId);
   g.setAttribute("class", "stack");
 
   const top = stack[stack.length - 1];
-  const half = pieceSize / 2;
+  const half = resolvedPieceSize / 2;
 
   const baseHref = pieceToHref(top, { rulesetId });
   const href = maybeVariantStonePieceHref(svgRoot, maybeVariantWoodenPieceHref(svgRoot, baseHref, nodeId), nodeId);
-  const use = makeUseWithTitle(href, cx - half, cy - half, pieceSize, pieceTooltip(top, { rulesetId }));
+  const use = makeUseWithTitle(href, cx - half, cy - half, resolvedPieceSize, pieceTooltip(top, { rulesetId }));
   if (isBoardFlipped(svgRoot)) {
     use.setAttribute("transform", `rotate(180 ${cx} ${cy})`);
   }
@@ -97,7 +103,7 @@ export function renderStackAtNode(
   }
 
   drawMiniStackSpine(svgRoot, spineG, cx, cy, stack, {
-    pieceSize,
+    pieceSize: resolvedPieceSize,
     miniSize: 18,
     rulesetId,
     seedKey: nodeId,

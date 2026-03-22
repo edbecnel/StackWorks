@@ -2,19 +2,20 @@
 
 ## Variant setup
 
-- [ ] Add International Draughts as a new checkers-type variant in the game/variant selection flow.
-- [ ] Define the variant metadata, naming, and rules summary used by the UI.
+- [x] Add International Draughts as a new checkers-type variant in the game/variant selection flow.
+- [x] Define the variant metadata, naming, and rules summary used by the UI.
 - [ ] Wire the variant into the non-chess game flow without enabling any chess-only behavior.
 
 ## Board and presentation
 
-- [ ] Add the correct 10x10 board with 50 playable dark squares.
-- [ ] Start the 10x10 gameboard from the existing Classic board presentation.
+- [x] Add the correct 10x10 board with 50 playable dark squares.
+- [x] Start the 10x10 gameboard from the existing Classic board presentation.
+- [x] Add dedicated 10x10 checkerboard families for classic, green, blue, and red/black presentation.
 - [ ] Support all non-chess game pieces on the 10x10 board.
-- [ ] Scale non-chess pieces down so they fit smaller 10x10 squares cleanly.
-- [ ] Adjust board coordinates so they line up correctly on the 10x10 board.
-- [ ] Prevent outside coordinates from crossing into the playable board area.
-- [ ] Prevent inside coordinates from crossing outside of the playable board area.
+- [x] Scale non-chess pieces down so they fit smaller 10x10 squares cleanly.
+- [x] Adjust board coordinates so they line up correctly on the 10x10 board.
+- [x] Prevent outside coordinates from crossing into the playable board area.
+- [x] Prevent inside coordinates from crossing outside of the playable board area.
 - [ ] Verify the 10x10 board layout remains readable on desktop and mobile sizes used by StackWorks.
 
 ## Initial position and turn order
@@ -66,7 +67,7 @@
 - [ ] Add capture-sequence tests for men and flying kings, including maximum-capture selection.
 - [ ] Add promotion tests covering end-of-move promotion and blocked mid-sequence promotion.
 - [ ] Add win and draw tests for repetition, 25-move king-only sequences, and reduced-material cases.
-- [ ] Add rendering tests or smoke checks for 10x10 board coordinates and scaled piece fit.
+- [x] Add rendering tests or smoke checks for 10x10 board coordinates and scaled piece fit.
 - [ ] Verify all rule text and implemented behavior against the official FMJD International Draughts rules.
 
 ## Documentation

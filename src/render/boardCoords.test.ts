@@ -32,6 +32,49 @@ function makeSvg8x8(): SVGSVGElement {
   return svg;
 }
 
+function makeSvg10x10(): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, "svg") as SVGSVGElement;
+  svg.setAttribute("viewBox", "0 0 1000 1000");
+
+  (svg as any).__checkerboardThemeId = "checkers";
+
+  const squares = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  squares.id = "squares";
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 10; c++) {
+      const rect = document.createElementNS(SVG_NS, "rect") as SVGRectElement;
+      rect.setAttribute("x", String(100 + c * 80));
+      rect.setAttribute("y", String(100 + r * 80));
+      rect.setAttribute("width", "80");
+      rect.setAttribute("height", "80");
+      squares.appendChild(rect);
+    }
+  }
+  svg.appendChild(squares);
+
+  const nodes = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  nodes.id = "nodes";
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 10; c++) {
+      if ((r + c) % 2 !== 1) continue;
+      const circle = document.createElementNS(SVG_NS, "circle") as SVGCircleElement;
+      circle.setAttribute("id", `r${r}c${c}`);
+      circle.setAttribute("cx", String(140 + c * 80));
+      circle.setAttribute("cy", String(140 + r * 80));
+      circle.setAttribute("r", "30");
+      nodes.appendChild(circle);
+    }
+  }
+  svg.appendChild(nodes);
+
+  const pieces = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  pieces.id = "pieces";
+  svg.appendChild(pieces);
+
+  document.body.appendChild(svg);
+  return svg;
+}
+
 function findText(svg: SVGSVGElement, text: string): SVGTextElement {
   const nodes = Array.from(svg.querySelectorAll("#boardCoords text")) as SVGTextElement[];
   const found = nodes.find((t) => (t.textContent ?? "").trim() === text);
@@ -89,5 +132,25 @@ describe("renderBoardCoords (inSquare)", () => {
     expect(eight.getAttribute("text-anchor")).toBe("start");
     expect(eight.getAttribute("dominant-baseline")).toBe("hanging");
     expect(eight.getAttribute("transform") ?? "").toMatch(/^rotate\(180\s/);
+  });
+
+  it("keeps 10x10 edge coordinates outside the board and in-square coordinates inside the board", () => {
+    const svg = makeSvg10x10();
+
+    renderBoardCoords(svg, true, 10, { style: "edge" });
+
+    const edgeA = findText(svg, "A");
+    const edgeOne = findText(svg, "1");
+    expect(Number(edgeA.getAttribute("y"))).toBeGreaterThan(900);
+    expect(Number(edgeOne.getAttribute("x"))).toBeLessThan(100);
+
+    renderBoardCoords(svg, true, 10, { style: "inSquare" });
+
+    const inSquareA = findText(svg, "a");
+    const inSquareTen = findText(svg, "10");
+    expect(Number(inSquareA.getAttribute("x"))).toBeLessThanOrEqual(900);
+    expect(Number(inSquareA.getAttribute("y"))).toBeLessThanOrEqual(900);
+    expect(Number(inSquareTen.getAttribute("x"))).toBeGreaterThanOrEqual(100);
+    expect(Number(inSquareTen.getAttribute("y"))).toBeGreaterThanOrEqual(100);
   });
 });

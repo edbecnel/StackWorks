@@ -14,6 +14,7 @@ function mkSvg() {
   circle.setAttribute("id", "r3c3");
   circle.setAttribute("cx", "100");
   circle.setAttribute("cy", "100");
+  circle.setAttribute("r", "40");
   svg.appendChild(circle);
 
   // Pieces layer
@@ -66,5 +67,32 @@ describe("renderGameState", () => {
     const useEl = stackG.querySelector("use");
     expect(useEl).toBeTruthy();
     expect(useEl!.getAttribute("href")).toBeDefined();
+    expect(Number(useEl!.getAttribute("width"))).toBeCloseTo(86, 3);
+  });
+
+  it("scales piece size down from the node radius on smaller checkerboards", () => {
+    const { svg, pieces } = mkSvg();
+    document.body.appendChild(svg);
+
+    const node = svg.querySelector("#r3c3") as SVGCircleElement;
+    node.setAttribute("r", "30");
+
+    const state: GameState = {
+      board: new Map([["r3c3", [{ owner: "B", rank: "S" }]]]),
+      toMove: "B",
+      phase: "idle",
+      meta: {
+        variantId: "draughts_10_international" as any,
+        rulesetId: "draughts_international" as any,
+        boardSize: 10 as any,
+      },
+    };
+
+    renderGameState(svg, pieces, null, state);
+
+    const useEl = pieces.querySelector('g[data-layer="pieceStacks"] use') as SVGUseElement | null;
+    expect(useEl).toBeTruthy();
+    expect(Number(useEl!.getAttribute("width"))).toBeCloseTo(64.5, 3);
+    expect(Number(useEl!.getAttribute("height"))).toBeCloseTo(64.5, 3);
   });
 });

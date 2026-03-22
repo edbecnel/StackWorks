@@ -40,6 +40,43 @@ function makeSvg8x8(): SVGSVGElement {
   return svg;
 }
 
+function makeSvg10x10(): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, "svg") as SVGSVGElement;
+  svg.setAttribute("viewBox", "0 0 1000 1000");
+
+  const bgFill = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  bgFill.id = "bgFill";
+  svg.appendChild(bgFill);
+
+  const squares = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  squares.id = "squares";
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 10; c++) {
+      const rect = document.createElementNS(SVG_NS, "rect") as SVGRectElement;
+      rect.setAttribute("x", String(100 + c * 80));
+      rect.setAttribute("y", String(100 + r * 80));
+      rect.setAttribute("width", "80");
+      rect.setAttribute("height", "80");
+      squares.appendChild(rect);
+    }
+  }
+  svg.appendChild(squares);
+
+  const frame = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  frame.id = "frame";
+  const frameRect = document.createElementNS(SVG_NS, "rect") as SVGRectElement;
+  frameRect.setAttribute("x", "60");
+  frameRect.setAttribute("y", "60");
+  frameRect.setAttribute("width", "880");
+  frameRect.setAttribute("height", "880");
+  frameRect.setAttribute("stroke-width", "10");
+  frame.appendChild(frameRect);
+  svg.appendChild(frame);
+
+  document.body.appendChild(svg);
+  return svg;
+}
+
 describe("applyBoardViewportModeToSvg", () => {
   it("crops to squares + top/bottom strips and hides chrome", () => {
     const svg = makeSvg8x8();
@@ -73,5 +110,19 @@ describe("applyBoardViewportModeToSvg", () => {
 
     const frame = svg.querySelector("#frame") as SVGGElement | null;
     expect(frame?.getAttribute("display")).toBe(null);
+  });
+
+  it("infers and crops a 10x10 checkerboard correctly", () => {
+    const svg = makeSvg10x10();
+
+    applyBoardViewportModeToSvg(svg, "playable", { boardSize: 10 });
+
+    const metrics = getBoardViewportMetrics(svg);
+    expect(metrics?.mode).toBe("playable");
+    expect(metrics?.squares?.boardSize).toBe(10);
+    expect(metrics?.squares?.x).toBe(100);
+    expect(metrics?.squares?.w).toBe(800);
+    expect(metrics?.squares?.h).toBe(800);
+    expect((svg.getAttribute("viewBox") ?? "").startsWith("100 ")).toBe(true);
   });
 });

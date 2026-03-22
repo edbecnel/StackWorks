@@ -4,6 +4,7 @@ import lascaBoardSvgUrl from "../assets/lasca_board.svg?url";
 import graphBoard8x8SvgUrl from "../assets/graph_board_8x8.svg?url";
 import columnsChessBoardSvgUrl from "../assets/columns_chess_board.svg?url";
 import checkersBoard8x8SvgUrl from "../assets/checkers_board_8x8.svg?url";
+import checkersBoard10x10SvgUrl from "../assets/checkers_board_10x10.svg?url";
 
 const RULESET_LABEL: Record<RulesetId, string> = {
   lasca: "Lasca",
@@ -73,6 +74,7 @@ export const VARIANTS: readonly VariantSpec[] = [
     rulesetId: "draughts_international",
     boardSize: 10,
     piecesPerSide: 20,
+    svgAsset: checkersBoard10x10SvgUrl,
     defaultSaveName: "draughts_10_international-save.json",
     available: false,
   },
