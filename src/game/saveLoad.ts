@@ -45,7 +45,7 @@ export interface SerializedSaveFileV3 {
   saveVersion: 3;
   variantId: VariantId;
   rulesetId: RulesetId;
-  boardSize: 7 | 8;
+  boardSize: 7 | 8 | 10;
   damaCaptureRemoval?: DamaCaptureRemoval;
   current: SerializedGameState;
   history?: SerializedHistory;
@@ -57,6 +57,7 @@ function isRulesetId(raw: unknown): raw is RulesetId {
   return (
     raw === "lasca" ||
     raw === "dama" ||
+    raw === "draughts_international" ||
     raw === "damasca" ||
     raw === "damasca_classic" ||
     raw === "checkers_us" ||
@@ -80,8 +81,8 @@ function legacyHybridMessage(): string {
   );
 }
 
-function isBoardSize(raw: unknown): raw is 7 | 8 {
-  return raw === 7 || raw === 8;
+function isBoardSize(raw: unknown): raw is 7 | 8 | 10 {
+  return raw === 7 || raw === 8 || raw === 10;
 }
 
 function isDamaCaptureRemoval(raw: unknown): raw is DamaCaptureRemoval {
@@ -102,7 +103,7 @@ function coerceMeta(raw: unknown): GameMeta | null {
   const m = raw as any;
   const variantId = typeof m?.variantId === "string" && isVariantId(m.variantId) ? (m.variantId as VariantId) : null;
   const rulesetId = isRulesetId(m?.rulesetId) ? (m.rulesetId as RulesetId) : null;
-  const boardSize = isBoardSize(m?.boardSize) ? (m.boardSize as 7 | 8) : null;
+  const boardSize = isBoardSize(m?.boardSize) ? (m.boardSize as 7 | 8 | 10) : null;
   if (!variantId || !rulesetId || !boardSize) return null;
 
   if (rulesetId === "dama") {
@@ -273,7 +274,7 @@ export function deserializeSaveData(
 
     const variantId = v3.variantId as VariantId;
     const rulesetId = v3.rulesetId as RulesetId;
-    const boardSize = v3.boardSize as 7 | 8;
+    const boardSize = v3.boardSize as 7 | 8 | 10;
 
     let meta: GameMeta;
     if (rulesetId === "dama") {

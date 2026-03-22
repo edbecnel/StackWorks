@@ -1,5 +1,5 @@
 import { VARIANTS, getVariantById } from "../variants/variantRegistry";
-import type { RulesetId, VariantId } from "../variants/variantTypes";
+import type { BoardSize, RulesetId, VariantId } from "../variants/variantTypes";
 import { GlobalSection } from "./shellState";
 
 export type AppShellSectionId = GlobalSection;
@@ -15,7 +15,8 @@ export interface AppShellGameItem {
   displayName: string;
   subtitle: string;
   rulesetId: RulesetId;
-  boardSize: 7 | 8;
+  boardSize: BoardSize;
+  available: boolean;
   entryUrl?: string;
 }
 
@@ -33,6 +34,7 @@ export const APP_SHELL_GAMES: readonly AppShellGameItem[] = VARIANTS.map((varian
   subtitle: variant.subtitle,
   rulesetId: variant.rulesetId,
   boardSize: variant.boardSize,
+  available: variant.available,
   entryUrl: variant.entryUrl,
 }));
 
@@ -44,6 +46,7 @@ export function getAppShellGame(variantId: VariantId): AppShellGameItem {
     subtitle: variant.subtitle,
     rulesetId: variant.rulesetId,
     boardSize: variant.boardSize,
+    available: variant.available,
     entryUrl: variant.entryUrl,
   };
 }

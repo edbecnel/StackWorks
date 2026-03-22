@@ -1,4 +1,4 @@
-import type { RulesetId, VariantId, VariantSpec } from "./variantTypes";
+import type { BoardSize, RulesetId, VariantId, VariantSpec } from "./variantTypes";
 
 import lascaBoardSvgUrl from "../assets/lasca_board.svg?url";
 import graphBoard8x8SvgUrl from "../assets/graph_board_8x8.svg?url";
@@ -8,6 +8,7 @@ import checkersBoard8x8SvgUrl from "../assets/checkers_board_8x8.svg?url";
 const RULESET_LABEL: Record<RulesetId, string> = {
   lasca: "Lasca",
   dama: "Dama Classic",
+  draughts_international: "International Draughts",
   damasca: "Damasca International",
   damasca_classic: "Damasca Classic",
   checkers_us: "US Checkers",
@@ -64,6 +65,16 @@ export const VARIANTS: readonly VariantSpec[] = [
     entryUrl: "./dama",
     defaultSaveName: "checkers_8_us-save.json",
     available: true,
+  },
+  {
+    variantId: "draughts_10_international",
+    displayName: "International Draughts",
+    subtitle: "Rules: International Draughts • Board: 10×10 • Pieces: 20/side • Flying kings • Max-capture priority",
+    rulesetId: "draughts_international",
+    boardSize: 10,
+    piecesPerSide: 20,
+    defaultSaveName: "draughts_10_international-save.json",
+    available: false,
   },
   {
     variantId: "lasca_8_dama_board",
@@ -150,7 +161,7 @@ export function isVariantId(id: string): id is VariantId {
   );
 }
 
-export function rulesBoardLine(rulesetId: RulesetId, boardSize: 7 | 8): string {
+export function rulesBoardLine(rulesetId: RulesetId, boardSize: BoardSize): string {
   const label = RULESET_LABEL[rulesetId] ?? String(rulesetId);
   return `${label} Rules • ${boardSize}×${boardSize} Board`;
 }

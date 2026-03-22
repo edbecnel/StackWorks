@@ -96,7 +96,7 @@ function getCheckerboardThemeId(svg: SVGSVGElement): CheckerboardThemeId {
   return normalizeCheckerboardThemeId(typeof raw === "string" ? raw : (raw ?? null));
 }
 
-function renderBoardCoordsInSquares(layer: SVGGElement, svg: SVGSVGElement, boardSize: 7 | 8, flipped: boolean): void {
+function renderBoardCoordsInSquares(layer: SVGGElement, svg: SVGSVGElement, boardSize: 7 | 8 | 10, flipped: boolean): void {
   // Prefer exact square geometry.
   const grid = computeSquareGridFromRects(svg);
   if (!grid) {
@@ -190,7 +190,7 @@ function renderBoardCoordsInSquares(layer: SVGGElement, svg: SVGSVGElement, boar
 export function renderBoardCoords(
   svg: SVGSVGElement,
   enabled: boolean,
-  boardSize: 7 | 8 = 7,
+  boardSize: 7 | 8 | 10 = 7,
   opts?: { flipped?: boolean; style?: BoardCoordsStyle }
 ): void {
   const layer = ensureBoardCoordsLayer(svg);

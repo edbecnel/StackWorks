@@ -8,7 +8,7 @@ export type BoardSquaresBounds = {
   w: number;
   h: number;
   step: number;
-  boardSize: 7 | 8;
+  boardSize: 7 | 8 | 10;
 };
 
 export type BoardViewportMetrics = {
@@ -34,19 +34,20 @@ function parseViewBox(svg: SVGSVGElement): { x: number; y: number; w: number; h:
   return { x: 0, y: 0, w: 1000, h: 1000 };
 }
 
-function inferBoardSizeFromSquares(svg: SVGSVGElement): 7 | 8 | null {
+function inferBoardSizeFromSquares(svg: SVGSVGElement): 7 | 8 | 10 | null {
   const squares = svg.querySelector("#squares") as SVGGElement | null;
   if (!squares) return null;
   const rects = squares.querySelectorAll("rect");
   const n = rects.length;
   if (n === 64) return 8;
   if (n === 49) return 7;
+  if (n === 100) return 10;
   const root = Math.round(Math.sqrt(n));
-  if (root * root === n && (root === 7 || root === 8)) return root as 7 | 8;
+  if (root * root === n && (root === 7 || root === 8 || root === 10)) return root as 7 | 8 | 10;
   return null;
 }
 
-function computeSquaresBounds(svg: SVGSVGElement, boardSize: 7 | 8): BoardSquaresBounds | null {
+function computeSquaresBounds(svg: SVGSVGElement, boardSize: 7 | 8 | 10): BoardSquaresBounds | null {
   const squares = svg.querySelector("#squares") as SVGGElement | null;
   if (!squares) return null;
   const rects = Array.from(squares.querySelectorAll("rect")) as SVGRectElement[];
@@ -133,7 +134,7 @@ function hideOuterChrome(svg: SVGSVGElement, hide: boolean): void {
 export function applyBoardViewportModeToSvg(
   svg: SVGSVGElement,
   mode: BoardViewportMode,
-  opts?: { boardSize?: 7 | 8; reservedLeft?: number; reservedRight?: number; reservedTop?: number; reservedBottom?: number }
+  opts?: { boardSize?: 7 | 8 | 10; reservedLeft?: number; reservedRight?: number; reservedTop?: number; reservedBottom?: number }
 ): BoardViewportMetrics {
   if (!svg) {
     return { mode, squares: null, extraLeft: 0, extraRight: 0, extraTop: 0, extraBottom: 0, viewBox: null };

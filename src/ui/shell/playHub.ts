@@ -370,10 +370,11 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     button.className = "playHubVariantButton";
     button.innerHTML = `<span class="playHubVariantLabel">${game.displayName}</span><span class="playHubVariantDescription">${game.subtitle}</span>`;
     const isActive = game.variantId === opts.currentVariantId;
+    const isLaunchable = game.available && Boolean(game.entryUrl);
     button.classList.toggle("isActive", isActive);
-    button.disabled = isActive || !game.entryUrl;
+    button.disabled = isActive || !isLaunchable;
     button.addEventListener("click", () => {
-      if (!game.entryUrl || isActive) return;
+      if (!isLaunchable || !game.entryUrl || isActive) return;
       setLauncherVariant(game.variantId);
       updateShellState({
         activeGame: game.variantId,

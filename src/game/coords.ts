@@ -13,16 +13,14 @@ export function makeNodeId(r: number, c: number): NodeId {
   return `r${r}c${c}`;
 }
 
-export function inBounds(r: number, c: number, boardSize: 7 | 8 = 7): boolean {
+export function inBounds(r: number, c: number, boardSize: 7 | 8 | 10 = 7): boolean {
   return r >= 0 && r < boardSize && c >= 0 && c < boardSize;
 }
 
-export function isPlayable(r: number, c: number, boardSize: 7 | 8 = 7): boolean {
+export function isPlayable(r: number, c: number, boardSize: 7 | 8 | 10 = 7): boolean {
   if (!inBounds(r, c, boardSize)) return false;
-  // For 7×7 (Lasca classic), the historical layout uses even parity.
-  // For 8×8 (Dama/Damasca/Lasca-8×8), align with standard chess/checkers
-  // board coloring where A1 is dark/playable; that corresponds to odd parity
-  // when rows are indexed top-to-bottom (r0 at the top).
-  const playableParity = boardSize === 8 ? 1 : 0;
+  // Odd-sized historical Lasca uses even parity. Even-sized checkerboards in this
+  // repo use odd parity so the lower-left corner is dark/playable.
+  const playableParity = boardSize % 2 === 0 ? 1 : 0;
   return (r + c) % 2 === playableParity;
 }

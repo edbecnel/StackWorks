@@ -12,7 +12,7 @@ export const WHITE_START_NODE_IDS_7X7_11: readonly string[] = [
 
 import { isPlayable } from "./coords.ts";
 
-function computePlayableNodeIdsForRow(boardSize: 7 | 8, r: number): string[] {
+function computePlayableNodeIdsForRow(boardSize: 7 | 8 | 10, r: number): string[] {
   const res: string[] = [];
   for (let c = 0; c < boardSize; c++) {
     if (isPlayable(r, c, boardSize)) res.push(`r${r}c${c}`);
@@ -20,7 +20,7 @@ function computePlayableNodeIdsForRow(boardSize: 7 | 8, r: number): string[] {
   return res;
 }
 
-function computeStartNodesFromTop(boardSize: 7 | 8, piecesPerSide: 11 | 12 | 16): string[] {
+function computeStartNodesFromTop(boardSize: 7 | 8 | 10, piecesPerSide: 11 | 12 | 16 | 20): string[] {
   const out: string[] = [];
   for (let r = 0; r < boardSize; r++) {
     for (const id of computePlayableNodeIdsForRow(boardSize, r)) {
@@ -31,7 +31,7 @@ function computeStartNodesFromTop(boardSize: 7 | 8, piecesPerSide: 11 | 12 | 16)
   return out;
 }
 
-function computeStartNodesFromBottom(boardSize: 7 | 8, piecesPerSide: 11 | 12 | 16): string[] {
+function computeStartNodesFromBottom(boardSize: 7 | 8 | 10, piecesPerSide: 11 | 12 | 16 | 20): string[] {
   const out: string[] = [];
   for (let r = boardSize - 1; r >= 0; r--) {
     for (const id of computePlayableNodeIdsForRow(boardSize, r)) {
@@ -48,8 +48,8 @@ function computeStartNodesFromBottom(boardSize: 7 | 8, piecesPerSide: 11 | 12 | 
  * Note: For Lasca Classic (7×7, 11/side) this preserves the historical placement.
  */
 export function computeStartNodeIds(params: {
-  boardSize: 7 | 8;
-  piecesPerSide: 11 | 12 | 16;
+  boardSize: 7 | 8 | 10;
+  piecesPerSide: 11 | 12 | 16 | 20;
 }): { blackStartNodeIds: readonly string[]; whiteStartNodeIds: readonly string[] } {
   const { boardSize, piecesPerSide } = params;
 

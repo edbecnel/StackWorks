@@ -1,7 +1,7 @@
 import type { NodeId } from "./state.ts";
 import { parseNodeId, makeNodeId, isPlayable, inBounds } from "./coords.ts";
 
-export function getAllNodes(boardSize: 7 | 8): NodeId[] {
+export function getAllNodes(boardSize: 7 | 8 | 10): NodeId[] {
   const nodes: NodeId[] = [];
   for (let r = 0; r < boardSize; r++) {
     for (let c = 0; c < boardSize; c++) {
@@ -14,7 +14,7 @@ export function getAllNodes(boardSize: 7 | 8): NodeId[] {
 // Backward-compatible default (Lasca classic 7×7)
 export const ALL_NODES: NodeId[] = getAllNodes(7);
 
-export function diagNeighbors(id: NodeId, boardSize: 7 | 8 = 7): NodeId[] {
+export function diagNeighbors(id: NodeId, boardSize: 7 | 8 | 10 = 7): NodeId[] {
   const { r, c } = parseNodeId(id);
   const res: NodeId[] = [];
   const deltas = [
@@ -31,7 +31,7 @@ export function diagNeighbors(id: NodeId, boardSize: 7 | 8 = 7): NodeId[] {
   return res;
 }
 
-export function jumpTargets(id: NodeId, boardSize: 7 | 8 = 7): Array<{ over: NodeId; land: NodeId }> {
+export function jumpTargets(id: NodeId, boardSize: 7 | 8 | 10 = 7): Array<{ over: NodeId; land: NodeId }> {
   const { r, c } = parseNodeId(id);
   const res: Array<{ over: NodeId; land: NodeId }> = [];
   const deltas = [

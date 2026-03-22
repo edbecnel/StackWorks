@@ -919,7 +919,7 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
           },
         ];
 
-        if (item.id === "games" && selectedGame.entryUrl) {
+        if (item.id === "games" && selectedGame.available && selectedGame.entryUrl) {
           actions.push({
             label: `Open ${selectedGame.displayName}`,
             description: `Load the current ${selectedGame.displayName} page directly.`,
@@ -976,7 +976,9 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
       <span class="appShellChoiceDescription">${game.subtitle}</span>
       <span class="appShellChoiceMeta">${game.boardSize}x${game.boardSize} · ${game.rulesetId.replace(/_/g, " ")}</span>
     `;
+    button.disabled = !game.available;
     button.addEventListener("click", () => {
+      if (!game.available) return;
       opts.onSelectGame?.(game.variantId);
       focusSection(GlobalSection.Games);
     });
@@ -1035,7 +1037,7 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
     summaryText.textContent = game.subtitle;
     boardValue.textContent = `${game.boardSize}x${game.boardSize}`;
     modeValue.textContent = playMode === "online" ? "Online" : "Local";
-    entryValue.textContent = game.entryUrl ?? "Unavailable";
+    entryValue.textContent = game.available ? (game.entryUrl ?? "Unavailable") : "Coming soon";
     rulesetValue.textContent = game.rulesetId.replace(/_/g, " ");
 
     for (const [id, button] of variantButtons) {
@@ -1046,7 +1048,7 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
 
     setPlayMode(playMode);
 
-    if (game.entryUrl) {
+    if (game.available && game.entryUrl) {
       launchLink.href = game.entryUrl;
       launchLink.style.pointerEvents = "auto";
       launchLink.style.opacity = "1";
