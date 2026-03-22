@@ -8,4 +8,8 @@ describe("sideTerminology", () => {
     expect(getSideLabelsForRuleset("chess_classic")).toEqual({ W: "White", B: "Black" });
     expect(getSideLabelsForRuleset("columns_chess")).toEqual({ W: "White", B: "Black" });
   });
+
+  it("uses White/Black for International Draughts by default", () => {
+    expect(getSideLabelsForRuleset("draughts_international")).toEqual({ W: "White", B: "Black" });
+  });
 });

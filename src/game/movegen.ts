@@ -34,7 +34,7 @@ export function generateCaptureMoves(
   if (rulesetId === "columns_chess") return generateCaptureMovesColumnsChess(state);
   if (rulesetId === "chess") return generateCaptureMovesChess(state);
   if (rulesetId === "checkers_us") return generateCaptureMovesCheckersUs(state, constraints);
-  if (rulesetId === "dama") return generateCaptureMovesDama(state, constraints);
+  if (rulesetId === "dama" || rulesetId === "draughts_international") return generateCaptureMovesDama(state, constraints);
   if (rulesetId === "damasca") return generateCaptureMovesDamasca(state, constraints);
   if (rulesetId === "damasca_classic") return generateCaptureMovesDamascaClassic(state, constraints);
   return generateCaptureMovesLasca(state, constraints);
@@ -48,7 +48,7 @@ export function generateLegalMoves(
   if (rulesetId === "columns_chess") return generateLegalMovesColumnsChess(state);
   if (rulesetId === "chess") return generateLegalMovesChess(state);
   if (rulesetId === "checkers_us") return generateLegalMovesCheckersUs(state, constraints);
-  if (rulesetId === "dama") return generateLegalMovesDama(state, constraints);
+  if (rulesetId === "dama" || rulesetId === "draughts_international") return generateLegalMovesDama(state, constraints);
   if (rulesetId === "damasca") return generateLegalMovesDamasca(state, constraints);
   if (rulesetId === "damasca_classic") return generateLegalMovesDamascaClassic(state, constraints);
   return generateLegalMovesLasca(state, constraints);

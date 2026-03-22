@@ -19,4 +19,12 @@ describe("coords", () => {
     expect(isPlayable(0, 1)).toBe(false);
     expect(isPlayable(1, 1)).toBe(true);
   });
+
+  it("uses odd parity on 10x10 boards so the lower-left corner is dark", () => {
+    expect(inBounds(9, 0, 10)).toBe(true);
+    expect(isPlayable(0, 0, 10)).toBe(false);
+    expect(isPlayable(0, 1, 10)).toBe(true);
+    expect(isPlayable(9, 0, 10)).toBe(true);
+    expect(isPlayable(9, 1, 10)).toBe(false);
+  });
 });

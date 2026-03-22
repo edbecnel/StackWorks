@@ -3,6 +3,16 @@ import { sideLabelForRuleset } from "../shared/sideTerminology";
 
 type RulesetIdLike = string | null | undefined;
 
+function usesDraughtsPieceTerminology(rulesetId?: RulesetIdLike): boolean {
+  return (
+    rulesetId === "checkers_us" ||
+    rulesetId === "draughts_international" ||
+    rulesetId === "dama" ||
+    rulesetId === "damasca" ||
+    rulesetId === "damasca_classic"
+  );
+}
+
 function ownerLabel(owner: Piece["owner"], rulesetId?: RulesetIdLike): string {
   return sideLabelForRuleset(rulesetId, owner);
 }
@@ -15,10 +25,9 @@ function rankLabel(rank: Piece["rank"], rulesetId?: RulesetIdLike): string {
     case "R": return "Rook";
     case "Q": return "Queen";
     case "K": return "King";
-    case "S": return rulesetId === "checkers_us" ? "Man" : "Soldier";
+    case "S": return usesDraughtsPieceTerminology(rulesetId) ? "Man" : "Soldier";
     case "O": {
-      if (rulesetId === "checkers_us") return "King";
-      return (rulesetId === "dama") ? "King" : "Officer";
+      return usesDraughtsPieceTerminology(rulesetId) ? "King" : "Officer";
     }
     default: return "Piece";
   }

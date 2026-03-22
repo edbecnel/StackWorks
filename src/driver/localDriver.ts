@@ -30,10 +30,10 @@ export class LocalDriver implements GameDriver {
 
   finalizeCaptureChain(
     args:
-      | { rulesetId: "dama"; state: GameState; landing: string; jumpedSquares: Set<string> }
+      | { rulesetId: "dama" | "draughts_international"; state: GameState; landing: string; jumpedSquares: Set<string> }
       | { rulesetId: "damasca" | "damasca_classic"; state: GameState; landing: string }
   ): GameState & { didPromote?: boolean } {
-    if (args.rulesetId === "dama") {
+    if (args.rulesetId === "dama" || args.rulesetId === "draughts_international") {
       const next = finalizeDamaCaptureChain(args.state, args.landing, args.jumpedSquares);
       this.state = next;
       return next;

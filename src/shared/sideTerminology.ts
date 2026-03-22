@@ -25,8 +25,8 @@ export function getSideLabelsForRuleset(
     return { W: "White", B: "Black" };
   }
 
-  // Dama standard nomenclature is White/Black, unless the Checkers red/black pieces are active.
-  if (rulesetId === "dama") {
+  // Dama-family draughts use White/Black by default, unless the Checkers red/black pieces are active.
+  if (rulesetId === "dama" || rulesetId === "draughts_international") {
     return useRedBlack ? { W: "Red", B: "Black" } : { W: "White", B: "Black" };
   }
 

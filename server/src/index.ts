@@ -150,7 +150,7 @@ app.post("/api/finalizeCaptureChain", (req, res) => {
     if (room.state.toMove !== color) throw new Error(`Not your turn (toMove=${room.state.toMove}, you=${color})`);
 
     let next: any;
-    if (body.rulesetId === "dama") {
+    if (body.rulesetId === "dama" || body.rulesetId === "draughts_international") {
       next = finalizeDamaCaptureChain(room.state as any, body.landing, new Set(body.jumpedSquares));
     } else {
       next = finalizeDamascaCaptureChain(room.state as any, body.landing);

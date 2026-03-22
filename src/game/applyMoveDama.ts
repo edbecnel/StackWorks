@@ -14,6 +14,7 @@ export function applyMoveDama(
 ): GameState & { didPromote?: boolean } {
   const nextBoard = new Map(state.board);
   const captureRemoval = getDamaCaptureRemovalMode(state);
+  const promotionCanBeEarnedMidChain = (state.meta?.rulesetId ?? "lasca") === "dama";
 
   if (move.kind === "capture") {
     const moving = nextBoard.get(move.from);
@@ -53,7 +54,9 @@ export function applyMoveDama(
     const { r } = parseNodeId(move.to);
     const reachedPromotionRow =
       (state.toMove === "B" && r === lastRow) || (state.toMove === "W" && r === 0);
-    const promotionEarned = Boolean(state.captureChain?.promotionEarned) || reachedPromotionRow;
+    const promotionEarned = promotionCanBeEarnedMidChain
+      ? Boolean(state.captureChain?.promotionEarned) || reachedPromotionRow
+      : false;
     const captureChain = promotionEarned
       ? { ...(state.captureChain ?? {}), promotionEarned: true }
       : state.captureChain;

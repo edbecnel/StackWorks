@@ -200,19 +200,30 @@ function updatePlayerColorBadge(driver: unknown, rulesetId: string, boardSize: n
 window.addEventListener("DOMContentLoaded", async () => {
   const activeVariant = getVariantById(ACTIVE_VARIANT_ID);
   const isCheckers = activeVariant.rulesetId === "checkers_us";
+  const isInternationalDraughts = activeVariant.rulesetId === "draughts_international";
+  const shellBreadcrumb = isCheckers
+    ? "Play / Checkers"
+    : isInternationalDraughts
+      ? "Play / International Draughts"
+      : "Play / Dama";
+  const shellHelpHref = isCheckers
+    ? "./checkers-help.html"
+    : isInternationalDraughts
+      ? undefined
+      : "./dama-help.html";
   const appRoot = document.getElementById("appRoot") as HTMLElement | null;
   if (!appRoot) throw new Error("Missing game root: #appRoot");
 
   const shell = initGameShell({
     appRoot,
     variantId: activeVariant.variantId,
-    breadcrumb: isCheckers ? "Play / Checkers" : "Play / Dama",
+    breadcrumb: shellBreadcrumb,
     title: activeVariant.displayName,
     subtitle: activeVariant.subtitle,
     gameSection: GameSection.Play,
     meta: [rulesBoardLine(activeVariant.rulesetId, activeVariant.boardSize)],
     backHref: "./",
-    helpHref: isCheckers ? "./checkers-help.html" : "./dama-help.html",
+    helpHref: shellHelpHref,
     activeSectionId: "play",
     navItems: [
       { id: "play", label: "Play", targetSelector: "#boardWrap" },
@@ -244,13 +255,18 @@ window.addEventListener("DOMContentLoaded", async () => {
   const getCurrentSideLabels = () =>
     getSideLabelsForRuleset(activeVariant.rulesetId, { boardSize: activeVariant.boardSize });
 
-  // dama.html is also used as the entry page for US Checkers.
+  // dama.html is also used as the entry page for multiple disc-game rulesets.
   // Ensure the browser tab title matches the actual game.
   document.title = activeVariant.displayName;
 
   const elHelpLink = (document.getElementById("helpLink") as HTMLAnchorElement | null) ?? null;
-  if (elHelpLink && isCheckers) {
-    elHelpLink.href = "./checkers-help.html";
+  if (elHelpLink) {
+    if (shellHelpHref) {
+      elHelpLink.href = shellHelpHref;
+      elHelpLink.style.display = "";
+    } else {
+      elHelpLink.style.display = "none";
+    }
   }
 
   if (isCheckers) {

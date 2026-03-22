@@ -1881,7 +1881,7 @@ export class GameController {
 
   private drawPendingDamaCapturedMarks(): void {
     const rulesetId = this.state.meta?.rulesetId ?? "lasca";
-    if (rulesetId !== "dama") return;
+    if (rulesetId !== "dama" && rulesetId !== "draughts_international") return;
     if (this.jumpedSquares.size === 0) return;
 
     const mode = getDamaCaptureRemovalMode(this.state);
@@ -2412,10 +2412,11 @@ export class GameController {
 
   getLegalMovesForTurn(): Move[] {
     const rulesetId = this.state.meta?.rulesetId ?? "lasca";
-    const captureRemoval = rulesetId === "dama" ? getDamaCaptureRemovalMode(this.state) : null;
+    const isDamaStyle = rulesetId === "dama" || rulesetId === "draughts_international";
+    const captureRemoval = isDamaStyle ? getDamaCaptureRemovalMode(this.state) : null;
     // All rulesets with multi-capture chains must prevent re-jumping the same square.
     const isDamasca = rulesetId === "damasca" || rulesetId === "damasca_classic";
-    const chainRules = rulesetId === "lasca" || rulesetId === "dama" || isDamasca;
+    const chainRules = rulesetId === "lasca" || isDamaStyle || isDamasca;
     // Only Dama/Damasca have capture-direction constraints (Officer zigzag).
     const chainHasDir = rulesetId === "dama" || isDamasca;
     const constraints = this.lockedCaptureFrom
@@ -4889,10 +4890,11 @@ export class GameController {
       const lastDir = this.captureDir(move.from, move.to);
 
       const rulesetId = this.state.meta?.rulesetId ?? "lasca";
-      const isDama = rulesetId === "dama";
+      const isDama = rulesetId === "dama" || rulesetId === "draughts_international";
       const isDamasca = rulesetId === "damasca" || rulesetId === "damasca_classic";
       const isLasca = rulesetId === "lasca";
       const damaCaptureRemoval = isDama ? getDamaCaptureRemovalMode(this.state) : null;
+      const damaStyleRulesetId = rulesetId === "draughts_international" ? "draughts_international" : "dama";
       
       // Check if promotion happened
       const didPromote = next.didPromote || false;
@@ -4913,14 +4915,14 @@ export class GameController {
           // still finalize the chain correctly.
           if (this.driver.mode === "online") {
             this.assignControllerState(await (this.driver as OnlineGameDriver).finalizeCaptureChainRemote({
-              rulesetId: "dama",
+              rulesetId: damaStyleRulesetId,
               state: this.state,
               landing: move.to,
               jumpedSquares: this.jumpedSquares,
             }));
           } else {
             this.assignControllerState(this.driver.finalizeCaptureChain({
-              rulesetId: "dama",
+              rulesetId: damaStyleRulesetId,
               state: this.state,
               landing: move.to,
               jumpedSquares: this.jumpedSquares,
@@ -5029,14 +5031,14 @@ export class GameController {
       if (isDama) {
         if (this.driver.mode === "online") {
           this.assignControllerState(await (this.driver as OnlineGameDriver).finalizeCaptureChainRemote({
-            rulesetId: "dama",
+            rulesetId: damaStyleRulesetId,
             state: this.state,
             landing: move.to,
             jumpedSquares: this.jumpedSquares,
           }));
         } else {
           this.assignControllerState(this.driver.finalizeCaptureChain({
-            rulesetId: "dama",
+            rulesetId: damaStyleRulesetId,
             state: this.state,
             landing: move.to,
             jumpedSquares: this.jumpedSquares,

@@ -4,7 +4,7 @@
 
 - [x] Add International Draughts as a new checkers-type variant in the game/variant selection flow.
 - [x] Define the variant metadata, naming, and rules summary used by the UI.
-- [ ] Wire the variant into the non-chess game flow without enabling any chess-only behavior.
+- [x] Wire the variant into the non-chess game flow without enabling any chess-only behavior.
 
 ## Board and presentation
 
@@ -20,36 +20,36 @@
 
 ## Initial position and turn order
 
-- [ ] Add the correct starting setup: 20 black men on 1-20, 20 white men on 31-50, and 21-30 empty.
-- [ ] Ensure only dark squares are used for piece placement and movement.
-- [ ] Set White to move first.
-- [ ] Confirm board orientation matches the rule that the lower-left corner from each player's side is a dark square.
+- [x] Add the correct starting setup: 20 black men on 1-20, 20 white men on 31-50, and 21-30 empty.
+- [x] Ensure only dark squares are used for piece placement and movement.
+- [x] Set White to move first.
+- [x] Confirm board orientation matches the rule that the lower-left corner from each player's side is a dark square.
 
 ## Movement rules
 
-- [ ] Enforce man movement: one square diagonally forward on non-captures.
-- [ ] Enforce man captures in both forward and backward directions.
-- [ ] Enforce king movement as flying diagonal movement in both directions.
-- [ ] Enforce king capture from distance with landing on any empty square beyond the captured piece.
-- [ ] Prevent any piece from moving onto or through occupied squares except where a legal capture allows jumping an opponent.
+- [x] Enforce man movement: one square diagonally forward on non-captures.
+- [x] Enforce man captures in both forward and backward directions.
+- [x] Enforce king movement as flying diagonal movement in both directions.
+- [x] Enforce king capture from distance with landing on any empty square beyond the captured piece.
+- [x] Prevent any piece from moving onto or through occupied squares except where a legal capture allows jumping an opponent.
 
 ## Capture rules
 
-- [ ] Enforce mandatory capture.
-- [ ] Enforce continued multi-capture when additional captures are available.
-- [ ] Enforce maximum-capture priority among all legal capture sequences.
-- [ ] Allow free choice when multiple capture sequences tie for the maximum number of captured pieces.
+- [x] Enforce mandatory capture.
+- [x] Enforce continued multi-capture when additional captures are available.
+- [x] Enforce maximum-capture priority among all legal capture sequences.
+- [x] Allow free choice when multiple capture sequences tie for the maximum number of captured pieces.
 - [ ] Prevent recapturing the same enemy piece during one capture sequence.
 - [ ] Allow reuse of the same empty square during one capture sequence.
-- [ ] Prevent jumping over a friendly piece.
-- [ ] Remove captured pieces only after the full capture sequence is finished.
-- [ ] Ensure king multi-capture generation supports changing diagonals after each landing.
+- [x] Prevent jumping over a friendly piece.
+- [x] Remove captured pieces only after the full capture sequence is finished.
+- [x] Ensure king multi-capture generation supports changing diagonals after each landing.
 
 ## Promotion
 
 - [ ] Enforce promotion only when a man ends the move on the far promotion row.
-- [ ] Prevent mid-sequence promotion when a man only passes through the promotion row.
-- [ ] Ensure a man that reaches the promotion row during a forced capture sequence continues that move as a man when required by the rules.
+- [x] Prevent mid-sequence promotion when a man only passes through the promotion row.
+- [x] Ensure a man that reaches the promotion row during a forced capture sequence continues that move as a man when required by the rules.
 
 ## Win and draw rules
 

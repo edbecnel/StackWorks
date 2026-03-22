@@ -171,7 +171,7 @@ export type FinalizeCaptureChainRequest =
   | {
       roomId: RoomId;
       playerId: PlayerId;
-      rulesetId: "dama";
+  rulesetId: "dama" | "draughts_international";
       landing: string;
       jumpedSquares: string[];
       expectedStateVersion?: number;

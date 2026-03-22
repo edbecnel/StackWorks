@@ -973,7 +973,7 @@ export class RemoteDriver implements GameDriver {
 
   finalizeCaptureChain(
     _args:
-      | { rulesetId: "dama"; state: GameState; landing: string; jumpedSquares: Set<string> }
+      | { rulesetId: "dama" | "draughts_international"; state: GameState; landing: string; jumpedSquares: Set<string> }
       | { rulesetId: "damasca" | "damasca_classic"; state: GameState; landing: string }
   ): GameState & { didPromote?: boolean } {
     // In online mode, chain finalization must come from the server.
@@ -983,17 +983,17 @@ export class RemoteDriver implements GameDriver {
 
   async finalizeCaptureChainRemote(
     args:
-      | { rulesetId: "dama"; state: GameState; landing: string; jumpedSquares: Set<string> }
+      | { rulesetId: "dama" | "draughts_international"; state: GameState; landing: string; jumpedSquares: Set<string> }
       | { rulesetId: "damasca" | "damasca_classic"; state: GameState; landing: string }
   ): Promise<GameState & { didPromote?: boolean }> {
     const ids = this.requireIds();
     const pendingActionToken = this.beginPendingAction("finalizeCaptureChain");
     const req: FinalizeCaptureChainRequest =
-      args.rulesetId === "dama"
+      args.rulesetId === "dama" || args.rulesetId === "draughts_international"
         ? {
             roomId: ids.roomId,
             playerId: this.requireActiveTurnPlayerId(),
-            rulesetId: "dama",
+        rulesetId: args.rulesetId,
             landing: args.landing,
             jumpedSquares: Array.from(args.jumpedSquares),
             expectedStateVersion: this.lastStateVersion >= 0 ? this.lastStateVersion : undefined,

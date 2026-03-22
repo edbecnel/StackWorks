@@ -4,6 +4,7 @@ import { promoteIfNeeded, promoteTopSoldierIfOwnedByToMove } from "./promote.ts"
 
 export function getDamaCaptureRemovalMode(state: GameState): DamaCaptureRemoval {
   const rulesetId = state.meta?.rulesetId ?? "lasca";
+  if (rulesetId === "draughts_international") return "end_of_sequence";
   if (rulesetId !== "dama") return "immediate";
   return state.meta?.damaCaptureRemoval ?? "immediate";
 }
