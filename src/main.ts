@@ -236,6 +236,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const inspector = createStackInspector(zoomTitle, zoomHint, zoomSvg, {
     getThemeId: () => svg.getAttribute("data-theme-id"),
+    getSourceSvg: () => svg,
   });
 
   // Create initial game state and render once

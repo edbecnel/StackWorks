@@ -741,6 +741,33 @@ describe("GameController loadGame reconstructs last-move hints", () => {
     expect(controller.getState().ui?.lastMove).toEqual({ from: "r1c1", to: "r2c2" });
   });
 
+  it("starts loaded games at the beginning of restored history", () => {
+    const s0: GameState = {
+      board: new Map([
+        ["r1c1", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+    };
+
+    const s1: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, s0, new HistoryManager());
+    controller.loadGame(s1, { states: [s0, s1], notation: ["", ""], currentIndex: 1 });
+
+    expect(controller.getState().board.get("r1c1")).toEqual([{ owner: "W", rank: "S" }]);
+    expect(controller.getState().board.get("r2c2")).toBeUndefined();
+    expect(controller.getState().toMove).toBe("W");
+  });
+
   it("does not flash a timed turn toast when a sticky resume-bot toast is active after load", () => {
     const s0: GameState = {
       board: new Map([
@@ -821,6 +848,74 @@ describe("GameController loadGame reconstructs last-move hints", () => {
     expect(toast?.textContent).toBe("Draw by mutual agreement");
   });
 
+});
+
+describe("GameController playback sound effects", () => {
+  let mockSvg: SVGSVGElement;
+  let mockPiecesLayer: SVGGElement;
+
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    document.head.innerHTML = "";
+
+    mockSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg") as SVGSVGElement;
+    mockSvg.appendChild(document.createElementNS("http://www.w3.org/2000/svg", "defs"));
+    const pieces = document.createElementNS("http://www.w3.org/2000/svg", "g") as SVGGElement;
+    pieces.setAttribute("id", "pieces");
+    mockSvg.appendChild(pieces);
+    mockPiecesLayer = pieces;
+
+    const from = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    from.setAttribute("id", "r1c1");
+    from.setAttribute("cx", "40");
+    from.setAttribute("cy", "40");
+    from.setAttribute("r", "18");
+    mockSvg.appendChild(from);
+
+    const to = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    to.setAttribute("id", "r2c2");
+    to.setAttribute("cx", "80");
+    to.setAttribute("cy", "80");
+    to.setAttribute("r", "18");
+    mockSvg.appendChild(to);
+
+    document.body.appendChild(mockSvg);
+  });
+
+  it("plays the inferred move sound during animated history playback", async () => {
+    const s0: GameState = {
+      board: new Map([
+        ["r1c1", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+    };
+
+    const s1: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+      ui: { lastMove: { from: "r1c1", to: "r2c2" } },
+    };
+
+    const history = new HistoryManager();
+    history.push(s0);
+    history.push(s1);
+    history.jumpTo(0);
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, s0, history);
+    controller.setAnimations(false);
+    vi.spyOn(controller as any, "checkAndHandleCurrentPlayerLost").mockImplementation(() => {});
+    const playSfxSpy = vi.spyOn(controller as any, "playSfx");
+
+    await controller.jumpToHistoryAnimated(1, 0);
+
+    expect(playSfxSpy).toHaveBeenCalledWith("move");
+  });
 });
 
 describe("GameController online opponent presence toasts", () => {

@@ -3,6 +3,9 @@ import { nodeIdToA1View } from "../game/coordFormat";
 import { pieceToHref } from "../pieces/pieceToHref";
 import { makeUseWithTitle } from "../render/svgUse";
 import { pieceTooltip } from "../pieces/pieceLabel";
+import { maybeVariantStonePieceHref } from "../render/stonePieceVariant";
+import { maybeVariantWoodenPieceHref } from "../render/woodenPieceVariant";
+import { pieceVariantSeed } from "../render/pieceVariantSeed";
 import type { Stack } from "../types";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -21,10 +24,30 @@ export function createStackInspector(
   zoomTitle: HTMLElement,
   zoomHint: HTMLElement,
   zoomSvg: SVGSVGElement,
-  config?: { getThemeId?: () => string | null }
+  config?: { getThemeId?: () => string | null; getSourceSvg?: () => SVGSVGElement | null }
 ) {
   let hideTimer: number | null = null;
   let pinned: boolean = false;
+
+  function syncThemeDefsFromSource(): void {
+    const sourceSvg = config?.getSourceSvg?.() ?? null;
+    if (!sourceSvg) return;
+
+    const sourceDefs = sourceSvg.querySelector("defs") as SVGDefsElement | null;
+    if (!sourceDefs) return;
+
+    const clonedDefs = sourceDefs.cloneNode(true) as SVGDefsElement;
+    const existingDefs = zoomSvg.querySelector("defs") as SVGDefsElement | null;
+    if (existingDefs) {
+      zoomSvg.replaceChild(clonedDefs, existingDefs);
+    } else {
+      zoomSvg.insertBefore(clonedDefs, zoomSvg.firstChild);
+    }
+
+    const themeId = sourceSvg.getAttribute("data-theme-id");
+    if (themeId) zoomSvg.setAttribute("data-theme-id", themeId);
+    else zoomSvg.removeAttribute("data-theme-id");
+  }
 
   function clearZoom(): void {
     while (zoomSvg.firstChild) zoomSvg.removeChild(zoomSvg.firstChild);
@@ -46,6 +69,7 @@ export function createStackInspector(
       : "Full column order (bottom → top).";
 
     while (zoomSvg.firstChild) zoomSvg.removeChild(zoomSvg.firstChild);
+  syncThemeDefsFromSource();
 
     const scale = 1.44;
     const miniSize = 22 * scale;
@@ -99,11 +123,17 @@ export function createStackInspector(
 
     for (let i = 0; i < n; i++) {
       const p = stack[i];
-      const href = pieceToHref(p, {
+      const variantSeed = pieceVariantSeed(nodeId, i);
+      const baseHref = pieceToHref(p, {
         rulesetId: opts.rulesetId,
         themeId: config?.getThemeId?.() ?? null,
       });
       const themeId = config?.getThemeId?.() ?? null;
+      const href = maybeVariantStonePieceHref(
+        zoomSvg,
+        maybeVariantWoodenPieceHref(zoomSvg, baseHref, variantSeed),
+        variantSeed
+      );
       const y = columnY + (n - 1 - i) * (miniSize + gap);
       zoomSvg.appendChild(
         makeUseWithTitle(href, columnX, y, miniSize, pieceTooltip(p, { rulesetId: opts.rulesetId, themeId }))

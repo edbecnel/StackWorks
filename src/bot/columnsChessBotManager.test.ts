@@ -3,9 +3,23 @@ import { ColumnsChessBotManager } from "./columnsChessBotManager";
 
 class FakeController {
   private historyCb: ((reason?: any) => void) | null = null;
+  private history: Array<{ index: number; isCurrent: boolean }> = [{ index: 0, isCurrent: true }];
+  public sticky: { key: string | null; text: string | null } = { key: null, text: null };
 
   addHistoryChangeCallback(cb: (reason?: any) => void): void {
     this.historyCb = cb;
+  }
+
+  fire(reason?: any): void {
+    this.historyCb?.(reason);
+  }
+
+  getHistory(): Array<{ index: number; isCurrent: boolean }> {
+    return this.history;
+  }
+
+  setHistory(next: Array<{ index: number; isCurrent: boolean }>): void {
+    this.history = next;
   }
 
   getState(): any {
@@ -24,12 +38,16 @@ class FakeController {
     // ignore
   }
 
-  showStickyToast(_key: string, _text: string): void {
-    // ignore
+  showStickyToast(key: string, text: string): void {
+    this.sticky.key = key;
+    this.sticky.text = text;
   }
 
-  clearStickyToast(_key: string): void {
-    // ignore
+  clearStickyToast(key: string): void {
+    if (this.sticky.key === key) {
+      this.sticky.key = null;
+      this.sticky.text = null;
+    }
   }
 
   getLegalMovesForTurn(): any[] {
@@ -96,5 +114,26 @@ describe("ColumnsChessBotManager board tap", () => {
 
     const whiteOptions = Array.from((document.getElementById("botWhiteSelect") as HTMLSelectElement).options).map((option) => option.textContent);
     expect(whiteOptions).toEqual(["EdB", "Human", "Bot"]);
+  });
+
+  it("does not show the paused bot sticky toast when jumping to a past move during playback", () => {
+    localStorage.setItem("lasca.columnsChessBot.white", "bot");
+    localStorage.setItem("lasca.columnsChessBot.black", "human");
+    localStorage.setItem("lasca.columnsChessBot.paused", "true");
+
+    const controller = new FakeController();
+    const mgr = new ColumnsChessBotManager(controller as any);
+    mgr.bind();
+
+    controller.setHistory([
+      { index: 0, isCurrent: true },
+      { index: 1, isCurrent: false },
+      { index: 2, isCurrent: false },
+    ]);
+    controller.fire("jump");
+    vi.runAllTimers();
+
+    expect(controller.sticky.key).toBeNull();
+    expect(controller.sticky.text).toBeNull();
   });
 });

@@ -314,8 +314,10 @@ export function bindPlaybackControls(controller: GameController): void {
   });
 
   controller.addHistoryChangeCallback((reason: HistoryChangeReason) => {
-    // If the actual game history changes, stop playback to avoid fighting the user.
-    if (playing && reason !== "jump") {
+    // Any non-playback history change means the user/game has left the current
+    // playback session. Clear paused/suppressed playback state so normal move
+    // toasts resume during live play.
+    if ((playing || boardPaused || playbackSessionActive) && reason !== "jump") {
       stop();
       return;
     }

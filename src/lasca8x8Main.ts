@@ -14,6 +14,7 @@ import { ensureOverlayLayer } from "./render/overlays.ts";
 import { ALL_NODES } from "./game/board.ts";
 import { buildPlayerNamedSaveFilename, saveGameToFile, loadGameFromFile } from "./game/saveLoad.ts";
 import { HistoryManager } from "./game/historyManager.ts";
+import { consumeReloadSaveState, stashReloadSaveState } from "./game/reloadSaveState.ts";
 import { RULES } from "./game/ruleset.ts";
 import { renderBoardCoords } from "./render/boardCoords";
 import { AIManager } from "./ai/aiManager.ts";
@@ -79,6 +80,8 @@ const LS_OPT_KEYS = {
   toasts: "lasca.opt.toasts",
   sfx: "lasca.opt.sfx",
 } as const;
+
+const BOARD_TOGGLE_RELOAD_STATE_KEY = "lasca.reload.board8x8Checkered";
 
 function readOptionalBoolPref(key: string): boolean | null {
   const raw = localStorage.getItem(key);
@@ -210,6 +213,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const boardLoading = createBoardLoadingOverlay(boardWrap);
   boardLoading.show();
+  let stashBoardToggleReloadState: (() => void) | null = null;
 
   const useCheckered8x8 = readOptionalBoolPref(LS_OPT_KEYS.board8x8Checkered) ?? false;
   const svgAsset =
@@ -286,6 +290,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     board8x8CheckeredToggle.checked = useCheckered8x8;
     board8x8CheckeredToggle.addEventListener("change", () => {
       writeBoolPref(LS_OPT_KEYS.board8x8Checkered, board8x8CheckeredToggle.checked);
+      stashBoardToggleReloadState?.();
       window.location.reload();
     });
   }
@@ -376,14 +381,35 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const inspector = createStackInspector(zoomTitle, zoomHint, zoomSvg, {
     getThemeId: () => svg.getAttribute("data-theme-id"),
+    getSourceSvg: () => svg,
   });
 
+  const expectedMeta = {
+    variantId: activeVariant.variantId,
+    rulesetId: activeVariant.rulesetId,
+    boardSize: activeVariant.boardSize,
+    ...(activeVariant.rulesetId === "dama"
+      ? { damaCaptureRemoval: activeVariant.damaCaptureRemoval ?? "immediate" }
+      : {}),
+  };
+  const restoredGame = consumeReloadSaveState(BOARD_TOGGLE_RELOAD_STATE_KEY, expectedMeta);
+
   // Create initial game state and render once
-  const state = createInitialGameStateForVariant(ACTIVE_VARIANT_ID);
-  
+  const state = restoredGame?.state ?? createInitialGameStateForVariant(ACTIVE_VARIANT_ID);
+
   // Create history manager and record initial state
   const history = new HistoryManager();
-  history.push(state);
+  if (restoredGame?.history) {
+    history.replaceAll(
+      restoredGame.history.states,
+      restoredGame.history.notation,
+      restoredGame.history.currentIndex,
+      restoredGame.history.emtMs,
+      restoredGame.history.evals,
+    );
+  } else {
+    history.push(state);
+  }
 
   // Update left panel status
   const elTurn = document.getElementById("statusTurn");
@@ -459,6 +485,10 @@ window.addEventListener("DOMContentLoaded", async () => {
   controller.bind();
   shell.bindController(controller);
   boardPlayerNames = bindBoardPlayerNameOverlay({ svg, controller, isFlipped });
+  stashBoardToggleReloadState = () => {
+    if (driver.mode !== "local") return;
+    stashReloadSaveState(BOARD_TOGGLE_RELOAD_STATE_KEY, controller.getState(), history);
+  };
 
   bindOfflineNavGuard(controller, ACTIVE_VARIANT_ID);
 

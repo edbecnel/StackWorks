@@ -3,6 +3,7 @@ import { makeUseWithTitle } from "./svgUse";
 import { drawMiniStackSpine } from "./miniSpine";
 import { maybeVariantStonePieceHref } from "./stonePieceVariant";
 import { maybeVariantWoodenPieceHref } from "./woodenPieceVariant";
+import { pieceVariantSeed } from "./pieceVariantSeed";
 import type { Stack } from "../types";
 import { pieceTooltip } from "../pieces/pieceLabel";
 import { isBoardFlipped } from "./boardFlip";
@@ -48,11 +49,17 @@ export function renderStackAtNode(
   g.setAttribute("class", "stack");
 
   const top = stack[stack.length - 1];
+  const topStackIndex = stack.length - 1;
   const half = resolvedPieceSize / 2;
   const themeId = svgRoot.getAttribute("data-theme-id");
+  const variantSeed = pieceVariantSeed(nodeId, topStackIndex);
 
   const baseHref = pieceToHref(top, { rulesetId, themeId });
-  const href = maybeVariantStonePieceHref(svgRoot, maybeVariantWoodenPieceHref(svgRoot, baseHref, nodeId), nodeId);
+  const href = maybeVariantStonePieceHref(
+    svgRoot,
+    maybeVariantWoodenPieceHref(svgRoot, baseHref, variantSeed),
+    variantSeed
+  );
   const use = makeUseWithTitle(
     href,
     cx - half,

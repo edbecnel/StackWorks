@@ -137,6 +137,33 @@ describe("ChessBotManager loadGame paused toast", () => {
     expect(controller.stickyActionKeys).toContain("chessbot_paused_turn");
   });
 
+  it("does not show the paused bot sticky toast when jumping to a past move during playback", () => {
+    const state = mkChessState("B");
+    const history = [
+      { index: 0, isCurrent: false },
+      { index: 1, isCurrent: false },
+      { index: 2, isCurrent: true },
+    ];
+
+    const controller = new FakeController(state, history);
+    const mgr = new ChessBotManager(controller as any);
+
+    controller.fire("loadGame");
+    vi.runAllTimers();
+    expect(controller.sticky.key).toBe("chessbot_paused_turn");
+
+    controller.setHistory([
+      { index: 0, isCurrent: true },
+      { index: 1, isCurrent: false },
+      { index: 2, isCurrent: false },
+    ]);
+    controller.fire("jump");
+    vi.runAllTimers();
+
+    expect(controller.sticky.key).toBeNull();
+    expect(controller.sticky.text).toBeNull();
+  });
+
   it("does not auto-pause an online human-vs-bot game at launch", async () => {
     document.body.innerHTML = `
       <select id="botWhiteSelect"><option value="human">Human</option><option value="beginner">Beginner</option></select>

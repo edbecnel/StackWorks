@@ -318,6 +318,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const inspector = createStackInspector(zoomTitle, zoomHint, zoomSvg, {
     getThemeId: () => svg.getAttribute("data-theme-id"),
+    getSourceSvg: () => svg,
   });
 
   // Wrap the inspector so it can display coords matching the current board orientation.

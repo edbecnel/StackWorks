@@ -228,6 +228,11 @@ export class AIManager {
   }
 
   private syncPausedTurnToastNow(): void {
+    if (this.lastHistoryReason === "jump" && this.isViewingPastInHistory()) {
+      this.controller.clearStickyToast(AIManager.TAP_RESUME_TOAST_KEY);
+      return;
+    }
+
     if (this.controller.isOver()) {
       this.controller.clearStickyToast(AIManager.TAP_RESUME_TOAST_KEY);
       return;

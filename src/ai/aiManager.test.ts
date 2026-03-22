@@ -83,7 +83,7 @@ describe("AIManager paused-turn sticky toast", () => {
     vi.runAllTimers();
 
     expect(controller.sticky.key).toBe("aiPausedTapResume");
-    expect(controller.sticky.text).toBe("Light to Play. Tap here or press spacebar to resume bot");
+    expect(controller.sticky.text).toBe("White to Play. Tap here or press spacebar to resume bot");
   });
 
   it("forces a paused startup state on refresh even if the previous bot state persisted as running", () => {
@@ -120,7 +120,7 @@ describe("AIManager paused-turn sticky toast", () => {
 
     expect(localStorage.getItem("lasca.ai.paused")).toBe("true");
     expect((document.getElementById("aiPauseBtn") as HTMLButtonElement).textContent).toBe("Resume bot");
-    expect(controller.sticky.text).toBe("Light to Play. Tap here or press spacebar to resume bot");
+    expect(controller.sticky.text).toBe("White to Play. Tap here or press spacebar to resume bot");
   });
 
   it("does not show the sticky tap-to-resume toast when toast notifications are disabled", () => {
@@ -194,7 +194,7 @@ describe("AIManager paused-turn sticky toast", () => {
     vi.runAllTimers();
 
     expect(controller.sticky.key).toBe("aiPausedTapResume");
-    expect(controller.sticky.text).toBe("Light to Play. Tap here or press spacebar to resume bot");
+    expect(controller.sticky.text).toBe("White to Play. Tap here or press spacebar to resume bot");
   });
 
   it("shows sticky tap-to-resume after newGame for non-chess", () => {
@@ -215,7 +215,37 @@ describe("AIManager paused-turn sticky toast", () => {
     vi.runAllTimers();
 
     expect(controller.sticky.key).toBe("aiPausedTapResume");
-    expect(controller.sticky.text).toBe("Light to Play. Tap here or press spacebar to resume bot");
+    expect(controller.sticky.text).toBe("White to Play. Tap here or press spacebar to resume bot");
+  });
+
+  it("does not show the sticky redo-bot toast when jumping to a past move during playback", () => {
+    localStorage.setItem("lasca.ai.white", "human");
+    localStorage.setItem("lasca.ai.black", "easy");
+    localStorage.setItem("lasca.ai.paused", "true");
+
+    const controller = new FakeController(
+      { toMove: "B", phase: "idle", board: new Map(), meta: { rulesetId: "checkers_us", boardSize: 8 } },
+      [
+        { index: 0, toMove: "W", isCurrent: false, notation: "" },
+        { index: 1, toMove: "B", isCurrent: true, notation: "" },
+        { index: 2, toMove: "W", isCurrent: false, notation: "" },
+      ]
+    ) as any;
+
+    const mgr = new AIManager(controller);
+    mgr.bind();
+
+    controller.setHistory([
+      { index: 0, toMove: "W", isCurrent: true, notation: "" },
+      { index: 1, toMove: "B", isCurrent: false, notation: "" },
+      { index: 2, toMove: "W", isCurrent: false, notation: "" },
+    ]);
+    controller.fire("jump");
+
+    vi.runAllTimers();
+
+    expect(controller.sticky.key).toBeNull();
+    expect(controller.sticky.text).toBeNull();
   });
 
   it("shows the sticky resume toast on a fresh US Checkers game when Black bot moves first", () => {

@@ -2747,6 +2747,8 @@ export class GameController {
     this.currentTurnHasCapture = false;
     this.clearSelection();
 
+    this.playSfx(this.inferMoveSfx(prev, target));
+
     // Animate using an inferred from/to (works for capture chains and multi-piece moves),
     // falling back to the target snapshot's last-move hint when available.
     if (this.animationsEnabled) {
@@ -3665,7 +3667,10 @@ export class GameController {
     }
   ): void {
     if (historyData && historyData.states && historyData.states.length > 0) {
-      this.driver.replaceHistory(historyData);
+      this.driver.replaceHistory({
+        ...historyData,
+        currentIndex: 0,
+      });
     } else {
       // Reset history and start fresh with loaded state
       this.driver.clearHistory();

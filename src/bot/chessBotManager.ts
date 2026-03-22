@@ -1243,6 +1243,13 @@ export class ChessBotManager {
 
     this.refreshUI();
     this.updateInputForCurrentTurn();
+
+    if (reason === "jump" && this.isViewingPastInHistory()) {
+      this.controller.clearStickyToast(ChessBotManager.PAUSED_TURN_TOAST_KEY);
+      this.scheduleEval();
+      return;
+    }
+
     this.schedulePausedTurnToastSync();
     this.scheduleEval();
   }

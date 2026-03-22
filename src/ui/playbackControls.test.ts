@@ -124,4 +124,27 @@ describe("bindPlaybackControls", () => {
       { force: true, allowDuringPlayback: true },
     );
   });
+
+  it("clears playback toast suppression after a non-jump history change while playback is paused", async () => {
+    const controller = createMockController([
+      { index: 0, isCurrent: true, emtMs: null },
+      { index: 1, isCurrent: false, emtMs: 1_000 },
+      { index: 2, isCurrent: false, emtMs: 1_000 },
+    ]);
+
+    bindPlaybackControls(controller as any);
+
+    const playbackBtn = document.getElementById("playbackBtn") as HTMLButtonElement;
+    const boardSvg = document.querySelector("#boardWrap svg") as SVGSVGElement;
+
+    playbackBtn.click();
+    expect(controller.setPlaybackToastSuppressed).toHaveBeenCalledWith(true);
+
+    boardSvg.dispatchEvent(new Event("pointerdown", { bubbles: true, cancelable: true }));
+    expect(controller.setPlaybackToastSuppressed).toHaveBeenLastCalledWith(true);
+
+    controller.emitHistoryChange("load");
+
+    expect(controller.setPlaybackToastSuppressed).toHaveBeenLastCalledWith(false);
+  });
 });

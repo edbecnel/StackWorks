@@ -4,6 +4,7 @@ import { makeUseWithTitle } from "./svgUse";
 import { pieceTooltip } from "../pieces/pieceLabel";
 import { maybeVariantStonePieceHref } from "./stonePieceVariant";
 import { maybeVariantWoodenPieceHref } from "./woodenPieceVariant";
+import { pieceVariantSeed } from "./pieceVariantSeed";
 import type { Stack } from "../types";
 import { isBoardFlipped } from "./boardFlip";
 
@@ -52,15 +53,15 @@ export function drawMiniStackSpine(
   const n = stack.length;
   if (n <= 1) return;
 
-  let shown = [] as Stack;
+  let shown = [] as Array<{ piece: Stack[number]; stackIndex: number }>;
   let hasCrack = false;
 
   if (n <= maxShown) {
-    shown = stack.slice();
+    shown = stack.map((piece, stackIndex) => ({ piece, stackIndex }));
   } else {
     hasCrack = true;
-    const bottom = stack.slice(0, keepBottom);
-    const top = stack.slice(n - keepTop);
+    const bottom = stack.slice(0, keepBottom).map((piece, stackIndex) => ({ piece, stackIndex }));
+    const top = stack.slice(n - keepTop).map((piece, offset) => ({ piece, stackIndex: n - keepTop + offset }));
     shown = bottom.concat(top);
   }
 
@@ -129,13 +130,14 @@ export function drawMiniStackSpine(
   const crackAfterIndex = keepBottom - 1;
 
   for (let i = 0; i < countShown; i++) {
-    const p = shown[i];
+    const { piece: p, stackIndex } = shown[i]!;
     const baseHref = pieceToHref(p, { rulesetId, themeId });
+    const variantSeed = seedKey ? pieceVariantSeed(seedKey, stackIndex) : null;
     const href = seedKey
       ? maybeVariantStonePieceHref(
           svgRoot,
-          maybeVariantWoodenPieceHref(svgRoot, baseHref, `${seedKey}:mini:${i}`),
-          `${seedKey}:mini:${i}`
+          maybeVariantWoodenPieceHref(svgRoot, baseHref, variantSeed!),
+          variantSeed!
         )
       : baseHref;
 

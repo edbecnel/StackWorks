@@ -67,6 +67,7 @@ export class ColumnsChessBotManager {
   private busy = false;
   private requestId = 1;
   private toastSyncTimer: number | null = null;
+  private lastHistoryReason: HistoryChangeReason | undefined;
 
   private analysisOverridePrev: { white: ColumnsBotSideSetting; black: ColumnsBotSideSetting; paused: boolean } | null =
     null;
@@ -393,7 +394,24 @@ export class ColumnsChessBotManager {
     return botEnabledFor(this.settings, state.toMove);
   }
 
+  private isViewingPastInHistory(): boolean {
+    try {
+      const h = this.controller.getHistory ? this.controller.getHistory() : null;
+      if (!Array.isArray(h) || h.length <= 1) return false;
+      const cur = h.find((e) => (e as any)?.isCurrent) as any;
+      const idx = typeof cur?.index === "number" ? cur.index : h.length - 1;
+      return idx < h.length - 1;
+    } catch {
+      return false;
+    }
+  }
+
   private syncPausedTurnToastNow(): void {
+    if (this.lastHistoryReason === "jump" && this.isViewingPastInHistory()) {
+      this.controller.clearStickyToast(ColumnsChessBotManager.PAUSED_TURN_TOAST_KEY);
+      return;
+    }
+
     if (!this.isPausedBotTurn()) {
       this.controller.clearStickyToast(ColumnsChessBotManager.PAUSED_TURN_TOAST_KEY);
       return;
@@ -479,7 +497,8 @@ export class ColumnsChessBotManager {
     })();
   }
 
-  private onHistoryChanged(_reason: HistoryChangeReason): void {
+  private onHistoryChanged(reason: HistoryChangeReason): void {
+    this.lastHistoryReason = reason;
     this.schedulePausedTurnToastSync();
     this.refreshUI();
     this.kick();
