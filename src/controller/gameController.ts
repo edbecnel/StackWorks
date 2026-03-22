@@ -66,6 +66,7 @@ import { isBoardFlipped } from "../render/boardFlip.ts";
 import { getVariantById } from "../variants/variantRegistry.ts";
 import { getSideLabelsForRuleset } from "../shared/sideTerminology.ts";
 import { ensureCheckersUsDraw, getCheckersUsDrawStatus } from "../game/checkersUsDraw.ts";
+import { getInternationalDraughtsDrawStatus } from "../game/internationalDraughtsDraw.ts";
 
 export type HistoryChangeReason = "move" | "undo" | "redo" | "jump" | "newGame" | "loadGame" | "gameOver";
 
@@ -4010,6 +4011,20 @@ export class GameController {
           parts.push(`40-move: ${st.noProgressPliesRemaining} plies left`);
           if (st.thirteen) {
             parts.push(`13-move: ${st.thirteen.remaining} moves left for ${this.sideLabel(st.thirteen.stronger)}`);
+          }
+          elDrawCounters.textContent = parts.join(" • ");
+        }
+      } else if (rulesetId === "draughts_international") {
+        const st = getInternationalDraughtsDrawStatus(this.state);
+        if (!st) {
+          elDrawCounters.textContent = "—";
+        } else {
+          const parts: string[] = [];
+          parts.push(`25-move: ${st.noProgressKingOnlyPliesRemaining} plies left`);
+          if (st.reduced) {
+            parts.push(
+              `${st.reduced.label} (${this.sideLabel("W")}: ${st.reduced.remaining.W}, ${this.sideLabel("B")}: ${st.reduced.remaining.B})`
+            );
           }
           elDrawCounters.textContent = parts.join(" • ");
         }

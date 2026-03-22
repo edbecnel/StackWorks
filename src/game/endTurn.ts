@@ -1,6 +1,7 @@
 import type { GameState } from "./state.ts";
 import { maybeApplyDamascaDeadPlayEnd } from "./damascaDeadPlay.ts";
 import { finalizeCheckersUsTurnAtBoundary, isCheckersUsRuleset } from "./checkersUsDraw.ts";
+import { finalizeInternationalDraughtsTurnAtBoundary, isInternationalDraughtsRuleset } from "./internationalDraughtsDraw.ts";
 
 /**
  * End a turn: flip `toMove`, set `phase: idle`, and apply any turn-boundary rules.
@@ -18,7 +19,14 @@ export function endTurn(state: GameState): GameState {
     ? (finalizeCheckersUsTurnAtBoundary({ ...next, checkersUsDraw: (state as any).checkersUsDraw }, state.toMove) as GameState)
     : next;
 
+  const afterInternationalDraughts = isInternationalDraughtsRuleset(state)
+    ? (finalizeInternationalDraughtsTurnAtBoundary(
+        { ...afterCheckers, internationalDraughtsDraw: (state as any).internationalDraughtsDraw },
+        state.toMove
+      ) as GameState)
+    : afterCheckers;
+
   // Safety: if a save/load or external caller advanced counters to a threshold,
   // ensure Damasca dead-play ends are applied at a turn boundary.
-  return maybeApplyDamascaDeadPlayEnd(afterCheckers);
+  return maybeApplyDamascaDeadPlayEnd(afterInternationalDraughts);
 }

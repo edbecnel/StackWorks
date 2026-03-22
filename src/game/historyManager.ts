@@ -217,6 +217,22 @@ export class HistoryManager {
         : undefined,
       forcedGameOver: (state as any).forcedGameOver ? { ...(state as any).forcedGameOver } : undefined,
       damascaDeadPlay: (state as any).damascaDeadPlay ? { ...(state as any).damascaDeadPlay } : undefined,
+      internationalDraughtsDraw: (state as any).internationalDraughtsDraw
+        ? {
+            ...(state as any).internationalDraughtsDraw,
+            turnCount: (state as any).internationalDraughtsDraw.turnCount
+              ? { ...(state as any).internationalDraughtsDraw.turnCount }
+              : undefined,
+            reduced: (state as any).internationalDraughtsDraw.reduced
+              ? {
+                  ...(state as any).internationalDraughtsDraw.reduced,
+                  activatedAtTurnCount: {
+                    ...(state as any).internationalDraughtsDraw.reduced.activatedAtTurnCount,
+                  },
+                }
+              : undefined,
+          }
+        : undefined,
       captureChain: state.captureChain ? { ...state.captureChain } : undefined,
     };
   }

@@ -23,6 +23,9 @@ export interface SerializedGameState {
 
   /** US Checkers draw tracking. */
   checkersUsDraw?: GameState["checkersUsDraw"];
+
+  /** International Draughts draw tracking. */
+  internationalDraughtsDraw?: GameState["internationalDraughtsDraw"];
 }
 
 export interface SerializedHistory {
@@ -178,6 +181,7 @@ export function serializeGameState(state: GameState): SerializedGameState {
     forcedGameOver: (state as any).forcedGameOver,
     damascaDeadPlay: (state as any).damascaDeadPlay,
     checkersUsDraw: (state as any).checkersUsDraw,
+    internationalDraughtsDraw: (state as any).internationalDraughtsDraw,
   };
 }
 
@@ -195,6 +199,7 @@ export function deserializeGameState(data: SerializedGameState): GameState {
     forcedGameOver: (data as any).forcedGameOver,
     damascaDeadPlay: (data as any).damascaDeadPlay,
     checkersUsDraw: (data as any).checkersUsDraw,
+    internationalDraughtsDraw: (data as any).internationalDraughtsDraw,
   };
 }
 

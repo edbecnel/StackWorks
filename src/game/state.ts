@@ -91,6 +91,30 @@ export interface GameState {
   };
 
   /**
+   * International Draughts draw tracking.
+   *
+   * - `noProgressKingOnlyPlies`: plies since the last capture or man move,
+   *   counted only while all remaining pieces are kings.
+   * - `turnDidCapture` / `turnDidManMove`: per-turn accumulation while a
+   *   capture chain is in progress.
+   * - `turnCount`: completed turns by each player.
+   * - `reduced`: active reduced-material timer baseline, if one of the FMJD
+   *   special endgames is currently in force.
+   */
+  internationalDraughtsDraw?: {
+    noProgressKingOnlyPlies: number;
+    turnDidCapture?: boolean;
+    turnDidManMove?: boolean;
+    turnCount?: { W: number; B: number };
+    reduced?: {
+      key: string;
+      label: string;
+      limitTurnsEach: number;
+      activatedAtTurnCount: { W: number; B: number };
+    };
+  };
+
+  /**
    * Ephemeral (not serialized): used by some rulesets to track multi-capture chain state.
    * Currently used by Damasca to remember if a soldier has reached the promotion row
    * at any point during a capture chain (promotion is applied at chain end).

@@ -895,6 +895,38 @@ function parseNum(value: string | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function deriveCheckerboardGrid(rects: readonly SVGRectElement[]): {
+  startX: number;
+  startY: number;
+  stepX: number;
+  stepY: number;
+} | null {
+  if (rects.length === 0) return null;
+
+  const first = rects[0];
+  const firstWidth = parseNum(first.getAttribute("data-checkerboard-orig-width") ?? first.getAttribute("width"));
+  const firstHeight = parseNum(first.getAttribute("data-checkerboard-orig-height") ?? first.getAttribute("height"));
+  if (firstWidth == null || firstHeight == null || firstWidth <= 0 || firstHeight <= 0) return null;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  for (const rect of rects) {
+    const x = parseNum(rect.getAttribute("data-checkerboard-orig-x") ?? rect.getAttribute("x"));
+    const y = parseNum(rect.getAttribute("data-checkerboard-orig-y") ?? rect.getAttribute("y"));
+    if (x != null) minX = Math.min(minX, x);
+    if (y != null) minY = Math.min(minY, y);
+  }
+
+  if (!Number.isFinite(minX) || !Number.isFinite(minY)) return null;
+
+  return {
+    startX: minX,
+    startY: minY,
+    stepX: firstWidth,
+    stepY: firstHeight,
+  };
+}
+
 /**
  * Apply a checkerboard theme to an SVG board with a `#squares` group of 8×8 <rect> tiles.
  * Safe no-op if the expected structure is missing.
@@ -940,9 +972,8 @@ export function applyCheckerboardTheme(svgRoot: SVGSVGElement, themeId: Checkerb
   const rects = Array.from(squares.querySelectorAll("rect")) as SVGRectElement[];
   if (rects.length === 0) return;
 
-  // Boards in this repo use x/y starting at 100 with 100px tiles (viewBox 0..1000).
-  const start = 100;
-  const step = 100;
+  const grid = deriveCheckerboardGrid(rects);
+  if (!grid) return;
 
   if (themeId === "stone") ensureStoneCheckerboardDefs(svgRoot);
   if (themeId === "burled") ensureBurledWoodCheckerboardDefs(svgRoot);
@@ -1008,8 +1039,8 @@ export function applyCheckerboardTheme(svgRoot: SVGSVGElement, themeId: Checkerb
     const height = parseNum(originalHeightAttr);
     if (x == null || y == null || width == null || height == null) continue;
 
-    const col = Math.round((x - start) / step);
-    const row = Math.round((y - start) / step);
+    const col = Math.round((x - grid.startX) / grid.stepX);
+    const row = Math.round((y - grid.startY) / grid.stepY);
     if (!Number.isFinite(col) || !Number.isFinite(row)) continue;
 
     const isLight = (row + col) % 2 === 0;

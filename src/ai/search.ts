@@ -52,6 +52,22 @@ function cloneStateForSearch(state: GameState): GameState {
     toMove: state.toMove,
     phase: state.phase,
     meta: state.meta ? { ...state.meta } : undefined,
+    internationalDraughtsDraw: (state as any).internationalDraughtsDraw
+      ? {
+          ...(state as any).internationalDraughtsDraw,
+          turnCount: (state as any).internationalDraughtsDraw.turnCount
+            ? { ...(state as any).internationalDraughtsDraw.turnCount }
+            : undefined,
+          reduced: (state as any).internationalDraughtsDraw.reduced
+            ? {
+                ...(state as any).internationalDraughtsDraw.reduced,
+                activatedAtTurnCount: {
+                  ...(state as any).internationalDraughtsDraw.reduced.activatedAtTurnCount,
+                },
+              }
+            : undefined,
+        }
+      : undefined,
     captureChain: state.captureChain ? { ...state.captureChain } : undefined,
   };
 }

@@ -248,4 +248,83 @@ describe("Threefold Repetition Draw", () => {
     // Should detect threefold for white-to-move position
     expect(isThreefold).toBe(true);
   });
+
+  it("should reuse threefold repetition detection for International Draughts", () => {
+    const positionA: GameState = {
+      board: new Map([
+        ["r4c3", [{ owner: "W", rank: "O" }]],
+        ["r6c5", [{ owner: "B", rank: "O" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+      meta: { variantId: "draughts_10_international", rulesetId: "draughts_international", boardSize: 10 },
+    };
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, positionA, history);
+    history.push(positionA);
+
+    const position2: GameState = {
+      board: new Map([
+        ["r5c4", [{ owner: "W", rank: "O" }]],
+        ["r6c5", [{ owner: "B", rank: "O" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+      meta: { variantId: "draughts_10_international", rulesetId: "draughts_international", boardSize: 10 },
+    };
+    history.push(position2);
+
+    const position3: GameState = {
+      board: new Map([
+        ["r5c4", [{ owner: "W", rank: "O" }]],
+        ["r7c4", [{ owner: "B", rank: "O" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+      meta: { variantId: "draughts_10_international", rulesetId: "draughts_international", boardSize: 10 },
+    };
+    history.push(position3);
+
+    const position4: GameState = {
+      board: new Map([
+        ["r4c3", [{ owner: "W", rank: "O" }]],
+        ["r7c4", [{ owner: "B", rank: "O" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+      meta: { variantId: "draughts_10_international", rulesetId: "draughts_international", boardSize: 10 },
+    };
+    history.push(position4);
+
+    const positionA2: GameState = {
+      board: new Map([
+        ["r4c3", [{ owner: "W", rank: "O" }]],
+        ["r6c5", [{ owner: "B", rank: "O" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+      meta: { variantId: "draughts_10_international", rulesetId: "draughts_international", boardSize: 10 },
+    };
+    history.push(positionA2);
+
+    history.push(position2);
+    history.push(position3);
+    history.push(position4);
+
+    const positionA3: GameState = {
+      board: new Map([
+        ["r4c3", [{ owner: "W", rank: "O" }]],
+        ["r6c5", [{ owner: "B", rank: "O" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+      meta: { variantId: "draughts_10_international", rulesetId: "draughts_international", boardSize: 10 },
+    };
+    history.push(positionA3);
+    controller.setState(positionA3);
+
+    const isThreefold = (controller as any).checkThreefoldRepetition();
+
+    expect(isThreefold).toBe(true);
+  });
 });

@@ -125,4 +125,15 @@ describe("applyBoardViewportModeToSvg", () => {
     expect(metrics?.squares?.h).toBe(800);
     expect((svg.getAttribute("viewBox") ?? "").startsWith("100 ")).toBe(true);
   });
+
+  it("preserves top and bottom breathing room for 10x10 boards in playable mode", () => {
+    const svg = makeSvg10x10();
+
+    applyBoardViewportModeToSvg(svg, "playable", { boardSize: 10 });
+
+    const metrics = getBoardViewportMetrics(svg);
+    expect(metrics?.mode).toBe("playable");
+    expect(metrics?.extraTop).toBeGreaterThanOrEqual(52);
+    expect(metrics?.extraBottom).toBeGreaterThanOrEqual(12);
+  });
 });

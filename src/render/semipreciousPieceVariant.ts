@@ -1,6 +1,12 @@
 const STONE_THEME_ID = "stone";
 const SEMIPRECIOUS_THEME_ID = "semiprecious";
 
+function cssEscapeForQuery(value: string): string {
+  const esc = (globalThis as { CSS?: { escape?: (s: string) => string } }).CSS?.escape;
+  if (typeof esc === "function") return esc(value);
+  return value.replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch}`);
+}
+
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 type Rgb = { r: number; g: number; b: number };
@@ -270,7 +276,7 @@ function createRadialGradient(
   cy: string,
   r: string
 ): void {
-  if (defs.querySelector(`#${CSS.escape(id)}`)) return;
+  if (defs.querySelector(`#${cssEscapeForQuery(id)}`)) return;
   const grad = document.createElementNS(SVG_NS, "radialGradient");
   grad.setAttribute("id", id);
   grad.setAttribute("cx", cx);
@@ -319,7 +325,7 @@ function setFillUrl(el: Element, patternId: string): void {
 }
 
 function ensureMarblePattern(defs: SVGDefsElement, id: string, seed: number): void {
-  if (defs.querySelector(`#${CSS.escape(id)}`)) return;
+  if (defs.querySelector(`#${cssEscapeForQuery(id)}`)) return;
 
   const rand = mulberry32(seed);
 
@@ -409,7 +415,7 @@ function ensureMarblePattern(defs: SVGDefsElement, id: string, seed: number): vo
 }
 
 function ensureGranitePattern(defs: SVGDefsElement, id: string, seed: number): void {
-  if (defs.querySelector(`#${CSS.escape(id)}`)) return;
+  if (defs.querySelector(`#${cssEscapeForQuery(id)}`)) return;
 
   const rand = mulberry32(seed);
 
@@ -514,7 +520,7 @@ function ensureUniqueStoneSymbol(svgRoot: SVGSVGElement, baseHref: string, seedK
   const suffix = `u${h.toString(16)}`;
   const uniqueId = `${baseId}__${suffix}`;
 
-  if (defs.querySelector(`#${CSS.escape(uniqueId)}`)) return `#${uniqueId}`;
+  if (defs.querySelector(`#${cssEscapeForQuery(uniqueId)}`)) return `#${uniqueId}`;
 
   const baseSymbol = svgRoot.querySelector(baseHref) as SVGSymbolElement | null;
   if (!baseSymbol) return baseHref;
@@ -567,7 +573,7 @@ function ensureSemiPreciousPattern(
   gem: GemDef,
   isLight: boolean
 ): void {
-  if (defs.querySelector(`#${CSS.escape(id)}`)) return;
+  if (defs.querySelector(`#${cssEscapeForQuery(id)}`)) return;
 
   const rand = mulberry32(seed);
   const tile = 100;
@@ -888,7 +894,7 @@ function ensureUniqueSemiPreciousSymbol(svgRoot: SVGSVGElement, baseHref: string
   const gem = gems[gemIdx];
 
   const uniqueId = `${baseId}__${gem.id}__${suffix}`;
-  if (defs.querySelector(`#${CSS.escape(uniqueId)}`)) return `#${uniqueId}`;
+  if (defs.querySelector(`#${cssEscapeForQuery(uniqueId)}`)) return `#${uniqueId}`;
 
   const baseSymbol = svgRoot.querySelector(variantHref) as SVGSymbolElement | null;
   if (!baseSymbol) return baseHref;

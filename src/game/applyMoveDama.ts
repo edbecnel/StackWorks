@@ -2,6 +2,10 @@ import type { GameState } from "./state.ts";
 import type { Move } from "./moveTypes.ts";
 import { promoteIfNeeded } from "./promote.ts";
 import { getDamaCaptureRemovalMode } from "./damaCaptureChain.ts";
+import {
+  applyInternationalDraughtsTurnProgress,
+  finalizeInternationalDraughtsTurnAtBoundary,
+} from "./internationalDraughtsDraw.ts";
 import { parseNodeId } from "./coords.ts";
 
 /**
@@ -61,9 +65,18 @@ export function applyMoveDama(
       ? { ...(state.captureChain ?? {}), promotionEarned: true }
       : state.captureChain;
 
+    const progressed = applyInternationalDraughtsTurnProgress(state, move, moving[moving.length - 1].rank);
+
     // Promotion is handled at the end of the capture sequence (controller/finalizeDamaCaptureChain)
     // so that if further legal jumps exist, the piece continues as a Soldier until the chain ends.
-    return { ...state, board: nextBoard, toMove: state.toMove, phase: "idle", captureChain };
+    return {
+      ...state,
+      ...(progressed.internationalDraughtsDraw ? { internationalDraughtsDraw: progressed.internationalDraughtsDraw } : {}),
+      board: nextBoard,
+      toMove: state.toMove,
+      phase: "idle",
+      captureChain,
+    };
   }
 
   // Quiet move
@@ -84,5 +97,19 @@ export function applyMoveDama(
   const didPromote = promoteIfNeeded(tempState, move.to);
 
   const nextToMove = state.toMove === "B" ? "W" : "B";
-  return { ...state, board: nextBoard, toMove: nextToMove, phase: "idle", didPromote, captureChain: undefined };
+  const progressed = applyInternationalDraughtsTurnProgress(state, move, moving[moving.length - 1].rank);
+
+  const afterQuiet: GameState & { didPromote?: boolean } = {
+    ...state,
+    ...(progressed.internationalDraughtsDraw ? { internationalDraughtsDraw: progressed.internationalDraughtsDraw } : {}),
+    board: nextBoard,
+    toMove: nextToMove,
+    phase: "idle",
+    didPromote,
+    captureChain: undefined,
+  };
+
+  return (state.meta?.rulesetId ?? "lasca") === "draughts_international"
+    ? (finalizeInternationalDraughtsTurnAtBoundary(afterQuiet, state.toMove) as GameState & { didPromote?: boolean })
+    : afterQuiet;
 }

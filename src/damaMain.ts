@@ -209,7 +209,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   const shellHelpHref = isCheckers
     ? "./checkers-help.html"
     : isInternationalDraughts
-      ? undefined
+      ? "./international-draughts-help.html"
       : "./dama-help.html";
   const appRoot = document.getElementById("appRoot") as HTMLElement | null;
   if (!appRoot) throw new Error("Missing game root: #appRoot");

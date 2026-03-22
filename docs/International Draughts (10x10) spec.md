@@ -107,3 +107,14 @@ The game is also drawn in these official endgame cases:
 - 2 kings vs 1 king
 - 1 king and 1 man vs 1 king
 - 1 king vs 1 king
+
+## StackWorks Implementation Assumptions
+
+- StackWorks uses the shared repetition system already present in the engine/controller stack, so the implemented repetition draw is the same same-position, same-player-to-move rule used elsewhere in the app.
+- The 25-move king-only rule is tracked as 50 plies at turn boundaries. Any capture, any man move, or any position that still contains a man resets that counter.
+- Reduced-material timers begin when the qualifying material configuration first appears after a completed turn. The move that creates the configuration does not count toward the 16-move or 5-move limit.
+- Reduced-material timers are tracked independently for White and Black completed turns so the official “moves by each player” phrasing maps cleanly onto engine state.
+- International Draughts has no stacks as a gameplay rule. State accounting, win detection, and reduced-material counting therefore use the single controlled piece on each occupied square.
+- Captured pieces remain on the board only as pending-removal markers during a capture sequence. They are excluded from re-capture immediately, then removed when the sequence is finalized.
+- Quiet moves in the Dama-style engine path finalize draw counters immediately because they already switch `toMove`; capture turns finalize draw counters through the shared `endTurn()` boundary after sequence completion.
+- Online and offline play share the same International Draughts move, promotion, capture-finalization, and draw-adjudication code paths.

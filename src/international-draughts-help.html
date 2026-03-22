@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StackWorks — International Draughts Help &amp; Rules</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      sizes="any"
+      href="./icons/stackworks-logo-icon-20260320.svg"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="./icons/apple-touch-icon-20260320.png"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        color: #e8e6e3;
+        background: linear-gradient(135deg, #1b1f16 0%, #283226 100%);
+        padding: 20px;
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 920px;
+        margin: 0 auto;
+        background: rgba(31, 38, 30, 0.94);
+        padding: 40px;
+        border-radius: 14px;
+        box-shadow: 0 10px 32px rgba(0, 0, 0, 0.35);
+      }
+
+      h1 {
+        color: #f5f6ef;
+        font-size: 2.4em;
+        margin-bottom: 10px;
+        border-bottom: 3px solid #90c26b;
+        padding-bottom: 10px;
+      }
+
+      h2 {
+        color: #90c26b;
+        font-size: 1.75em;
+        margin-top: 30px;
+        margin-bottom: 14px;
+      }
+
+      h3 {
+        color: #c2e29c;
+        font-size: 1.25em;
+        margin-top: 18px;
+        margin-bottom: 10px;
+      }
+
+      p {
+        margin-bottom: 14px;
+        color: #d7dbcf;
+      }
+
+      ul {
+        margin-left: 24px;
+        margin-bottom: 14px;
+      }
+
+      li {
+        margin-bottom: 8px;
+        color: #d7dbcf;
+      }
+
+      .highlight {
+        background: rgba(144, 194, 107, 0.15);
+        border-left: 4px solid #90c26b;
+        padding: 16px;
+        border-radius: 0 8px 8px 0;
+        margin: 18px 0;
+      }
+
+      .note {
+        background: rgba(255, 210, 120, 0.12);
+        border-left: 4px solid #ffd278;
+        padding: 16px;
+        border-radius: 0 8px 8px 0;
+        margin: 18px 0;
+      }
+
+      a {
+        color: #bfe29a;
+      }
+
+      a:hover {
+        color: #d8f0bf;
+      }
+
+      .mono {
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+      }
+
+      @media (max-width: 768px) {
+        .container {
+          padding: 20px;
+        }
+
+        h1 {
+          font-size: 2em;
+        }
+
+        h2 {
+          font-size: 1.45em;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1>StackWorks — International Draughts Help &amp; Rules</h1>
+      <p>
+        This page covers <b>International Draughts</b> on a <b>10x10</b>
+        board as implemented in StackWorks.
+      </p>
+
+      <div class="highlight">
+        <p>
+          <b>Core identity:</b> 20 men per side, flying kings, mandatory
+          capture, continued capture chains, and maximum-capture priority.
+        </p>
+      </div>
+
+      <h2>Setup</h2>
+      <ul>
+        <li><b>Board:</b> 10x10, using only the 50 dark squares</li>
+        <li><b>Pieces:</b> 20 men per side</li>
+        <li><b>Starting rows:</b> Black on 1-20, White on 31-50</li>
+        <li><b>First move:</b> White</li>
+      </ul>
+
+      <h2>How Pieces Move</h2>
+
+      <h3>Men</h3>
+      <ul>
+        <li>Move one square diagonally forward on a non-capturing move.</li>
+        <li>Capture diagonally forward or backward.</li>
+      </ul>
+
+      <h3>Kings</h3>
+      <ul>
+        <li>Kings are <b>flying kings</b>.</li>
+        <li>They may move any distance diagonally over empty squares.</li>
+        <li>
+          They capture from distance and may land on any empty square beyond the
+          captured piece on the same diagonal.
+        </li>
+      </ul>
+
+      <h2>Captures</h2>
+      <ul>
+        <li>Capturing is mandatory.</li>
+        <li>
+          If a capture chain continues after the first jump, the same piece must
+          keep capturing.
+        </li>
+        <li>
+          If multiple capture sequences exist, you must choose one that captures
+          the greatest number of enemy pieces.
+        </li>
+        <li>
+          If several sequences tie for the maximum capture count, you may choose
+          any of them.
+        </li>
+        <li>
+          During a capture sequence, the same enemy piece may not be captured
+          twice.
+        </li>
+        <li>
+          During a capture sequence, a piece may pass through the same empty
+          square more than once.
+        </li>
+        <li>
+          Captured pieces are removed only after the full capture sequence is
+          finished.
+        </li>
+      </ul>
+
+      <div class="note">
+        <p>
+          <b>Promotion timing:</b> a man becomes a king only if it ends the move
+          on the far promotion row. Passing through the promotion row during a
+          capture chain does not grant king powers for that move.
+        </p>
+      </div>
+
+      <h2>Winning</h2>
+      <ul>
+        <li>You win by taking all of the opponent's pieces.</li>
+        <li>You also win if the opponent has the move but no legal move.</li>
+      </ul>
+
+      <h2>Draws</h2>
+      <ul>
+        <li>
+          Repeated-position draws are supported through the shared StackWorks
+          repetition flow.
+        </li>
+        <li>
+          The game is drawn after <b>25 successive moves by each player</b>
+          with only kings moving, no man move, and no capture.
+        </li>
+        <li>
+          The official reduced-material draw cases are also enforced:
+          <ul>
+            <li>16 moves each: 3 kings vs 1 king</li>
+            <li>16 moves each: 2 kings + 1 man vs 1 king</li>
+            <li>16 moves each: 1 king + 2 men vs 1 king</li>
+            <li>5 moves each: 2 kings vs 1 king</li>
+            <li>5 moves each: 1 king + 1 man vs 1 king</li>
+            <li>5 moves each: 1 king vs 1 king</li>
+          </ul>
+        </li>
+      </ul>
+
+      <h2>StackWorks Notes</h2>
+      <ul>
+        <li>
+          Side labels are shown as <span class="mono">White</span> and
+          <span class="mono">Black</span> by default.
+        </li>
+        <li>
+          The status panel shows the 25-move king-only counter and any active
+          reduced-material endgame timer.
+        </li>
+        <li>
+          Online and offline play both use the same International Draughts move,
+          capture, promotion, and draw logic.
+        </li>
+      </ul>
+    </div>
+  </body>
+</html>

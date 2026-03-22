@@ -75,8 +75,9 @@ export const VARIANTS: readonly VariantSpec[] = [
     boardSize: 10,
     piecesPerSide: 20,
     svgAsset: checkersBoard10x10SvgUrl,
+    entryUrl: "./dama",
     defaultSaveName: "draughts_10_international-save.json",
-    available: false,
+    available: true,
   },
   {
     variantId: "lasca_8_dama_board",

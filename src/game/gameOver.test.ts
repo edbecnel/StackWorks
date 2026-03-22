@@ -113,6 +113,39 @@ describe("getWinner", () => {
     expect(result.winner).toBe("W");
     expect(result.reason).toContain("Dark has no pieces");
   });
+
+  it("should reuse International Draughts win by eliminating all opponent pieces", () => {
+    const state: GameState = {
+      board: new Map([
+        ["r6c5", [{ owner: "W", rank: "S" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+      meta: { variantId: "draughts_10_international", rulesetId: "draughts_international", boardSize: 10 },
+    };
+
+    const result = getWinner(state);
+    expect(result.winner).toBe("W");
+    expect(result.reason).toContain("White wins");
+    expect(result.reason).toContain("Black has no pieces");
+  });
+
+  it("should reuse International Draughts win when the opponent has no legal move", () => {
+    const state: GameState = {
+      board: new Map([
+        ["r4c3", [{ owner: "W", rank: "O" }]],
+        ["r9c0", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+      meta: { variantId: "draughts_10_international", rulesetId: "draughts_international", boardSize: 10 },
+    };
+
+    const result = getWinner(state);
+    expect(result.winner).toBe("W");
+    expect(result.reason).toContain("White wins");
+    expect(result.reason).toContain("Black has no moves");
+  });
 });
 
 describe("checkCurrentPlayerLost", () => {
@@ -202,5 +235,22 @@ describe("checkCurrentPlayerLost", () => {
     expect(result.winner).toBe("W");
     expect(result.reason).toContain("Light wins");
     expect(result.reason).toContain("Dark has no pieces");
+  });
+
+  it("should detect International Draughts loss when the side to move has no legal moves", () => {
+    const state: GameState = {
+      board: new Map([
+        ["r4c3", [{ owner: "W", rank: "O" }]],
+        ["r9c0", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+      meta: { variantId: "draughts_10_international", rulesetId: "draughts_international", boardSize: 10 },
+    };
+
+    const result = checkCurrentPlayerLost(state);
+    expect(result.winner).toBe("W");
+    expect(result.reason).toContain("White wins");
+    expect(result.reason).toContain("Black has no moves");
   });
 });
