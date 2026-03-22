@@ -2356,14 +2356,15 @@ window.addEventListener("DOMContentLoaded", () => {
 
     // Checkerboard theme:
     // - Always applicable to Columns Chess / Classic Chess.
-    // - Always applicable to US Checkers (it is always played on a checkerboard).
+    // - Always applicable to built-in checkerboard variants like US Checkers and International Draughts.
     // - For other 8×8 variants, it applies only when the optional checkered 8×8 board is enabled.
     //   Still show the control (disabled) so the option is discoverable.
-    const shouldShowCheckerboardTheme = isColumnsChess || isClassicChess || variant.boardSize === 8;
+    const usesBuiltInCheckerboard = isCheckers || variant.rulesetId === "draughts_international";
+    const shouldShowCheckerboardTheme = isColumnsChess || isClassicChess || usesBuiltInCheckerboard || variant.boardSize === 8;
     const canUseCheckerboardTheme =
       isColumnsChess ||
       isClassicChess ||
-      isCheckers ||
+      usesBuiltInCheckerboard ||
       (variant.boardSize === 8 && Boolean(elBoard8x8Checkered?.checked));
 
     if (elColumnsChessBoardThemeRow) elColumnsChessBoardThemeRow.style.display = shouldShowCheckerboardTheme ? "" : "none";

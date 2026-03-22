@@ -401,19 +401,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (canUseCheckerboardTheme) {
     if (checkerboardThemeSelect) {
       checkerboardThemeSelect.addEventListener("change", () => {
-        const prevFamily = activeVariant.variantId === "draughts_10_international"
-          ? get10x10CheckerboardFamily(activeVariant.variantId)
-          : null;
         const picked = normalizeCheckerboardThemeId(checkerboardThemeSelect.value);
         writeStringPref(isCheckers ? LS_CHECKERS_KEYS.checkerboardTheme : LS_OPT_KEYS.checkerboardTheme, picked);
-        if (activeVariant.variantId === "draughts_10_international") {
-          const nextFamily =
-            picked === "checkers" ? "checkers" : picked === "green" ? "green" : picked === "blue" ? "blue" : "classic";
-          if (prevFamily !== nextFamily) {
-            window.location.reload();
-            return;
-          }
-        }
         applyCheckerboard(picked);
         syncTerminologyUI();
       });

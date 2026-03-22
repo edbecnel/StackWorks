@@ -509,7 +509,7 @@ export function createThemeManager(svgRoot: SVGSVGElement, opts?: { themeStorage
         }
       },
     });
-    await dropdown.setSelected(initial);
+    void dropdown;
   }
 
   async function bindThemeSelect(selectEl: HTMLSelectElement | null | undefined) {
