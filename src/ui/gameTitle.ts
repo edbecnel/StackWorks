@@ -25,6 +25,11 @@ function ensureGameTitleStyles(): void {
       overflow: visible;
     }
 
+    .stackworksGameTitleRoot--chessClassic .stackworksGameTitleBrandLink {
+      width: min(195px, 100%);
+      max-width: min(195px, 100%);
+    }
+
     .stackworksGameTitleBrandLink img {
       display: block;
       width: 100%;

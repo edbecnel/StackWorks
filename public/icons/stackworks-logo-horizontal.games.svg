@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="356" viewBox="0 -18 1200 356" role="img" aria-label="StackWorks.games logo">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-label="StackWorks.games logo">
   <defs>
     <linearGradient id="goldTop" x1="0" x2="0" y1="0" y2="1">
       <stop offset="0%" stop-color="#FFF2BF"/>
@@ -58,12 +58,12 @@
 
   <!-- small gap between stack and wordmark -->
   <g transform="translate(250,78)" filter="url(#softShadow)">
-    <rect x="0" y="22" width="900" height="124" rx="34" fill="url(#navyGrad)" stroke="#C48A2A" stroke-width="6"/>
+    <rect x="0" y="22" width="1000" height="124" rx="34" fill="url(#navyGrad)" stroke="#C48A2A" stroke-width="6"/>
     <text x="34" y="114" font-family="Verdana, Trebuchet MS, Arial, sans-serif" font-weight="900" letter-spacing="1.0"
           fill="url(#goldTop)" stroke="#1A1C22" stroke-width="8" paint-order="stroke">
       <tspan font-size="96">StackWorks</tspan>
     </text>
-    <text x="678" y="116" font-family="Verdana, Trebuchet MS, Arial, sans-serif" font-weight="900" letter-spacing="0.2"
-          font-size="38" fill="#FFF7DA">.games</text>
+    <text x="678" y="112" font-family="Verdana, Trebuchet MS, Arial, sans-serif" font-weight="900" letter-spacing="0.2"
+          font-size="71.25" fill="#FFF7DA">.games</text>
   </g>
 </svg>

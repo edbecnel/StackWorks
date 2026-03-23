@@ -14,7 +14,7 @@ describe("logo", () => {
   it("creates logos without hardcoded dimensions and tags them with placement metadata", () => {
     const img = createLogoImage({ placement: "desktop-header" });
 
-    expect(img.getAttribute("src")).toContain("stackworks-logo-horizontal.svg");
+    expect(img.getAttribute("src")).toContain("stackworks-logo-horizontal.games.svg");
     expect(img.alt).toBe("StackWorks");
     expect(img.draggable).toBe(false);
     expect(img.dataset.logoVariant).toBe("horizontal");

@@ -12,7 +12,7 @@ export interface RenderLogoOptions {
 }
 
 const LOGO_ASSET_BY_VARIANT: Record<LogoVariant, string> = {
-  horizontal: "stackworks-logo-horizontal.svg",
+  horizontal: "stackworks-logo-horizontal.games.svg",
   icon: "stackworks-logo-icon.svg",
   wordmark: "stackworks-wordmark.svg",
   mono: "stackworks-logo-mono.svg",

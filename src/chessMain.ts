@@ -197,6 +197,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   const gameTitleEl = document.getElementById("gameTitle");
   if (gameTitleEl) {
     setStackWorksGameTitle(gameTitleEl, variant.displayName);
+    gameTitleEl.classList.add("stackworksGameTitleRoot--chessClassic");
     gameTitleEl.title = rulesBoardLine(variant.rulesetId, variant.boardSize);
   }
 
@@ -1090,7 +1091,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         resolvePlayerLabel: (side) => resolvedPlayerNameForSave(side),
       });
       saveGameToFile(currentState, history, filename, {
-        includeTiming: exportPgnTimingToggle?.checked ?? false,
+        includeTiming: exportPgnTimingToggle?.checked ?? true,
       });
     });
   }
@@ -1789,8 +1790,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   if (exportPgnBtn) {
     exportPgnBtn.addEventListener("click", () => {
-      const includeTiming = exportPgnTimingToggle?.checked ?? false;
-      const includeEval = exportPgnEvalToggle?.checked ?? false;
+      const includeTiming = exportPgnTimingToggle?.checked ?? true;
+      const includeEval = exportPgnEvalToggle?.checked ?? true;
       try {
         const pgn = exportCurrentLineToPgnText(includeTiming, includeEval);
         const timestamp = new Date().toISOString().replace(/:/g, "-").split(".")[0];

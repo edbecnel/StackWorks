@@ -601,6 +601,17 @@ function ensureShellStyles(): void {
       justify-content: center;
     }
 
+    .appShellCardActions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 12px;
+    }
+
+    .appShellCardAction {
+      min-width: 0;
+      text-align: center;
+    }
+
     @media (min-width: 1040px) {
       body.stackworksAppShellEnabled {
         overflow: hidden;
@@ -986,6 +997,9 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
     <div class="appShellBadgeRow">
       <span class="appShellBadge" data-shell-ruleset></span>
     </div>
+    <div class="appShellCardActions">
+      <a class="appShellHeaderAction appShellCardAction" data-shell-open-page target="_self">Open Page</a>
+    </div>
   `;
 
   const quickCard = document.createElement("section");
@@ -1027,6 +1041,7 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   const modeValue = summaryCard.querySelector("[data-shell-mode]") as HTMLElement;
   const entryValue = summaryCard.querySelector("[data-shell-entry]") as HTMLElement;
   const rulesetValue = summaryCard.querySelector("[data-shell-ruleset]") as HTMLElement;
+  const summaryOpenPageLink = summaryCard.querySelector("[data-shell-open-page]") as HTMLAnchorElement;
   const quickLinks = quickCard.querySelector(".appShellQuickLinks") as HTMLElement;
   const variantsGrid = variantsCard.querySelector("[data-shell-variants]") as HTMLElement;
   const playModeGrid = playCard.querySelector("[data-shell-play-modes]") as HTMLElement;
@@ -1280,10 +1295,16 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
     setPlayMode(playMode);
 
     if (game.available && game.entryUrl) {
+      summaryOpenPageLink.href = game.entryUrl;
+      summaryOpenPageLink.style.pointerEvents = "auto";
+      summaryOpenPageLink.style.opacity = "1";
       launchLink.href = game.entryUrl;
       launchLink.style.pointerEvents = "auto";
       launchLink.style.opacity = "1";
     } else {
+      summaryOpenPageLink.removeAttribute("href");
+      summaryOpenPageLink.style.pointerEvents = "none";
+      summaryOpenPageLink.style.opacity = "0.55";
       launchLink.removeAttribute("href");
       launchLink.style.pointerEvents = "none";
       launchLink.style.opacity = "0.55";

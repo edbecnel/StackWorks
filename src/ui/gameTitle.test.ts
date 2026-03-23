@@ -11,7 +11,7 @@ describe("setStackWorksGameTitle", () => {
     const link = element.querySelector("a.stackworksGameTitleBrandLink");
     expect(link?.getAttribute("href")).toBe("./");
     expect(link?.getAttribute("aria-label")).toBe("Start Page");
-    expect(link?.querySelector("img")?.getAttribute("src")).toContain("stackworks-logo-horizontal.svg");
+    expect(link?.querySelector("img")?.getAttribute("src")).toContain("stackworks-logo-horizontal.games.svg");
     expect(element.textContent).toContain("Classic Chess");
   });
 
@@ -33,7 +33,7 @@ describe("setStackWorksGameTitle", () => {
     const image = link?.querySelector("img") as HTMLImageElement | null;
 
     expect(link).toBeTruthy();
-    expect(image?.getAttribute("src")).toContain("stackworks-logo-horizontal.svg");
+    expect(image?.getAttribute("src")).toContain("stackworks-logo-horizontal.games.svg");
     expect(link?.style.overflow).toBe("");
     expect(image?.style.height).toBe("");
   });

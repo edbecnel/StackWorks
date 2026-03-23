@@ -177,4 +177,34 @@ describe("initStartPageAppShell", () => {
     expect(labels).toContain("Dama International");
     expect(labels).toContain("Damasca Classic");
   });
+
+  it("shows an Open Page button in the Selected game card and keeps it synced to the current variant", () => {
+    document.body.innerHTML = `
+      <main id="pageRoot">
+        <div id="contentRoot">
+          <header>
+            <h1>StackWorks</h1>
+            <p class="subtle">Original subtitle</p>
+          </header>
+        </div>
+        <details id="launchLobbySection" data-start-section="lobby"><summary>Lobby</summary></details>
+        <section data-start-section="game">Game content</section>
+        <section id="launchAccountSection">Account content</section>
+        <section data-start-section="startup">Settings content</section>
+      </main>
+    `;
+
+    const shell = initStartPageAppShell({
+      contentRoot: document.getElementById("contentRoot") as HTMLElement,
+      initialVariantId: "chess_classic",
+      initialPlayMode: "local",
+    });
+
+    const selectedGameOpenPage = document.querySelector('[data-shell-open-page]') as HTMLAnchorElement | null;
+    expect(selectedGameOpenPage?.textContent?.trim()).toBe("Open Page");
+    expect(selectedGameOpenPage?.getAttribute("href")).toBe("./chess");
+
+    shell.setSelectedGame("columns_chess");
+    expect(selectedGameOpenPage?.getAttribute("href")).toBe("./columnsChess");
+  });
 });
