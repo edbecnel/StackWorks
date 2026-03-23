@@ -41,7 +41,8 @@ export function resolveLogoVariant(placement?: LogoPlacement): LogoVariant {
 }
 
 export function createLogoImage(opts: RenderLogoOptions = {}): HTMLImageElement {
-  const variant = opts.variant ?? resolveLogoVariant(opts.placement);
+  const placement = opts.placement;
+  const variant = opts.variant ?? resolveLogoVariant(placement);
   const src = `${normalizeAssetBasePath(opts.assetBasePath)}/${LOGO_ASSET_BY_VARIANT[variant]}`;
 
   const img = document.createElement("img");
@@ -49,7 +50,10 @@ export function createLogoImage(opts: RenderLogoOptions = {}): HTMLImageElement 
   img.alt = opts.ariaHidden ? "" : (opts.alt ?? "StackWorks");
   img.decoding = "async";
   img.loading = "eager";
+  img.draggable = false;
   img.className = opts.className ?? "";
+  img.dataset.logoVariant = variant;
+  if (placement) img.dataset.logoPlacement = placement;
 
   if (opts.ariaHidden) {
     img.setAttribute("aria-hidden", "true");

@@ -102,6 +102,33 @@ describe("initGameShell desktop shell navigation", () => {
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
   });
 
+  it("uses the brand icon as a Start Page link in both shell header treatments", () => {
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+
+    initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Desktop shell test",
+      backHref: "./",
+      gameSection: GameSection.Play,
+      navItems: [],
+    });
+
+    const compactBrand = document.querySelector(".gameShellCompactBarBrand") as HTMLAnchorElement | null;
+    const headerBrand = document.querySelector(".gameShellBrand") as HTMLAnchorElement | null;
+
+    expect(compactBrand?.getAttribute("href")).toBe("./");
+    expect(compactBrand?.getAttribute("aria-label")).toBe("Start Page");
+    expect(compactBrand?.querySelector('.gameShellCompactBarBrandMark img')?.getAttribute("src")).toContain("stackworks-logo-icon.svg");
+    expect(compactBrand?.querySelector('.gameShellCompactBarWordmark img')?.getAttribute("src")).toContain("stackworks-wordmark.svg");
+
+    expect(headerBrand?.getAttribute("href")).toBe("./");
+    expect(headerBrand?.getAttribute("aria-label")).toBe("Start Page");
+    expect(headerBrand?.querySelector("img")?.getAttribute("src")).toContain("stackworks-logo-icon.svg");
+  });
+
   it("preserves configured local player names and applies the signed-in avatar only to the matching side", async () => {
     vi.useFakeTimers();
 

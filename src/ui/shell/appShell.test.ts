@@ -5,20 +5,28 @@ function setShellState(state: unknown): void {
   localStorage.setItem("stackworks.shell.state", JSON.stringify(state));
 }
 
+function installMatchMedia(opts: { desktop: boolean; compactRail?: boolean }): void {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes("min-width: 1040px")
+        ? opts.desktop
+        : query.includes("max-width: 1279px")
+          ? (opts.compactRail ?? false)
+          : false,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
+  });
+}
+
 describe("initStartPageAppShell", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
     document.head.innerHTML = "";
     localStorage.clear();
-    Object.defineProperty(window, "matchMedia", {
-      writable: true,
-      value: vi.fn().mockImplementation(() => ({
-        matches: true,
-        media: "(min-width: 1040px)",
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      })),
-    });
+    installMatchMedia({ desktop: true, compactRail: false });
   });
 
   it("switches to online mode and opens the lobby when Community is the active shell section", () => {
@@ -65,15 +73,7 @@ describe("initStartPageAppShell", () => {
   });
 
   it("keeps the shell rail exposed on non-desktop viewports", () => {
-    Object.defineProperty(window, "matchMedia", {
-      writable: true,
-      value: vi.fn().mockImplementation(() => ({
-        matches: false,
-        media: "(min-width: 1040px)",
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      })),
-    });
+    installMatchMedia({ desktop: false, compactRail: false });
 
     document.body.innerHTML = `
       <main id="pageRoot">
@@ -99,5 +99,43 @@ describe("initStartPageAppShell", () => {
     const rail = document.getElementById("stackworksAppShellRail") as HTMLElement;
     expect(rail).toBeTruthy();
     expect(rail.getAttribute("aria-hidden")).toBe("false");
+
+    const headerBrand = document.querySelector(".appShellHeaderBrand") as HTMLAnchorElement | null;
+    expect(headerBrand?.getAttribute("href")).toBe("./");
+    expect(headerBrand?.getAttribute("aria-label")).toBe("Start Page");
+    expect(headerBrand?.querySelector('.appShellHeaderBrandMark img')?.getAttribute("src")).toContain("stackworks-logo-icon.svg");
+    expect(headerBrand?.querySelector('.appShellHeaderBrandWordmark img')?.getAttribute("src")).toContain("stackworks-wordmark.svg");
+  });
+
+  it("switches the desktop rail into compact mode at narrower desktop widths", () => {
+    installMatchMedia({ desktop: true, compactRail: true });
+
+    document.body.innerHTML = `
+      <main id="pageRoot">
+        <div id="contentRoot">
+          <header>
+            <h1>StackWorks</h1>
+            <p class="subtle">Original subtitle</p>
+          </header>
+        </div>
+        <details id="launchLobbySection" data-start-section="lobby"><summary>Lobby</summary></details>
+        <section data-start-section="game">Game content</section>
+        <section id="launchAccountSection">Account content</section>
+        <section data-start-section="startup">Settings content</section>
+      </main>
+    `;
+
+    initStartPageAppShell({
+      contentRoot: document.getElementById("contentRoot") as HTMLElement,
+      initialVariantId: "chess_classic",
+      initialPlayMode: "local",
+    });
+
+    const shell = document.querySelector(".appShellRoot") as HTMLElement | null;
+    expect(shell?.dataset.railMode).toBe("compact");
+
+    const firstNav = document.querySelector(".appShellNavButton") as HTMLButtonElement | null;
+    expect(firstNav?.getAttribute("aria-label")).toBe("Home");
+    expect(firstNav?.querySelector(".appShellNavShortLabel")?.textContent).toBe("Ho");
   });
 });

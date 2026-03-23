@@ -31,6 +31,7 @@ export type StartPageAppShellController = {
 
 const SHELL_STYLE_ID = "stackworks-app-shell-style";
 const APP_SHELL_DESKTOP_MEDIA = "(min-width: 1040px)";
+const APP_SHELL_COMPACT_RAIL_MEDIA = "(max-width: 1279px)";
 
 function ensureShellStyles(): void {
   if (document.getElementById(SHELL_STYLE_ID)) return;
@@ -178,6 +179,14 @@ function ensureShellStyles(): void {
       font-weight: 700;
     }
 
+    .appShellNavShortLabel {
+      display: none;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
     .appShellNavDescription {
       font-size: 11px;
       color: rgba(255, 255, 255, 0.62);
@@ -215,7 +224,7 @@ function ensureShellStyles(): void {
 
     .appShellHeader {
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-columns: auto auto minmax(0, 1fr) auto;
       gap: 12px;
       align-items: center;
       position: sticky;
@@ -257,6 +266,40 @@ function ensureShellStyles(): void {
     .appShellMenuToggle:hover,
     .appShellHeaderAction:hover {
       background: rgba(255, 255, 255, 0.1);
+    }
+
+    .appShellHeaderBrand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      text-decoration: none;
+    }
+
+    .appShellHeaderBrandMark {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      flex: 0 0 auto;
+    }
+
+    .appShellHeaderBrandMark img {
+      width: 20px;
+      height: 20px;
+      display: block;
+    }
+
+    .appShellHeaderBrandWordmark {
+      display: block;
+      width: min(118px, 100%);
+      max-width: 100%;
+      height: auto;
     }
 
     .appShellTitleBlock {
@@ -533,9 +576,14 @@ function ensureShellStyles(): void {
         min-height: 100vh;
       }
 
+      .appShellRoot[data-rail-mode="compact"] {
+        grid-template-columns: 92px minmax(0, 1fr);
+      }
+
       .appShellOverlay,
       .appShellRailClose,
-      .appShellMenuToggle {
+      .appShellMenuToggle,
+      .appShellHeaderBrand {
         display: none;
       }
 
@@ -581,11 +629,79 @@ function ensureShellStyles(): void {
         overflow: auto;
         padding-right: 4px;
       }
+
+      .appShellRoot[data-rail-mode="compact"] .appShellRail {
+        padding: 18px 10px 14px;
+        align-items: center;
+      }
+
+      .appShellRoot[data-rail-mode="compact"] .appShellBrand {
+        justify-content: center;
+      }
+
+      .appShellRoot[data-rail-mode="compact"] .appShellBrandLockup,
+      .appShellRoot[data-rail-mode="compact"] .appShellRailMeta,
+      .appShellRoot[data-rail-mode="compact"] .accountRailCardEyebrow,
+      .appShellRoot[data-rail-mode="compact"] .accountRailCardEmail,
+      .appShellRoot[data-rail-mode="compact"] .accountRailCardMessage,
+      .appShellRoot[data-rail-mode="compact"] .accountRailCardMeta,
+      .appShellRoot[data-rail-mode="compact"] .accountRailCardActions {
+        display: none;
+      }
+
+      .appShellRoot[data-rail-mode="compact"] .appShellNav {
+        width: 100%;
+        align-items: center;
+      }
+
+      .appShellRoot[data-rail-mode="compact"] .appShellNavButton {
+        width: 100%;
+        min-height: 54px;
+        padding: 10px 8px;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+
+      .appShellRoot[data-rail-mode="compact"] .appShellNavLabel,
+      .appShellRoot[data-rail-mode="compact"] .appShellNavDescription {
+        display: none;
+      }
+
+      .appShellRoot[data-rail-mode="compact"] .appShellNavShortLabel {
+        display: block;
+      }
+
+      .appShellRoot[data-rail-mode="compact"] .appShellRailFooter {
+        width: 100%;
+        justify-items: center;
+      }
+
+      .appShellRoot[data-rail-mode="compact"] .accountRailCard {
+        width: 100%;
+        padding: 10px 8px;
+      }
+
+      .appShellRoot[data-rail-mode="compact"] .accountRailCardBody {
+        margin-top: 0;
+      }
+
+      .appShellRoot[data-rail-mode="compact"] .accountRailCardIdentity {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        justify-items: center;
+        text-align: center;
+      }
+
+      .appShellRoot[data-rail-mode="compact"] .accountRailCardName {
+        font-size: 11px;
+        line-height: 1.3;
+      }
     }
 
     @media (max-width: 699px) {
       .appShellHeader {
-        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-columns: auto auto minmax(0, 1fr);
       }
 
       .appShellHeaderAction {
@@ -595,6 +711,16 @@ function ensureShellStyles(): void {
 
       .appShellContentSlot > .wrap > header {
         padding: 14px 15px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .appShellHeaderBrandWordmark {
+        display: none;
+      }
+
+      .appShellHeaderBrand {
+        gap: 0;
       }
     }
   `;
@@ -637,9 +763,13 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   const desktopMedia = typeof window !== "undefined" && typeof window.matchMedia === "function"
     ? window.matchMedia(APP_SHELL_DESKTOP_MEDIA)
     : null;
+  const compactRailMedia = typeof window !== "undefined" && typeof window.matchMedia === "function"
+    ? window.matchMedia(APP_SHELL_COMPACT_RAIL_MEDIA)
+    : null;
 
   const shell = document.createElement("div");
   shell.className = "appShellRoot";
+  shell.dataset.railMode = "full";
 
   const overlay = document.createElement("div");
   overlay.className = "appShellOverlay";
@@ -715,6 +845,25 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   menuToggle.setAttribute("aria-controls", rail.id);
   menuToggle.setAttribute("aria-expanded", "false");
 
+  const headerBrand = document.createElement("a");
+  headerBrand.className = "appShellHeaderBrand";
+  headerBrand.href = "./";
+  headerBrand.title = "Start Page";
+  headerBrand.setAttribute("aria-label", "Start Page");
+
+  const headerBrandMark = document.createElement("span");
+  headerBrandMark.className = "appShellHeaderBrandMark";
+  headerBrandMark.setAttribute("aria-hidden", "true");
+  renderLogo(headerBrandMark, { placement: "mobile-header", ariaHidden: true });
+
+  const headerBrandWordmark = document.createElement("span");
+  headerBrandWordmark.className = "appShellHeaderBrandWordmark";
+  renderLogo(headerBrandWordmark, {
+    variant: "wordmark",
+    alt: "StackWorks",
+  });
+  headerBrand.append(headerBrandMark, headerBrandWordmark);
+
   const titleBlock = document.createElement("div");
   titleBlock.className = "appShellTitleBlock";
   const breadcrumb = document.createElement("div");
@@ -733,7 +882,7 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   helpLink.rel = "noopener noreferrer";
   helpLink.textContent = "Start help";
 
-  header.append(menuToggle, titleBlock, helpLink);
+  header.append(menuToggle, headerBrand, titleBlock, helpLink);
   main.appendChild(header);
 
   const body = document.createElement("div");
@@ -864,12 +1013,19 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
     } else {
       syncNavState();
     }
+    syncRailMode();
+  };
+
+  const syncRailMode = (): void => {
+    const isCompactRail = Boolean(desktopMedia?.matches && compactRailMedia?.matches);
+    shell.dataset.railMode = isCompactRail ? "compact" : "full";
   };
 
   overlay.addEventListener("click", () => closeNav(true));
   closeButton.addEventListener("click", () => closeNav(true));
   menuToggle.addEventListener("click", toggleNav);
   desktopMedia?.addEventListener?.("change", handleViewportChange);
+  compactRailMedia?.addEventListener?.("change", syncRailMode);
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeNav(true);
   });
@@ -901,7 +1057,8 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
     const button = document.createElement("button");
     button.type = "button";
     button.className = "appShellNavButton";
-    button.innerHTML = `<span class="appShellNavLabel">${item.label}</span><span class="appShellNavDescription">${item.description}</span>`;
+    button.setAttribute("aria-label", item.label);
+    button.innerHTML = `<span class="appShellNavShortLabel">${item.label.slice(0, 2)}</span><span class="appShellNavLabel">${item.label}</span><span class="appShellNavDescription">${item.description}</span>`;
     button.addEventListener("click", () => focusSection(item.id));
     navButtons.set(item.id, button);
     nav.appendChild(button);
@@ -1064,6 +1221,7 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   if (initialShellState.activeSection === GlobalSection.Community) {
     focusSection(GlobalSection.Community, { playMode: "online" });
   }
+  syncRailMode();
   syncNavState();
 
   return {

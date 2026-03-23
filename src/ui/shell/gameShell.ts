@@ -262,21 +262,37 @@ function ensureGameShellStyles(): void {
     }
 
     .gameShellCompactBarBrand {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+      text-decoration: none;
+    }
+
+    .gameShellCompactBarBrandMark {
       width: 34px;
       height: 34px;
       border-radius: 10px;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
       background: rgba(255, 255, 255, 0.08);
       border: 1px solid rgba(255, 255, 255, 0.12);
       flex: 0 0 auto;
-      text-decoration: none;
     }
 
-    .gameShellCompactBarBrand img {
+    .gameShellCompactBarBrandMark img {
       width: 20px;
       height: 20px;
       display: block;
+    }
+
+    .gameShellCompactBarWordmark {
+      display: block;
+      width: min(108px, 100%);
+      max-width: 100%;
+      height: auto;
+      flex: 0 1 auto;
     }
 
     .gameShellCompactBarTitle {
@@ -981,14 +997,22 @@ function ensureGameShellStyles(): void {
 
       .gameShellCompactBarBrand {
         display: inline-flex;
+        gap: 6px;
+      }
+
+      .gameShellCompactBarBrandMark {
         width: 28px;
         height: 28px;
         border-radius: 9px;
       }
 
-      .gameShellCompactBarBrand img {
+      .gameShellCompactBarBrandMark img {
         width: 17px;
         height: 17px;
+      }
+
+      .gameShellCompactBarWordmark {
+        width: min(92px, 100%);
       }
 
       .gameShellCompactBarTitle {
@@ -1041,6 +1065,16 @@ function ensureGameShellStyles(): void {
         opacity: 1;
         pointer-events: auto;
         transform: translateY(0) scale(1);
+      }
+
+      @media (max-width: 520px) {
+        .gameShellCompactBarWordmark {
+          display: none;
+        }
+
+        .gameShellCompactBarBrand {
+          gap: 0;
+        }
       }
 
       .gameShellRoot.navOpen .gameShellCompactTrigger {
@@ -1191,7 +1225,18 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
   } else {
     compactBarBrand.setAttribute("aria-hidden", "true");
   }
-  renderLogo(compactBarBrand, { variant: "icon", ariaHidden: true });
+  const compactBarBrandMark = document.createElement("span");
+  compactBarBrandMark.className = "gameShellCompactBarBrandMark";
+  compactBarBrandMark.setAttribute("aria-hidden", "true");
+  renderLogo(compactBarBrandMark, { placement: "mobile-header", ariaHidden: true });
+
+  const compactBarWordmark = document.createElement("span");
+  compactBarWordmark.className = "gameShellCompactBarWordmark";
+  renderLogo(compactBarWordmark, {
+    variant: "wordmark",
+    alt: "StackWorks",
+  });
+  compactBarBrand.append(compactBarBrandMark, compactBarWordmark);
 
   const compactBarTitle = document.createElement("div");
   compactBarTitle.className = "gameShellCompactBarTitle";

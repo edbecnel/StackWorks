@@ -529,19 +529,19 @@ When using chess.com play screens as visual references, translate them into Stac
 
 - [x] Create `src/config/appShellConfig.ts` with global nav items and game registry
 - [x] Create `src/ui/branding/logo.ts` — logo component referencing `public/icons/` SVG assets
-  - [ ] Expose `LogoVariant` type: `'horizontal' | 'icon' | 'wordmark' | 'mono'`
+  - [x] Expose `LogoVariant` type: `'horizontal' | 'icon' | 'wordmark' | 'mono'`
   - [ ] Placement rules baked into component defaults:
-    - [ ] Desktop top-left header → `stackworks-logo-horizontal.svg`
-    - [ ] Mobile header → `stackworks-logo-icon.svg`; optionally `stackworks-wordmark.svg` alongside if space allows
-    - [ ] Collapsed sidebar / compact nav → `stackworks-logo-icon.svg`
-    - [ ] In-game board/shell logo treatment must be a clickable link with the same behavior as the `Start Page` action
-    - [ ] Favicon / browser tab / app icon base → `stackworks-logo-icon.svg`
+    - [x] Desktop top-left header → `stackworks-logo-horizontal.svg`
+    - [x] Mobile header → `stackworks-logo-icon.svg`; optionally `stackworks-wordmark.svg` alongside if space allows
+    - [x] Collapsed sidebar / compact nav → `stackworks-logo-icon.svg`
+    - [x] In-game board/shell logo treatment must be a clickable link with the same behavior as the `Start Page` action
+    - [x] Favicon / browser tab / app icon base → `stackworks-logo-icon.svg`
     - [ ] Footer / simple text branding → `stackworks-wordmark.svg`
-    - [ ] One-color / fallback / print / theme-conflict → `stackworks-logo-mono.svg`
-  - [ ] Size with CSS only; never hardcode `width`/`height` attributes
-  - [ ] Preserve aspect ratio on all variants; do not stretch
+    - [x] One-color / fallback / print / theme-conflict → `stackworks-logo-mono.svg`
+  - [x] Size with CSS only; never hardcode `width`/`height` attributes
+  - [x] Preserve aspect ratio on all variants; do not stretch
   - [ ] Never use horizontal logo in narrow/tight spaces
-  - [ ] All placements use `<img>` or inline `<svg>`; do not rasterize
+  - [x] All placements use `<img>` or inline `<svg>`; do not rasterize
 - [x] Create `src/ui/shell/appShell.ts` — left rail + header + main content slot + right panel slot
   - [ ] Responsive left rail (collapsed icon-only on mobile)
   - [ ] Brand/logo slot in top-left
@@ -713,11 +713,11 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Implement `src/ui/branding/logo.ts`
   - [ ] `renderLogo(variant: LogoVariant, container: HTMLElement): void` — inserts correct `<img>` into slot
   - [ ] Enforce placement rules: size via CSS class only · preserve aspect ratio · no stretching · no horizontal logo in narrow spaces
-- [ ] **Desktop top-left header (`Panels` layout)** — replace the plain text `StackWorks` label on each game page with `stackworks-logo-horizontal.svg` in the `appShell.ts` brand slot
-- [ ] **In-game board logo** — clicking the StackWorks logo should navigate exactly like `Start Page`
-- [ ] **Collapsed sidebar / compact nav** — auto-switch to `stackworks-logo-icon.svg` when rail collapses
-- [ ] **Mobile header** — use `stackworks-logo-icon.svg`; conditionally show `stackworks-wordmark.svg` alongside if space allows
-- [ ] **Favicon / browser tab** — add `<link rel="icon" href="/icons/stackworks-logo-icon.svg">` to all HTML entry points
+- [x] **Desktop top-left header (`Panels` layout)** — replace the plain text `StackWorks` label on each game page with `stackworks-logo-horizontal.svg` in the `appShell.ts` brand slot
+- [x] **In-game board logo** — clicking the StackWorks logo should navigate exactly like `Start Page`
+- [x] **Collapsed sidebar / compact nav** — auto-switch to `stackworks-logo-icon.svg` when rail collapses
+- [x] **Mobile header** — use `stackworks-logo-icon.svg`; conditionally show `stackworks-wordmark.svg` alongside if space allows
+- [x] **Favicon / browser tab** — add `<link rel="icon" href="/icons/stackworks-logo-icon.svg">` to all HTML entry points
 - [ ] **Footer / simple text branding** — use `stackworks-wordmark.svg`
 - [ ] **One-color / fallback / print / theme-conflict states** — use `stackworks-logo-mono.svg`
 - [ ] Verify all variants render correctly at all target breakpoints
@@ -746,7 +746,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Player identity panels and account/profile surfaces use uploaded avatars correctly, with sensible fallback behavior for missing or invalid avatar data
 - [ ] Account/profile surfaces let the user select country from a dropdown list and select a time zone, with best-effort defaults from origin IP / geolocation when available
 - [ ] The shell left rail shows the signed-in user's avatar + display name when authenticated, and `Sign Up` / `Log In` actions when signed out
-- [ ] Clicking the StackWorks logo from in-game shell/board contexts behaves the same as clicking `Start Page`
+- [x] Clicking the StackWorks logo from in-game shell/board contexts behaves the same as clicking `Start Page`
 - [ ] Shell is responsive on both desktop and mobile without covering board content
 - [ ] In portrait mobile layouts, shell navigation does not sit as a persistent tall header above the board
 - [ ] In portrait mobile layouts, the first view is understandable at a glance: one primary action cluster, one visible game context, and no duplicate navigation or settings clutter

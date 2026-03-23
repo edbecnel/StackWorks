@@ -19,18 +19,17 @@ function ensureGameTitleStyles(): void {
     .stackworksGameTitleBrandLink {
       display: inline-flex;
       align-items: center;
-      width: min(128px, 100%);
-      max-width: min(128px, 100%);
+      width: min(156px, 100%);
+      max-width: min(156px, 100%);
       text-decoration: none;
       overflow: hidden;
     }
 
     .stackworksGameTitleBrandLink img {
       display: block;
-      width: calc(100% + 3px);
-      max-width: none;
+      width: 100%;
+      max-width: 100%;
       height: auto;
-      margin-left: -3px;
     }
 
     .stackworksGameTitleTextBrand {
@@ -79,7 +78,7 @@ export function setStackWorksGameTitle(el: HTMLElement, gameName: string, startH
   brandLink.href = startHref;
   brandLink.setAttribute("aria-label", "Start Page");
   brandLink.title = "Start Page";
-  renderLogo(brandLink, { variant: "wordmark", ariaHidden: true });
+  renderLogo(brandLink, { placement: "desktop-header", ariaHidden: true });
 
   const top = document.createElement("div");
   top.className = "stackworksGameTitleTextBrand";
