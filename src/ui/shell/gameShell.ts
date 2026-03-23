@@ -266,6 +266,7 @@ function ensureGameShellStyles(): void {
       align-items: center;
       gap: 8px;
       flex: 0 0 auto;
+      min-width: 0;
       text-decoration: none;
     }
 
@@ -288,11 +289,19 @@ function ensureGameShellStyles(): void {
     }
 
     .gameShellCompactBarWordmark {
-      display: block;
-      width: min(108px, 100%);
-      max-width: 100%;
-      height: auto;
+      display: inline-flex;
+      align-items: center;
+      width: auto;
+      min-width: 0;
+      max-width: 132px;
       flex: 0 1 auto;
+    }
+
+    .gameShellCompactBarWordmark img {
+      display: block;
+      width: auto;
+      max-width: 100%;
+      height: 14px;
     }
 
     .gameShellCompactBarTitle {
@@ -1012,7 +1021,8 @@ function ensureGameShellStyles(): void {
       }
 
       .gameShellCompactBarWordmark {
-        width: min(92px, 100%);
+        width: auto;
+        max-width: 128px;
       }
 
       .gameShellCompactBarTitle {
@@ -1864,10 +1874,10 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
           "Open bot controls",
           "Jump straight to the existing bot or AI control surface for this game.",
         ),
-        friendAction: createNavAction(
+        localAction: createNavAction(
           ["status", "play"],
-          "Use current room controls",
-          "Open the current page's game or room section before returning to the launcher for friend-room actions.",
+          "Open local setup controls",
+          "Open the current page's setup and play controls before returning to the launcher for offline or local-seat actions.",
         ),
       });
 

@@ -1,4 +1,4 @@
-import { START_PAGE_SHELL_NAV, getAppShellGame, type AppShellSectionId } from "../../config/appShellConfig";
+import { APP_SHELL_GAMES, START_PAGE_SHELL_NAV, getAppShellGame, type AppShellSectionId } from "../../config/appShellConfig";
 import { GlobalSection, readShellState, updateShellState } from "../../config/shellState";
 import { renderLogo } from "../branding/logo";
 import { attachHoverFlyoutMenu } from "../navigation/flyoutMenu";
@@ -1196,17 +1196,7 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
     quickLinks.appendChild(button);
   }
 
-  const launcherGames = [
-    ...new Map(
-      [
-        getAppShellGame("chess_classic"),
-        getAppShellGame("columns_chess"),
-        getAppShellGame("dama_8_classic_standard"),
-        getAppShellGame("lasca_7_classic"),
-        getAppShellGame("damasca_8"),
-      ].map((game) => [game.variantId, game]),
-    ).values(),
-  ];
+  const launcherGames = APP_SHELL_GAMES.filter((game) => game.entryUrl);
 
   for (const game of launcherGames) {
     const button = document.createElement("button");

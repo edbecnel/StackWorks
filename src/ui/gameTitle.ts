@@ -22,7 +22,7 @@ function ensureGameTitleStyles(): void {
       width: min(156px, 100%);
       max-width: min(156px, 100%);
       text-decoration: none;
-      overflow: hidden;
+      overflow: visible;
     }
 
     .stackworksGameTitleBrandLink img {
@@ -70,6 +70,15 @@ export function setStackWorksGameTitle(el: HTMLElement, gameName: string, startH
   el.style.whiteSpace = "normal";
   el.style.overflow = "visible";
   el.style.textOverflow = "clip";
+
+  const header = el.closest(".sidebarHeader") as HTMLElement | null;
+  if (header) {
+    header.style.height = "auto";
+    header.style.minHeight = "60px";
+    header.style.alignItems = "flex-start";
+    header.style.paddingTop = "4px";
+    header.style.paddingBottom = "10px";
+  }
 
   el.classList.add("stackworksGameTitleRoot");
 

@@ -145,4 +145,36 @@ describe("initStartPageAppShell", () => {
     expect(firstNav?.getAttribute("aria-label")).toBe("Home");
     expect(firstNav?.querySelector(".appShellNavShortLabel")?.textContent).toBe("Ho");
   });
+
+  it("lists all launchable variants in the start-page shell chooser", () => {
+    document.body.innerHTML = `
+      <main id="pageRoot">
+        <div id="contentRoot">
+          <header>
+            <h1>StackWorks</h1>
+            <p class="subtle">Original subtitle</p>
+          </header>
+        </div>
+        <details id="launchLobbySection" data-start-section="lobby"><summary>Lobby</summary></details>
+        <section data-start-section="game">Game content</section>
+        <section id="launchAccountSection">Account content</section>
+        <section data-start-section="startup">Settings content</section>
+      </main>
+    `;
+
+    initStartPageAppShell({
+      contentRoot: document.getElementById("contentRoot") as HTMLElement,
+      initialVariantId: "chess_classic",
+      initialPlayMode: "local",
+    });
+
+    const variantGrid = document.querySelector('[data-shell-variants]') as HTMLElement | null;
+    const labels = Array.from(variantGrid?.querySelectorAll('.appShellChoiceLabel') ?? []).map((node) => node.textContent?.trim());
+
+    expect(labels).toContain("Lasca 8×8");
+    expect(labels).toContain("International Draughts");
+    expect(labels).toContain("Checkers (US)");
+    expect(labels).toContain("Dama International");
+    expect(labels).toContain("Damasca Classic");
+  });
 });

@@ -433,7 +433,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [x] `src/config/appShellConfig.ts` — global shell configuration (nav items, game registry, feature flags)
 - [x] `src/ui/shell/appShell.ts` — top-level shell layout mount: logo, left rail, right panel, main content slot
 - [x] `src/ui/shell/gameShell.ts` — per-game sub-shell: breadcrumb/title, game nav, game action area
-- [x] `src/ui/shell/playHub.ts` — Play hub layout: tab bar + panel switcher for Online/Bots/Coach/Friend/Tournaments/Variants
+- [x] `src/ui/shell/playHub.ts` — Play hub layout: tab bar + panel switcher for Online/Bots/Coach/Local with contextual Resume/Rejoin
 - [x] `src/ui/navigation/flyoutMenu.ts` — desktop hover flyout menu component
 - [x] `src/ui/navigation/tabs.ts` — reusable tab bar component
 - [x] `src/ui/branding/logo.ts` — logo component referencing `public/icons/` SVG assets by placement context
@@ -483,8 +483,8 @@ When using chess.com play screens as visual references, translate them into Stac
 - [x] Define `ShellState`: `{ activeGame: GameId | null, activeSection: GlobalSection, gameSection: GameSection | null }`
 - [x] Define `GlobalSection` enum: `Home | Games | Community | Account | Settings`
 - [x] Define `GameSection` enum: `Play | Learn | Watch | History | Rules | Customize | Online`
-- [x] Define `PlaySubSection` enum: `Online | Bots | Coach | Friend | Tournaments | Variants`
-- [ ] Refine play-mode information architecture so `Friend` is a prominent shortcut but remains conceptually nested under online play in the final UX
+- [x] Define `PlaySubSection` enum: `Online | Bots | Coach | Local | Resume`
+- [x] Refine play-mode information architecture so `Friend` is a prominent shortcut but remains conceptually nested under online play in the final UX
 - [ ] Add online sub-mode state for `QuickMatch | CustomChallenge | Friend | HostedRooms | Tournaments`
 - [ ] Add bot-play state for per-side controller assignment and bot configuration so each seat can be `human` or `bot` with the restriction that `Play Bots` cannot resolve to `human` + `human`
 - [ ] Define `PlayerIdentity` type: `{ id: string, displayName: string, avatarUrl: string | null, side: 'local' | 'remote' | 'spectator', presenceState: PresenceState, countryCode?: string | null, countryName?: string | null, rating?: number, isBot?: boolean, isFallback?: boolean }`
@@ -642,7 +642,7 @@ When using chess.com play screens as visual references, translate them into Stac
 ### Phase 3 — Play Hub with Tabs
 
 - [x] Create `src/ui/shell/playHub.ts` — Play hub layout with tab bar + panel switcher
-- [ ] Final top-level play destinations should be: Online, Bots, Coach, Local, Resume/Rejoin when applicable
+- [x] Final top-level play destinations should be: Online, Bots, Coach, Local, Resume/Rejoin when applicable
   - [ ] **Online** — contains `Quick Match`, `Custom Challenge`, `Play a Friend`, `Hosted Rooms`, and `Tournaments` when supported
   - [ ] **Bots** — graphical bot list with personality, rating/strength, and style summary
     - [ ] Support two seat cards or selectors so the user can configure Side A and Side B independently as `Human` or `Bot`
@@ -653,11 +653,11 @@ When using chess.com play screens as visual references, translate them into Stac
     - [ ] Keep setup compact on mobile: surface only side controller, bot selection, strength/style, and primary start action first
     - [ ] Advanced bot options belong behind a secondary settings sheet
   - [ ] **Coach** — level-first learning flow with hints/takebacks/teaching affordances
-  - [ ] **Local** — streamlined local/offline setup
-  - [ ] **Resume/Rejoin** — shown contextually when an interrupted or active game can be continued
-- [ ] `Friend` should not survive as a separate permanent top-level play tab in the final UX if it duplicates the online mode chooser
-- [ ] `Tournaments` should be top-level only if tournament participation becomes important enough to justify first-view real estate; otherwise keep it nested under Online
-- [ ] `Variants` should remain selectable within game selection and mode setup, not necessarily as a permanent primary play tab in the final UX
+  - [x] **Local** — streamlined local/offline setup
+  - [x] **Resume/Rejoin** — shown contextually when an interrupted or active game can be continued
+- [x] `Friend` should not survive as a separate permanent top-level play tab in the final UX if it duplicates the online mode chooser
+- [x] `Tournaments` should be top-level only if tournament participation becomes important enough to justify first-view real estate; otherwise keep it nested under Online
+- [x] `Variants` should remain selectable within game selection and mode setup, not necessarily as a permanent primary play tab in the final UX
 - [ ] Preserve all existing functionality when tabs are wired to real features
 - [x] Add clear "coming soon" / placeholder UI for unfinished tabs
 - [ ] Add `Hosted Rooms` flow with public/private/invite-only room types and room-owner controls

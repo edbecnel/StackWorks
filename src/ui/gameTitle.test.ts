@@ -22,4 +22,19 @@ describe("setStackWorksGameTitle", () => {
 
     expect(element.querySelector("a.stackworksGameTitleBrandLink")?.getAttribute("href")).toBe("../");
   });
+
+  it("renders the sidebar logo link as an unconstrained horizontal logo surface", () => {
+    document.body.dataset.panelLayout = "panels";
+    const element = document.createElement("div");
+
+    setStackWorksGameTitle(element, "International Draughts");
+
+    const link = element.querySelector("a.stackworksGameTitleBrandLink") as HTMLAnchorElement | null;
+    const image = link?.querySelector("img") as HTMLImageElement | null;
+
+    expect(link).toBeTruthy();
+    expect(image?.getAttribute("src")).toContain("stackworks-logo-horizontal.svg");
+    expect(link?.style.overflow).toBe("");
+    expect(image?.style.height).toBe("");
+  });
 });

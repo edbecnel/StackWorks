@@ -113,6 +113,7 @@ const LS_OPT_KEYS = {
   showResizeIcon: "lasca.opt.showResizeIcon",
   boardCoords: "lasca.opt.boardCoords",
   boardCoordsInSquares: "lasca.opt.boardCoordsInSquares",
+  boardCoordsInternationalNumbers: "lasca.opt.boardCoordsInternationalNumbers",
   flipBoard: "lasca.opt.flipBoard",
   board8x8Checkered: "lasca.opt.board8x8Checkered",
   checkerboardTheme: "lasca.opt.checkerboardTheme",
@@ -147,6 +148,54 @@ function readOptionalStringPref(key: string): string | null {
 
 function writeStringPref(key: string, value: string): void {
   localStorage.setItem(key, value);
+}
+
+type BoardCoordsToggleUI = {
+  toggle: HTMLInputElement | null;
+  row: HTMLElement | null;
+  hint: HTMLElement | null;
+};
+
+function insertOptionAfter(anchor: HTMLElement, element: HTMLElement): void {
+  const parent = anchor.parentElement;
+  if (!parent) return;
+  const next = anchor.nextElementSibling;
+  if (next) parent.insertBefore(element, next);
+  else parent.appendChild(element);
+}
+
+function ensureInternationalDraughtsCoordsOption(anchor: HTMLElement | null): BoardCoordsToggleUI {
+  const existingToggle = document.getElementById("boardCoordsInternationalNumbersToggle") as HTMLInputElement | null;
+  if (existingToggle) {
+    const row = existingToggle.closest("div") as HTMLElement | null;
+    const hint = (row?.nextElementSibling as HTMLElement | null) ?? null;
+    return { toggle: existingToggle, row, hint };
+  }
+
+  if (!anchor) return { toggle: null, row: null, hint: null };
+
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;align-items:center;gap:8px;margin-top:8px;margin-left:24px;";
+
+  const toggle = document.createElement("input");
+  toggle.type = "checkbox";
+  toggle.id = "boardCoordsInternationalNumbersToggle";
+  toggle.style.cssText = "width:16px;height:16px;cursor:pointer";
+
+  const label = document.createElement("label");
+  label.htmlFor = toggle.id;
+  label.textContent = "International square numbering";
+  label.style.cssText = "font-size:13px;cursor:pointer;user-select:none";
+
+  row.append(toggle, label);
+
+  const hint = document.createElement("div");
+  hint.textContent = "Show 1-50 perimeter numbering on dark squares; forces inside-square placement";
+  hint.style.cssText = "font-size:11px;color:rgba(255,255,255,0.6);margin-top:6px;margin-left:48px;";
+
+  insertOptionAfter(anchor, row);
+  insertOptionAfter(row, hint);
+  return { toggle, row, hint };
 }
 
 function resolvePlayerLabelForSave(args: {
@@ -446,8 +495,13 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (inSquaresUI.toggle && savedBoardCoordsInSquares !== null) {
     inSquaresUI.toggle.checked = savedBoardCoordsInSquares;
   }
+  const internationalCoordsUI = ensureInternationalDraughtsCoordsOption(inSquaresUI.hint ?? inSquaresUI.row);
+  const savedInternationalCoords = readOptionalBoolPref(LS_OPT_KEYS.boardCoordsInternationalNumbers);
+  if (internationalCoordsUI.toggle && savedInternationalCoords !== null) {
+    internationalCoordsUI.toggle.checked = savedInternationalCoords;
+  }
   const syncInSquaresUI = () => {
-    const forceInSquares = boardViewportMode === "playable";
+    const forceInSquares = boardViewportMode === "playable" || Boolean(isInternationalDraughts && internationalCoordsUI.toggle?.checked);
     if (inSquaresUI.row) inSquaresUI.row.style.display = canUseInSquareCoords ? "flex" : "none";
     if (inSquaresUI.hint) inSquaresUI.hint.style.display = canUseInSquareCoords ? "block" : "none";
     if (inSquaresUI.toggle) {
@@ -459,12 +513,23 @@ window.addEventListener("DOMContentLoaded", async () => {
         inSquaresUI.toggle.checked = saved ?? false;
       }
     }
+    const showInternationalToggle = isInternationalDraughts && canUseInSquareCoords;
+    if (internationalCoordsUI.row) internationalCoordsUI.row.style.display = showInternationalToggle ? "flex" : "none";
+    if (internationalCoordsUI.hint) internationalCoordsUI.hint.style.display = showInternationalToggle ? "block" : "none";
+    if (internationalCoordsUI.toggle) {
+      internationalCoordsUI.toggle.disabled = !showInternationalToggle || !Boolean(boardCoordsToggle?.checked);
+    }
   };
 
   const applyBoardCoords = () =>
     renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), activeVariant.boardSize, {
       flipped: isFlipped(),
-      style: (boardViewportMode === "playable" || (canUseInSquareCoords && inSquaresUI.toggle?.checked)) ? "inSquare" : "edge",
+      style:
+        isInternationalDraughts && internationalCoordsUI.toggle?.checked
+          ? "inSquareInternationalDraughts"
+          : (boardViewportMode === "playable" || (canUseInSquareCoords && inSquaresUI.toggle?.checked))
+            ? "inSquare"
+            : "edge",
     });
   applyBoardCoords();
   syncInSquaresUI();
@@ -773,6 +838,14 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (inSquaresUI.toggle) {
     inSquaresUI.toggle.addEventListener("change", () => {
       writeBoolPref(LS_OPT_KEYS.boardCoordsInSquares, inSquaresUI.toggle!.checked);
+      applyBoardCoords();
+    });
+  }
+
+  if (internationalCoordsUI.toggle) {
+    internationalCoordsUI.toggle.addEventListener("change", () => {
+      writeBoolPref(LS_OPT_KEYS.boardCoordsInternationalNumbers, internationalCoordsUI.toggle!.checked);
+      syncInSquaresUI();
       applyBoardCoords();
     });
   }

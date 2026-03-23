@@ -18,7 +18,7 @@ export interface PlayHubOptions {
   helpHref?: string;
   onlineAction?: PlayHubAction | null;
   botAction?: PlayHubAction | null;
-  friendAction?: PlayHubAction | null;
+  localAction?: PlayHubAction | null;
 }
 
 export interface PlayHubController {
@@ -27,6 +27,12 @@ export interface PlayHubController {
 }
 
 const PLAY_HUB_STYLE_ID = "stackworks-play-hub-style";
+
+type ResumeEntry = {
+  href: string;
+  label: string;
+  description: string;
+};
 
 function ensurePlayHubStyles(): void {
   if (document.getElementById(PLAY_HUB_STYLE_ID)) return;
@@ -159,6 +165,19 @@ function ensurePlayHubStyles(): void {
       line-height: 1.5;
       color: rgba(255, 255, 255, 0.62);
     }
+
+    .playHubSection {
+      display: grid;
+      gap: 8px;
+    }
+
+    .playHubSectionTitle {
+      margin: 0;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.5);
+    }
   `;
 
   document.head.appendChild(style);
@@ -182,6 +201,79 @@ function updatePlayHubState(currentVariantId: VariantId, playSubSection: PlaySub
     activeSection: GlobalSection.Games,
     playSubSection,
   });
+}
+
+function buildLauncherHref(baseHref: string, params?: Record<string, string | undefined>): string {
+  try {
+    const url = new URL(baseHref, window.location.href);
+    if (params) {
+      for (const [key, value] of Object.entries(params)) {
+        if (value && value.trim()) {
+          url.searchParams.set(key, value);
+        } else {
+          url.searchParams.delete(key);
+        }
+      }
+    }
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return baseHref;
+  }
+}
+
+function readResumeEntries(baseHref?: string, limit = 2): ResumeEntry[] {
+  if (!baseHref) return [];
+  const prefix = "lasca.online.resume.";
+  const records: Array<{ serverUrl: string; roomId: string; playerId: string; color?: "W" | "B"; displayName?: string; savedAtMs: number }> = [];
+
+  try {
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key || !key.startsWith(prefix)) continue;
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as Record<string, unknown> | null;
+      if (!parsed || typeof parsed !== "object") continue;
+
+      const serverUrl = typeof parsed.serverUrl === "string" ? parsed.serverUrl.trim() : "";
+      const roomId = typeof parsed.roomId === "string" ? parsed.roomId.trim() : "";
+      const playerId = typeof parsed.playerId === "string" ? parsed.playerId.trim() : "";
+      if (!serverUrl || !roomId || !playerId) continue;
+
+      records.push({
+        serverUrl,
+        roomId,
+        playerId,
+        ...(parsed.color === "W" || parsed.color === "B" ? { color: parsed.color } : {}),
+        ...(typeof parsed.displayName === "string" && parsed.displayName.trim() ? { displayName: parsed.displayName.trim() } : {}),
+        savedAtMs: Number.isFinite(parsed.savedAtMs) ? Number(parsed.savedAtMs) : 0,
+      });
+    }
+  } catch {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  return records
+    .sort((left, right) => right.savedAtMs - left.savedAtMs)
+    .filter((record) => {
+      const id = `${record.serverUrl}::${record.roomId}::${record.playerId}`;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    })
+    .slice(0, limit)
+    .map((record) => ({
+      href: buildLauncherHref(baseHref, {
+        mode: "online",
+        server: record.serverUrl,
+        roomId: record.roomId,
+        playerId: record.playerId,
+        ...(record.color ? { color: record.color } : {}),
+      }),
+      label: record.displayName ? `Resume ${record.displayName}` : `Resume room ${record.roomId}`,
+      description: `${record.serverUrl} · room ${record.roomId}`,
+    }));
 }
 
 function createAction(action: PlayHubAction): HTMLElement {
@@ -227,6 +319,16 @@ function createPlaceholder(title: string, description: string): HTMLElement {
 
 export function createPlayHub(opts: PlayHubOptions): PlayHubController {
   ensurePlayHubStyles();
+  const resumeEntries = readResumeEntries(opts.backHref);
+  const availableTabs: PlaySubSection[] = [
+    PlaySubSection.Online,
+    PlaySubSection.Bots,
+    PlaySubSection.Coach,
+    PlaySubSection.Local,
+    ...(resumeEntries.length ? [PlaySubSection.Resume] : []),
+  ];
+  const savedTab = readShellState().playSubSection ?? PlaySubSection.Online;
+  const initialTab = availableTabs.includes(savedTab) ? savedTab : PlaySubSection.Online;
 
   const root = document.createElement("section");
   root.className = "playHub";
@@ -245,14 +347,13 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
 
   const tabs = createTabs({
     className: "playHubTabs",
-    activeId: readShellState().playSubSection ?? PlaySubSection.Online,
+    activeId: initialTab,
     items: [
       { id: PlaySubSection.Online, label: "Online" },
       { id: PlaySubSection.Bots, label: "Bots" },
       { id: PlaySubSection.Coach, label: "Coach" },
-      { id: PlaySubSection.Friend, label: "Friend" },
-      { id: PlaySubSection.Tournaments, label: "Tournaments" },
-      { id: PlaySubSection.Variants, label: "Variants" },
+      { id: PlaySubSection.Local, label: "Local" },
+      ...(resumeEntries.length ? [{ id: PlaySubSection.Resume, label: "Resume" }] : []),
     ],
   });
 
@@ -293,7 +394,13 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
       external: true,
     }));
   }
-  onlinePanel.appendChild(onlineActions);
+  onlinePanel.append(
+    onlineActions,
+    createPlaceholder(
+      "Online modes",
+      "Quick Match, Custom Challenge, Play a Friend, Hosted Rooms, and Tournaments stay grouped under Online so the shell does not fragment those flows into separate top-level tabs.",
+    ),
+  );
   panels.set(PlaySubSection.Online, onlinePanel);
 
   const botsPanel = document.createElement("div");
@@ -317,7 +424,13 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
       href: opts.backHref,
     }));
   }
-  botsPanel.appendChild(botActions);
+  botsPanel.append(
+    botActions,
+    createPlaceholder(
+      "Two-seat bot setup reserved",
+      "The final bot surface will let each side choose Human or Bot independently, with Human vs Bot as the default and Bot vs Bot available as a watch mode.",
+    ),
+  );
   panels.set(PlaySubSection.Bots, botsPanel);
 
   const coachPanel = document.createElement("div");
@@ -328,40 +441,32 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
   ));
   panels.set(PlaySubSection.Coach, coachPanel);
 
-  const friendPanel = document.createElement("div");
-  friendPanel.className = "playHubPanel";
-  const friendActions = document.createElement("div");
-  friendActions.className = "playHubActions";
-  if (opts.friendAction) {
-    friendActions.appendChild(createAction(opts.friendAction));
+  const localPanel = document.createElement("div");
+  localPanel.className = "playHubPanel";
+  const localActions = document.createElement("div");
+  localActions.className = "playHubActions";
+  if (opts.localAction) {
+    localActions.appendChild(createAction(opts.localAction));
   }
   if (opts.backHref) {
-    friendActions.appendChild(createAction({
-      label: "Create or join a room",
-      description: "Return to the launcher and use the existing play-with-friend room flow for this variant.",
+    localActions.appendChild(createAction({
+      label: "Open local launcher",
+      description: "Return to the start page with this variant selected for offline setup, local seats, and current launch preferences.",
       onSelect: () => {
         updateShellState({
           activeGame: opts.currentVariantId,
-          activeSection: GlobalSection.Community,
-          playSubSection: PlaySubSection.Friend,
+          activeSection: GlobalSection.Games,
+          playSubSection: PlaySubSection.Local,
         });
       },
       href: opts.backHref,
     }));
   }
-  friendPanel.appendChild(friendActions);
-  panels.set(PlaySubSection.Friend, friendPanel);
-
-  const tournamentsPanel = document.createElement("div");
-  tournamentsPanel.className = "playHubPanel";
-  tournamentsPanel.appendChild(createPlaceholder(
-    "Tournament surface reserved",
-    "Tournament scheduling and bracket flows are not wired yet. The placeholder keeps the future information architecture visible without pretending the feature already exists.",
-  ));
-  panels.set(PlaySubSection.Tournaments, tournamentsPanel);
-
-  const variantsPanel = document.createElement("div");
-  variantsPanel.className = "playHubPanel";
+  const variantsSection = document.createElement("div");
+  variantsSection.className = "playHubSection";
+  const variantsTitle = document.createElement("p");
+  variantsTitle.className = "playHubSectionTitle";
+  variantsTitle.textContent = "Switch variant";
   const variantsList = document.createElement("div");
   variantsList.className = "playHubVariants";
   for (const game of APP_SHELL_GAMES) {
@@ -379,21 +484,51 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
       updateShellState({
         activeGame: game.variantId,
         activeSection: GlobalSection.Games,
-        playSubSection: PlaySubSection.Variants,
+        playSubSection: PlaySubSection.Local,
       });
       navigateToHref(game.entryUrl);
     });
     variantsList.appendChild(button);
   }
-  variantsPanel.appendChild(variantsList);
-  panels.set(PlaySubSection.Variants, variantsPanel);
+  variantsSection.append(variantsTitle, variantsList);
+  localPanel.append(localActions, variantsSection);
+  panels.set(PlaySubSection.Local, localPanel);
+
+  if (resumeEntries.length) {
+    const resumePanel = document.createElement("div");
+    resumePanel.className = "playHubPanel";
+    const resumeActions = document.createElement("div");
+    resumeActions.className = "playHubActions";
+    for (const entry of resumeEntries) {
+      resumeActions.appendChild(createAction({
+        label: entry.label,
+        description: entry.description,
+        href: entry.href,
+        onSelect: () => {
+          updateShellState({
+            activeGame: opts.currentVariantId,
+            activeSection: GlobalSection.Community,
+            playSubSection: PlaySubSection.Resume,
+          });
+        },
+      }));
+    }
+    resumePanel.append(
+      resumeActions,
+      createPlaceholder(
+        "Resume and rejoin",
+        "Saved online seats appear here when the browser has a stored resume record, so interrupted games can be resumed without keeping Rejoin as a permanent top-level launcher mode.",
+      ),
+    );
+    panels.set(PlaySubSection.Resume, resumePanel);
+  }
 
   for (const panel of panels.values()) {
     body.appendChild(panel);
   }
 
   root.append(header, tabs.element, body);
-  setActiveTab((readShellState().playSubSection ?? PlaySubSection.Online) as PlaySubSection);
+  setActiveTab(initialTab);
 
   return {
     element: root,

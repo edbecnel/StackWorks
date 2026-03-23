@@ -58,9 +58,10 @@ function clearLayer(layer: SVGGElement): void {
   while (layer.firstChild) layer.removeChild(layer.firstChild);
 }
 
-export type BoardCoordsStyle = "edge" | "inSquare";
+export type BoardCoordsStyle = "edge" | "inSquare" | "inSquareInternationalDraughts";
 
 type SquareRect = { x: number; y: number; w: number; h: number };
+type SquareCorner = "upperLeft" | "upperRight" | "lowerLeft" | "lowerRight";
 
 function computeSquareGridFromRects(svg: SVGSVGElement): { startX: number; startY: number; step: number } | null {
   const squares = svg.querySelector("#squares") as SVGGElement | null;
@@ -103,6 +104,73 @@ function getCheckerboardThemeId(svg: SVGSVGElement): CheckerboardThemeId {
   return normalizeCheckerboardThemeId(typeof raw === "string" ? raw : (raw ?? null));
 }
 
+function getSquareTextFill(light: string, dark: string, row: number, col: number): string {
+  return (row + col) % 2 === 0 ? dark : light;
+}
+
+function oppositeCorner(corner: SquareCorner): SquareCorner {
+  if (corner === "upperLeft") return "lowerRight";
+  if (corner === "upperRight") return "lowerLeft";
+  if (corner === "lowerLeft") return "upperRight";
+  return "upperLeft";
+}
+
+function appendSquareCornerText(args: {
+  layer: SVGGElement;
+  rect: SquareRect;
+  text: string;
+  fontSize: number;
+  pad: number;
+  fill: string;
+  flipped: boolean;
+  pointCorner: SquareCorner;
+  screenCorner: SquareCorner;
+  xOffset?: number;
+  yOffset?: number;
+}): void {
+  const t = document.createElementNS(SVG_NS, "text") as SVGTextElement;
+  t.textContent = args.text;
+  applyTextSelectionLock(t);
+  t.setAttribute("font-size", String(args.fontSize));
+  t.setAttribute("font-weight", "650");
+  t.setAttribute("fill", args.fill);
+  t.setAttribute("opacity", "0.72");
+
+  if (args.screenCorner === "upperLeft" || args.screenCorner === "lowerLeft") {
+    t.setAttribute("text-anchor", "start");
+  } else {
+    t.setAttribute("text-anchor", "end");
+  }
+
+  if (args.screenCorner === "upperLeft" || args.screenCorner === "upperRight") {
+    t.setAttribute("dominant-baseline", "hanging");
+  } else {
+    t.setAttribute("dominant-baseline", "alphabetic");
+  }
+
+  const xOffset = args.xOffset ?? 0;
+  const yOffset = args.yOffset ?? 0;
+  let x = args.rect.x + args.pad + xOffset;
+  let y = args.rect.y + args.pad + yOffset;
+
+  if (args.pointCorner === "upperRight" || args.pointCorner === "lowerRight") {
+    x = args.rect.x + args.rect.w - args.pad + xOffset;
+  }
+  if (args.pointCorner === "lowerLeft" || args.pointCorner === "lowerRight") {
+    y = args.rect.y + args.rect.h - args.pad * 0.25 + yOffset;
+  }
+
+  t.setAttribute("x", String(x));
+  t.setAttribute("y", String(y));
+  if (args.flipped) t.setAttribute("transform", `rotate(180 ${x} ${y})`);
+  args.layer.appendChild(t);
+}
+
+function toInternationalDraughtsSquareNumber(row: number, col: number): number | null {
+  if ((row + col) % 2 !== 1) return null;
+  return row * 5 + Math.floor(col / 2) + 1;
+}
+
 function renderBoardCoordsInSquares(layer: SVGGElement, svg: SVGSVGElement, boardSize: 7 | 8 | 10, flipped: boolean): void {
   // Prefer exact square geometry.
   const grid = computeSquareGridFromRects(svg);
@@ -125,73 +193,101 @@ function renderBoardCoordsInSquares(layer: SVGGElement, svg: SVGSVGElement, boar
   const bottomRow = flipped ? 0 : boardSize - 1;
   const leftCol = flipped ? boardSize - 1 : 0;
 
-  const placeText = (
-    text: string,
-    rect: SquareRect,
-    pointCorner: "upperLeft" | "lowerRight",
-    screenCorner: "upperLeft" | "lowerRight",
-    fill: string,
-    opts?: { xOffset?: number; yOffset?: number },
-  ) => {
-    const xOffset = opts?.xOffset ?? 0;
-    const yOffset = opts?.yOffset ?? 0;
-    const t = document.createElementNS(SVG_NS, "text") as SVGTextElement;
-    t.textContent = text;
-    applyTextSelectionLock(t);
-    t.setAttribute("font-size", String(fontSize));
-    t.setAttribute("font-weight", "650");
-    t.setAttribute("fill", fill);
-    t.setAttribute("opacity", "0.72");
-
-    // Alignment should match the desired *screen* corner, not the pre-rotation
-    // point corner. When the board is flipped, we intentionally choose the
-    // opposite point so it rotates into the correct corner on screen.
-    if (screenCorner === "upperLeft") {
-      t.setAttribute("text-anchor", "start");
-      t.setAttribute("dominant-baseline", "hanging");
-    } else {
-      t.setAttribute("text-anchor", "end");
-      t.setAttribute("dominant-baseline", "alphabetic");
-    }
-
-    if (pointCorner === "upperLeft") {
-      const x = rect.x + pad + xOffset;
-      const y = rect.y + pad + yOffset;
-      t.setAttribute("x", String(x));
-      t.setAttribute("y", String(y));
-      if (flipped) t.setAttribute("transform", `rotate(180 ${x} ${y})`);
-    } else {
-      const x = rect.x + rect.w - pad + xOffset;
-      // Baseline quirks: nudge slightly upward so the glyph sits within the tile.
-      const y = rect.y + rect.h - pad * 0.25 + yOffset;
-      t.setAttribute("x", String(x));
-      t.setAttribute("y", String(y));
-      if (flipped) t.setAttribute("transform", `rotate(180 ${x} ${y})`);
-    }
-
-    layer.appendChild(t);
-  };
-
   // Column labels (files): a.. (lowercase), only on the bottom row (screen).
   const fileYOffset = (flipped ? 1 : -1) * (fontSize * 0.5) + (flipped ? -10 : 5);
   const fileXOffset = flipped ? -1 : 0;
-  const filePointCorner: "upperLeft" | "lowerRight" = flipped ? "upperLeft" : "lowerRight";
+  const fileScreenCorner: SquareCorner = "lowerRight";
+  const filePointCorner: SquareCorner = flipped ? oppositeCorner(fileScreenCorner) : fileScreenCorner;
   for (let col = 0; col < boardSize; col++) {
     const rect = squareRectFromGrid(grid, bottomRow, col);
-    const isLight = (bottomRow + col) % 2 === 0;
-    const fill = isLight ? dark : light;
+    const fill = getSquareTextFill(light, dark, bottomRow, col);
     const letter = String.fromCharCode("a".charCodeAt(0) + col);
-    placeText(letter, rect, filePointCorner, "lowerRight", fill, { xOffset: fileXOffset, yOffset: fileYOffset });
+    appendSquareCornerText({
+      layer,
+      rect,
+      text: letter,
+      fontSize,
+      pad,
+      fill,
+      flipped,
+      pointCorner: filePointCorner,
+      screenCorner: fileScreenCorner,
+      xOffset: fileXOffset,
+      yOffset: fileYOffset,
+    });
   }
 
   // Row labels (ranks): boardSize..1, only on the left column (screen).
-  const rankPointCorner: "upperLeft" | "lowerRight" = flipped ? "lowerRight" : "upperLeft";
+  const rankScreenCorner: SquareCorner = boardSize === 10 ? "upperRight" : "upperLeft";
+  const rankPointCorner: SquareCorner = flipped ? oppositeCorner(rankScreenCorner) : rankScreenCorner;
   for (let row = 0; row < boardSize; row++) {
     const rect = squareRectFromGrid(grid, row, leftCol);
-    const isLight = (row + leftCol) % 2 === 0;
-    const fill = isLight ? dark : light;
+    const fill = getSquareTextFill(light, dark, row, leftCol);
     const n = String(boardSize - row);
-    placeText(n, rect, rankPointCorner, "upperLeft", fill);
+    const rankFontSize = boardSize === 10 && n.length > 1 ? fontSize * 0.84 : fontSize;
+    appendSquareCornerText({
+      layer,
+      rect,
+      text: n,
+      fontSize: rankFontSize,
+      pad,
+      fill,
+      flipped,
+      pointCorner: rankPointCorner,
+      screenCorner: rankScreenCorner,
+    });
+  }
+}
+
+function renderBoardCoordsInInternationalDraughtsSquares(
+  layer: SVGGElement,
+  svg: SVGSVGElement,
+  boardSize: 10,
+  flipped: boolean,
+): void {
+  const grid = computeSquareGridFromRects(svg);
+  if (!grid) {
+    renderBoardCoords(svg, true, boardSize, { flipped, style: "edge" });
+    return;
+  }
+
+  const { light, dark } = getCheckerboardBaseColors(svg);
+  const pad = grid.step * 0.08;
+  const fontSize = grid.step * 0.22;
+
+  const placeScreenSquare = (screenRow: number, screenCol: number, screenCorner: SquareCorner) => {
+    const boardRow = flipped ? boardSize - 1 - screenRow : screenRow;
+    const boardCol = flipped ? boardSize - 1 - screenCol : screenCol;
+    const squareNumber = toInternationalDraughtsSquareNumber(boardRow, boardCol);
+    if (!squareNumber) return;
+    const rect = squareRectFromGrid(grid, boardRow, boardCol);
+    appendSquareCornerText({
+      layer,
+      rect,
+      text: String(squareNumber),
+      fontSize,
+      pad,
+      fill: getSquareTextFill(light, dark, boardRow, boardCol),
+      flipped,
+      pointCorner: flipped ? oppositeCorner(screenCorner) : screenCorner,
+      screenCorner,
+    });
+  };
+
+  for (let screenCol = 1; screenCol < boardSize; screenCol += 2) {
+    placeScreenSquare(0, screenCol, "upperRight");
+  }
+
+  for (let screenRow = 2; screenRow < boardSize; screenRow += 2) {
+    placeScreenSquare(screenRow, boardSize - 1, "lowerRight");
+  }
+
+  for (let screenRow = 1; screenRow < boardSize - 1; screenRow += 2) {
+    placeScreenSquare(screenRow, 0, "lowerLeft");
+  }
+
+  for (let screenCol = 0; screenCol < boardSize; screenCol += 2) {
+    placeScreenSquare(boardSize - 1, screenCol, "lowerLeft");
   }
 }
 
@@ -213,6 +309,16 @@ export function renderBoardCoords(
   if (style === "inSquare") {
     clearLayer(layer);
     renderBoardCoordsInSquares(layer, svg, boardSize, flipped);
+    return;
+  }
+
+  if (style === "inSquareInternationalDraughts") {
+    clearLayer(layer);
+    if (boardSize === 10) {
+      renderBoardCoordsInInternationalDraughtsSquares(layer, svg, boardSize, flipped);
+    } else {
+      renderBoardCoordsInSquares(layer, svg, boardSize, flipped);
+    }
     return;
   }
 
@@ -258,8 +364,8 @@ export function renderBoardCoords(
     : Math.min(safeBottomY, maxY + step * 0.75);
 
   const rowLabelX = flipped
-    ? maxX + step * 0.65
-    : minX - step * 0.65; // left of column A, in the board's margin
+    ? maxX + step * 0.65 + 14
+    : minX - step * 0.65 - 14; // left of column A, in the board's margin
 
   // Default: dark charcoal (not pure black) to match the board's built-in linework.
   // Some board themes override this to match custom outer margins and frame accents.

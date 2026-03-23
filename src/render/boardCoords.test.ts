@@ -165,6 +165,75 @@ describe("renderBoardCoords (inSquare)", () => {
     expect(Number(inSquareA.getAttribute("y"))).toBeLessThanOrEqual(900);
     expect(Number(inSquareTen.getAttribute("x"))).toBeGreaterThanOrEqual(100);
     expect(Number(inSquareTen.getAttribute("y"))).toBeGreaterThanOrEqual(100);
+    expect(inSquareTen.getAttribute("text-anchor")).toBe("end");
+    // Right edge is anchored consistently near the right side of the square (same as single-digit ranks).
+    expect(Number(inSquareTen.getAttribute("x"))).toBeCloseTo(173.6, 0);
+  });
+
+  it("renders the International Draughts perimeter numbering inside dark squares", () => {
+    const svg = makeSvg10x10();
+
+    renderBoardCoords(svg, true, 10, { style: "inSquareInternationalDraughts" });
+
+    const texts = Array.from(svg.querySelectorAll("#boardCoords text"));
+    expect(texts.length).toBe(18);
+    expect(texts.map((node) => node.textContent?.trim())).toEqual([
+      "1", "2", "3", "4", "5",
+      "15", "25", "35", "45",
+      "6", "16", "26", "36",
+      "46", "47", "48", "49", "50",
+    ]);
+
+    const one = findText(svg, "1");
+    expect(one.getAttribute("text-anchor")).toBe("end");
+    expect(one.getAttribute("dominant-baseline")).toBe("hanging");
+    expect(Number(one.getAttribute("x"))).toBeCloseTo(253.6, 3);
+    expect(Number(one.getAttribute("y"))).toBeCloseTo(106.4, 3);
+
+    const fifteen = findText(svg, "15");
+    expect(fifteen.getAttribute("text-anchor")).toBe("end");
+    expect(fifteen.getAttribute("dominant-baseline")).toBe("alphabetic");
+    expect(Number(fifteen.getAttribute("x"))).toBeCloseTo(893.6, 3);
+    expect(Number(fifteen.getAttribute("y"))).toBeCloseTo(338.4, 3);
+
+    const six = findText(svg, "6");
+    expect(six.getAttribute("text-anchor")).toBe("start");
+    expect(six.getAttribute("dominant-baseline")).toBe("alphabetic");
+    expect(Number(six.getAttribute("x"))).toBeCloseTo(106.4, 3);
+    expect(Number(six.getAttribute("y"))).toBeCloseTo(258.4, 3);
+
+    const fifty = findText(svg, "50");
+    expect(fifty.getAttribute("text-anchor")).toBe("start");
+    expect(fifty.getAttribute("dominant-baseline")).toBe("alphabetic");
+    expect(Number(fifty.getAttribute("x"))).toBeCloseTo(746.4, 3);
+    expect(Number(fifty.getAttribute("y"))).toBeCloseTo(898.4, 3);
+
+    expect(svg.querySelector('#boardCoords text:not([transform])')?.textContent).toBeTruthy();
+    expect(texts.some((node) => (node.textContent ?? "").trim() === "a")).toBe(false);
+  });
+
+  it("reverses displayed International Draughts perimeter numbering when flipped", () => {
+    const svg = makeSvg10x10();
+
+    renderBoardCoords(svg, true, 10, { style: "inSquareInternationalDraughts", flipped: true });
+
+    const texts = Array.from(svg.querySelectorAll("#boardCoords text"));
+    expect(texts.map((node) => node.textContent?.trim())).toEqual([
+      "50", "49", "48", "47", "46",
+      "36", "26", "16", "6",
+      "45", "35", "25", "15",
+      "5", "4", "3", "2", "1",
+    ]);
+
+    const topLeft = findText(svg, "50");
+    expect(topLeft.getAttribute("text-anchor")).toBe("end");
+    expect(topLeft.getAttribute("dominant-baseline")).toBe("hanging");
+    expect(topLeft.getAttribute("transform") ?? "").toMatch(/^rotate\(180\s/);
+
+    const bottomLeft = findText(svg, "5");
+    expect(bottomLeft.getAttribute("text-anchor")).toBe("start");
+    expect(bottomLeft.getAttribute("dominant-baseline")).toBe("alphabetic");
+    expect(bottomLeft.getAttribute("transform") ?? "").toMatch(/^rotate\(180\s/);
   });
 
   it("marks coordinate labels as non-selectable", () => {

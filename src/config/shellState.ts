@@ -23,9 +23,8 @@ export enum PlaySubSection {
   Online = "online",
   Bots = "bots",
   Coach = "coach",
-  Friend = "friend",
-  Tournaments = "tournaments",
-  Variants = "variants",
+  Local = "local",
+  Resume = "resume",
 }
 
 export interface ShellState {
@@ -57,6 +56,8 @@ export function normalizeGameSection(value: unknown): GameSection | null {
 }
 
 export function normalizePlaySubSection(value: unknown): PlaySubSection | null {
+  if (value === "friend" || value === "tournaments") return PlaySubSection.Online;
+  if (value === "variants") return PlaySubSection.Local;
   return isEnumValue(PlaySubSection, value) ? value : null;
 }
 
