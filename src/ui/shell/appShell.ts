@@ -75,9 +75,12 @@ function ensureShellStyles(): void {
     }
 
     .appShellRail {
-      position: relative;
-      width: auto;
-      margin: 16px 16px 0;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: min(320px, calc(100vw - 28px));
+      margin: 0;
       padding: 18px 16px;
       display: flex;
       flex-direction: column;
@@ -86,13 +89,29 @@ function ensureShellStyles(): void {
         linear-gradient(180deg, rgba(26, 26, 26, 0.98), rgba(18, 18, 18, 0.98)),
         #141414;
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 20px;
+      border-radius: 0 20px 20px 0;
       box-shadow: 0 18px 36px rgba(0, 0, 0, 0.24);
-      z-index: 1;
+      z-index: 40;
+      overflow: auto;
+      transform: translateX(calc(-100% - 16px));
+      transition: transform 160ms ease;
+    }
+
+    .appShellRoot.navOpen .appShellRail {
+      transform: translateX(0);
     }
 
     .appShellRailClose {
-      display: none;
+      display: inline-flex;
+      align-self: flex-end;
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.05);
+      color: rgba(255, 255, 255, 0.92);
+      border-radius: 999px;
+      min-height: 34px;
+      padding: 8px 12px;
+      cursor: pointer;
     }
 
     .appShellBrand {
@@ -257,10 +276,13 @@ function ensureShellStyles(): void {
       justify-content: center;
       gap: 8px;
       min-height: 36px;
+      position: relative;
+      z-index: 1;
+      flex: 0 0 auto;
     }
 
     .appShellMenuToggle {
-      display: none;
+      display: inline-flex;
     }
 
     .appShellMenuToggle:hover,
@@ -302,11 +324,19 @@ function ensureShellStyles(): void {
       height: auto;
     }
 
+    .appShellHeaderBrandWordmark img {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+    }
+
     .appShellTitleBlock {
       min-width: 0;
       display: flex;
       flex-direction: column;
       gap: 4px;
+      overflow: hidden;
     }
 
     .appShellBreadcrumb {
@@ -314,6 +344,9 @@ function ensureShellStyles(): void {
       text-transform: uppercase;
       letter-spacing: 0.16em;
       color: rgba(255, 255, 255, 0.52);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .appShellTitle {
@@ -322,6 +355,9 @@ function ensureShellStyles(): void {
       line-height: 1.1;
       font-weight: 760;
       color: rgba(255, 255, 255, 0.97);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .appShellSubtitle {
@@ -581,7 +617,6 @@ function ensureShellStyles(): void {
       }
 
       .appShellOverlay,
-      .appShellRailClose,
       .appShellMenuToggle,
       .appShellHeaderBrand {
         display: none;
@@ -590,16 +625,24 @@ function ensureShellStyles(): void {
       .appShellRail {
         position: sticky;
         top: 0;
+        left: auto;
+        bottom: auto;
         width: auto;
         margin: 0;
         height: 100vh;
         min-height: 100vh;
         overflow: hidden;
+        transform: none;
         padding: 22px 16px 18px;
         border-right: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 0;
         box-shadow: none;
         z-index: 1;
+        transition: none;
+      }
+
+      .appShellRailClose {
+        display: none;
       }
 
       .appShellNav {
@@ -700,6 +743,39 @@ function ensureShellStyles(): void {
     }
 
     @media (max-width: 699px) {
+      .appShellBreadcrumb {
+        display: none;
+      }
+
+      .appShellTitle {
+        font-size: clamp(18px, 4vw, 22px);
+      }
+
+      .appShellSubtitle {
+        font-size: 11px;
+      }
+
+      .appShellHeaderBrandWordmark {
+        width: min(104px, 100%);
+      }
+    }
+
+    @media (max-width: 620px) {
+      .appShellSubtitle {
+        display: none;
+      }
+
+      .appShellHeader {
+        grid-template-columns: auto auto minmax(0, 1fr) auto;
+        align-items: center;
+      }
+
+      .appShellHeaderAction {
+        justify-self: end;
+      }
+    }
+
+    @media (max-width: 540px) {
       .appShellHeader {
         grid-template-columns: auto auto minmax(0, 1fr);
       }
@@ -711,6 +787,10 @@ function ensureShellStyles(): void {
 
       .appShellContentSlot > .wrap > header {
         padding: 14px 15px;
+      }
+
+      .appShellBody {
+        grid-template-columns: minmax(0, 1fr);
       }
     }
 
@@ -979,11 +1059,20 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   let selectedGame = getAppShellGame(opts.initialVariantId);
   let currentPlayMode = opts.initialPlayMode;
 
+  const isDesktopLayout = (): boolean => Boolean(desktopMedia?.matches);
+
+  const syncRailMode = (): void => {
+    const isCompactRail = Boolean(isDesktopLayout() && compactRailMedia?.matches);
+    shell.dataset.railMode = isCompactRail ? "compact" : "full";
+  };
+
   const syncNavState = (): void => {
-    menuToggle.setAttribute("aria-expanded", "true");
-    rail.setAttribute("aria-hidden", "false");
-    overlay.setAttribute("aria-hidden", "true");
-    document.body.classList.remove("stackworksAppShellNavLocked");
+    const expanded = shell.classList.contains("navOpen");
+    const desktop = isDesktopLayout();
+    menuToggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+    rail.setAttribute("aria-hidden", desktop || expanded ? "false" : "true");
+    overlay.setAttribute("aria-hidden", expanded ? "false" : "true");
+    document.body.classList.toggle("stackworksAppShellNavLocked", expanded && !desktop);
   };
 
   const closeNav = (restoreFocus = false): void => {
@@ -993,7 +1082,7 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   };
 
   const openNav = (): void => {
-    if (desktopMedia?.matches) return;
+    if (isDesktopLayout()) return;
     shell.classList.add("navOpen");
     syncNavState();
     closeButton.focus();
@@ -1008,17 +1097,12 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   };
 
   const handleViewportChange = (): void => {
-    if (desktopMedia?.matches) {
+    if (isDesktopLayout()) {
       closeNav(false);
     } else {
       syncNavState();
     }
     syncRailMode();
-  };
-
-  const syncRailMode = (): void => {
-    const isCompactRail = Boolean(desktopMedia?.matches && compactRailMedia?.matches);
-    shell.dataset.railMode = isCompactRail ? "compact" : "full";
   };
 
   overlay.addEventListener("click", () => closeNav(true));

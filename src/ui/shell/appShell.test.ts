@@ -96,15 +96,22 @@ describe("initStartPageAppShell", () => {
       initialPlayMode: "local",
     });
 
+    const menuToggle = document.querySelector(".appShellMenuToggle") as HTMLButtonElement | null;
     const rail = document.getElementById("stackworksAppShellRail") as HTMLElement;
+    expect(menuToggle).toBeTruthy();
+    expect(menuToggle?.getAttribute("aria-expanded")).toBe("false");
     expect(rail).toBeTruthy();
-    expect(rail.getAttribute("aria-hidden")).toBe("false");
+    expect(rail.getAttribute("aria-hidden")).toBe("true");
 
     const headerBrand = document.querySelector(".appShellHeaderBrand") as HTMLAnchorElement | null;
     expect(headerBrand?.getAttribute("href")).toBe("./");
     expect(headerBrand?.getAttribute("aria-label")).toBe("Start Page");
     expect(headerBrand?.querySelector('.appShellHeaderBrandMark img')?.getAttribute("src")).toContain("stackworks-logo-icon.svg");
     expect(headerBrand?.querySelector('.appShellHeaderBrandWordmark img')?.getAttribute("src")).toContain("stackworks-wordmark.svg");
+
+    menuToggle?.click();
+    expect(menuToggle?.getAttribute("aria-expanded")).toBe("true");
+    expect(rail.getAttribute("aria-hidden")).toBe("false");
   });
 
   it("switches the desktop rail into compact mode at narrower desktop widths", () => {
