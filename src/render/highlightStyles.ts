@@ -3,29 +3,30 @@ export type LastMoveHighlightStyle = "classic" | "chesscom";
 export type MoveHintStyle = "classic" | "chesscom";
 export type SelectionStyle = "classic" | "classic-squares" | "chesscom";
 
-export const DEFAULT_ANALYSIS_SQUARE_HIGHLIGHT_STYLE: AnalysisSquareHighlightStyle = "classic";
-export const DEFAULT_LAST_MOVE_HIGHLIGHT_STYLE: LastMoveHighlightStyle = "classic";
-export const DEFAULT_MOVE_HINT_STYLE: MoveHintStyle = "classic";
-export const DEFAULT_SELECTION_STYLE: SelectionStyle = "classic";
+export const DEFAULT_ANALYSIS_SQUARE_HIGHLIGHT_STYLE: AnalysisSquareHighlightStyle = "chesscom";
+export const DEFAULT_LAST_MOVE_HIGHLIGHT_STYLE: LastMoveHighlightStyle = "chesscom";
+export const DEFAULT_MOVE_HINT_STYLE: MoveHintStyle = "chesscom";
+export const DEFAULT_SELECTION_STYLE: SelectionStyle = "chesscom";
 
 export function normalizeAnalysisSquareHighlightStyle(
   value: string | null | undefined,
 ): AnalysisSquareHighlightStyle {
-  return value === "chesscom" ? "chesscom" : DEFAULT_ANALYSIS_SQUARE_HIGHLIGHT_STYLE;
+  return value === "classic" || value === "chesscom" ? value : DEFAULT_ANALYSIS_SQUARE_HIGHLIGHT_STYLE;
 }
 
 export function normalizeLastMoveHighlightStyle(
   value: string | null | undefined,
 ): LastMoveHighlightStyle {
-  return value === "chesscom" ? "chesscom" : DEFAULT_LAST_MOVE_HIGHLIGHT_STYLE;
+  return value === "classic" || value === "chesscom" ? value : DEFAULT_LAST_MOVE_HIGHLIGHT_STYLE;
 }
 
 export function normalizeMoveHintStyle(value: string | null | undefined): MoveHintStyle {
-  return value === "chesscom" ? "chesscom" : DEFAULT_MOVE_HINT_STYLE;
+  return value === "classic" || value === "chesscom" ? value : DEFAULT_MOVE_HINT_STYLE;
 }
 
 export function normalizeSelectionStyle(value: string | null | undefined): SelectionStyle {
   switch (value) {
+    case "classic":
     case "classic-squares":
     case "chesscom":
       return value;

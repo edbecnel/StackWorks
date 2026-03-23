@@ -41,7 +41,7 @@ import {
   type CheckerboardThemeId,
 } from "./render/checkerboardTheme";
 import { getPairedCheckerboardTheme } from "./theme/themePresets";
-import { normalizeLastMoveHighlightStyle, normalizeMoveHintStyle } from "./render/highlightStyles";
+import { normalizeLastMoveHighlightStyle, normalizeMoveHintStyle, normalizeSelectionStyle } from "./render/highlightStyles";
 import { createBoardLoadingOverlay } from "./ui/boardLoadingOverlay";
 import { nextPaint } from "./ui/nextPaint";
 import { setBoardFlipped } from "./render/boardFlip";
@@ -82,7 +82,7 @@ type TenByTenCheckerboardFamily = "classic" | "green" | "blue" | "checkers";
 
 function get10x10CheckerboardFamily(variantId: VariantId): TenByTenCheckerboardFamily {
   if (variantId !== "draughts_10_international") return "classic";
-  const raw = window.localStorage.getItem("lasca.opt.checkerboardTheme");
+  const raw = window.localStorage.getItem(LS_OPT_KEYS.checkerboardTheme);
   const themeId = normalizeCheckerboardThemeId(raw);
   if (themeId === "checkers") return "checkers";
   if (themeId === "green") return "green";
@@ -105,27 +105,31 @@ function saveLabelForDamaVariant(variantId: VariantId): string {
 }
 
 const LS_OPT_KEYS = {
-  moveHints: "lasca.opt.moveHints",
-  moveHintStyle: "lasca.opt.moveHintStyle",
-  animations: "lasca.opt.animations",
-  lastMoveHighlights: "lasca.opt.lastMoveHighlights",
-  lastMoveHighlightStyle: "lasca.opt.lastMoveHighlightStyle",
-  showResizeIcon: "lasca.opt.showResizeIcon",
-  boardCoords: "lasca.opt.boardCoords",
-  boardCoordsInSquares: "lasca.opt.boardCoordsInSquares",
-  boardCoordsInternationalNumbers: "lasca.opt.boardCoordsInternationalNumbers",
-  flipBoard: "lasca.opt.flipBoard",
-  board8x8Checkered: "lasca.opt.board8x8Checkered",
-  checkerboardTheme: "lasca.opt.checkerboardTheme",
-  threefold: "lasca.opt.threefold",
+  moveHints: `lasca.opt.${ACTIVE_VARIANT_ID}.moveHints`,
+  moveHintStyle: `lasca.opt.${ACTIVE_VARIANT_ID}.moveHintStyle`,
+  animations: `lasca.opt.${ACTIVE_VARIANT_ID}.animations`,
+  lastMoveHighlights: `lasca.opt.${ACTIVE_VARIANT_ID}.lastMoveHighlights`,
+  lastMoveHighlightStyle: `lasca.opt.${ACTIVE_VARIANT_ID}.lastMoveHighlightStyle`,
+  showResizeIcon: `lasca.opt.${ACTIVE_VARIANT_ID}.showResizeIcon`,
+  boardCoords: `lasca.opt.${ACTIVE_VARIANT_ID}.boardCoords`,
+  boardCoordsInSquares: `lasca.opt.${ACTIVE_VARIANT_ID}.boardCoordsInSquares`,
+  boardCoordsInternationalNumbers: `lasca.opt.${ACTIVE_VARIANT_ID}.boardCoordsInternationalNumbers`,
+  flipBoard: `lasca.opt.${ACTIVE_VARIANT_ID}.flipBoard`,
+  board8x8Checkered: `lasca.opt.${ACTIVE_VARIANT_ID}.board8x8Checkered`,
+  checkerboardTheme: `lasca.opt.${ACTIVE_VARIANT_ID}.checkerboardTheme`,
+  threefold: `lasca.opt.${ACTIVE_VARIANT_ID}.threefold`,
   toasts: "lasca.opt.toasts",
   sfx: "lasca.opt.sfx",
-} as const;
+  selectionStyle: `lasca.opt.${ACTIVE_VARIANT_ID}.selectionStyle`,
+};
 
-const LS_CHECKERS_KEYS = {
-  theme: "lasca.checkers.theme",
-  checkerboardTheme: "lasca.checkers.checkerboardTheme",
-} as const;
+type NcMoveHintStyle = "classic" | "chesscom" | "classic-squares";
+function normalizeNcMoveHintStyle(v: string | null | undefined): NcMoveHintStyle {
+  if (v === "classic" || v === "chesscom" || v === "classic-squares") return v;
+  return "chesscom";
+}
+
+const LS_THEME_KEY = `lasca.opt.${ACTIVE_VARIANT_ID}.theme`;
 
 function readOptionalBoolPref(key: string): boolean | null {
   const raw = localStorage.getItem(key);
@@ -289,13 +293,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   let hudController: GameController | null = null;
   let boardPlayerNames: ReturnType<typeof bindBoardPlayerNameOverlay> | null = null;
 
-  // US Checkers: always source piece + board appearance from localStorage.
-  // Default only when missing (first run / storage cleared).
+  // Checkers: seed default piece + board appearance when missing (first run / storage cleared).
   if (isCheckers) {
     try {
-      if (!localStorage.getItem(LS_CHECKERS_KEYS.theme)) localStorage.setItem(LS_CHECKERS_KEYS.theme, "checkers");
-      if (!localStorage.getItem(LS_CHECKERS_KEYS.checkerboardTheme)) {
-        localStorage.setItem(LS_CHECKERS_KEYS.checkerboardTheme, "checkers");
+      if (!localStorage.getItem(LS_THEME_KEY)) localStorage.setItem(LS_THEME_KEY, "checkers");
+      if (!localStorage.getItem(LS_OPT_KEYS.checkerboardTheme)) {
+        localStorage.setItem(LS_OPT_KEYS.checkerboardTheme, "checkers");
       }
     } catch {
       // ignore
@@ -417,12 +420,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (checkerboardThemeSelect) checkerboardThemeSelect.disabled = !canUseCheckerboardTheme;
 
   const readCheckerboardTheme = (): CheckerboardThemeId => {
-    const key = isCheckers ? LS_CHECKERS_KEYS.checkerboardTheme : LS_OPT_KEYS.checkerboardTheme;
-    const raw = readOptionalStringPref(key);
+    const raw = readOptionalStringPref(LS_OPT_KEYS.checkerboardTheme);
     const next = normalizeCheckerboardThemeId(raw ?? (isCheckers ? "checkers" : null));
     if (isCheckers && raw == null) {
       try {
-        writeStringPref(key, next);
+        writeStringPref(LS_OPT_KEYS.checkerboardTheme, next);
       } catch {
         // ignore
       }
@@ -438,7 +440,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (checkerboardThemeSelect && !checkerboardThemeSelect.disabled) {
       checkerboardThemeSelect.value = pairedTheme;
     }
-    writeStringPref(isCheckers ? LS_CHECKERS_KEYS.checkerboardTheme : LS_OPT_KEYS.checkerboardTheme, pairedTheme);
+    writeStringPref(LS_OPT_KEYS.checkerboardTheme, pairedTheme);
     applyCheckerboard(pairedTheme);
     applyBoardCoords();
     syncTerminologyUI();
@@ -452,7 +454,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (checkerboardThemeSelect) {
       checkerboardThemeSelect.addEventListener("change", () => {
         const picked = normalizeCheckerboardThemeId(checkerboardThemeSelect.value);
-        writeStringPref(isCheckers ? LS_CHECKERS_KEYS.checkerboardTheme : LS_OPT_KEYS.checkerboardTheme, picked);
+        writeStringPref(LS_OPT_KEYS.checkerboardTheme, picked);
         applyCheckerboard(picked);
         applyBoardCoords();
         syncTerminologyUI();
@@ -553,7 +555,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   initSplitLayout();
 
   const themeDropdown = document.getElementById("themeDropdown") as HTMLElement | null;
-  const themeManager = createThemeManager(svg, isCheckers ? { themeStorageKey: LS_CHECKERS_KEYS.theme } : undefined);
+  const themeManager = createThemeManager(svg, { themeStorageKey: LS_THEME_KEY });
   await themeManager.bindThemeDropdown(themeDropdown, async (themeId) => {
     syncPairedTheme(themeId);
   });
@@ -597,9 +599,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   // preventing a visible zoom jump on the first move.
   ensureOverlayLayer(svg);
 
-  // Board SVG + theme are now loaded; keep spinner until the first paint.
+  // Board SVG + theme are now loaded; wait one paint before further setup.
   await nextPaint();
-  boardLoading.hide();
 
   // Theme switching can involve slow raster PNG loads; show spinner while themes apply.
   svg.addEventListener(THEME_WILL_CHANGE_EVENT, () => boardLoading.show());
@@ -654,6 +655,10 @@ window.addEventListener("DOMContentLoaded", async () => {
   hudController = controller;
   controller.bind();
   shell.bindController(controller);
+  // Reveal the board only after the shell has placed player panels and fitted
+  // the board width, so it appears at its final size rather than flashing large.
+  await nextPaint();
+  boardLoading.hide();
   boardPlayerNames = bindBoardPlayerNameOverlay({ svg, controller, isFlipped });
 
   bindOfflineNavGuard(controller, ACTIVE_VARIANT_ID);
@@ -684,6 +689,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Options: last move highlight
   const lastMoveHighlightsToggle = document.getElementById("lastMoveHighlightsToggle") as HTMLInputElement | null;
+  const lastMoveHighlightStyleRow = document.getElementById("lastMoveHighlightStyleRow") as HTMLElement | null;
   const lastMoveHighlightStyleSelect = document.getElementById("lastMoveHighlightStyleSelect") as HTMLSelectElement | null;
   const savedLastMoveHighlights = readOptionalBoolPref(LS_OPT_KEYS.lastMoveHighlights);
   const initialLastMoveHighlights = savedLastMoveHighlights ?? true;
@@ -691,6 +697,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     readOptionalStringPref(LS_OPT_KEYS.lastMoveHighlightStyle),
   );
   if (lastMoveHighlightsToggle) lastMoveHighlightsToggle.checked = initialLastMoveHighlights;
+  if (lastMoveHighlightStyleRow) lastMoveHighlightStyleRow.style.display = initialLastMoveHighlights ? "flex" : "none";
   controller.setLastMoveHighlightStyle(initialLastMoveHighlightStyle);
   controller.setLastMoveHighlightsEnabled(lastMoveHighlightsToggle?.checked ?? initialLastMoveHighlights);
   if (lastMoveHighlightStyleSelect) {
@@ -705,6 +712,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     lastMoveHighlightsToggle.addEventListener("change", () => {
       writeBoolPref(LS_OPT_KEYS.lastMoveHighlights, lastMoveHighlightsToggle.checked);
       controller.setLastMoveHighlightsEnabled(lastMoveHighlightsToggle.checked);
+      if (lastMoveHighlightStyleRow) lastMoveHighlightStyleRow.style.display = lastMoveHighlightsToggle.checked ? "flex" : "none";
     });
   }
 
@@ -716,25 +724,57 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Options: move preview hints
   const moveHintsToggle = document.getElementById("moveHintsToggle") as HTMLInputElement | null;
+  const moveHintStyleRow = document.getElementById("moveHintStyleRow") as HTMLElement | null;
   const moveHintStyleSelect = document.getElementById("moveHintStyleSelect") as HTMLSelectElement | null;
   const savedMoveHints = readOptionalBoolPref(LS_OPT_KEYS.moveHints);
   const savedMoveHintStyle = normalizeMoveHintStyle(readOptionalStringPref(LS_OPT_KEYS.moveHintStyle));
   const initialMoveHints = savedMoveHints ?? true;
+  const savedNcStyle: NcMoveHintStyle = readOptionalStringPref(LS_OPT_KEYS.moveHintStyle) === "classic-squares"
+    ? "classic-squares" : savedMoveHintStyle;
+  const applyNcMoveHintStyle = (style: NcMoveHintStyle): void => {
+    if (style === "classic-squares") {
+      controller.setMoveHintStyle("classic");
+      controller.setHighlightSquaresEnabled(true);
+    } else {
+      controller.setMoveHintStyle(style);
+      controller.setHighlightSquaresEnabled(false);
+    }
+  };
   if (moveHintsToggle) moveHintsToggle.checked = initialMoveHints;
-  if (moveHintStyleSelect) moveHintStyleSelect.value = savedMoveHintStyle;
+  if (moveHintStyleSelect) moveHintStyleSelect.value = savedNcStyle;
+  if (moveHintStyleRow) moveHintStyleRow.style.display = initialMoveHints ? "flex" : "none";
   controller.setMoveHints(moveHintsToggle?.checked ?? initialMoveHints);
-  controller.setMoveHintStyle(moveHintStyleSelect ? normalizeMoveHintStyle(moveHintStyleSelect.value) : savedMoveHintStyle);
+  applyNcMoveHintStyle(moveHintStyleSelect ? normalizeNcMoveHintStyle(moveHintStyleSelect.value) : savedNcStyle);
+  // Options: selection style (shown when move hints are off)
+  const selectionStyleRow = document.getElementById("selectionStyleRow") as HTMLElement | null;
+  const selectionStyleSelect = document.getElementById("selectionStyleSelect") as HTMLSelectElement | null;
+  const selectionStyleHint = document.getElementById("selectionStyleHint") as HTMLElement | null;
+  const initialSelectionStyle = normalizeSelectionStyle(readOptionalStringPref(LS_OPT_KEYS.selectionStyle));
+  if (selectionStyleSelect) selectionStyleSelect.value = initialSelectionStyle;
+  if (selectionStyleRow) selectionStyleRow.style.display = initialMoveHints ? "none" : "flex";
+  if (selectionStyleHint) selectionStyleHint.style.display = initialMoveHints ? "none" : "";
+  controller.setSelectionStyle(initialSelectionStyle);
   if (moveHintsToggle) {
     moveHintsToggle.addEventListener("change", () => {
       writeBoolPref(LS_OPT_KEYS.moveHints, moveHintsToggle.checked);
       controller.setMoveHints(moveHintsToggle.checked);
+      if (moveHintStyleRow) moveHintStyleRow.style.display = moveHintsToggle.checked ? "flex" : "none";
+      if (selectionStyleRow) selectionStyleRow.style.display = moveHintsToggle.checked ? "none" : "flex";
+      if (selectionStyleHint) selectionStyleHint.style.display = moveHintsToggle.checked ? "none" : "";
     });
   }
   if (moveHintStyleSelect) {
     moveHintStyleSelect.addEventListener("change", () => {
-      const nextStyle = normalizeMoveHintStyle(moveHintStyleSelect.value);
+      const nextStyle = normalizeNcMoveHintStyle(moveHintStyleSelect.value);
       writeStringPref(LS_OPT_KEYS.moveHintStyle, nextStyle);
-      controller.setMoveHintStyle(nextStyle);
+      applyNcMoveHintStyle(nextStyle);
+    });
+  }
+  if (selectionStyleSelect) {
+    selectionStyleSelect.addEventListener("change", () => {
+      const nextStyle = normalizeSelectionStyle(selectionStyleSelect.value);
+      writeStringPref(LS_OPT_KEYS.selectionStyle, nextStyle);
+      controller.setSelectionStyle(nextStyle);
     });
   }
 

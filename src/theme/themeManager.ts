@@ -107,24 +107,24 @@ function getGlassPaletteById(id: GlassPaletteId): GlassPaletteDef {
   return GLASS_PALETTES.find((p) => p.id === id) ?? GLASS_PALETTES[0];
 }
 
-function readSavedGlassBgMode(): GlassBgMode | null {
-  const raw = localStorage.getItem(GLASS_BG_LS_KEY);
+function readSavedGlassBgMode(key = GLASS_BG_LS_KEY): GlassBgMode | null {
+  const raw = localStorage.getItem(key);
   if (!raw) return null;
   return isGlassBgMode(raw) ? raw : null;
 }
 
-function readSavedGlassPaletteId(): GlassPaletteId | null {
-  const raw = localStorage.getItem(GLASS_PALETTE_LS_KEY);
+function readSavedGlassPaletteId(key = GLASS_PALETTE_LS_KEY): GlassPaletteId | null {
+  const raw = localStorage.getItem(key);
   if (!raw) return null;
   return isGlassPaletteId(raw) ? raw : null;
 }
 
-function saveGlassBgMode(mode: GlassBgMode) {
-  localStorage.setItem(GLASS_BG_LS_KEY, mode);
+function saveGlassBgMode(mode: GlassBgMode, key = GLASS_BG_LS_KEY) {
+  localStorage.setItem(key, mode);
 }
 
-function saveGlassPaletteId(id: GlassPaletteId) {
-  localStorage.setItem(GLASS_PALETTE_LS_KEY, id);
+function saveGlassPaletteId(id: GlassPaletteId, key = GLASS_PALETTE_LS_KEY) {
+  localStorage.setItem(key, id);
 }
 
 function applyGlassBgMode(mode: GlassBgMode) {
@@ -336,6 +336,8 @@ export function createThemeManager(svgRoot: SVGSVGElement, opts?: { themeStorage
   if (!svgRoot) throw new Error("createThemeManager: svgRoot is required");
 
   const themeStorageKey = opts?.themeStorageKey ?? LS_KEY;
+  const glassBgStorageKey = `${themeStorageKey}.glassBg`;
+  const glassPaletteStorageKey = `${themeStorageKey}.glassPalette`;
 
   ensureOverlayFxCss();
 
@@ -350,10 +352,10 @@ export function createThemeManager(svgRoot: SVGSVGElement, opts?: { themeStorage
   let glassBgRowEl: HTMLElement | null = null;
   let glassBgSelectEl: HTMLSelectElement | null = null;
   // Default to the historical Glass look.
-  let glassBgMode: GlassBgMode = readSavedGlassBgMode() ?? "original";
+  let glassBgMode: GlassBgMode = readSavedGlassBgMode(glassBgStorageKey) ?? "original";
 
   // Default to the current palette.
-  let glassPaletteId: GlassPaletteId = readSavedGlassPaletteId() ?? "yellow_blue";
+  let glassPaletteId: GlassPaletteId = readSavedGlassPaletteId(glassPaletteStorageKey) ?? "yellow_blue";
 
   function updateGlassUi(themeId: string | null) {
     const enabled = themeId === "glass";
@@ -454,14 +456,14 @@ export function createThemeManager(svgRoot: SVGSVGElement, opts?: { themeStorage
     glassPaletteSelectEl = selectEl ?? null;
     if (!glassPaletteRowEl || !glassPaletteSelectEl) return;
 
-    glassPaletteId = readSavedGlassPaletteId() ?? glassPaletteId;
+    glassPaletteId = readSavedGlassPaletteId(glassPaletteStorageKey) ?? glassPaletteId;
     glassPaletteSelectEl.value = glassPaletteId;
 
     glassPaletteSelectEl.addEventListener("change", () => {
       const next = glassPaletteSelectEl?.value;
       if (!isGlassPaletteId(next)) return;
       glassPaletteId = next;
-      saveGlassPaletteId(glassPaletteId);
+      saveGlassPaletteId(glassPaletteId, glassPaletteStorageKey);
       updateGlassUi(currentId ?? svgRoot.getAttribute("data-theme-id"));
     });
 
@@ -474,14 +476,14 @@ export function createThemeManager(svgRoot: SVGSVGElement, opts?: { themeStorage
     if (!glassBgRowEl || !glassBgSelectEl) return;
 
     // Initialize from persisted value (or default).
-    glassBgMode = readSavedGlassBgMode() ?? glassBgMode;
+    glassBgMode = readSavedGlassBgMode(glassBgStorageKey) ?? glassBgMode;
     glassBgSelectEl.value = glassBgMode;
 
     glassBgSelectEl.addEventListener("change", () => {
       const next = glassBgSelectEl?.value;
       if (!isGlassBgMode(next)) return;
       glassBgMode = next;
-      saveGlassBgMode(glassBgMode);
+      saveGlassBgMode(glassBgMode, glassBgStorageKey);
       // Only affects visuals when glass theme is active.
       updateGlassUi(currentId ?? svgRoot.getAttribute("data-theme-id"));
     });

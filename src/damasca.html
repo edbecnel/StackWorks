@@ -1382,6 +1382,7 @@
               </div>
 
               <div
+                id="lastMoveHighlightStyleRow"
                 style="
                   display: flex;
                   align-items: center;
@@ -1404,8 +1405,8 @@
                   class="panelSelect"
                   style="flex: 1; min-width: 0"
                 >
-                  <option value="classic">Classic</option>
                   <option value="chesscom">Modern</option>
+                  <option value="classic">Classic</option>
                 </select>
               </div>
 
@@ -1440,6 +1441,7 @@
                 Shows candidate destinations while selecting a piece
               </div>
               <div
+                id="moveHintStyleRow"
                 style="
                   display: flex;
                   align-items: center;
@@ -1463,9 +1465,54 @@
                   class="panelSelect"
                   style="flex: 1; min-width: 0"
                 >
-                  <option value="classic">Classic</option>
                   <option value="chesscom">Modern</option>
+                  <option value="classic-squares">Classic squares</option>
+                  <option value="classic">Classic</option>
                 </select>
+              </div>
+
+              <div
+                id="selectionStyleRow"
+                style="
+                  display: none;
+                  flex-direction: row;
+                  align-items: center;
+                  gap: 8px;
+                  margin-top: 10px;
+                "
+              >
+                <label
+                  for="selectionStyleSelect"
+                  style="
+                    font-size: 12px;
+                    min-width: 112px;
+                    color: rgba(255, 255, 255, 0.82);
+                  "
+                >
+                  Selection
+                </label>
+                <select
+                  id="selectionStyleSelect"
+                  class="panelSelect"
+                  style="flex: 1; min-width: 0"
+                >
+                  <option value="chesscom">Modern</option>
+                  <option value="classic-squares">Classic square</option>
+                  <option value="classic">Classic</option>
+                </select>
+              </div>
+
+              <div
+                id="selectionStyleHint"
+                style="
+                  display: none;
+                  font-size: 11px;
+                  color: rgba(255, 255, 255, 0.6);
+                  margin-top: 6px;
+                "
+              >
+                When Move preview hints is off, use a Classic ring, Classic
+                square, or Modern selected-square highlight
               </div>
             </div>
           </div>

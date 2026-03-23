@@ -13,7 +13,7 @@ export const DEFAULT_THEME_ID = "classic" as const;
 export const THEMES: ThemeDef[] = [
   {
     id: "classic",
-    label: "Classic",
+    label: "Classic (White/Black)",
     piecesDefs: new URL("../assets/themes/classic/pieces_defs.svg", import.meta.url),
     boardDefs: new URL("../assets/themes/classic/board_defs.svg", import.meta.url),
     css: new URL("../assets/themes/classic/theme.css", import.meta.url),

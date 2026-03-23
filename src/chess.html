@@ -1273,18 +1273,18 @@
               </div>
 
               <div
+                id="lastMoveHighlightStyleRow"
                 style="
                   display: flex;
                   align-items: center;
                   gap: 8px;
                   margin-top: 10px;
-                  margin-left: 24px;
                 "
               >
                 <label
                   for="lastMoveHighlightStyleSelect"
                   style="
-                    font-size: 12px;
+                    font-size: 13px;
                     min-width: 112px;
                     color: rgba(255, 255, 255, 0.82);
                   "
@@ -1295,8 +1295,8 @@
                   class="panelSelect"
                   style="flex: 1; min-width: 0"
                 >
-                  <option value="classic">Classic</option>
                   <option value="chesscom">Modern</option>
+                  <option value="classic">Classic</option>
                 </select>
               </div>
 
@@ -1308,45 +1308,67 @@
                   margin-top: 12px;
                 "
               >
+                <input
+                  type="checkbox"
+                  id="moveHintsToggle"
+                  checked
+                  style="width: 16px; height: 16px; cursor: pointer"
+                />
                 <label
-                  for="movePreviewModeSelect"
-                  style="
-                    font-size: 13px;
-                    min-width: 112px;
-                    color: rgba(255, 255, 255, 0.82);
-                  "
-                  >Move preview</label
+                  for="moveHintsToggle"
+                  style="font-size: 13px; cursor: pointer; user-select: none"
+                  >Move preview hints</label
                 >
-                <select
-                  id="movePreviewModeSelect"
-                  class="panelSelect"
-                  style="flex: 1; min-width: 0"
-                >
-                  <option value="off">Off</option>
-                  <option value="stackworks">Classic</option>
-                  <option value="stackworks-squares">Classic squares</option>
-                  <option value="chesscom">Modern</option>
-                </select>
               </div>
-
               <div
                 style="
                   font-size: 11px;
                   color: rgba(255, 255, 255, 0.6);
                   margin-top: 6px;
+                  margin-left: 24px;
                 "
               >
-                Off, Classic rings, Classic square highlights, or Modern
-                selected-square, dot, and ring previews
+                Shows candidate destinations while selecting a piece
               </div>
 
               <div
+                id="moveHintStyleRow"
                 style="
                   display: flex;
                   align-items: center;
                   gap: 8px;
                   margin-top: 10px;
                   margin-left: 24px;
+                "
+              >
+                <label
+                  for="moveHintStyleSelect"
+                  style="
+                    font-size: 12px;
+                    min-width: 112px;
+                    color: rgba(255, 255, 255, 0.82);
+                  "
+                  >Move hint style</label
+                >
+                <select
+                  id="moveHintStyleSelect"
+                  class="panelSelect"
+                  style="flex: 1; min-width: 0"
+                >
+                  <option value="chesscom">Modern</option>
+                  <option value="stackworks-squares">Classic squares</option>
+                  <option value="stackworks">Classic</option>
+                </select>
+              </div>
+
+              <div
+                id="selectionStyleRow"
+                style="
+                  display: none;
+                  flex-direction: row;
+                  align-items: center;
+                  gap: 8px;
+                  margin-top: 10px;
                 "
               >
                 <label
@@ -1363,23 +1385,23 @@
                   class="panelSelect"
                   style="flex: 1; min-width: 0"
                 >
-                  <option value="classic">Classic</option>
-                  <option value="classic-squares">Classic square</option>
                   <option value="chesscom">Modern</option>
+                  <option value="classic-squares">Classic square</option>
+                  <option value="classic">Classic</option>
                 </select>
               </div>
 
               <div
                 id="selectionStyleHint"
                 style="
+                  display: none;
                   font-size: 11px;
                   color: rgba(255, 255, 255, 0.6);
                   margin-top: 6px;
-                  margin-left: 24px;
                 "
               >
-                When Move preview is Off, use a Classic ring, Classic square, or
-                Modern selected-square highlight
+                When Move preview hints is off, use a Classic ring, Classic
+                square, or Modern selected-square highlight
               </div>
 
               <div
@@ -1404,8 +1426,8 @@
                   class="panelSelect"
                   style="flex: 1; min-width: 0"
                 >
-                  <option value="classic">Classic</option>
                   <option value="chesscom">Modern</option>
+                  <option value="classic">Classic</option>
                 </select>
               </div>
             </div>

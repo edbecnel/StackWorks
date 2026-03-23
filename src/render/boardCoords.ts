@@ -218,7 +218,7 @@ function renderBoardCoordsInSquares(layer: SVGGElement, svg: SVGSVGElement, boar
   }
 
   // Row labels (ranks): boardSize..1, only on the left column (screen).
-  const rankScreenCorner: SquareCorner = boardSize === 10 ? "upperRight" : "upperLeft";
+  const rankScreenCorner: SquareCorner = "upperLeft";
   const rankPointCorner: SquareCorner = flipped ? oppositeCorner(rankScreenCorner) : rankScreenCorner;
   for (let row = 0; row < boardSize; row++) {
     const rect = squareRectFromGrid(grid, row, leftCol);

@@ -81,24 +81,24 @@ import { hasConfiguredOnlineLocalBot } from "./shared/onlineLocalSeats";
 const ACTIVE_VARIANT_ID: VariantId = "chess_classic";
 
 const LS_OPT_KEYS = {
-  showResizeIcon: "lasca.opt.showResizeIcon",
-  boardCoords: "lasca.opt.boardCoords",
-  boardCoordsInSquares: "lasca.opt.boardCoordsInSquares",
-  flipBoard: "lasca.opt.flipBoard",
-  highlightSquares: "lasca.opt.chess.highlightSquares",
-  movePreviewMode: "lasca.opt.chess.movePreviewMode",
+  showResizeIcon: `lasca.opt.${ACTIVE_VARIANT_ID}.showResizeIcon`,
+  boardCoords: `lasca.opt.${ACTIVE_VARIANT_ID}.boardCoords`,
+  boardCoordsInSquares: `lasca.opt.${ACTIVE_VARIANT_ID}.boardCoordsInSquares`,
+  flipBoard: `lasca.opt.${ACTIVE_VARIANT_ID}.flipBoard`,
+  highlightSquares: `lasca.opt.${ACTIVE_VARIANT_ID}.highlightSquares`,
+  movePreviewMode: `lasca.opt.${ACTIVE_VARIANT_ID}.movePreviewMode`,
   toasts: "lasca.opt.toasts",
   sfx: "lasca.opt.sfx",
-  checkerboardTheme: "lasca.opt.checkerboardTheme",
-  lastMoveHighlights: "lasca.opt.lastMoveHighlights",
-  lastMoveHighlightStyle: "lasca.opt.chess.lastMoveHighlightStyle",
-  moveHints: "lasca.opt.moveHints",
-  moveHintStyle: "lasca.opt.moveHintStyle",
-  analysisSquareHighlightStyle: "lasca.opt.chess.analysisSquareHighlightStyle",
-  selectionStyle: "lasca.opt.chess.selectionStyle",
-  showPlayerNames: "lasca.opt.chess.showPlayerNames",
-  moveHistoryNotation: "lasca.opt.chess.moveHistoryNotation",
-} as const;
+  checkerboardTheme: `lasca.opt.${ACTIVE_VARIANT_ID}.checkerboardTheme`,
+  lastMoveHighlights: `lasca.opt.${ACTIVE_VARIANT_ID}.lastMoveHighlights`,
+  lastMoveHighlightStyle: `lasca.opt.${ACTIVE_VARIANT_ID}.lastMoveHighlightStyle`,
+  moveHints: `lasca.opt.${ACTIVE_VARIANT_ID}.moveHints`,
+  moveHintStyle: `lasca.opt.${ACTIVE_VARIANT_ID}.moveHintStyle`,
+  analysisSquareHighlightStyle: `lasca.opt.${ACTIVE_VARIANT_ID}.analysisSquareHighlightStyle`,
+  selectionStyle: `lasca.opt.${ACTIVE_VARIANT_ID}.selectionStyle`,
+  showPlayerNames: `lasca.opt.${ACTIVE_VARIANT_ID}.showPlayerNames`,
+  moveHistoryNotation: `lasca.opt.${ACTIVE_VARIANT_ID}.moveHistoryNotation`,
+};
 
 const EVAL_BAR_GAP_PX = 3;
 const EVAL_BAR_PLAYABLE_SHIFT_LEFT_PX = 0;
@@ -113,7 +113,7 @@ function normalizeChessMovePreviewMode(value: string | null | undefined): ChessM
     case "chesscom":
       return value;
     default:
-      return "stackworks";
+      return "chesscom";
   }
 }
 
@@ -636,8 +636,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   const themeManager = createThemeManager(svg);
 
   // Classic Chess: allow 2D or 3D raster themes (no discs).
-  const THEME_KEY = "lasca.chess.theme";
-  const LEGACY_THEME_KEY = "lasca.theme";
+  const THEME_KEY = `lasca.opt.${ACTIVE_VARIANT_ID}.theme`;
+  const LEGACY_THEME_KEY = "lasca.chess.theme";
   const themeFromQueryRaw = new URLSearchParams(window.location.search).get("theme")?.trim();
   const themeFromQuery = themeFromQueryRaw && themeFromQueryRaw.length > 0 ? themeFromQueryRaw : null;
   const normalizeChessTheme = (raw: string | null | undefined): "raster2d" | "raster3d" | "neo" | "candy" => {
@@ -682,9 +682,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   // board to appear slightly smaller at load and then "zoom in" on the first move.
   ensureOverlayLayer(svg);
 
-  // Board SVG + theme are now loaded; keep spinner until the first paint.
+  // Board SVG + theme are now loaded; wait one paint before further setup.
   await nextPaint();
-  boardLoading.hide();
 
   // Theme switching can involve slow raster PNG loads; show spinner while themes apply.
   svg.addEventListener(THEME_WILL_CHANGE_EVENT, () => boardLoading.show());
@@ -706,6 +705,10 @@ window.addEventListener("DOMContentLoaded", async () => {
   hudController = controller;
   controller.bind();
   shell.bindController(controller);
+  // Reveal the board only after the shell has placed player panels and fitted
+  // the board width, so it appears at its final size rather than flashing large.
+  await nextPaint();
+  boardLoading.hide();
 
   // Keep playerToMove in sync so the active player's name is always rendered bold.
   controller.addHistoryChangeCallback(() => {
@@ -866,6 +869,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Options: last move highlight
   const lastMoveHighlightsToggle = document.getElementById("lastMoveHighlightsToggle") as HTMLInputElement | null;
+  const lastMoveHighlightStyleRow = document.getElementById("lastMoveHighlightStyleRow") as HTMLElement | null;
   const lastMoveHighlightStyleSelect = document.getElementById("lastMoveHighlightStyleSelect") as HTMLSelectElement | null;
   const savedLastMoveHighlights = readOptionalBoolPref(LS_OPT_KEYS.lastMoveHighlights);
   const initialLastMoveHighlights = savedLastMoveHighlights ?? true;
@@ -873,6 +877,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     readOptionalStringPref(LS_OPT_KEYS.lastMoveHighlightStyle),
   );
   if (lastMoveHighlightsToggle) lastMoveHighlightsToggle.checked = initialLastMoveHighlights;
+  if (lastMoveHighlightStyleRow) lastMoveHighlightStyleRow.style.display = initialLastMoveHighlights ? "flex" : "none";
   controller.setLastMoveHighlightStyle(initialLastMoveHighlightStyle);
   controller.setLastMoveHighlightsEnabled(lastMoveHighlightsToggle?.checked ?? initialLastMoveHighlights);
   if (lastMoveHighlightStyleSelect) {
@@ -887,44 +892,63 @@ window.addEventListener("DOMContentLoaded", async () => {
     lastMoveHighlightsToggle.addEventListener("change", () => {
       writeBoolPref(LS_OPT_KEYS.lastMoveHighlights, lastMoveHighlightsToggle.checked);
       controller.setLastMoveHighlightsEnabled(lastMoveHighlightsToggle.checked);
+      if (lastMoveHighlightStyleRow) lastMoveHighlightStyleRow.style.display = lastMoveHighlightsToggle.checked ? "flex" : "none";
     });
   }
 
-  // Options: combined move preview mode
-  const movePreviewModeSelect = document.getElementById("movePreviewModeSelect") as HTMLSelectElement | null;
+  // Options: move preview hints (checkbox) + move hint style (dropdown)
+  const moveHintsToggle = document.getElementById("moveHintsToggle") as HTMLInputElement | null;
+  const moveHintStyleRow = document.getElementById("moveHintStyleRow") as HTMLElement | null;
+  const moveHintStyleSelect = document.getElementById("moveHintStyleSelect") as HTMLSelectElement | null;
+  const selectionStyleRow = document.getElementById("selectionStyleRow") as HTMLElement | null;
   const selectionStyleSelect = document.getElementById("selectionStyleSelect") as HTMLSelectElement | null;
   const selectionStyleHint = document.getElementById("selectionStyleHint") as HTMLElement | null;
-  const selectionStyleRow = selectionStyleSelect?.closest("div[style]") as HTMLElement | null;
   const initialMovePreviewMode = normalizeChessMovePreviewMode(
     readOptionalStringPref(LS_OPT_KEYS.movePreviewMode) ?? deriveLegacyChessMovePreviewMode(),
   );
+  const initialMoveHints = initialMovePreviewMode !== "off";
+  const initialMoveHintStyle = initialMovePreviewMode !== "off" ? initialMovePreviewMode : "chesscom";
   const initialSelectionStyle = normalizeSelectionStyle(readOptionalStringPref(LS_OPT_KEYS.selectionStyle));
   const currentSelectionStyle = (): ReturnType<typeof normalizeSelectionStyle> =>
     normalizeSelectionStyle(selectionStyleSelect ? selectionStyleSelect.value : readOptionalStringPref(LS_OPT_KEYS.selectionStyle));
   const applyMovePreviewMode = (mode: ChessMovePreviewMode): void => {
-    const moveHintsEnabled = mode !== "off";
+    const hintsOn = mode !== "off";
     const moveHintStyle = mode === "chesscom" ? "chesscom" : "classic";
     const highlightSquaresEnabled = mode === "stackworks-squares" || mode === "chesscom";
-
-    controller.setMoveHints(moveHintsEnabled);
+    controller.setMoveHints(hintsOn);
     controller.setMoveHintStyle(moveHintStyle);
     controller.setHighlightSquaresEnabled(highlightSquaresEnabled);
     controller.setSelectionStyle(currentSelectionStyle());
-    if (selectionStyleRow) selectionStyleRow.style.display = mode === "off" ? "flex" : "none";
-    if (selectionStyleHint) selectionStyleHint.style.display = mode === "off" ? "" : "none";
+    if (moveHintStyleRow) moveHintStyleRow.style.display = hintsOn ? "flex" : "none";
+    if (selectionStyleRow) selectionStyleRow.style.display = hintsOn ? "none" : "flex";
+    if (selectionStyleHint) selectionStyleHint.style.display = hintsOn ? "none" : "";
   };
-  if (movePreviewModeSelect) movePreviewModeSelect.value = initialMovePreviewMode;
+  const currentMode = (): ChessMovePreviewMode => {
+    if (!moveHintsToggle?.checked) return "off";
+    return normalizeChessMovePreviewMode(moveHintStyleSelect?.value ?? "chesscom");
+  };
+  if (moveHintsToggle) moveHintsToggle.checked = initialMoveHints;
+  if (moveHintStyleSelect) moveHintStyleSelect.value = initialMoveHintStyle;
   if (selectionStyleSelect) selectionStyleSelect.value = initialSelectionStyle;
   applyMovePreviewMode(initialMovePreviewMode);
-  if (movePreviewModeSelect) {
-    movePreviewModeSelect.addEventListener("change", () => {
-      const nextMode = normalizeChessMovePreviewMode(movePreviewModeSelect.value);
-      const moveHintsEnabled = nextMode !== "off";
+  if (moveHintsToggle) {
+    moveHintsToggle.addEventListener("change", () => {
+      const nextMode = currentMode();
       const moveHintStyle = nextMode === "chesscom" ? "chesscom" : "classic";
       const highlightSquaresEnabled = nextMode === "stackworks-squares" || nextMode === "chesscom";
-
       writeStringPref(LS_OPT_KEYS.movePreviewMode, nextMode);
-      writeBoolPref(LS_OPT_KEYS.moveHints, moveHintsEnabled);
+      writeBoolPref(LS_OPT_KEYS.moveHints, nextMode !== "off");
+      writeStringPref(LS_OPT_KEYS.moveHintStyle, moveHintStyle);
+      writeBoolPref(LS_OPT_KEYS.highlightSquares, highlightSquaresEnabled);
+      applyMovePreviewMode(nextMode);
+    });
+  }
+  if (moveHintStyleSelect) {
+    moveHintStyleSelect.addEventListener("change", () => {
+      const nextMode = currentMode();
+      const moveHintStyle = nextMode === "chesscom" ? "chesscom" : "classic";
+      const highlightSquaresEnabled = nextMode === "stackworks-squares" || nextMode === "chesscom";
+      writeStringPref(LS_OPT_KEYS.movePreviewMode, nextMode);
       writeStringPref(LS_OPT_KEYS.moveHintStyle, moveHintStyle);
       writeBoolPref(LS_OPT_KEYS.highlightSquares, highlightSquaresEnabled);
       applyMovePreviewMode(nextMode);
