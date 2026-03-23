@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  clearCheckmateBadge,
+  drawCheckmateBadge,
   drawLastMoveSquares,
   drawSelectionChessCom,
   drawSelectionSquare,
@@ -15,6 +17,33 @@ function makeSvg8x8(): SVGSVGElement {
 
   const svg = document.createElementNS(SVG_NS, "svg") as SVGSVGElement;
   svg.setAttribute("viewBox", "0 0 1000 1000");
+
+  const defs = document.createElementNS(SVG_NS, "defs") as SVGDefsElement;
+  const whiteKing = document.createElementNS(SVG_NS, "symbol") as SVGSymbolElement;
+  whiteKing.setAttribute("id", "W_K");
+  whiteKing.setAttribute("viewBox", "0 0 100 100");
+  const whiteKingRect = document.createElementNS(SVG_NS, "rect") as SVGRectElement;
+  whiteKingRect.setAttribute("x", "25");
+  whiteKingRect.setAttribute("y", "15");
+  whiteKingRect.setAttribute("width", "50");
+  whiteKingRect.setAttribute("height", "70");
+  whiteKingRect.setAttribute("fill", "#ffffff");
+  whiteKing.appendChild(whiteKingRect);
+  defs.appendChild(whiteKing);
+
+  const blackKing = document.createElementNS(SVG_NS, "symbol") as SVGSymbolElement;
+  blackKing.setAttribute("id", "B_K");
+  blackKing.setAttribute("viewBox", "0 0 100 100");
+  const blackKingRect = document.createElementNS(SVG_NS, "rect") as SVGRectElement;
+  blackKingRect.setAttribute("x", "25");
+  blackKingRect.setAttribute("y", "15");
+  blackKingRect.setAttribute("width", "50");
+  blackKingRect.setAttribute("height", "70");
+  blackKingRect.setAttribute("fill", "#111111");
+  blackKing.appendChild(blackKingRect);
+  defs.appendChild(blackKing);
+
+  svg.appendChild(defs);
 
   const pieces = document.createElementNS(SVG_NS, "g") as SVGGElement;
   pieces.id = "pieces";
@@ -289,5 +318,46 @@ describe("classic square overlays", () => {
     expect(target).not.toBeNull();
     expect(selection?.getAttribute("stroke-width")).toBe("4");
     expect(target?.getAttribute("stroke-width")).toBe("4");
+  });
+});
+
+describe("drawCheckmateBadge", () => {
+  it("renders a red badge with the current losing king symbol", () => {
+    const svg = makeSvg8x8();
+    const overlays = ensureOverlayLayer(svg);
+
+    drawCheckmateBadge(overlays, "r0c0", "B", { animate: false });
+
+    const badge = svg.querySelector(".checkmateBadge") as SVGGElement | null;
+    const circle = svg.querySelector(".checkmateBadge__bg") as SVGCircleElement | null;
+    const king = svg.querySelector(".checkmateBadge__king use") as SVGUseElement | null;
+
+    expect(badge).not.toBeNull();
+    expect(circle).not.toBeNull();
+    expect(circle?.getAttribute("fill")).toBe("#ea4335");
+    expect(king).not.toBeNull();
+    expect(king?.getAttribute("href")).toBe("#B_K");
+  });
+
+  it("adds a topple animation when requested", () => {
+    const svg = makeSvg8x8();
+    const overlays = ensureOverlayLayer(svg);
+
+    drawCheckmateBadge(overlays, "r0c0", "W");
+
+    const anim = svg.querySelector(".checkmateBadge__king animateTransform") as SVGAnimateTransformElement | null;
+    expect(anim).not.toBeNull();
+    expect(anim?.getAttribute("type")).toBe("rotate");
+    expect(anim?.getAttribute("to")?.startsWith("90 ")).toBe(true);
+  });
+
+  it("clears any existing checkmate badge", () => {
+    const svg = makeSvg8x8();
+    const overlays = ensureOverlayLayer(svg);
+
+    drawCheckmateBadge(overlays, "r0c0", "B", { animate: false });
+    clearCheckmateBadge(overlays);
+
+    expect(svg.querySelector(".checkmateBadge")).toBeNull();
   });
 });

@@ -6,6 +6,7 @@ import {
 const SVG_NS = "http://www.w3.org/2000/svg";
 const FX_OVERLAY_ROOT_ID = "overlays";
 const LAST_MOVE_BACKGROUND_ROOT_ID = "underPieceLastMove";
+const CHECKMATE_BADGE_ROOT_ID = "overlaysCheckmate";
 
 const SELECTION_STROKE_W = 5;
 const TARGET_STROKE_W = 5;
@@ -37,6 +38,16 @@ const CHESSCOM_LAST_MOVE_LIGHT_FROM_FILL = "rgba(246, 246, 105, 0.42)";
 const CHESSCOM_LAST_MOVE_LIGHT_TO_FILL = "rgba(246, 246, 105, 0.6)";
 const CHESSCOM_LAST_MOVE_DARK_FROM_FILL = "rgba(187, 203, 43, 0.5)";
 const CHESSCOM_LAST_MOVE_DARK_TO_FILL = "rgba(187, 203, 43, 0.68)";
+const CHECKMATE_BADGE_FILL = "#ea4335";
+const CHECKMATE_BADGE_STROKE = "rgba(24, 24, 24, 0.42)";
+const CHECKMATE_BADGE_STROKE_W = 3;
+const CHECKMATE_BADGE_OFFSET_SCALE = 0.14;
+const CHECKMATE_BADGE_RADIUS_SCALE = 0.18;
+const CHECKMATE_BADGE_MIN_RADIUS = 15;
+const CHECKMATE_BADGE_MAX_RADIUS = 23;
+const CHECKMATE_BADGE_ICON_SCALE = 0.78;
+const CHECKMATE_BADGE_ANIMATION_DELAY_MS = 570;
+const CHECKMATE_BADGE_ANIMATION_MS = 1350;
 
 type SquareRect = { x: number; y: number; w: number; h: number };
 type SquareTone = "light" | "dark";
@@ -89,6 +100,13 @@ function lastMoveLayerFromAny(layer: SVGGElement): SVGGElement {
   const root = ensureLastMoveBackgroundRoot(svg);
   const last = ensureOverlaySubLayer(root, "overlaysLastMove");
   return last;
+}
+
+function checkmateBadgeLayerFromAny(layer: SVGGElement): SVGGElement {
+  const root = resolveOverlayRoot(layer);
+  const badge = ensureOverlaySubLayer(root, CHECKMATE_BADGE_ROOT_ID);
+  root.appendChild(badge);
+  return badge;
 }
 
 function makeHalo(layer: SVGGElement, args: { cx: number; cy: number; r: number; kind: "selection" | "target" | "highlight" }): SVGGElement {
@@ -146,9 +164,12 @@ export function ensureOverlayLayer(svg: SVGSVGElement): SVGGElement {
   const existing = svg.querySelector(`#${FX_OVERLAY_ROOT_ID}`) as SVGGElement | null;
   if (existing) {
     ensureOverlaySubLayer(existing, "overlaysFx");
+    ensureOverlaySubLayer(existing, CHECKMATE_BADGE_ROOT_ID);
     // Keep FX on top.
     const fx = existing.querySelector("#overlaysFx") as SVGGElement | null;
     if (fx) existing.appendChild(fx);
+    const badge = existing.querySelector(`#${CHECKMATE_BADGE_ROOT_ID}`) as SVGGElement | null;
+    if (badge) existing.appendChild(badge);
     return existing;
   }
   const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
@@ -169,6 +190,7 @@ export function ensureOverlayLayer(svg: SVGSVGElement): SVGGElement {
 
   // Sublayer: transient FX (selection/targets); persistent last-move squares live below pieces.
   ensureOverlaySubLayer(g, "overlaysFx");
+  ensureOverlaySubLayer(g, CHECKMATE_BADGE_ROOT_ID);
 
   return g;
 }
@@ -178,6 +200,103 @@ export function clearOverlays(layer: SVGGElement): void {
   // Keep the last-move squares persistent across clicks.
   const fx = fxLayerFromAny(layer);
   while (fx.firstChild) fx.removeChild(fx.firstChild);
+}
+
+export function clearCheckmateBadge(layer: SVGGElement): void {
+  const badgeLayer = checkmateBadgeLayerFromAny(layer);
+  while (badgeLayer.firstChild) badgeLayer.removeChild(badgeLayer.firstChild);
+}
+
+export function drawCheckmateBadge(
+  layer: SVGGElement,
+  nodeId: string,
+  losingColor: "W" | "B",
+  opts: { animate?: boolean } = {},
+): void {
+  const badgeLayer = checkmateBadgeLayerFromAny(layer);
+  while (badgeLayer.firstChild) badgeLayer.removeChild(badgeLayer.firstChild);
+
+  const svg = svgFromLayer(layer);
+  if (!svg) return;
+  const rect = computeSquareRect(svg, nodeId);
+  if (!rect) return;
+
+  const radius = Math.max(
+    CHECKMATE_BADGE_MIN_RADIUS,
+    Math.min(CHECKMATE_BADGE_MAX_RADIUS, Math.round(Math.min(rect.w, rect.h) * CHECKMATE_BADGE_RADIUS_SCALE)),
+  );
+  const offset = Math.round(Math.min(rect.w, rect.h) * CHECKMATE_BADGE_OFFSET_SCALE);
+  const cx = rect.x + rect.w - radius + offset;
+  const cy = rect.y + radius - offset;
+
+  const badgeGroup = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  badgeGroup.setAttribute("class", "checkmateBadge");
+  badgeGroup.setAttribute("data-node", nodeId);
+  badgeGroup.setAttribute("data-losing-color", losingColor);
+
+  const bg = document.createElementNS(SVG_NS, "circle") as SVGCircleElement;
+  bg.setAttribute("class", "checkmateBadge__bg");
+  bg.setAttribute("cx", String(cx));
+  bg.setAttribute("cy", String(cy));
+  bg.setAttribute("r", String(radius));
+  bg.setAttribute("fill", CHECKMATE_BADGE_FILL);
+  bg.setAttribute("stroke", CHECKMATE_BADGE_STROKE);
+  bg.setAttribute("stroke-width", String(CHECKMATE_BADGE_STROKE_W));
+  applyStrokeDefaults(bg);
+  badgeGroup.appendChild(bg);
+
+  const kingSize = radius * CHECKMATE_BADGE_ICON_SCALE * 2;
+  const kingPivotX = kingSize / 2;
+  const kingPivotY = kingSize / 2;
+  const kingTranslateGroup = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  kingTranslateGroup.setAttribute("class", "checkmateBadge__king");
+  kingTranslateGroup.setAttribute("transform", `translate(${cx - kingSize / 2} ${cy - kingSize / 2})`);
+
+  const kingRotateGroup = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  kingRotateGroup.setAttribute("class", "checkmateBadge__kingRotate");
+  let topple: (SVGAnimateTransformElement & { beginElement?: () => void }) | null = null;
+
+  const kingUse = document.createElementNS(SVG_NS, "use") as SVGUseElement;
+  kingUse.setAttribute("href", `#${losingColor}_K`);
+  kingUse.setAttribute("x", "0");
+  kingUse.setAttribute("y", "0");
+  kingUse.setAttribute("width", String(kingSize));
+  kingUse.setAttribute("height", String(kingSize));
+  kingUse.setAttribute("opacity", "0.98");
+  kingRotateGroup.appendChild(kingUse);
+
+  if (opts.animate !== false) {
+    topple = document.createElementNS(SVG_NS, "animateTransform") as SVGAnimateTransformElement & {
+      beginElement?: () => void;
+    };
+    topple.setAttribute("attributeName", "transform");
+    topple.setAttribute("attributeType", "XML");
+    topple.setAttribute("type", "rotate");
+    topple.setAttribute("begin", "indefinite");
+    topple.setAttribute("dur", `${CHECKMATE_BADGE_ANIMATION_MS}ms`);
+    topple.setAttribute("fill", "freeze");
+    topple.setAttribute("calcMode", "spline");
+    topple.setAttribute("keySplines", "0.25 0.85 0.25 1");
+    topple.setAttribute("keyTimes", "0;1");
+    topple.setAttribute("from", `0 ${kingPivotX} ${kingPivotY}`);
+    topple.setAttribute("to", `90 ${kingPivotX} ${kingPivotY}`);
+    kingRotateGroup.appendChild(topple);
+  }
+
+  kingTranslateGroup.appendChild(kingRotateGroup);
+  badgeGroup.appendChild(kingTranslateGroup);
+  badgeLayer.appendChild(badgeGroup);
+
+  if (opts.animate !== false && topple && typeof topple.beginElement === "function") {
+    window.setTimeout(() => {
+      if (!topple.isConnected) return;
+      try {
+        topple.beginElement?.();
+      } catch {
+        // ignore animation startup failures
+      }
+    }, CHECKMATE_BADGE_ANIMATION_DELAY_MS);
+  }
 }
 
 function circleForNode(id: string): SVGCircleElement | null {

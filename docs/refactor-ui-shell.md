@@ -1,6 +1,6 @@
 # StackWorks UI Shell Refactor
 
-> **Goal:** Refactor StackWorks UI into a professional modern product shell, while preserving the current multi-page Vite architecture, shared game logic, and existing offline/online functionality.
+> **Goal:** Refactor StackWorks UI into a professional modern product shell that fully replaces the old cluttered UI chrome with a cleaner, more focused chess.com-style board-first experience, while preserving the current multi-page Vite architecture, shared game logic, and existing offline/online functionality.
 
 ---
 
@@ -11,6 +11,8 @@
 - [ ] Keep current per-game entry pages and shared TS modules
 - [ ] Build a reusable shell/navigation layer around existing pages
 - [ ] Preserve current offline mode, online rooms, lobby, rejoin, spectate, bot, and settings behavior
+- [ ] Preserve existing gameplay and account flows, but do NOT preserve legacy presentation patterns as a product requirement
+- [ ] Treat any temporary legacy-vs-shell coexistence as migration scaffolding only; the shipped end state must remove the old UI
 
 ---
 
@@ -42,6 +44,353 @@ Global product shell with a polished competitive board-game feel:
 - [ ] Fullscreen mode on laptop, tablet, and larger displays must hide the new shell header entirely so no top chrome reduces board height
 - [ ] After game selection, show that game's own navigation/options
 
+### Legacy UI Retirement Rule
+
+- [ ] The old Start Page layout, old desktop top-header emphasis, and old cluttered side-panel presentation are not part of the target end state
+- [ ] Any temporary `Legacy panels` / `Shell panels` toggle exists only to keep rollout safe while feature parity is completed
+- [ ] Once shell navigation, play controls, history/info, and account surfaces reach parity, remove the user-facing legacy toggle and legacy layout code paths
+- [ ] Final shipped UX should expose a single new shell per page, not a choice between old and new interfaces
+
+### Final End Product UI
+
+The shipped product should feel like a simpler, more focused StackWorks, not like the current UI with cleaner paint. The main test is whether a new user on a small touch-screen phone can understand where they are, what they can do next, and how to start or continue a game without decoding multiple competing panels.
+
+**Start / Home screen**
+
+- [ ] One clear primary purpose: choose a game and start playing
+- [ ] Top area is compact: brand, current section, and account entry only
+- [ ] Main content shows a game picker and a single context panel for the currently selected game
+- [ ] The selected-game panel shows only the most important actions first: `Play Online`, `Play Bot`, `Local Game`, `Play a Friend`, `Resume/Rejoin` when available
+- [ ] Advanced options are hidden behind an explicit `More options` or `Game settings` entry instead of being expanded by default
+- [ ] Rules/help, history/replay, and profile/community links do not compete with the primary start actions on first view
+
+**Game screen — mobile portrait (highest priority layout)**
+
+- [ ] Board occupies the largest share of the viewport and stays visible without a tall persistent header
+- [ ] A shallow top strip contains only essential context: back/start-page access, active game name or mode, and one compact menu trigger
+- [ ] Opponent identity attaches to the top edge of the board; local player identity attaches to the bottom edge of the board
+- [ ] Piece movement supports direct touch interaction: touching a movable piece reveals its valid destination squares immediately when move highlighting is enabled
+- [ ] Piece movement supports touch drag to a valid destination square so the user can press, drag, and release on the intended target square in one gesture
+- [ ] Primary game actions live in one compact bottom sheet, drawer, or segmented action area, not in multiple simultaneously visible sidebars
+- [ ] Clocks, turn state, reconnect state, and critical room/game status stay visible without opening extra panels
+- [ ] Move history, rules/help, replay controls, export/share, and advanced settings are secondary surfaces opened on demand
+- [ ] Touch targets are thumb-friendly and the layout works one-handed without requiring precise taps on crowded controls
+
+**Game screen — tablet / desktop**
+
+- [ ] Board remains the visual center
+- [ ] Left side contains navigation and game identity
+- [ ] Right side contains current mode/context plus the most relevant actions for the current state
+- [ ] Only one left panel and one right panel are visible in the final shipped UI; there is no permanent legacy panel pair
+- [ ] History, rules, room status, and advanced controls are grouped into clear sections instead of appearing as scattered independent widgets
+- [ ] Piece interaction supports both click-select-then-target and click-drag-to-target flows without conflicting with move history, replay, or shell controls
+
+**Account / profile surfaces**
+
+- [ ] Signed-out state stays simple: `Sign Up`, `Log In`, and concise value proposition only
+- [ ] Signed-in state shows avatar, display name, country, and time zone without turning the shell into a profile dashboard
+- [ ] Profile editing focuses on identity needed for play surfaces first: display name, avatar, country, time zone
+
+### Settings Hub Model
+
+Use chess.com settings as a structural reference: group options into a small number of understandable settings pages instead of scattering toggles across start screens, sidebars, and per-panel chrome. The StackWorks Settings area should become the home for persistent preferences that are not part of immediate match setup.
+
+**Settings hub pages for StackWorks**
+
+- [ ] `Board & Pieces`
+- [ ] `Move & Highlights`
+- [ ] `Layout & Panels`
+- [ ] `Audio & Motion`
+- [ ] `Play & Match Preferences`
+- [ ] `Account & Profile`
+- [ ] `Privacy, Presence & Invitations`
+- [ ] `Notifications`
+- [ ] `Accessibility`
+
+**Board & Pieces**
+
+- [ ] Move existing settings here:
+  - [ ] Theme
+  - [ ] Variant-specific board theme
+  - [ ] Checkerboard theme
+  - [ ] Glass background mode
+  - [ ] Glass palette
+  - [ ] Board coordinates
+  - [ ] Coordinates inside squares
+  - [ ] Flip board
+  - [ ] Show player names
+  - [ ] Board viewport / framed vs playable view
+- [ ] Add missing settings worth supporting:
+  - [ ] Piece set selector if multiple piece families are available or planned
+  - [ ] Board size / board scale preference where practical
+  - [ ] High-contrast board/piece preset surfaced explicitly, not only as an incidental theme choice
+
+**Move & Highlights**
+
+- [ ] Move existing settings here:
+  - [ ] Move hints toggle
+  - [ ] Move hint style
+  - [ ] Highlight squares toggle
+  - [ ] Last move highlight toggle
+  - [ ] Last move highlight style
+  - [ ] Analysis square highlight style
+  - [ ] Move preview mode
+  - [ ] Selection style
+- [ ] Add missing settings worth supporting:
+  - [ ] Candidate target highlight toggle separate from broader move-hint styling when those concepts differ
+  - [ ] Drag-to-move enable/disable preference if needed for accessibility or user comfort
+  - [ ] Color-blind-safe highlight palette options
+  - [ ] Promotion and special-move interaction preferences where variant rules need them
+
+**Layout & Panels**
+
+- [ ] Move existing settings here:
+  - [ ] Panel layout mode (`panels` vs `menu`)
+  - [ ] Show resize icon
+  - [ ] Evaluation panel visibility/mode where relevant
+- [ ] Keep advanced layout persistence internal rather than exposing it as normal settings:
+  - [ ] Splitter positions
+  - [ ] Resizable window positions
+  - [ ] Collapsible-section open state
+- [ ] Add missing settings worth supporting:
+  - [ ] Compact mobile layout preference only if there is a genuinely useful alternate mode
+  - [ ] Default side-panel section or preferred shell landing section if users benefit from it
+
+**Audio & Motion**
+
+- [ ] Move existing settings here:
+  - [ ] SFX toggle
+  - [ ] Animations toggle
+  - [ ] Toasts toggle if treated as feedback/alert behavior
+- [ ] Add missing settings worth supporting:
+  - [ ] Separate volume or sound-category toggles if the sound design grows beyond one global SFX switch
+  - [ ] Reduced motion mode that suppresses non-essential board and shell transitions
+  - [ ] Haptic feedback toggle for supported mobile devices if haptics are introduced
+
+**Play & Match Preferences**
+
+- [ ] Move existing settings here when they are persistent preferences rather than one-off launch setup:
+  - [ ] Preferred online color
+  - [ ] Default online room visibility
+  - [ ] Lobby `mine only` filter preference
+- [ ] Do not treat one-off match setup as global settings if it belongs in the match creation flow:
+  - [ ] Time control
+  - [ ] Bot opponent choice
+  - [ ] Variant choice for a specific game launch
+- [ ] Remove or demote settings that are likely product clutter:
+  - [ ] Threefold rule should not appear as a normal end-user preference if it changes actual rules rather than presentation or convenience
+- [ ] Add missing settings worth supporting:
+  - [ ] Default controller preferences for bot play where useful
+  - [ ] Confirm move on touch for users who prefer it, if testing shows value
+  - [ ] Auto-promote / promotion preference for chess-like variants when applicable
+
+**Account & Profile**
+
+- [ ] Move existing settings here:
+  - [ ] Display name
+  - [ ] Avatar upload
+  - [ ] Country
+  - [ ] Time zone
+- [ ] Add missing settings worth supporting:
+  - [ ] Password/security management page when account system scope requires it
+  - [ ] Linked identity providers if social login is introduced
+  - [ ] Basic profile visibility controls if public profile surfaces become important
+
+**Privacy, Presence & Invitations**
+
+- [ ] Move existing settings here:
+  - [ ] Default room visibility for online play
+- [ ] Add missing settings worth supporting:
+  - [ ] Online presence visibility
+  - [ ] Who can challenge or invite the user
+  - [ ] Hosted-room invitation policy defaults
+  - [ ] Spectator permission defaults for hosted rooms or personal games
+  - [ ] Block or mute invite sources when social features mature
+
+**Notifications**
+
+- [ ] Move existing settings here if toasts are treated as notifications rather than general UI feedback:
+  - [ ] Toast notifications toggle
+- [ ] Add missing settings worth supporting:
+  - [ ] Invite/challenge notifications
+  - [ ] Rejoin or opponent-return notifications
+  - [ ] Tournament or hosted-room event notifications if those product areas ship
+  - [ ] Email or push notification categories only if those channels actually exist
+
+**Accessibility**
+
+- [ ] Move existing settings here where they primarily serve legibility/access needs:
+  - [ ] Coordinates inside squares
+  - [ ] High-contrast board/palette preset
+- [ ] Add missing settings worth supporting:
+  - [ ] Reduced motion shortcut surfaced clearly here even if also mirrored under Audio & Motion
+  - [ ] Larger board labels / stronger coordinate contrast where needed
+  - [ ] Larger touch-target mode if testing shows small-screen accuracy problems
+  - [ ] Alternative highlight styles for users who struggle with subtle glow-based indicators
+
+**Internal or developer-only options that should not live in normal user settings**
+
+- [ ] Server URL
+- [ ] Current room id or online action state
+- [ ] Panel splitter persistence
+- [ ] Debug diagnostics / debug JSON controls
+- [ ] Any state restored purely to preserve session continuity rather than to express user preference
+
+**Settings UX rules**
+
+- [ ] Settings should house persistent preferences, not replace match setup
+- [ ] Do not duplicate the same option in Settings and on every play surface unless there is a strong in-context reason
+- [ ] Advanced settings should be grouped and searchable/scannable, not sprayed across the shell
+- [ ] On mobile, each settings page should be a simple vertical list with large touch targets and concise labels
+- [ ] The Settings area should reduce clutter elsewhere in the product by absorbing long-tail preferences that do not belong on play screens
+
+### Mobile-First Simplicity Rules
+
+- [ ] Design mobile portrait first; desktop may add space, but must not reintroduce clutter
+- [ ] Every screen must expose one dominant primary action above secondary actions
+- [ ] No screen should require the user to parse more than one navigation system at a time
+- [ ] No permanently visible duplicate controls across header, panel, and board area
+- [ ] No hover-only affordances for essential actions
+- [ ] No large blocks of explanatory copy on core play screens when a short label or icon-plus-label will do
+- [ ] Secondary actions belong behind drawers, sheets, segmented views, or explicit `More` entry points
+- [ ] Settings that are rarely changed during play should not remain permanently visible on small screens
+- [ ] If a control is important enough to stay visible during play, it must justify the screen space with frequent use or critical status value
+- [ ] Core board interaction must minimize tap count: selecting a piece should make valid moves obvious immediately, and drag-to-target should be supported on both mouse and touch devices
+
+### Board Interaction Model
+
+- [ ] All supported games should support two equivalent move-input patterns for legal moves:
+  - [ ] Select a piece, then select one of its valid target squares
+  - [ ] Select a piece, drag it, and release it on a valid target square
+- [ ] As soon as the user clicks or touches a movable piece, highlight its valid candidate target squares when move highlighting is enabled
+- [ ] Candidate-target highlighting must update from actual legal move generation, not from hardcoded UI assumptions
+- [ ] If move highlighting is disabled in settings, drag/select behavior should still work, but target-square highlight markers should remain hidden
+- [ ] Releasing a dragged piece on an invalid square should cancel cleanly and return the piece to its source square
+- [ ] Releasing a dragged piece on a valid square should commit the move using the same validation path as click-based move input
+- [ ] Drag and selection behavior must work for mouse, touch, and stylus input where supported by the platform
+- [ ] Board interaction rules should stay consistent across Chess, Columns Chess, Dama, Lasca, Damasca, and other supported variants even when their legal-move logic differs
+- [ ] Move-input interaction must not interfere with replay/history playback controls, panel scrolling, or mobile drawer gestures
+
+### Old UI Feature Triage
+
+**Keep and integrate into the new UI**
+
+- [ ] Game/variant selection
+- [ ] Core launch settings needed before starting a match
+- [ ] Clear board interaction affordances: selectable pieces, candidate-target highlighting, and drag-to-target movement
+- [ ] Online room creation, joining, rejoining, spectating, and lobby access
+- [ ] Bot play entry points and difficulty selection
+- [ ] Local play entry points
+- [ ] Move history / replay access
+- [ ] Rules/help access
+- [ ] Account/auth identity and profile basics
+- [ ] Connection/presence/game-state status that prevents user confusion during online play
+
+**Keep, but demote behind secondary surfaces**
+
+- [ ] Detailed settings that are not needed on every launch
+- [ ] Extended room diagnostics and debug-style online state readouts
+- [ ] Replay/export/share actions
+- [ ] Deep customization options
+- [ ] Community/discovery shortcuts that are not part of the immediate play path
+
+**Remove from the shipped surface because they add clutter or duplicate other UI**
+
+- [ ] Multiple competing panels visible at the same time on small screens
+- [ ] Duplicate navigation choices shown in both header and side areas
+- [ ] Always-expanded advanced settings on the start or play screens
+- [ ] Detached floating cards that repeat player, game, or mode information already shown elsewhere
+- [ ] Persistent desktop-oriented top chrome on mobile portrait screens
+- [ ] Legacy labels, sections, or containers that exist only because of the old layout structure rather than user need
+- [ ] Any permanent `Legacy panels` choice presented to end users
+
+### Simplification Heuristic
+
+- [ ] For each legacy UI element, justify it by answering: does it help the user start a game faster, understand the current game state faster, or complete an in-game task faster on a phone?
+- [ ] If the answer is no, remove it from the primary surface
+- [ ] If the answer is sometimes, move it behind an explicit secondary action
+- [ ] If the answer is yes, keep it visible but merge duplicates so each job is represented once
+
+### Play Mode Product Model
+
+Chess.com's play area suggests a useful pattern: make a small number of play intents obvious at the top level, then handle setup complexity inside the selected mode instead of exposing every variant of online play as a first-view navigation choice.
+
+**Chess.com reference pattern**
+
+- [ ] `Play Online` is a first-class entry point
+- [ ] `Custom Challenge` appears as a secondary online setup action, not a separate top-level product area
+- [ ] `Play a Friend` is promoted strongly enough to be discoverable both from the main play hub and from the online area
+- [ ] `Tournaments` are presented as their own destination because they involve discovery/joining rather than instant match setup
+- [ ] `Play Bots` is a separate first-class mode with its own personality/strength selection surface
+- [ ] `Play Coach` is a separate first-class mode with a level picker before starting the game
+
+**StackWorks top-level play destinations**
+
+- [ ] `Play Online`
+- [ ] `Play Bots`
+- [ ] `Play Coach`
+- [ ] `Local Game`
+- [ ] `Resume / Rejoin` when relevant
+- [ ] `Play a Friend` may appear as a shortcut on the selected-game home panel, but should conceptually live under online play
+
+**StackWorks online submenu / panel structure**
+
+- [ ] `Quick Match` — immediate online play with minimal setup
+- [ ] `Custom Challenge` — user chooses opponent constraints, time control, color, variant, and invitation/public options
+- [ ] `Play a Friend` — simplified invite flow optimized for known opponent entry, link/code sharing, and fast rematch
+- [ ] `Hosted Rooms` — persistent or semi-persistent community-owned room entry point for clubs, schools, friend groups, organizers, and invited communities
+- [ ] `Tournaments` — organized event entry point, separate from ordinary room creation
+- [ ] `Spectate / Watch` should remain discoverable, but should not compete with the primary online start actions on first view
+
+**Recommended support decisions**
+
+- [ ] Support `Custom Challenge`
+  - Reason: it covers the flexible one-off setup case without forcing every online game through a rigid quick-match flow
+  - UI treatment: secondary action within `Play Online`, not a top-level home-screen tile
+- [ ] Support `Play a Friend`
+  - Reason: it is a common, high-intent path and deserves a simplified flow separate from generic challenge creation
+  - UI treatment: visible shortcut on the selected-game panel plus a dedicated path inside `Play Online`
+- [ ] Support `Hosted Rooms`
+  - Reason: this is materially different from a one-off friend challenge and fits StackWorks well for schools, clubs, and recurring communities
+  - UI treatment: first-class option inside `Play Online`, not buried under generic custom challenge settings
+  - Data model direction: room host/owner, public vs private visibility, membership or invite gating, room code/link, room lobby, running games list, spectator policy
+- [ ] Support `Play Bots`
+  - Reason: this is a core low-friction mode and should be one of the easiest actions to start from home
+  - UI treatment: top-level destination with a graphical list/grid of bot personalities, each showing strength and play style
+  - Match types: human vs bot and bot vs bot
+  - Control model: each side has its own controller assignment (`human` or `bot`), but `Play Bots` must not allow the mode to become two-human local play
+  - Required shared features for both match types: Undo, Redo, current Move History with Playback, and per-side controller switching between human and bot
+  - Bot-vs-bot must allow two different bot skill levels or the same bot skill level on both sides
+- [ ] Support `Play Coach`
+  - Reason: this is a differentiated learning mode, not just a bot with a different label
+  - UI treatment: top-level destination with a level picker first, then a compact explanation of coach features and a clear `Play` action
+  - Required capabilities: hints, takeback-friendly flow, mistake feedback, learning prompts, and beginner-to-expert level presets
+- [ ] Treat `Tournaments` as conditional support rather than mandatory first-pass scope
+  - Reason: tournaments require more organizer, scheduling, pairing, and moderation complexity than friend play or ordinary rooms
+  - UI treatment if not yet supported: visible but clearly marked `Coming soon` only if tournament support is on the roadmap and worth reserving space for
+  - UI treatment if not imminent: remove from the primary surface until the product can support it properly
+
+**Hosted Rooms definition**
+
+- [ ] Hosted Rooms are not just ad hoc friend challenges with more fields
+- [ ] A hosted room should feel like a reusable community space: room identity, membership boundary, invite/public controls, and a list of active or joinable games
+- [ ] Hosted Rooms may support public discovery, private membership, or invite-link access depending on room policy
+- [ ] Hosted Rooms should be able to serve schools, clubs, stream communities, and recurring friend groups without making them recreate context every time
+
+**Coach mode definition**
+
+- [ ] `Play Coach` means `Play and Learn with an AI Coach`, not merely `play a weak bot`
+- [ ] First step is level selection: `New to chess`, `Beginner`, `Novice`, `Intermediate`, `Intermediate II`, `Advanced`, `Expert`
+- [ ] After level choice, the UI should explain the learning contract in plain language: hints available, takebacks allowed, coaching prompts, and practice-oriented feedback
+- [ ] Coach mode should minimize configuration complexity; level selection is primary, optional advanced settings are secondary
+
+**Mobile-first play hub rule**
+
+- [ ] Do not show every online sub-mode as a separate first-view card on phone screens
+- [ ] On small screens, the selected-game home panel should show at most a few primary actions, with `Play Online` opening the deeper online mode chooser
+- [ ] Inside `Play Online`, present mode choices as a short, thumb-friendly list or segmented card stack: `Quick Match`, `Custom Challenge`, `Play a Friend`, `Hosted Rooms`, `Tournaments` when supported
+- [ ] The user should never need to decipher whether a choice is a mode, a room type, a matchmaking filter, or a navigation category from the same crowded screen
+
 ### Reference Translation
 
 When using chess.com play screens as visual references, translate them into StackWorks goals using the categories below instead of copying product structure literally.
@@ -65,6 +414,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Do not copy chess.com's product taxonomy (`Play`, `Puzzles`, `Learn`, etc.); keep StackWorks-specific navigation and variant structure
 - [ ] Replace chess.com's exact mode labels with StackWorks equivalents such as `Play <Variant>`, `Bot Match`, `Online Room`, `Local Game`, `Spectating`, or `Replay`
 - [ ] Populate side panels with StackWorks-specific content: rules/help, bot level, online room state, variant actions, history/replay, and account/community shortcuts where relevant
+- [ ] Follow chess.com's product-shape lesson for play modes: a few obvious play intents at the top level, with setup complexity moved into the selected mode
 - [x] The shell must surface authentication state directly in the left rail: signed-in view shows avatar + display name; signed-out view shows `Sign Up` and `Log In` entry points
 - [ ] Treat ratings, flags, profile polish, and other account metadata as future-ready optional slots rather than baseline requirements for the first UI pass
 - [ ] Use uploaded profile avatars plus sensible defaults/fallbacks, rather than introducing a custom avatar creator flow
@@ -97,11 +447,12 @@ When using chess.com play screens as visual references, translate them into Stac
 
 ### Desktop shell panel strategy
 
-- [x] Treat the existing game left/right sidebars as one desktop panel pair
+- [x] Treat the existing game left/right sidebars as a temporary migration source for one desktop panel pair
 - [x] Add a second desktop panel pair for the new shell UI (game nav, play destinations, account/community shortcuts, contextual actions)
-- [x] Add side-mounted tabs/toggles so the user can switch between `Legacy panels` and `Shell panels`
+- [x] Add side-mounted tabs/toggles so the user can switch between `Legacy panels` and `Shell panels` during migration
 - [x] Keep the board centered between the currently active left/right pair
 - [x] Do not require a top game-shell header on desktop when paired side panels are available
+- [ ] Remove the `Legacy panels` mode after shell panels cover all required game controls and information surfaces
 
 ### Existing files to update
 
@@ -129,6 +480,9 @@ When using chess.com play screens as visual references, translate them into Stac
 - [x] Define `GlobalSection` enum: `Home | Games | Community | Account | Settings`
 - [x] Define `GameSection` enum: `Play | Learn | Watch | History | Rules | Customize | Online`
 - [x] Define `PlaySubSection` enum: `Online | Bots | Coach | Friend | Tournaments | Variants`
+- [ ] Refine play-mode information architecture so `Friend` is a prominent shortcut but remains conceptually nested under online play in the final UX
+- [ ] Add online sub-mode state for `QuickMatch | CustomChallenge | Friend | HostedRooms | Tournaments`
+- [ ] Add bot-play state for per-side controller assignment and bot configuration so each seat can be `human` or `bot` with the restriction that `Play Bots` cannot resolve to `human` + `human`
 - [ ] Define `PlayerIdentity` type: `{ id: string, displayName: string, avatarUrl: string | null, side: 'local' | 'remote' | 'spectator', presenceState: PresenceState, countryCode?: string | null, countryName?: string | null, rating?: number, isBot?: boolean, isFallback?: boolean }`
 - [ ] Define `PresenceState` enum: `Online | Offline | Reconnecting | Waiting`
 - [x] Wire `ShellState` to `localStorage` for persistence across page navigations
@@ -154,6 +508,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [x] `gameShell.ts` may reserve a compact mobile portrait header strip, but it must avoid a tall desktop-style header and keep the board as the primary surface
 - [x] `gameShell.ts` must hide its header chrome when the document enters browser fullscreen; the board and existing game UI should use the reclaimed height immediately
 - [x] `gameShell.ts` should prefer paired side-panel modes on desktop so shell navigation/actions live in left/right panels instead of a top header
+- [ ] Board input layer must support click/touch selection, candidate target highlighting when enabled, and drag-to-valid-target movement across supported variants
 - [x] Player identity panels are injected above/below the board container by `gameShell.ts`
   - [x] Panel order updates dynamically when the board flips so the player cards stay attached to the correct board edge
   - [x] Player identifiers should show a country flag beside the display name when `PlayerIdentity.countryCode` is available
@@ -203,10 +558,11 @@ When using chess.com play screens as visual references, translate them into Stac
 **Desktop game-shell direction:**
 
 - [x] Replace the current desktop top-header emphasis with side-mounted shell panels
-- [x] Left-side tabs toggle between existing game panel content and shell navigation content
-- [x] Right-side tabs toggle between existing game info/history content and shell action/play-hub content
+- [x] Left-side tabs toggle between existing game panel content and shell navigation content during migration
+- [x] Right-side tabs toggle between existing game info/history content and shell action/play-hub content during migration
 - [x] Desktop layout should echo the chess.com pattern: board centered, navigation on the left, actionable play/content panel on the right
 - [x] Keep the compact top header only for mobile portrait and similar constrained layouts
+- [ ] Remove the migration toggle once shell-side navigation and action panels fully replace the legacy panel set
 
 **Player Identity — Phase 1 (included in first professional UI pass, not deferred):**
 
@@ -257,6 +613,8 @@ When using chess.com play screens as visual references, translate them into Stac
   - [x] Play action cards on the right
   - [x] Preserve all current launch settings (time control, color, variant options)
   - [x] Preserve all current online options (lobby, create room, join room, guest flow)
+- [ ] Reduce first-view cognitive load so the default home screen shows game choice plus primary play actions before advanced settings, help, or secondary content
+- [ ] Remove the old start page layout after the game-first shell covers all current entry actions without regression
 - [ ] Keep existing `localStorage` data sources and behavior working
 - [ ] Wire `ShellState.activeGame` on game card selection
 
@@ -280,15 +638,38 @@ When using chess.com play screens as visual references, translate them into Stac
 ### Phase 3 — Play Hub with Tabs
 
 - [x] Create `src/ui/shell/playHub.ts` — Play hub layout with tab bar + panel switcher
-- [x] Add tabs: Online, Bots, Coach, Friend, Tournaments, Variants
-  - [x] **Online tab** — wire to existing online lobby/room flow
-  - [x] **Bots tab** — wire to existing bot/stockfish flow
-  - [x] **Friend tab** — wire to existing play-a-friend/room creation flow
-  - [x] **Coach tab** — placeholder panel (not yet implemented)
-  - [x] **Tournaments tab** — placeholder panel (not yet implemented)
-  - [x] **Variants tab** — wire to existing variant selection (Columns Chess, Dama, Lasca, Damasca, etc.)
+- [ ] Final top-level play destinations should be: Online, Bots, Coach, Local, Resume/Rejoin when applicable
+  - [ ] **Online** — contains `Quick Match`, `Custom Challenge`, `Play a Friend`, `Hosted Rooms`, and `Tournaments` when supported
+  - [ ] **Bots** — graphical bot list with personality, rating/strength, and style summary
+    - [ ] Support two seat cards or selectors so the user can configure Side A and Side B independently as `Human` or `Bot`
+    - [ ] Default `Play Bots` setup is `Human vs Bot`
+    - [ ] Optional `Watch Bots` setup is `Bot vs Bot`
+    - [ ] Allow the two bots to be different personalities/strengths or the same personality/strength on both sides
+    - [ ] Disallow `Human vs Human` inside `Play Bots`; that belongs to `Local`
+    - [ ] Keep setup compact on mobile: surface only side controller, bot selection, strength/style, and primary start action first
+    - [ ] Advanced bot options belong behind a secondary settings sheet
+  - [ ] **Coach** — level-first learning flow with hints/takebacks/teaching affordances
+  - [ ] **Local** — streamlined local/offline setup
+  - [ ] **Resume/Rejoin** — shown contextually when an interrupted or active game can be continued
+- [ ] `Friend` should not survive as a separate permanent top-level play tab in the final UX if it duplicates the online mode chooser
+- [ ] `Tournaments` should be top-level only if tournament participation becomes important enough to justify first-view real estate; otherwise keep it nested under Online
+- [ ] `Variants` should remain selectable within game selection and mode setup, not necessarily as a permanent primary play tab in the final UX
 - [ ] Preserve all existing functionality when tabs are wired to real features
 - [x] Add clear "coming soon" / placeholder UI for unfinished tabs
+- [ ] Add `Hosted Rooms` flow with public/private/invite-only room types and room-owner controls
+- [ ] Implement `Custom Challenge` as an online setup surface, not as a separate top-level product area
+- [ ] Implement `Play a Friend` as a simplified online invite flow with link/code sharing and rematch friendliness
+- [ ] Implement `Play Bots` with graphical personality cards showing rank/strength/style
+  - [ ] Support `Human vs Bot` and `Bot vs Bot`
+  - [ ] Add explicit `Watch Bots` entry or toggle within the bot setup flow
+  - [ ] Allow each side to choose bot personality and skill independently
+  - [ ] Allow same-skill and mixed-skill bot pairings
+  - [ ] Support Undo and Redo in both human-vs-bot and bot-vs-bot play
+  - [ ] Preserve the current Move History with Playback in both human-vs-bot and bot-vs-bot play
+  - [ ] Allow either seat to switch between `human` and `bot` during setup and during a game when supported by the controller flow
+  - [ ] Enforce the rule that `Play Bots` may never become `human` + `human`; if both sides are switched away from bot control, route the user to `Local Game` instead of silently changing the mode
+  - [ ] When a seat is bot-controlled, show the bot's identity, style, and strength in the corresponding player bar and bot setup surface
+- [ ] Implement `Play Coach` with level selection options: `New to chess`, `Beginner`, `Novice`, `Intermediate`, `Intermediate II`, `Advanced`, `Expert`
 - [ ] Allow an online-broadcast bot mode that behaves like local play for control flow, ignores opponent connection/presence gating, and only publishes the game for public or invited observers
 
 ---
@@ -298,11 +679,14 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Normalize shared card/button/tab styling across all game pages
 - [ ] Improve visual hierarchy: spacing, panel chrome, section headers
 - [ ] Add consistent hover/focus states across interactive elements
+- [ ] Audit every currently visible control on small-screen layouts and remove or demote anything that does not support the primary play flow
 - [ ] Add consistent desktop/mobile navigation behavior
   - [ ] Desktop: hover flyouts, persistent left rail
   - [ ] Desktop game pages: paired left/right panel switching instead of top header chrome
   - [ ] Mobile: drawer overlay, compact nav, hamburger trigger
 - [ ] Verify portrait mobile layouts do not lose excessive board height to shell chrome
+- [ ] Verify portrait mobile layouts expose only one primary action cluster at a time rather than multiple competing control groups
+- [ ] Verify board interaction on touch devices is practical: touch a piece, see legal targets immediately when enabled, drag to a legal square, release to move
 - [ ] Verify browser fullscreen removes shell header chrome and preserves the board-first layout on larger displays
 - [ ] Verify desktop layouts keep the board vertically unconstrained by avoiding persistent top game-shell chrome
 - [x] Verify desktop shell layouts use a fixed-height left rail while allowing center content and right-panel content to scroll internally instead of forcing whole-page vertical scrolling
@@ -361,5 +745,10 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Clicking the StackWorks logo from in-game shell/board contexts behaves the same as clicking `Start Page`
 - [ ] Shell is responsive on both desktop and mobile without covering board content
 - [ ] In portrait mobile layouts, shell navigation does not sit as a persistent tall header above the board
+- [ ] In portrait mobile layouts, the first view is understandable at a glance: one primary action cluster, one visible game context, and no duplicate navigation or settings clutter
+- [ ] On supported game boards, clicking or touching a movable piece reveals valid candidate target squares when move highlighting is enabled
+- [ ] On supported game boards, users can complete legal moves through either select-then-target or drag-to-valid-target interaction
 - [ ] In browser fullscreen, the shell header is hidden and does not consume top screen space
 - [ ] On desktop/laptop layouts, the shell uses left/right panel pairs instead of a persistent top game header above the board
+- [ ] The old UI is fully phased out: no user-facing legacy start page, no legacy desktop header layout, and no permanent `Legacy panels` fallback exposed in production
+- [ ] All essential old-UI capabilities are preserved, but non-essential old-UI presentation clutter has been removed or demoted behind secondary surfaces

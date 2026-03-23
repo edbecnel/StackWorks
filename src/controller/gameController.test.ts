@@ -3,6 +3,85 @@ import { GameController } from "./gameController";
 import { HistoryManager } from "../game/historyManager";
 import type { GameState } from "../game/state";
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function createBoardFixture(): { svg: SVGSVGElement; piecesLayer: SVGGElement } {
+  document.body.innerHTML = "";
+
+  const svg = document.createElementNS(SVG_NS, "svg") as SVGSVGElement;
+  svg.setAttribute("viewBox", "0 0 1000 1000");
+  (svg as any).setPointerCapture = () => {};
+  (svg as any).releasePointerCapture = () => {};
+  (svg as any).getBoundingClientRect = () => ({ left: 0, top: 0, width: 1000, height: 1000, right: 1000, bottom: 1000 });
+
+  const defs = document.createElementNS(SVG_NS, "defs") as SVGDefsElement;
+  for (const id of ["W_K", "B_K"]) {
+    const symbol = document.createElementNS(SVG_NS, "symbol") as SVGSymbolElement;
+    symbol.setAttribute("id", id);
+    symbol.setAttribute("viewBox", "0 0 100 100");
+    const rect = document.createElementNS(SVG_NS, "rect") as SVGRectElement;
+    rect.setAttribute("x", "25");
+    rect.setAttribute("y", "15");
+    rect.setAttribute("width", "50");
+    rect.setAttribute("height", "70");
+    rect.setAttribute("fill", id === "W_K" ? "#fff" : "#111");
+    symbol.appendChild(rect);
+    defs.appendChild(symbol);
+  }
+  svg.appendChild(defs);
+
+  const pieces = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  pieces.id = "pieces";
+  svg.appendChild(pieces);
+
+  const squares = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  squares.id = "squares";
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const rect = document.createElementNS(SVG_NS, "rect") as SVGRectElement;
+      rect.setAttribute("x", String(100 + c * 100));
+      rect.setAttribute("y", String(100 + r * 100));
+      rect.setAttribute("width", "100");
+      rect.setAttribute("height", "100");
+      rect.setAttribute("fill", (r + c) % 2 === 0 ? "#f0d9b5" : "#b58863");
+      squares.appendChild(rect);
+    }
+  }
+  svg.appendChild(squares);
+
+  const nodes = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  nodes.id = "nodes";
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const node = document.createElementNS(SVG_NS, "circle") as SVGCircleElement;
+      node.id = `r${r}c${c}`;
+      node.setAttribute("cx", String(150 + c * 100));
+      node.setAttribute("cy", String(150 + r * 100));
+      node.setAttribute("r", "18");
+      nodes.appendChild(node);
+    }
+  }
+  svg.appendChild(nodes);
+  document.body.appendChild(svg);
+
+  return { svg, piecesLayer: pieces };
+}
+
+function makePointerEvent(
+  target: EventTarget | null,
+  args: { pointerId?: number; clientX?: number; clientY?: number; pointerType?: string; button?: number } = {},
+): PointerEvent {
+  return {
+    target,
+    pointerId: args.pointerId ?? 1,
+    clientX: args.clientX ?? 0,
+    clientY: args.clientY ?? 0,
+    pointerType: args.pointerType ?? "mouse",
+    button: args.button ?? 0,
+    preventDefault: vi.fn(),
+  } as unknown as PointerEvent;
+}
+
 describe("GameController undo/redo after game over", () => {
   let mockSvg: SVGSVGElement;
   let mockPiecesLayer: SVGGElement;
@@ -698,6 +777,243 @@ describe("GameController forced check toasts", () => {
 
     const toast = document.querySelector(".lascaToast") as HTMLElement | null;
     expect(toast?.textContent).toBe("Check! White to Play");
+  });
+});
+
+describe("GameController board interaction", () => {
+  it("renders the checkmate badge through the controller render path without replacing the running badge on redraw", () => {
+    const { svg, piecesLayer } = createBoardFixture();
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r0c0", [{ owner: "B", rank: "K" }]],
+        ["r1c1", [{ owner: "W", rank: "Q" }]],
+        ["r2c2", [{ owner: "W", rank: "K" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+      meta: { variantId: "chess_classic" as any, rulesetId: "chess" as any, boardSize: 8 as any },
+      chess: {
+        castling: {
+          W: { kingSide: false, queenSide: false },
+          B: { kingSide: false, queenSide: false },
+        },
+      },
+    };
+    history.push(state);
+
+    const controller = new GameController(svg, piecesLayer, null, state, history);
+
+    controller.refreshView();
+    expect(svg.querySelector(".checkmateBadge")?.getAttribute("data-node")).toBe("r0c0");
+    expect(svg.querySelector(".checkmateBadge__king use")?.getAttribute("href")).toBe("#B_K");
+    expect(svg.querySelector(".checkmateBadge__king animateTransform")).not.toBeNull();
+
+    const firstBadge = svg.querySelector(".checkmateBadge");
+    controller.refreshView();
+    expect(svg.querySelector(".checkmateBadge")).toBe(firstBadge);
+    expect(svg.querySelectorAll(".checkmateBadge")).toHaveLength(1);
+  });
+
+  it("shows legal targets immediately on pointer down for a movable piece", () => {
+    const { svg, piecesLayer } = createBoardFixture();
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "B", rank: "S" }]],
+        ["r3c3", [{ owner: "W", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+    history.push(state);
+
+    const controller = new GameController(svg, piecesLayer, null, state, history);
+    controller.setMoveHints(true);
+
+    const source = svg.querySelector("#r2c2") as SVGCircleElement;
+    (controller as any).onPointerDown(makePointerEvent(source, { pointerType: "touch", clientX: 350, clientY: 350 }));
+
+    expect((controller as any).selected).toBe("r2c2");
+    expect((controller as any).currentTargets).toContain("r4c4");
+  });
+
+  it("submits a move on drag-to-target and keeps selection on invalid drops", async () => {
+    const { svg, piecesLayer } = createBoardFixture();
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "B", rank: "S" }]],
+        ["r3c3", [{ owner: "W", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+    history.push(state);
+
+    const controller = new GameController(svg, piecesLayer, null, state, history);
+    const applyChosenMove = vi.spyOn(controller as any, "applyChosenMove").mockResolvedValue(undefined);
+
+    const source = svg.querySelector("#r2c2") as SVGCircleElement;
+    const invalid = svg.querySelector("#r2c3") as SVGCircleElement;
+    const target = svg.querySelector("#r4c4") as SVGCircleElement;
+
+    (controller as any).onPointerDown(makePointerEvent(source, { clientX: 350, clientY: 350 }));
+    (controller as any).onPointerMove(makePointerEvent(source, { clientX: 410, clientY: 410 }));
+    await (controller as any).onPointerUp(makePointerEvent(invalid, { clientX: 450, clientY: 350 }));
+
+    expect(applyChosenMove).not.toHaveBeenCalled();
+    expect((controller as any).selected).toBe("r2c2");
+
+    (controller as any).onPointerDown(makePointerEvent(source, { pointerId: 2, clientX: 350, clientY: 350 }));
+    (controller as any).onPointerMove(makePointerEvent(source, { pointerId: 2, clientX: 520, clientY: 520 }));
+    await (controller as any).onPointerUp(makePointerEvent(target, { pointerId: 2, clientX: 550, clientY: 550 }));
+
+    expect(applyChosenMove).toHaveBeenCalledTimes(1);
+    expect(applyChosenMove.mock.calls[0][0]).toMatchObject({ from: "r2c2", to: "r4c4" });
+  });
+
+  it("treats dropping on the occupied capture square as the intended capture", async () => {
+    const { svg, piecesLayer } = createBoardFixture();
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "B", rank: "S" }]],
+        ["r3c3", [{ owner: "W", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+    history.push(state);
+
+    const controller = new GameController(svg, piecesLayer, null, state, history);
+    const applyChosenMove = vi.spyOn(controller as any, "applyChosenMove").mockResolvedValue(undefined);
+
+    const source = svg.querySelector("#r2c2") as SVGCircleElement;
+    const occupiedCaptureSquare = svg.querySelector("#r3c3") as SVGCircleElement;
+
+    (controller as any).onPointerDown(makePointerEvent(source, { pointerId: 4, clientX: 350, clientY: 350 }));
+    (controller as any).onPointerMove(makePointerEvent(source, { pointerId: 4, clientX: 430, clientY: 430 }));
+    await (controller as any).onPointerUp(
+      makePointerEvent(occupiedCaptureSquare, { pointerId: 4, clientX: 450, clientY: 450 }),
+    );
+
+    expect(applyChosenMove).toHaveBeenCalledTimes(1);
+    expect(applyChosenMove.mock.calls[0][0]).toMatchObject({ kind: "capture", from: "r2c2", over: "r3c3", to: "r4c4" });
+  });
+
+  it("resolves a capture landing when the pointer is inside the destination square but outside the node circle", () => {
+    const { svg, piecesLayer } = createBoardFixture();
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r3c3", [{ owner: "B", rank: "O" }]],
+        ["r4c4", [{ owner: "W", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+    history.push(state);
+
+    const controller = new GameController(svg, piecesLayer, null, state, history);
+    (controller as any).selected = "r3c3";
+    (controller as any).currentMoves = [
+      { kind: "capture", from: "r3c3", over: "r4c4", to: "r5c5" },
+      { kind: "capture", from: "r3c3", over: "r4c4", to: "r6c6" },
+      { kind: "capture", from: "r3c3", over: "r4c4", to: "r7c7" },
+    ];
+    (controller as any).currentTargets = ["r5c5", "r6c6", "r7c7"];
+
+    const resolved = (controller as any).resolveMoveAtClientPoint("r3c3", 720, 720);
+
+    expect(resolved).toMatchObject({ kind: "capture", from: "r3c3", over: "r4c4", to: "r6c6" });
+  });
+
+  it("moves a preview piece with the pointer while dragging", () => {
+    const { svg, piecesLayer } = createBoardFixture();
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "B", rank: "S" }]],
+        ["r3c3", [{ owner: "W", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+    history.push(state);
+
+    const controller = new GameController(svg, piecesLayer, null, state, history);
+    controller.refreshView();
+
+    const source = svg.querySelector("#r2c2") as SVGCircleElement;
+    (controller as any).onPointerDown(makePointerEvent(source, { pointerId: 3, clientX: 350, clientY: 350 }));
+    (controller as any).onPointerMove(makePointerEvent(source, { pointerId: 3, clientX: 395, clientY: 420 }));
+
+    const preview = svg.querySelector("#previewStacks .dragPreviewStack") as SVGGElement | null;
+    const sourceGroup = svg.querySelector('g.stack[data-node="r2c2"]') as SVGGElement | null;
+
+    expect(preview).not.toBeNull();
+    expect(preview?.getAttribute("transform")).toBe("translate(45 70)");
+    expect(sourceGroup?.style.visibility).toBe("hidden");
+  });
+
+  it("suppresses document text selection during board drag and restores it after release", async () => {
+    const { svg, piecesLayer } = createBoardFixture();
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "B", rank: "S" }]],
+        ["r3c3", [{ owner: "W", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+    history.push(state);
+
+    document.body.style.userSelect = "text";
+    document.documentElement.style.userSelect = "text";
+
+    const controller = new GameController(svg, piecesLayer, null, state, history);
+    const source = svg.querySelector("#r2c2") as SVGCircleElement;
+    const invalid = svg.querySelector("#r2c3") as SVGCircleElement;
+
+    (controller as any).onPointerDown(makePointerEvent(source, { pointerId: 5, clientX: 350, clientY: 350 }));
+    expect(document.body.style.userSelect).toBe("none");
+    expect(document.documentElement.style.userSelect).toBe("none");
+
+    (controller as any).onPointerMove(makePointerEvent(source, { pointerId: 5, clientX: 395, clientY: 420 }));
+    await (controller as any).onPointerUp(makePointerEvent(invalid, { pointerId: 5, clientX: 450, clientY: 350 }));
+
+    expect(document.body.style.userSelect).toBe("text");
+    expect(document.documentElement.style.userSelect).toBe("text");
+  });
+
+  it("requests no local travel animation for drag-drop moves", async () => {
+    const { svg, piecesLayer } = createBoardFixture();
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "B", rank: "S" }]],
+        ["r3c3", [{ owner: "W", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+    history.push(state);
+
+    const controller = new GameController(svg, piecesLayer, null, state, history);
+    const applyChosenMove = vi.spyOn(controller as any, "applyChosenMove").mockResolvedValue(undefined);
+
+    const source = svg.querySelector("#r2c2") as SVGCircleElement;
+    const target = svg.querySelector("#r4c4") as SVGCircleElement;
+
+    (controller as any).onPointerDown(makePointerEvent(source, { pointerId: 6, clientX: 350, clientY: 350 }));
+    (controller as any).onPointerMove(makePointerEvent(source, { pointerId: 6, clientX: 520, clientY: 520 }));
+    await (controller as any).onPointerUp(makePointerEvent(target, { pointerId: 6, clientX: 550, clientY: 550 }));
+
+    expect(applyChosenMove).toHaveBeenCalledTimes(1);
+    expect(applyChosenMove.mock.calls[0][0]).toMatchObject({ from: "r2c2", to: "r4c4" });
+    expect(applyChosenMove.mock.calls[0][1]).toMatchObject({ animateLocalTravel: false });
   });
 });
 

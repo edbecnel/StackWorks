@@ -4,9 +4,11 @@ import type { createStackInspector } from "../ui/stackInspector";
 import {
   ensureOverlayLayer,
   clearOverlays,
+  clearCheckmateBadge,
   drawSelection,
   drawSelectionChessCom,
   drawSelectionSquare,
+  drawCheckmateBadge,
   drawTargets,
   drawTargetsChessCom,
   drawTargetsSquares,
@@ -73,6 +75,12 @@ export type HistoryChangeReason = "move" | "undo" | "redo" | "jump" | "newGame" 
 const DEFAULT_PLAYBACK_MOVE_ANIMATION_MS = 230;
 const PLAYBACK_MOVE_ANIMATION_EXTRA_HOP_MS = 30;
 const MAX_PLAYBACK_MOVE_ANIMATION_MS = 360;
+const BOARD_DRAG_THRESHOLD_PX = 6;
+const BOARD_DRAG_CLICK_SUPPRESS_MS = 300;
+
+type ApplyChosenMoveOptions = {
+  animateLocalTravel?: boolean;
+};
 
 export class GameController {
   private svg: SVGSVGElement;
@@ -99,6 +107,22 @@ export class GameController {
   private lockedCaptureFrom: string | null = null;
   private lockedCaptureDir: { dr: number; dc: number } | null = null;
   private jumpedSquares: Set<string> = new Set();
+  private activeBoardPointerId: number | null = null;
+  private dragSourceNodeId: string | null = null;
+  private dragStartClientX: number = 0;
+  private dragStartClientY: number = 0;
+  private dragHasMoved: boolean = false;
+  private dragPreviewGroup: SVGGElement | null = null;
+  private dragHiddenSourceGroup: SVGGElement | null = null;
+  private boardTextSelectionRestore:
+    | {
+        bodyUserSelect: string;
+        bodyWebkitUserSelect: string;
+        docUserSelect: string;
+        docWebkitUserSelect: string;
+      }
+    | null = null;
+  private suppressBoardClickUntilMs: number = 0;
   private isGameOver: boolean = false;
   private moveHintsEnabled: boolean = false;
   private animationsEnabled: boolean = true;
@@ -148,6 +172,7 @@ export class GameController {
   private static readonly ONLINE_RECONNECT_TOAST_DELAY_MS = 1200;
   private lastToastToMove: GameState["toMove"] | null = null;
   private lastCheckToastSig: string | null = null;
+  private lastCheckmateBadgeSignature: string | null = null;
   private toastTimer: number | null = null;
   private toastEl: HTMLDivElement | null = null;
 
@@ -201,6 +226,28 @@ export class GameController {
   private isChessLikeRulesetId(rulesetId: string | null | undefined): boolean {
     const r = rulesetId ?? "lasca";
     return r === "columns_chess" || r === "chess";
+  }
+
+  private getCheckmateBadgeState(): { nodeId: string; losingColor: "W" | "B"; signature: string } | null {
+    if (!this.isChessLikeRuleset()) return null;
+
+    const terminal = checkCurrentPlayerLost(this.state);
+    if (!terminal || !this.isCheckmateMessage(terminal.reason)) return null;
+
+    const losingColor: "W" | "B" = terminal.winner === "W" ? "B" : "W";
+    for (const [nodeId, stack] of this.state.board.entries()) {
+      if (!Array.isArray(stack) || stack.length === 0) continue;
+      const top = stack[stack.length - 1];
+      if (top?.owner === losingColor && top?.rank === "K") {
+        return {
+          nodeId,
+          losingColor,
+          signature: `${hashGameState(this.state)}:${losingColor}:${nodeId}`,
+        };
+      }
+    }
+
+    return null;
   }
 
   isAnalysisMode(): boolean {
@@ -1385,6 +1432,8 @@ export class GameController {
           transition: opacity 140ms ease, transform 140ms ease;
           cursor: pointer;
           pointer-events: auto;
+          user-select: none;
+          -webkit-user-select: none;
         }
         .lascaToastWrap.isVisible { display: flex; }
         .lascaToastWrap.isVisible .lascaToast {
@@ -1999,6 +2048,34 @@ export class GameController {
       // ignore
     }
 
+    try {
+      const badgeState = this.getCheckmateBadgeState();
+      if (!badgeState) {
+        clearCheckmateBadge(this.overlayLayer);
+        this.lastCheckmateBadgeSignature = null;
+      } else {
+        const shouldAnimate = this.animationsEnabled && badgeState.signature !== this.lastCheckmateBadgeSignature;
+        const existingBadge = this.svg.querySelector(".checkmateBadge") as SVGGElement | null;
+        const existingNode = existingBadge?.getAttribute("data-node");
+        const existingColor = existingBadge?.getAttribute("data-losing-color");
+        const alreadyShowingSameBadge =
+          !shouldAnimate &&
+          existingBadge !== null &&
+          existingNode === badgeState.nodeId &&
+          existingColor === badgeState.losingColor;
+
+        if (!alreadyShowingSameBadge) {
+          drawCheckmateBadge(this.overlayLayer, badgeState.nodeId, badgeState.losingColor, {
+            animate: shouldAnimate,
+          });
+        }
+        this.lastCheckmateBadgeSignature = badgeState.signature;
+      }
+    } catch {
+      clearCheckmateBadge(this.overlayLayer);
+      this.lastCheckmateBadgeSignature = null;
+    }
+
     // 2) previews (currently none; kept for move/stack preview rendering)
     // 3) keep preview layers on top (board coords / other layers might be appended later)
     const countsLayer = ensureStackCountsLayer(this.svg);
@@ -2114,6 +2191,10 @@ export class GameController {
   }
 
   bind(): void {
+    this.svg.addEventListener("pointerdown", (ev) => this.onPointerDown(ev));
+    this.svg.addEventListener("pointermove", (ev) => this.onPointerMove(ev));
+    this.svg.addEventListener("pointerup", (ev) => void this.onPointerUp(ev));
+    this.svg.addEventListener("pointercancel", () => this.cancelPointerInteraction());
     this.svg.addEventListener("click", (ev) => this.onClick(ev));
 
     // In online mode, the RemoteDriver may have already applied a server snapshot
@@ -2460,7 +2541,7 @@ export class GameController {
     };
     if (!legal.some((m) => same(m, move))) return;
 
-    await this.applyChosenMove(move);
+    await this.applyChosenMove(move, { animateLocalTravel: false });
   }
 
   undo(): void {
@@ -4244,7 +4325,7 @@ export class GameController {
         if (id) return id;
       }
       // Else if clicking a circle node
-      if (target instanceof SVGCircleElement) {
+      if (target instanceof Element && target.tagName.toLowerCase() === "circle") {
         const id = target.getAttribute("id");
         if (id) return id;
       }
@@ -4252,34 +4333,130 @@ export class GameController {
     return null;
   }
 
-  private svgPointFromClient(ev: MouseEvent): { x: number; y: number } {
+  private svgPointFromClientCoords(clientX: number, clientY: number): { x: number; y: number } {
     const pt = (this.svg as any).createSVGPoint ? (this.svg as any).createSVGPoint() : null;
     if (pt && this.svg.getScreenCTM) {
-      pt.x = ev.clientX;
-      pt.y = ev.clientY;
+      pt.x = clientX;
+      pt.y = clientY;
       const m = this.svg.getScreenCTM();
       if (m && (m as any).inverse) {
         const p = pt.matrixTransform((m as any).inverse());
         return { x: p.x, y: p.y };
       }
     }
-    // Fallback: approximate using bounding rect
     const rect = this.svg.getBoundingClientRect();
-    return { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
+    return { x: clientX - rect.left, y: clientY - rect.top };
   }
 
-  private hitTestTargets(ev: MouseEvent): string | null {
-    if (!this.selected || this.currentTargets.length === 0) return null;
-    const { x, y } = this.svgPointFromClient(ev);
-    for (const id of this.currentTargets) {
-      const circle = document.getElementById(id) as SVGCircleElement | null;
-      if (!circle) continue;
+  private svgPointFromClient(ev: MouseEvent): { x: number; y: number } {
+    return this.svgPointFromClientCoords(ev.clientX, ev.clientY);
+  }
+
+  private getSquareRectForNode(nodeId: string): { x: number; y: number; w: number; h: number } | null {
+    const rc = parseNodeId(nodeId);
+    if (!rc) return null;
+
+    const squares = this.svg.querySelector("#squares") as SVGGElement | null;
+    if (!squares) return null;
+
+    const rects = Array.from(squares.querySelectorAll("rect")) as SVGRectElement[];
+    if (rects.length === 0) return null;
+
+    const first = rects[0];
+    const w = Number.parseFloat(first.getAttribute("width") ?? "0");
+    const h = Number.parseFloat(first.getAttribute("height") ?? "0");
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return null;
+
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    for (const rect of rects) {
+      const x = Number.parseFloat(rect.getAttribute("x") ?? "NaN");
+      const y = Number.parseFloat(rect.getAttribute("y") ?? "NaN");
+      if (Number.isFinite(x)) minX = Math.min(minX, x);
+      if (Number.isFinite(y)) minY = Math.min(minY, y);
+    }
+    if (!Number.isFinite(minX) || !Number.isFinite(minY)) return null;
+
+    return { x: minX + rc.c * w, y: minY + rc.r * h, w, h };
+  }
+
+  private getNodeHitMetricsAtClientPoint(
+    nodeId: string,
+    clientX: number,
+    clientY: number,
+  ): { distance: number; radius: number; centerDistance: number; insideSquare: boolean } | null {
+    const circle = document.getElementById(nodeId) as SVGCircleElement | null;
+    const squareRect = this.getSquareRectForNode(nodeId);
+    if (!circle && !squareRect) return null;
+
+    const { x, y } = this.svgPointFromClientCoords(clientX, clientY);
+
+    if (squareRect) {
+      const cx = squareRect.x + squareRect.w / 2;
+      const cy = squareRect.y + squareRect.h / 2;
+      const insideSquare =
+        x >= squareRect.x &&
+        x <= squareRect.x + squareRect.w &&
+        y >= squareRect.y &&
+        y <= squareRect.y + squareRect.h;
+      if (insideSquare) {
+        return {
+          distance: 0,
+          radius: Math.min(squareRect.w, squareRect.h) / 2,
+          centerDistance: Math.hypot(x - cx, y - cy),
+          insideSquare: true,
+        };
+      }
+    }
+
+    if (!circle) return null;
+
+    const cx0 = parseFloat(circle.getAttribute("cx") || "0");
+    const cy0 = parseFloat(circle.getAttribute("cy") || "0");
+    const r = parseFloat(circle.getAttribute("r") || "0");
+
+    let cx = cx0;
+    let cy = cy0;
+    try {
+      const m = circle.getCTM();
+      const pt = (this.svg as any).createSVGPoint ? (this.svg as any).createSVGPoint() : null;
+      if (m && pt) {
+        pt.x = cx0;
+        pt.y = cy0;
+        const p = pt.matrixTransform(m);
+        cx = p.x;
+        cy = p.y;
+      }
+    } catch {
+      // ignore and use raw attrs
+    }
+
+    return {
+      distance: Math.hypot(x - cx, y - cy),
+      radius: r,
+      centerDistance: Math.hypot(x - cx, y - cy),
+      insideSquare: false,
+    };
+  }
+
+  private resolveNodeAtClientPoint(clientX: number, clientY: number): string | null {
+    const targetAtPoint = this.resolveCurrentTargetAtClientPoint(clientX, clientY);
+    if (targetAtPoint) return targetAtPoint;
+
+    const pointTarget = typeof document.elementFromPoint === "function"
+      ? document.elementFromPoint(clientX, clientY)
+      : null;
+    const pointResolved = this.resolveClickedNode(pointTarget);
+    if (pointResolved) return pointResolved;
+
+    const { x, y } = this.svgPointFromClientCoords(clientX, clientY);
+    const circles = Array.from(this.svg.querySelectorAll("circle[id]")) as SVGCircleElement[];
+    for (const circle of circles) {
+      const id = circle.getAttribute("id");
+      if (!id || !/^r\d+c\d+$/.test(id)) continue;
       const cx0 = parseFloat(circle.getAttribute("cx") || "0");
       const cy0 = parseFloat(circle.getAttribute("cy") || "0");
       const r = parseFloat(circle.getAttribute("r") || "0");
-
-      // If the board (or a parent group) is transformed (e.g., flipped), convert the
-      // node's local center into root SVG coordinates before distance testing.
       let cx = cx0;
       let cy = cy0;
       try {
@@ -4293,15 +4470,76 @@ export class GameController {
           cy = p.y;
         }
       } catch {
-        // ignore and fall back to raw attrs
+        // ignore and use raw attrs
       }
-
-      const dx = x - cx;
-      const dy = y - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist <= r + 12) return id; // within target ring radius
+      if (Math.hypot(x - cx, y - cy) <= r + 12) return id;
     }
     return null;
+  }
+
+  private resolveCurrentTargetAtClientPoint(clientX: number, clientY: number): string | null {
+    if (!this.selected || this.currentTargets.length === 0) return null;
+    let bestId: string | null = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (const id of this.currentTargets) {
+      const metrics = this.getNodeHitMetricsAtClientPoint(id, clientX, clientY);
+      if (!metrics) continue;
+      if (!metrics.insideSquare && metrics.distance > metrics.radius + 24) continue;
+      const score = metrics.insideSquare ? metrics.centerDistance : metrics.distance;
+      if (score < bestDistance) {
+        bestDistance = score;
+        bestId = id;
+      }
+    }
+    return bestId;
+  }
+
+  private hitTestTargets(ev: MouseEvent): string | null {
+    if (!this.selected || this.currentTargets.length === 0) return null;
+    let bestId: string | null = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (const id of this.currentTargets) {
+      const metrics = this.getNodeHitMetricsAtClientPoint(id, ev.clientX, ev.clientY);
+      if (!metrics) continue;
+      if (!metrics.insideSquare && metrics.distance > metrics.radius + 12) continue;
+      const score = metrics.insideSquare ? metrics.centerDistance : metrics.distance;
+      if (score < bestDistance) {
+        bestDistance = score;
+        bestId = id;
+      }
+    }
+    return bestId;
+  }
+
+  private resolveMoveFromDropNode(sourceNodeId: string, nodeId: string, clientX: number, clientY: number): Move | null {
+    const directMove = this.currentMoves.find((candidate) => candidate.from === sourceNodeId && candidate.to === nodeId);
+    if (directMove) return directMove;
+
+    const captureCandidates = this.currentMoves.filter(
+      (candidate): candidate is Extract<Move, { kind: "capture" }> =>
+        candidate.from === sourceNodeId && candidate.kind === "capture" && candidate.over === nodeId,
+    );
+    if (captureCandidates.length === 0) return null;
+    if (captureCandidates.length === 1) return captureCandidates[0];
+
+    let bestMove: Extract<Move, { kind: "capture" }> | null = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (const candidate of captureCandidates) {
+      const metrics = this.getNodeHitMetricsAtClientPoint(candidate.to, clientX, clientY);
+      if (!metrics) continue;
+      if (metrics.distance < bestDistance) {
+        bestDistance = metrics.distance;
+        bestMove = candidate;
+      }
+    }
+
+    return bestMove ?? captureCandidates[0];
+  }
+
+  private resolveMoveAtClientPoint(sourceNodeId: string, clientX: number, clientY: number): Move | null {
+    const nodeId = this.resolveNodeAtClientPoint(clientX, clientY);
+    if (!nodeId) return null;
+    return this.resolveMoveFromDropNode(sourceNodeId, nodeId, clientX, clientY);
   }
 
   private isOwnStack(nodeId: string): boolean {
@@ -4311,6 +4549,220 @@ export class GameController {
     if (this.analysisMode) return true;
     const top = stack[stack.length - 1];
     return top.owner === this.state.toMove;
+  }
+
+  private canProcessBoardInput(): boolean {
+    if (this.isGameOver) return false;
+    if (!this.inputEnabled) return false;
+
+    if (this.driver.mode === "online") {
+      try {
+        const remote = this.driver as OnlineGameDriver & { controlsColor?: (color: Player) => boolean };
+        const selfId = remote.getPlayerId();
+        const localColor = remote.getPlayerColor();
+        const opponentColor = localColor === "W" ? "B" : localColor === "B" ? "W" : null;
+        if (!(opponentColor && typeof remote.controlsColor === "function" && remote.controlsColor(opponentColor))) {
+          const presence = remote.getPresence();
+          if (presence && selfId && selfId !== "spectator") {
+            const opponentId = Object.keys(presence).find((pid) => pid !== selfId) ?? null;
+            const opp = opponentId ? (presence as any)[opponentId] : null;
+            if (opp && opp.connected === false) {
+              this.clearSelection();
+
+              const identity = remote.getIdentity();
+              const opponentNameRaw = opponentId ? identity?.[opponentId]?.displayName : null;
+              const opponentName = typeof opponentNameRaw === "string" ? opponentNameRaw.trim() : "";
+              const who = opponentName ? `Opponent (${opponentName})` : "Opponent";
+
+              const now = Date.now();
+              if (now - this.lastOpponentDisconnectedBlockToastAt > 1500) {
+                this.lastOpponentDisconnectedBlockToastAt = now;
+                this.showToast(
+                  `${who} disconnected — waiting for reconnect (click the opponent status icon for details)`,
+                  2200
+                );
+              }
+              return false;
+            }
+          }
+        }
+      } catch {
+        // ignore presence failures and continue
+      }
+    }
+
+    if (!this.analysisMode && !this.isLocalPlayersTurn()) {
+      this.clearSelection();
+      return false;
+    }
+
+    return true;
+  }
+
+  private selectNodeForInteraction(nodeId: string): void {
+    if (this.analysisMode) {
+      const stack = this.state.board.get(nodeId);
+      const top = stack?.[stack.length - 1];
+      if (top && top.owner !== this.state.toMove) {
+        this.assignControllerState({ ...this.state, toMove: top.owner });
+        this.updatePanel();
+      }
+    }
+    this.selected = nodeId;
+    this.playSfx("select");
+    this.showSelection(nodeId);
+  }
+
+  private clearDragPreview(): void {
+    if (this.dragHiddenSourceGroup) {
+      this.dragHiddenSourceGroup.style.visibility = "";
+      this.dragHiddenSourceGroup = null;
+    }
+    this.dragPreviewGroup = null;
+    clearPreviewLayer(this.previewLayer);
+  }
+
+  private setBoardTextSelectionSuppressed(suppressed: boolean): void {
+    if (typeof document === "undefined") return;
+
+    const body = document.body;
+    const root = document.documentElement;
+    if (!body || !root) return;
+
+    if (suppressed) {
+      if (!this.boardTextSelectionRestore) {
+        this.boardTextSelectionRestore = {
+          bodyUserSelect: body.style.userSelect,
+          bodyWebkitUserSelect: (body.style as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect ?? "",
+          docUserSelect: root.style.userSelect,
+          docWebkitUserSelect: (root.style as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect ?? "",
+        };
+      }
+      body.style.userSelect = "none";
+      root.style.userSelect = "none";
+      (body.style as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect = "none";
+      (root.style as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect = "none";
+      try {
+        document.getSelection()?.removeAllRanges();
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    if (!this.boardTextSelectionRestore) return;
+    body.style.userSelect = this.boardTextSelectionRestore.bodyUserSelect;
+    root.style.userSelect = this.boardTextSelectionRestore.docUserSelect;
+    (body.style as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect =
+      this.boardTextSelectionRestore.bodyWebkitUserSelect;
+    (root.style as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect =
+      this.boardTextSelectionRestore.docWebkitUserSelect;
+    this.boardTextSelectionRestore = null;
+  }
+
+  private ensureDragPreview(): void {
+    if (!this.dragSourceNodeId || this.dragPreviewGroup) return;
+    const sourceGroup = this.piecesLayer.querySelector(`g.stack[data-node="${this.dragSourceNodeId}"]`) as SVGGElement | null;
+    if (!sourceGroup) return;
+
+    const preview = sourceGroup.cloneNode(true) as SVGGElement;
+    preview.setAttribute("class", `${preview.getAttribute("class") ?? "stack"} dragPreviewStack`.trim());
+    preview.setAttribute("data-preview", "dragging");
+    preview.style.pointerEvents = "none";
+    preview.style.opacity = "0.96";
+    this.previewLayer.appendChild(preview);
+    sourceGroup.style.visibility = "hidden";
+    this.dragHiddenSourceGroup = sourceGroup;
+    this.dragPreviewGroup = preview;
+  }
+
+  private updateDragPreview(clientX: number, clientY: number): void {
+    if (!this.dragSourceNodeId) return;
+    this.ensureDragPreview();
+    if (!this.dragPreviewGroup) return;
+    const dx = clientX - this.dragStartClientX;
+    const dy = clientY - this.dragStartClientY;
+    this.dragPreviewGroup.setAttribute("transform", `translate(${dx} ${dy})`);
+  }
+
+  private cancelPointerInteraction(): void {
+    this.activeBoardPointerId = null;
+    this.dragSourceNodeId = null;
+    this.dragHasMoved = false;
+    this.clearDragPreview();
+    this.setBoardTextSelectionSuppressed(false);
+  }
+
+  private onPointerDown(ev: PointerEvent): void {
+    if (ev.button !== 0) return;
+    if (this.analysisMode && ev.pointerType === "touch") return;
+    if (!this.canProcessBoardInput()) return;
+
+    const nodeId = this.resolveClickedNode(ev.target);
+    if (!nodeId) return;
+
+    if (this.lockedCaptureFrom && nodeId !== this.lockedCaptureFrom) return;
+    if (!this.isOwnStack(nodeId)) return;
+
+    this.selectNodeForInteraction(nodeId);
+    this.suppressBoardClickUntilMs = Date.now() + BOARD_DRAG_CLICK_SUPPRESS_MS;
+    this.activeBoardPointerId = ev.pointerId;
+    this.dragSourceNodeId = nodeId;
+    this.dragStartClientX = ev.clientX;
+    this.dragStartClientY = ev.clientY;
+    this.dragHasMoved = false;
+    this.setBoardTextSelectionSuppressed(true);
+
+    try {
+      this.svg.setPointerCapture(ev.pointerId);
+    } catch {
+      // ignore
+    }
+  }
+
+  private onPointerMove(ev: PointerEvent): void {
+    if (this.activeBoardPointerId === null || ev.pointerId !== this.activeBoardPointerId) return;
+    if (!this.dragSourceNodeId) return;
+
+    if (!this.dragHasMoved) {
+      const distance = Math.hypot(ev.clientX - this.dragStartClientX, ev.clientY - this.dragStartClientY);
+      if (distance < BOARD_DRAG_THRESHOLD_PX) return;
+      this.dragHasMoved = true;
+    }
+
+    this.updateDragPreview(ev.clientX, ev.clientY);
+    ev.preventDefault();
+  }
+
+  private async onPointerUp(ev: PointerEvent): Promise<void> {
+    if (this.activeBoardPointerId === null || ev.pointerId !== this.activeBoardPointerId) return;
+
+    const sourceNodeId = this.dragSourceNodeId;
+    const dragWasMoved = this.dragHasMoved;
+    this.cancelPointerInteraction();
+    try {
+      this.svg.releasePointerCapture(ev.pointerId);
+    } catch {
+      // ignore
+    }
+
+    if (!sourceNodeId || !dragWasMoved) return;
+
+    this.suppressBoardClickUntilMs = Date.now() + BOARD_DRAG_CLICK_SUPPRESS_MS;
+    ev.preventDefault();
+
+    if (!this.selected || this.selected !== sourceNodeId) {
+      if (this.selected === sourceNodeId) this.showSelection(sourceNodeId);
+      return;
+    }
+
+    const move = this.resolveMoveAtClientPoint(sourceNodeId, ev.clientX, ev.clientY);
+    if (!move) {
+      this.showSelection(sourceNodeId);
+      return;
+    }
+
+    await this.applyChosenMove(move, { animateLocalTravel: false });
   }
 
   private recomputeRepetitionCounts(): void {
@@ -4591,7 +5043,7 @@ export class GameController {
     this.lockedCaptureDir = null;
     this.jumpedSquares.clear();
     clearOverlays(this.overlayLayer);
-    clearPreviewLayer(this.previewLayer);
+    this.clearDragPreview();
     this.updatePanel();
     this.refreshSelectableCursors();
   }
@@ -4678,7 +5130,7 @@ export class GameController {
     return { stackG: g, extras: ghostCount ? [spineG, ghostCount] : [spineG] };
   }
 
-  private async applyChosenMove(move: Move): Promise<void> {
+  private async applyChosenMove(move: Move, opts: ApplyChosenMoveOptions = {}): Promise<void> {
     // Note: repetition is handled as draw by the rules (3× claimable, 5× automatic),
     // so we do not prohibit repeating moves client-side.
 
@@ -4757,7 +5209,7 @@ export class GameController {
     this.assignControllerState(next);
     
     // Animate the move before rendering (both quiet moves and captures)
-    if (this.animationsEnabled) {
+    if (this.animationsEnabled && opts.animateLocalTravel !== false) {
       const animations: Array<Promise<void>> = [];
 
       const movingGroup = this.piecesLayer.querySelector(`g.stack[data-node="${move.from}"]`) as SVGGElement | null;
@@ -5198,6 +5650,8 @@ export class GameController {
   }
 
   private async onClick(ev: MouseEvent): Promise<void> {
+    if (Date.now() < this.suppressBoardClickUntilMs) return;
+
     // Any click on the board clears the last-move square highlights.
     // (They will re-appear after the next completed move.)
     if (this.lastMoveHighlightsEnabled) {
@@ -5213,61 +5667,7 @@ export class GameController {
       }
     }
 
-    // Ignore clicks if game is over
-    if (this.isGameOver) {
-      return;
-    }
-
-    // Ignore human input when AI has locked input
-    if (!this.inputEnabled) {
-      return;
-    }
-
-    // Online UX: freeze play while opponent is disconnected (until reconnect or disconnect-forfeit).
-    if (this.driver.mode === "online") {
-      try {
-        const remote = this.driver as OnlineGameDriver & { controlsColor?: (color: Player) => boolean };
-        const selfId = remote.getPlayerId();
-        const localColor = remote.getPlayerColor();
-        const opponentColor = localColor === "W" ? "B" : localColor === "B" ? "W" : null;
-        if (opponentColor && typeof remote.controlsColor === "function" && remote.controlsColor(opponentColor)) {
-          // Local bot seats should never freeze the local player's input due to remote presence.
-        } else {
-        const presence = remote.getPresence();
-        if (presence && selfId && selfId !== "spectator") {
-          const opponentId = Object.keys(presence).find((pid) => pid !== selfId) ?? null;
-          const opp = opponentId ? (presence as any)[opponentId] : null;
-          if (opp && opp.connected === false) {
-            this.clearSelection();
-
-            const identity = remote.getIdentity();
-            const opponentNameRaw = opponentId ? identity?.[opponentId]?.displayName : null;
-            const opponentName = typeof opponentNameRaw === "string" ? opponentNameRaw.trim() : "";
-            const who = opponentName ? `Opponent (${opponentName})` : "Opponent";
-
-            const now = Date.now();
-            if (now - this.lastOpponentDisconnectedBlockToastAt > 1500) {
-              this.lastOpponentDisconnectedBlockToastAt = now;
-              this.showToast(
-                `${who} disconnected — waiting for reconnect (click the opponent status icon for details)`,
-                2200
-              );
-            }
-            return;
-          }
-        }
-        }
-      } catch {
-        // If presence isn't available, don't block input.
-      }
-    }
-
-    // In online mode, ignore input when it's not your turn.
-    // Analysis mode is a local sandbox — always allow input regardless of turn or online state.
-    if (!this.analysisMode && !this.isLocalPlayersTurn()) {
-      this.clearSelection();
-      return;
-    }
+    if (!this.canProcessBoardInput()) return;
 
     let nodeId = this.resolveClickedNode(ev.target);
     if (import.meta.env && import.meta.env.DEV) {
@@ -5283,16 +5683,18 @@ export class GameController {
       return;
     }
 
-    if (this.selected && this.currentTargets.includes(nodeId)) {
-      const move = this.currentMoves.find(m => m.to === nodeId && m.from === this.selected);
-      if (!move) {
+    if (this.selected) {
+      const move = this.resolveMoveFromDropNode(this.selected, nodeId, ev.clientX, ev.clientY);
+      if (move) {
+        await this.applyChosenMove(move, { animateLocalTravel: true });
+        return;
+      }
+
+      if (this.currentTargets.includes(nodeId)) {
         this.clearSelection();
         return;
       }
-      
-      
-      await this.applyChosenMove(move);
-      return;
+
     }
 
     // If we're in a capture chain, only allow clicking the locked piece or its targets
@@ -5311,19 +5713,7 @@ export class GameController {
     // In analysis mode any piece is selectable; if the chosen piece belongs to the
     // non-active side, flip toMove so legal-move generation and applyMove work correctly.
     if (this.isOwnStack(nodeId)) {
-      if (this.analysisMode) {
-        const stack = this.state.board.get(nodeId);
-        const top = stack?.[stack.length - 1];
-        if (top && top.owner !== this.state.toMove) {
-          // Quietly switch the active side so the whole move (selection → apply) is
-          // consistent without touching the sandboxed analysis history.
-          this.assignControllerState({ ...this.state, toMove: top.owner });
-          this.updatePanel();
-        }
-      }
-      this.selected = nodeId;
-      this.playSfx("select");
-      this.showSelection(nodeId);
+      this.selectNodeForInteraction(nodeId);
     } else {
       this.clearSelection();
     }
