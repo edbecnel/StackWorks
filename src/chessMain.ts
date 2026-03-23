@@ -22,6 +22,7 @@ import {
   getPairedCheckerboardTheme,
   getShellThemeValueFromStoredTheme,
   getStoredThemeIdFromShellThemeValue,
+  NEO_STONE_CHESS_PRESET_ID,
   WOODY_CHESS_PRESET_ID,
 } from "./theme/themePresets";
 import {
@@ -802,20 +803,26 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     if (themeSelect) {
       themeSelect.value =
+        initialShellThemeValue === NEO_STONE_CHESS_PRESET_ID
+          ? NEO_STONE_CHESS_PRESET_ID
+          : (
         initialShellThemeValue === "neo"
           ? "neo"
           : (initialShellThemeValue === "candy"
             ? "candy"
-            : (initialShellThemeValue === WOODY_CHESS_PRESET_ID ? WOODY_CHESS_PRESET_ID : (initialShellThemeValue === "raster2d" ? "2d" : "3d")));
+            : (initialShellThemeValue === WOODY_CHESS_PRESET_ID ? WOODY_CHESS_PRESET_ID : (initialShellThemeValue === "raster2d" ? "2d" : "3d"))));
       themeSelect.disabled = false;
 
       themeSelect.addEventListener("change", async () => {
         const shellThemeValue =
+          themeSelect.value === NEO_STONE_CHESS_PRESET_ID
+            ? NEO_STONE_CHESS_PRESET_ID
+            : (
           themeSelect.value === "neo"
             ? "neo"
             : (themeSelect.value === "candy"
               ? "candy"
-              : (themeSelect.value === WOODY_CHESS_PRESET_ID ? WOODY_CHESS_PRESET_ID : (themeSelect.value === "2d" ? "raster2d" : "raster3d")));
+              : (themeSelect.value === WOODY_CHESS_PRESET_ID ? WOODY_CHESS_PRESET_ID : (themeSelect.value === "2d" ? "raster2d" : "raster3d"))));
         const picked = getStoredThemeIdFromShellThemeValue(shellThemeValue);
         await themeManager.setTheme(picked);
         syncPairedTheme(shellThemeValue);

@@ -11,6 +11,7 @@ import {
   getPairedCheckerboardTheme,
   getShellThemeValueFromStoredTheme,
   getStoredThemeIdFromShellThemeValue,
+  NEO_STONE_CHESS_PRESET_ID,
   normalizeClassicShellThemeValue,
   normalizeColumnsShellThemeValue,
   WOODY_CHESS_PRESET_ID,
@@ -2289,6 +2290,11 @@ window.addEventListener("DOMContentLoaded", () => {
     optNeo.value = "neo";
     optNeo.textContent = "Neo";
     elTheme.appendChild(optNeo);
+
+    const optNeoStone = document.createElement("option");
+    optNeoStone.value = NEO_STONE_CHESS_PRESET_ID;
+    optNeoStone.textContent = "Neo Stone";
+    elTheme.appendChild(optNeoStone);
 
     const optCandy = document.createElement("option");
     optCandy.value = "candy";
