@@ -9,6 +9,8 @@ function ensureBoardCoordsLayer(svg: SVGSVGElement): SVGGElement {
   const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
   g.id = "boardCoords";
   g.setAttribute("pointer-events", "none");
+  g.style.userSelect = "none";
+  (g.style as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect = "none";
 
   const pieces = svg.querySelector("#pieces") as SVGGElement | null;
   if (pieces && pieces.parentNode) {
@@ -18,6 +20,11 @@ function ensureBoardCoordsLayer(svg: SVGSVGElement): SVGGElement {
   }
 
   return g;
+}
+
+function applyTextSelectionLock(node: SVGTextElement): void {
+  node.style.userSelect = "none";
+  (node.style as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect = "none";
 }
 
 function readCircle(svg: SVGSVGElement, id: string): { cx: number; cy: number } | null {
@@ -130,6 +137,7 @@ function renderBoardCoordsInSquares(layer: SVGGElement, svg: SVGSVGElement, boar
     const yOffset = opts?.yOffset ?? 0;
     const t = document.createElementNS(SVG_NS, "text") as SVGTextElement;
     t.textContent = text;
+    applyTextSelectionLock(t);
     t.setAttribute("font-size", String(fontSize));
     t.setAttribute("font-weight", "650");
     t.setAttribute("fill", fill);
@@ -269,6 +277,7 @@ export function renderBoardCoords(
 
     const t = document.createElementNS(SVG_NS, "text") as SVGTextElement;
     t.textContent = String.fromCharCode("A".charCodeAt(0) + col);
+    applyTextSelectionLock(t);
     t.setAttribute("x", String(x));
     t.setAttribute("y", String(colLabelY));
     t.setAttribute("text-anchor", "middle");
@@ -291,6 +300,7 @@ export function renderBoardCoords(
 
     const t = document.createElementNS(SVG_NS, "text") as SVGTextElement;
     t.textContent = String(boardSize - row);
+    applyTextSelectionLock(t);
     t.setAttribute("x", String(rowLabelX));
     t.setAttribute("y", String(y));
     t.setAttribute("text-anchor", "middle");

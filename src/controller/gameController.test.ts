@@ -988,6 +988,36 @@ describe("GameController board interaction", () => {
     expect(document.documentElement.style.userSelect).toBe("text");
   });
 
+  it("prevents native mouse text selection anywhere on the board surface", () => {
+    const { svg, piecesLayer } = createBoardFixture();
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "B", rank: "S" }]],
+        ["r3c3", [{ owner: "W", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+    history.push(state);
+
+    const coord = document.createElementNS(SVG_NS, "text") as SVGTextElement;
+    coord.textContent = "A";
+    svg.appendChild(coord);
+
+    const controller = new GameController(svg, piecesLayer, null, state, history);
+    controller.bind();
+
+    const mousedown = new MouseEvent("mousedown", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+    });
+    coord.dispatchEvent(mousedown);
+
+    expect(mousedown.defaultPrevented).toBe(true);
+  });
+
   it("requests no local travel animation for drag-drop moves", async () => {
     const { svg, piecesLayer } = createBoardFixture();
     const history = new HistoryManager();

@@ -166,4 +166,14 @@ describe("renderBoardCoords (inSquare)", () => {
     expect(Number(inSquareTen.getAttribute("x"))).toBeGreaterThanOrEqual(100);
     expect(Number(inSquareTen.getAttribute("y"))).toBeGreaterThanOrEqual(100);
   });
+
+  it("marks coordinate labels as non-selectable", () => {
+    const svg = makeSvg8x8();
+
+    renderBoardCoords(svg, true, 8, { style: "inSquare" });
+
+    const a = findText(svg, "a");
+    expect(a.style.userSelect).toBe("none");
+    expect((a.style as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect).toBe("none");
+  });
 });

@@ -2191,6 +2191,11 @@ export class GameController {
   }
 
   bind(): void {
+    this.svg.style.userSelect = "none";
+    (this.svg.style as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect = "none";
+    this.svg.addEventListener("mousedown", (ev) => {
+      if (ev.button === 0) ev.preventDefault();
+    });
     this.svg.addEventListener("pointerdown", (ev) => this.onPointerDown(ev));
     this.svg.addEventListener("pointermove", (ev) => this.onPointerMove(ev));
     this.svg.addEventListener("pointerup", (ev) => void this.onPointerUp(ev));
