@@ -69,8 +69,8 @@ The shipped product should feel like a simpler, more focused StackWorks, not lik
 - [ ] Board occupies the largest share of the viewport and stays visible without a tall persistent header
 - [ ] A shallow top strip contains only essential context: back/start-page access, active game name or mode, and one compact menu trigger
 - [ ] Opponent identity attaches to the top edge of the board; local player identity attaches to the bottom edge of the board
-- [ ] Piece movement supports direct touch interaction: touching a movable piece reveals its valid destination squares immediately when move highlighting is enabled
-- [ ] Piece movement supports touch drag to a valid destination square so the user can press, drag, and release on the intended target square in one gesture
+- [x] Piece movement supports direct touch interaction: touching a movable piece reveals its valid destination squares immediately when move highlighting is enabled
+- [x] Piece movement supports touch drag to a valid destination square so the user can press, drag, and release on the intended target square in one gesture
 - [ ] Primary game actions live in one compact bottom sheet, drawer, or segmented action area, not in multiple simultaneously visible sidebars
 - [ ] Clocks, turn state, reconnect state, and critical room/game status stay visible without opening extra panels
 - [ ] Move history, rules/help, replay controls, export/share, and advanced settings are secondary surfaces opened on demand
@@ -83,7 +83,7 @@ The shipped product should feel like a simpler, more focused StackWorks, not lik
 - [ ] Right side contains current mode/context plus the most relevant actions for the current state
 - [ ] Only one left panel and one right panel are visible in the final shipped UI; there is no permanent legacy panel pair
 - [ ] History, rules, room status, and advanced controls are grouped into clear sections instead of appearing as scattered independent widgets
-- [ ] Piece interaction supports both click-select-then-target and click-drag-to-target flows without conflicting with move history, replay, or shell controls
+- [x] Piece interaction supports both click-select-then-target and click-drag-to-target flows without conflicting with move history, replay, or shell controls
 
 **Account / profile surfaces**
 
@@ -259,17 +259,21 @@ Use chess.com settings as a structural reference: group options into a small num
 
 ### Board Interaction Model
 
-- [ ] All supported games should support two equivalent move-input patterns for legal moves:
-  - [ ] Select a piece, then select one of its valid target squares
-  - [ ] Select a piece, drag it, and release it on a valid target square
-- [ ] As soon as the user clicks or touches a movable piece, highlight its valid candidate target squares when move highlighting is enabled
-- [ ] Candidate-target highlighting must update from actual legal move generation, not from hardcoded UI assumptions
-- [ ] If move highlighting is disabled in settings, drag/select behavior should still work, but target-square highlight markers should remain hidden
-- [ ] Releasing a dragged piece on an invalid square should cancel cleanly and return the piece to its source square
-- [ ] Releasing a dragged piece on a valid square should commit the move using the same validation path as click-based move input
-- [ ] Drag and selection behavior must work for mouse, touch, and stylus input where supported by the platform
-- [ ] Board interaction rules should stay consistent across Chess, Columns Chess, Dama, Lasca, Damasca, and other supported variants even when their legal-move logic differs
-- [ ] Move-input interaction must not interfere with replay/history playback controls, panel scrolling, or mobile drawer gestures
+- [x] All supported games should support two equivalent move-input patterns for legal moves:
+  - [x] Select a piece, then select one of its valid target squares
+  - [x] Select a piece, drag it, and release it on a valid target square
+- [x] As soon as the user clicks or touches a movable piece, highlight its valid candidate target squares when move highlighting is enabled
+- [x] Candidate-target highlighting must update from actual legal move generation, not from hardcoded UI assumptions
+- [x] If move highlighting is disabled in settings, drag/select behavior should still work, but target-square highlight markers should remain hidden
+- [x] Releasing a dragged piece on an invalid square should cancel cleanly and return the piece to its source square
+- [x] Releasing a dragged piece on a valid square should commit the move using the same validation path as click-based move input
+- [x] Drag and selection behavior must work for mouse, touch, and stylus input where supported by the platform
+- [x] Board interaction rules should stay consistent across Chess, Columns Chess, Dama, Lasca, Damasca, and other supported variants even when their legal-move logic differs
+- [ ] Verify move-input non-interference across adjacent UI surfaces:
+  - [x] Replay/history playback controls remain clickable and do not trigger board moves accidentally
+  - [ ] Side-panel and in-panel scrolling still works normally near the board on desktop and mobile
+  - [ ] Mobile drawer open/close gestures do not conflict with board drag/select gestures
+  - [x] After exercising replay, scrolling, and drawer interactions, normal board move input still works correctly
 
 ### Old UI Feature Triage
 
@@ -508,7 +512,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [x] `gameShell.ts` may reserve a compact mobile portrait header strip, but it must avoid a tall desktop-style header and keep the board as the primary surface
 - [x] `gameShell.ts` must hide its header chrome when the document enters browser fullscreen; the board and existing game UI should use the reclaimed height immediately
 - [x] `gameShell.ts` should prefer paired side-panel modes on desktop so shell navigation/actions live in left/right panels instead of a top header
-- [ ] Board input layer must support click/touch selection, candidate target highlighting when enabled, and drag-to-valid-target movement across supported variants
+- [x] Board input layer must support click/touch selection, candidate target highlighting when enabled, and drag-to-valid-target movement across supported variants
 - [x] Player identity panels are injected above/below the board container by `gameShell.ts`
   - [x] Panel order updates dynamically when the board flips so the player cards stay attached to the correct board edge
   - [x] Player identifiers should show a country flag beside the display name when `PlayerIdentity.countryCode` is available
@@ -746,8 +750,8 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Shell is responsive on both desktop and mobile without covering board content
 - [ ] In portrait mobile layouts, shell navigation does not sit as a persistent tall header above the board
 - [ ] In portrait mobile layouts, the first view is understandable at a glance: one primary action cluster, one visible game context, and no duplicate navigation or settings clutter
-- [ ] On supported game boards, clicking or touching a movable piece reveals valid candidate target squares when move highlighting is enabled
-- [ ] On supported game boards, users can complete legal moves through either select-then-target or drag-to-valid-target interaction
+- [x] On supported game boards, clicking or touching a movable piece reveals valid candidate target squares when move highlighting is enabled
+- [x] On supported game boards, users can complete legal moves through either select-then-target or drag-to-valid-target interaction
 - [ ] In browser fullscreen, the shell header is hidden and does not consume top screen space
 - [ ] On desktop/laptop layouts, the shell uses left/right panel pairs instead of a persistent top game header above the board
 - [ ] The old UI is fully phased out: no user-facing legacy start page, no legacy desktop header layout, and no permanent `Legacy panels` fallback exposed in production
