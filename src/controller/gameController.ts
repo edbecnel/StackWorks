@@ -111,6 +111,8 @@ export class GameController {
   private dragSourceNodeId: string | null = null;
   private dragStartClientX: number = 0;
   private dragStartClientY: number = 0;
+  private dragStartSvgX: number = 0;
+  private dragStartSvgY: number = 0;
   private dragHasMoved: boolean = false;
   private dragPreviewGroup: SVGGElement | null = null;
   private dragHiddenSourceGroup: SVGGElement | null = null;
@@ -4350,6 +4352,26 @@ export class GameController {
       }
     }
     const rect = this.svg.getBoundingClientRect();
+    const viewBoxBase = this.svg.viewBox?.baseVal;
+    const attr = this.svg.getAttribute("viewBox");
+    const parsedViewBox = attr
+      ? attr
+          .trim()
+          .split(/[\s,]+/)
+          .map((value) => Number.parseFloat(value))
+      : null;
+    const viewBox =
+      viewBoxBase && Number.isFinite(viewBoxBase.width) && Number.isFinite(viewBoxBase.height) && viewBoxBase.width > 0 && viewBoxBase.height > 0
+        ? { x: viewBoxBase.x, y: viewBoxBase.y, width: viewBoxBase.width, height: viewBoxBase.height }
+        : parsedViewBox && parsedViewBox.length === 4 && parsedViewBox.every((value) => Number.isFinite(value))
+          ? { x: parsedViewBox[0], y: parsedViewBox[1], width: parsedViewBox[2], height: parsedViewBox[3] }
+          : null;
+    if (viewBox && rect.width > 0 && rect.height > 0) {
+      return {
+        x: viewBox.x + ((clientX - rect.left) * viewBox.width) / rect.width,
+        y: viewBox.y + ((clientY - rect.top) * viewBox.height) / rect.height,
+      };
+    }
     return { x: clientX - rect.left, y: clientY - rect.top };
   }
 
@@ -4685,8 +4707,9 @@ export class GameController {
     if (!this.dragSourceNodeId) return;
     this.ensureDragPreview();
     if (!this.dragPreviewGroup) return;
-    const dx = clientX - this.dragStartClientX;
-    const dy = clientY - this.dragStartClientY;
+    const { x, y } = this.svgPointFromClientCoords(clientX, clientY);
+    const dx = x - this.dragStartSvgX;
+    const dy = y - this.dragStartSvgY;
     this.dragPreviewGroup.setAttribute("transform", `translate(${dx} ${dy})`);
   }
 
@@ -4694,6 +4717,8 @@ export class GameController {
     this.activeBoardPointerId = null;
     this.dragSourceNodeId = null;
     this.dragHasMoved = false;
+    this.dragStartSvgX = 0;
+    this.dragStartSvgY = 0;
     this.clearDragPreview();
     this.setBoardTextSelectionSuppressed(false);
   }
@@ -4715,6 +4740,9 @@ export class GameController {
     this.dragSourceNodeId = nodeId;
     this.dragStartClientX = ev.clientX;
     this.dragStartClientY = ev.clientY;
+    const dragStartPoint = this.svgPointFromClientCoords(ev.clientX, ev.clientY);
+    this.dragStartSvgX = dragStartPoint.x;
+    this.dragStartSvgY = dragStartPoint.y;
     this.dragHasMoved = false;
     this.setBoardTextSelectionSuppressed(true);
 
@@ -4977,7 +5005,7 @@ export class GameController {
   private showSelection(nodeId: string): void {
     clearOverlays(this.overlayLayer);
 
-    const useSquares = this.highlightSquaresEnabled && this.isChessLikeRuleset();
+    const useSquares = this.highlightSquaresEnabled;
     const selectionStyle: SelectionStyle = this.moveHintsEnabled
       ? (this.moveHintStyle === "chesscom" ? "chesscom" : useSquares ? "classic-squares" : "classic")
       : this.selectionStyle;

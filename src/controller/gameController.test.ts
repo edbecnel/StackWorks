@@ -5,14 +5,24 @@ import type { GameState } from "../game/state";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-function createBoardFixture(): { svg: SVGSVGElement; piecesLayer: SVGGElement } {
+function createBoardFixture(opts: { clientWidth?: number; clientHeight?: number } = {}): { svg: SVGSVGElement; piecesLayer: SVGGElement } {
   document.body.innerHTML = "";
+
+  const clientWidth = opts.clientWidth ?? 1000;
+  const clientHeight = opts.clientHeight ?? 1000;
 
   const svg = document.createElementNS(SVG_NS, "svg") as SVGSVGElement;
   svg.setAttribute("viewBox", "0 0 1000 1000");
   (svg as any).setPointerCapture = () => {};
   (svg as any).releasePointerCapture = () => {};
-  (svg as any).getBoundingClientRect = () => ({ left: 0, top: 0, width: 1000, height: 1000, right: 1000, bottom: 1000 });
+  (svg as any).getBoundingClientRect = () => ({
+    left: 0,
+    top: 0,
+    width: clientWidth,
+    height: clientHeight,
+    right: clientWidth,
+    bottom: clientHeight,
+  });
 
   const defs = document.createElementNS(SVG_NS, "defs") as SVGDefsElement;
   for (const id of ["W_K", "B_K"]) {
@@ -957,6 +967,32 @@ describe("GameController board interaction", () => {
     expect(sourceGroup?.style.visibility).toBe("hidden");
   });
 
+  it("keeps the drag preview aligned on scaled boards", () => {
+    const { svg, piecesLayer } = createBoardFixture({ clientWidth: 500, clientHeight: 500 });
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "B", rank: "S" }]],
+        ["r3c3", [{ owner: "W", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+    history.push(state);
+
+    const controller = new GameController(svg, piecesLayer, null, state, history);
+    controller.refreshView();
+
+    const source = svg.querySelector("#r2c2") as SVGCircleElement;
+    (controller as any).onPointerDown(makePointerEvent(source, { pointerId: 7, clientX: 175, clientY: 175 }));
+    (controller as any).onPointerMove(makePointerEvent(source, { pointerId: 7, clientX: 225, clientY: 260 }));
+
+    const preview = svg.querySelector("#previewStacks .dragPreviewStack") as SVGGElement | null;
+
+    expect(preview).not.toBeNull();
+    expect(preview?.getAttribute("transform")).toBe("translate(100 170)");
+  });
+
   it("suppresses document text selection during board drag and restores it after release", async () => {
     const { svg, piecesLayer } = createBoardFixture();
     const history = new HistoryManager();
@@ -1044,6 +1080,33 @@ describe("GameController board interaction", () => {
     expect(applyChosenMove).toHaveBeenCalledTimes(1);
     expect(applyChosenMove.mock.calls[0][0]).toMatchObject({ from: "r2c2", to: "r4c4" });
     expect(applyChosenMove.mock.calls[0][1]).toMatchObject({ animateLocalTravel: false });
+  });
+
+  it("drops on the intended square on scaled boards", async () => {
+    const { svg, piecesLayer } = createBoardFixture({ clientWidth: 500, clientHeight: 500 });
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "B", rank: "S" }]],
+        ["r3c3", [{ owner: "W", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+    history.push(state);
+
+    const controller = new GameController(svg, piecesLayer, null, state, history);
+    const applyChosenMove = vi.spyOn(controller as any, "applyChosenMove").mockResolvedValue(undefined);
+
+    const source = svg.querySelector("#r2c2") as SVGCircleElement;
+    const target = svg.querySelector("#r4c4") as SVGCircleElement;
+
+    (controller as any).onPointerDown(makePointerEvent(source, { pointerId: 8, clientX: 175, clientY: 175 }));
+    (controller as any).onPointerMove(makePointerEvent(source, { pointerId: 8, clientX: 260, clientY: 260 }));
+    await (controller as any).onPointerUp(makePointerEvent(target, { pointerId: 8, clientX: 275, clientY: 275 }));
+
+    expect(applyChosenMove).toHaveBeenCalledTimes(1);
+    expect(applyChosenMove.mock.calls[0][0]).toMatchObject({ from: "r2c2", to: "r4c4" });
   });
 });
 
