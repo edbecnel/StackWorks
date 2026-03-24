@@ -776,6 +776,16 @@ function ensureShellStyles(): void {
         display: none;
       }
 
+      .appShellTitle {
+        display: -webkit-box;
+        white-space: normal;
+        overflow: hidden;
+        text-overflow: clip;
+        line-height: 1.15;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+      }
+
       .appShellHeader {
         grid-template-columns: auto auto minmax(0, 1fr) auto;
         align-items: center;

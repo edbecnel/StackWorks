@@ -207,4 +207,33 @@ describe("initStartPageAppShell", () => {
     shell.setSelectedGame("columns_chess");
     expect(selectedGameOpenPage?.getAttribute("href")).toBe("./columnsChess");
   });
+
+  it("allows the mobile header title to wrap to two lines instead of truncating", () => {
+    installMatchMedia({ desktop: false, compactRail: false });
+
+    document.body.innerHTML = `
+      <main id="pageRoot">
+        <div id="contentRoot">
+          <header>
+            <h1>StackWorks</h1>
+            <p class="subtle">Original subtitle</p>
+          </header>
+        </div>
+        <details id="launchLobbySection" data-start-section="lobby"><summary>Lobby</summary></details>
+        <section data-start-section="game">Game content</section>
+        <section id="launchAccountSection">Account content</section>
+        <section data-start-section="startup">Settings content</section>
+      </main>
+    `;
+
+    initStartPageAppShell({
+      contentRoot: document.getElementById("contentRoot") as HTMLElement,
+      initialVariantId: "draughts_10_international",
+      initialPlayMode: "local",
+    });
+
+    const shellStyle = document.getElementById("stackworks-app-shell-style");
+    expect(shellStyle?.textContent).toContain("-webkit-line-clamp: 2;");
+    expect(shellStyle?.textContent).toContain("white-space: normal;");
+  });
 });
