@@ -40,6 +40,8 @@ function ensureShellStyles(): void {
   style.id = SHELL_STYLE_ID;
   style.textContent = `
     body.stackworksAppShellEnabled {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
       background:
         radial-gradient(circle at top left, rgba(206, 162, 80, 0.18), transparent 26%),
         radial-gradient(circle at bottom right, rgba(92, 128, 186, 0.18), transparent 22%),
@@ -75,6 +77,8 @@ function ensureShellStyles(): void {
     }
 
     .appShellRail {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
       position: fixed;
       top: 0;
       left: 0;

@@ -237,5 +237,6 @@ describe("initStartPageAppShell", () => {
     expect(shellStyle?.textContent).toContain("white-space: normal;");
     expect(shellStyle?.textContent).toContain("font-size: clamp(16px, 3.6vw, 20px);");
     expect(shellStyle?.textContent).toContain("overflow-wrap: anywhere;");
+    expect(shellStyle?.textContent).toContain("-webkit-text-size-adjust: 100%;");
   });
 });
