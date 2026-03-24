@@ -153,10 +153,53 @@ function roomSub(room: LobbyRoomSummary): string {
   return parts.join(" • ");
 }
 
+function getUniqueRoomIds(roomIdsRaw: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const roomIdRaw of roomIdsRaw) {
+    const roomId = (roomIdRaw || "").trim();
+    if (!roomId || seen.has(roomId)) continue;
+    seen.add(roomId);
+    out.push(roomId);
+  }
+  return out;
+}
+
+function summarizeRoomIds(roomIds: readonly string[]): string {
+  if (roomIds.length <= 6) return roomIds.join("\n");
+  const shown = roomIds.slice(0, 6).join("\n");
+  return `${shown}\n+${roomIds.length - 6} more`;
+}
+
+const selectedLobbyRoomIds = new Set<string>();
+
+function syncSelectedLobbyRoomIds(rooms: readonly LobbyRoomSummary[]): void {
+  const available = new Set(rooms.map((room) => String(room.roomId || "").trim()).filter(Boolean));
+  for (const roomId of [...selectedLobbyRoomIds]) {
+    if (!available.has(roomId)) selectedLobbyRoomIds.delete(roomId);
+  }
+}
+
+function updateBulkDeleteButton(): void {
+  const button = document.getElementById("adminDeleteSelectedBtn") as HTMLButtonElement | null;
+  if (!button) return;
+  button.disabled = deleteConfirmBusy || selectedLobbyRoomIds.size === 0;
+}
+
+function removeRoomsFromLobbyState(roomIdsRaw: readonly string[]): void {
+  const roomIds = new Set(getUniqueRoomIds(roomIdsRaw));
+  if (roomIds.size === 0) return;
+
+  lastRooms = lastRooms.filter((room) => !roomIds.has((room.roomId || "").trim()));
+  for (const roomId of roomIds) selectedLobbyRoomIds.delete(roomId);
+  rerenderLobbyFromCache();
+}
+
 function renderLobby(rooms: LobbyRoomSummary[]): void {
   const list = byId<HTMLDivElement>("adminLobbyList");
   list.replaceChildren();
   const serverUrl = getServerUrl();
+  syncSelectedLobbyRoomIds(rooms);
 
   const createdAtMs = (r: LobbyRoomSummary): number => {
     if (typeof r.createdAt !== "string") return 0;
@@ -168,6 +211,21 @@ function renderLobby(rooms: LobbyRoomSummary[]): void {
   for (const room of sorted) {
     const item = document.createElement("div");
     item.className = "lobbyItem";
+
+    const selectWrap = document.createElement("label");
+    selectWrap.className = "lobbyItemSelect";
+
+    const select = document.createElement("input");
+    select.type = "checkbox";
+    select.className = "lobbySelectCheckbox";
+    select.checked = selectedLobbyRoomIds.has(room.roomId);
+    select.setAttribute("aria-label", `Select room ${room.roomId}`);
+    select.addEventListener("change", () => {
+      if (select.checked) selectedLobbyRoomIds.add(room.roomId);
+      else selectedLobbyRoomIds.delete(room.roomId);
+      updateBulkDeleteButton();
+    });
+    selectWrap.appendChild(select);
 
     const left = document.createElement("div");
     left.className = "lobbyItemLeft";
@@ -235,7 +293,7 @@ function renderLobby(rooms: LobbyRoomSummary[]): void {
     };
 
     right.append(copyBtn, delBtn);
-    item.append(left, right);
+    item.append(selectWrap, left, right);
     list.append(item);
   }
 
@@ -245,9 +303,14 @@ function renderLobby(rooms: LobbyRoomSummary[]): void {
     empty.textContent = "No rooms returned.";
     list.append(empty);
   }
+
+  updateBulkDeleteButton();
 }
 
-let pendingDelete: { roomId: string; refreshAfter: boolean; source: "row" | "input" } | null = null;
+type DeleteSource = "row" | "input" | "bulk";
+
+let lastRooms: LobbyRoomSummary[] = [];
+let pendingDelete: { roomIds: string[]; refreshAfter: boolean; source: DeleteSource } | null = null;
 let deleteConfirmBusy = false;
 
 function getDeleteConfirmDialog(): HTMLDialogElement | null {
@@ -259,11 +322,13 @@ function setDeleteConfirmBusy(isBusy: boolean): void {
 
   const yes = document.getElementById("adminDeleteConfirmYes") as HTMLButtonElement | null;
   const no = document.getElementById("adminDeleteConfirmNo") as HTMLButtonElement | null;
+  const isBulk = (pendingDelete?.roomIds.length ?? 0) > 1 || pendingDelete?.source === "bulk";
   if (yes) {
     yes.disabled = isBusy;
-    yes.textContent = isBusy ? "Deleting..." : "Delete room";
+    yes.textContent = isBusy ? "Deleting..." : (isBulk ? "Delete selected" : "Delete room");
   }
   if (no) no.disabled = isBusy;
+  updateBulkDeleteButton();
 }
 
 function setDeleteConfirmError(message: string | null): void {
@@ -296,31 +361,40 @@ function setDeleteConfirmVisible(isVisible: boolean): void {
   }
 }
 
-function requestDeleteRoomConfirm(roomIdRaw: string, opts: { refreshAfter: boolean; source: "row" | "input" }): void {
-  const roomId = (roomIdRaw || "").trim();
-  if (!roomId) {
+function requestDeleteRoomsConfirm(roomIdsRaw: readonly string[], opts: { refreshAfter: boolean; source: DeleteSource }): void {
+  const roomIds = getUniqueRoomIds(roomIdsRaw);
+  if (roomIds.length === 0) {
     setStatus("Enter a Room ID", "error");
     return;
   }
 
   // Put the roomId into the input so the user sees what will be deleted.
   const elRoomId = document.getElementById("adminDeleteRoomId") as HTMLInputElement | null;
-  if (elRoomId) elRoomId.value = roomId;
+  if (elRoomId && roomIds.length === 1 && opts.source !== "bulk") elRoomId.value = roomIds[0];
 
-  pendingDelete = { roomId, refreshAfter: opts.refreshAfter, source: opts.source };
+  pendingDelete = { roomIds, refreshAfter: opts.refreshAfter, source: opts.source };
 
   const text = document.getElementById("adminDeleteConfirmText") as HTMLDivElement | null;
-  if (text) text.textContent = "Delete this room? This cannot be undone.";
+  if (text) {
+    text.textContent =
+      roomIds.length === 1
+        ? "Delete this room? This cannot be undone."
+        : `Delete ${roomIds.length} selected rooms? This cannot be undone.`;
+  }
 
   const roomText = document.getElementById("adminDeleteConfirmRoomId") as HTMLDivElement | null;
-  if (roomText) roomText.textContent = roomId;
+  if (roomText) roomText.textContent = summarizeRoomIds(roomIds);
 
   setDeleteConfirmError(null);
   setDeleteConfirmBusy(false);
   setDeleteConfirmVisible(true);
 }
 
-async function deleteRoom(roomIdRaw: string, opts: { refreshAfter: boolean; source: "row" | "input" }): Promise<boolean> {
+function requestDeleteRoomConfirm(roomIdRaw: string, opts: { refreshAfter: boolean; source: "row" | "input" }): void {
+  requestDeleteRoomsConfirm([roomIdRaw], opts);
+}
+
+async function deleteRooms(roomIdsRaw: readonly string[], opts: { refreshAfter: boolean; source: DeleteSource }): Promise<boolean> {
   const serverUrl = getServerUrl();
   if (!serverUrl) {
     setDeleteConfirmError("Set Server URL first.");
@@ -328,8 +402,8 @@ async function deleteRoom(roomIdRaw: string, opts: { refreshAfter: boolean; sour
     return false;
   }
 
-  const roomId = (roomIdRaw || "").trim();
-  if (!roomId) {
+  const roomIds = getUniqueRoomIds(roomIdsRaw);
+  if (roomIds.length === 0) {
     setDeleteConfirmError("Enter a Room ID first.");
     setStatus("Enter a Room ID", "error");
     return false;
@@ -342,43 +416,62 @@ async function deleteRoom(roomIdRaw: string, opts: { refreshAfter: boolean; sour
     return false;
   }
 
-  setStatus(`Deleting ${roomId}…`, "info");
+  const deletedRoomIds: string[] = [];
 
-  const res = await fetch(`${serverUrl}/api/admin/room/${encodeURIComponent(roomId)}`, {
-    method: "DELETE",
-    headers: {
-      Accept: "application/json",
-      "x-lasca-admin-token": token,
-    },
-  });
+  for (const [index, roomId] of roomIds.entries()) {
+    setStatus(
+      roomIds.length === 1 ? `Deleting ${roomId}…` : `Deleting ${index + 1}/${roomIds.length}: ${roomId}…`,
+      "info",
+    );
 
-  const text = await res.text();
-  let json: any;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    json = null;
-  }
+    const res = await fetch(`${serverUrl}/api/admin/room/${encodeURIComponent(roomId)}`, {
+      method: "DELETE",
+      headers: {
+        Accept: "application/json",
+        "x-lasca-admin-token": token,
+      },
+    });
 
-  if (!res.ok) {
-    const err = (json && typeof json.error === "string" && json.error) || `${res.status} ${res.statusText}`;
-    let detail = `Delete failed: ${err}`;
-    if (res.status === 404) {
-      detail =
-        "Delete failed: the admin delete route is not enabled on this server. " +
-        "For local development, start the backend with LASCA_ADMIN_TOKEN set before launching the server, for example: " +
-        "$env:LASCA_ADMIN_TOKEN = \"change-me-please\"; npm run online:dev " +
-        "or $env:LASCA_ADMIN_TOKEN = \"change-me-please\"; npm run online:server, then enter the same token here.";
-    } else if (res.status === 403) {
-      detail = "Delete failed: the admin token was rejected by the server.";
+    const text = await res.text();
+    let json: any;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = null;
     }
-    setDeleteConfirmError(detail);
-    setStatus(detail, "error");
-    return false;
+
+    if (!res.ok) {
+      const err = (json && typeof json.error === "string" && json.error) || `${res.status} ${res.statusText}`;
+      let detail = `Delete failed: ${err}`;
+      if (res.status === 404) {
+        detail =
+          "Delete failed: the admin delete route is not enabled on this server. " +
+          "For local development, start the backend with LASCA_ADMIN_TOKEN set before launching the server, for example: " +
+          "$env:LASCA_ADMIN_TOKEN = \"change-me-please\"; npm run online:dev " +
+          "or $env:LASCA_ADMIN_TOKEN = \"change-me-please\"; npm run online:server, then enter the same token here.";
+      } else if (res.status === 403) {
+        detail = "Delete failed: the admin token was rejected by the server.";
+      }
+      if (deletedRoomIds.length > 0) {
+        detail += ` Deleted ${deletedRoomIds.length} room${deletedRoomIds.length === 1 ? "" : "s"} before the failure.`;
+        removeRoomsFromLobbyState(deletedRoomIds);
+      }
+      setDeleteConfirmError(detail);
+      setStatus(detail, "error");
+      return false;
+    }
+
+    deletedRoomIds.push(roomId);
+    selectedLobbyRoomIds.delete(roomId);
   }
+
+  if (deletedRoomIds.length > 0) removeRoomsFromLobbyState(deletedRoomIds);
 
   setDeleteConfirmError(null);
-  setStatus(`Deleted ${roomId}`, "ok");
+  setStatus(
+    roomIds.length === 1 ? `Deleted ${roomIds[0]}` : `Deleted ${roomIds.length} rooms`,
+    "ok",
+  );
 
   // If delete came from the input, clear it.
   if (opts.source === "input") {
@@ -391,8 +484,6 @@ async function deleteRoom(roomIdRaw: string, opts: { refreshAfter: boolean; sour
 
   return true;
 }
-
-let lastRooms: LobbyRoomSummary[] = [];
 
 async function refreshLobby(): Promise<void> {
   const serverUrl = getServerUrl();
@@ -548,6 +639,12 @@ function init(): void {
     };
   }
 
+  const deleteSelectedBtn = document.getElementById("adminDeleteSelectedBtn") as HTMLButtonElement | null;
+  deleteSelectedBtn?.addEventListener("click", () => {
+    requestDeleteRoomsConfirm([...selectedLobbyRoomIds], { refreshAfter: true, source: "bulk" });
+  });
+  updateBulkDeleteButton();
+
   byId<HTMLButtonElement>("adminDeleteBtn").onclick = async () => {
     const roomId = byId<HTMLInputElement>("adminDeleteRoomId").value;
     requestDeleteRoomConfirm(roomId, { refreshAfter: true, source: "input" });
@@ -590,7 +687,7 @@ function init(): void {
 
     setDeleteConfirmBusy(true);
     try {
-      const deleted = await deleteRoom(p.roomId, { refreshAfter: p.refreshAfter, source: p.source });
+      const deleted = await deleteRooms(p.roomIds, { refreshAfter: p.refreshAfter, source: p.source });
       if (!deleted) return;
       pendingDelete = null;
       setDeleteConfirmVisible(false);
