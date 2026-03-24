@@ -472,6 +472,44 @@ export class ColumnsChessBotManager {
     }
   }
 
+  private cancelPendingBotWork(): void {
+    if (!this.busy) return;
+    this.requestId++;
+    this.busy = false;
+  }
+
+  private handleHistoryNavigation(reason: HistoryChangeReason): void {
+    this.cancelPendingBotWork();
+
+    const anyBot = this.settings.white !== "human" || this.settings.black !== "human";
+    if (!anyBot) {
+      this.refreshUI();
+      return;
+    }
+
+    try {
+      const state = this.controller.getState();
+      if (state.meta?.rulesetId === "columns_chess" && botEnabledFor(this.settings, state.toMove)) {
+        this.settings.paused = true;
+        this.autoPausedAtStart = false;
+        localStorage.setItem(LS_KEYS.paused, "true");
+      }
+    } catch {
+      // ignore
+    }
+
+    this.refreshUI();
+
+    if (reason === "jump" && this.isViewingPastInHistory()) {
+      this.controller.clearStickyToast(ColumnsChessBotManager.PAUSED_TURN_TOAST_KEY);
+      if (this.evalListeners.length > 0) this.scheduleEval();
+      return;
+    }
+
+    this.schedulePausedTurnToastSync();
+    if (this.evalListeners.length > 0) this.scheduleEval();
+  }
+
   private hasResolvedEvalForCurrentPosition(): boolean {
     if (!this.lastEvalScore || !this.lastEvalFen) return false;
     try {
@@ -829,6 +867,10 @@ export class ColumnsChessBotManager {
 
   private onHistoryChanged(reason: HistoryChangeReason): void {
     this.lastHistoryReason = reason;
+    if (reason === "undo" || reason === "redo" || reason === "jump" || reason === "loadGame") {
+      this.handleHistoryNavigation(reason);
+      return;
+    }
     if (reason === "newGame") {
       this.applyStartupPausePolicy();
     }

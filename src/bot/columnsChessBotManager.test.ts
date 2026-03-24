@@ -217,4 +217,49 @@ describe("ColumnsChessBotManager board tap", () => {
     expect(bestMove).toHaveBeenCalledTimes(1);
     expect(controller.playedMove).toEqual(expect.objectContaining({ from: "r6c4", to: "r4c4" }));
   });
+
+  it("pauses instead of replaying immediately after undo returns to a bot turn", async () => {
+    const controller = new FakeController();
+    controller.state = {
+      ...createInitialGameStateForVariant("columns_chess" as any),
+      toMove: "W",
+    };
+    controller.legalMoves = [{ kind: "move", from: "r6c4", to: "r5c4" }];
+
+    localStorage.setItem("lasca.columnsChessBot.white", "intermediate");
+    localStorage.setItem("lasca.columnsChessBot.black", "human");
+    localStorage.setItem("lasca.columnsChessBot.paused", "false");
+    localStorage.setItem("lasca.columnsChessBot.delayMs", "0");
+
+    document.body.innerHTML = `
+      <select id="botWhiteSelect"><option value="human">Human</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option><option value="master">Master</option></select>
+      <select id="botBlackSelect"><option value="human">Human</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option><option value="master">Master</option></select>
+      <input id="botDelay" />
+      <button id="botDelayReset"></button>
+      <span id="botDelayLabel"></span>
+      <button id="botPauseBtn"></button>
+      <button id="botResetLearningBtn"></button>
+      <span id="botStatus"></span>
+      <div id="boardWrap"></div>
+    `;
+
+    const mgr = new ColumnsChessBotManager(controller as any, {
+      engineFactory: (() => ({
+        init: async () => {},
+        bestMove: async () => "e2e3",
+        evaluate: async () => ({ cp: 15 }),
+        terminate: () => {},
+      })) as any,
+    });
+    mgr.bind();
+
+    controller.fire("undo");
+    await Promise.resolve();
+    vi.runAllTimers();
+    await Promise.resolve();
+
+    expect(localStorage.getItem("lasca.columnsChessBot.paused")).toBe("true");
+    expect(controller.playedMove).toBeNull();
+    expect(controller.sticky.text).toContain("White's turn");
+  });
 });

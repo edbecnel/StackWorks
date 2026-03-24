@@ -176,4 +176,27 @@ describe("Columns Chess rules", () => {
     // King should have at least one legal response (e.g. move away).
     expect(moves.some((m) => m.from === "r7c4")).toBe(true);
   });
+
+  it("does not allow kingside castling through an attacked transit square", () => {
+    const state: GameState = {
+      board: new Map([
+        sq("r7c4", "W", "K"),
+        sq("r7c7", "W", "R"),
+        sq("r0c4", "B", "K"),
+        sq("r4c2", "B", "Q"),
+      ]),
+      toMove: "W",
+      phase: "select",
+      meta: { variantId: "columns_chess", rulesetId: "columns_chess", boardSize: 8 },
+      chess: {
+        castling: {
+          W: { kingSide: true, queenSide: false },
+          B: { kingSide: false, queenSide: false },
+        },
+      },
+    };
+
+    const moves = generateLegalMoves(state);
+    expect(moves).not.toContainEqual({ kind: "move", from: "r7c4", to: "r7c6" });
+  });
 });

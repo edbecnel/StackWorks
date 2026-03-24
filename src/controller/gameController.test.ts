@@ -172,6 +172,35 @@ describe("GameController undo/redo after game over", () => {
   });
 });
 
+describe("GameController Columns Chess castling targets", () => {
+  it("includes the king-side castling square in king selection when castling is legal", () => {
+    const { svg, piecesLayer } = createBoardFixture();
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r7c4", [{ owner: "W", rank: "K" }]],
+        ["r7c7", [{ owner: "W", rank: "R" }]],
+        ["r0c4", [{ owner: "B", rank: "K" }]],
+      ]),
+      toMove: "W",
+      phase: "select",
+      meta: { variantId: "columns_chess", rulesetId: "columns_chess", boardSize: 8 },
+      chess: {
+        castling: {
+          W: { kingSide: true, queenSide: false },
+          B: { kingSide: false, queenSide: false },
+        },
+      },
+    };
+    history.push(state);
+
+    const controller = new GameController(svg, piecesLayer, null, state, history);
+    (controller as any).showSelection("r7c4");
+
+    expect((controller as any).currentTargets).toContain("r7c6");
+  });
+});
+
 describe("GameController input lock preserves capture chain", () => {
   let mockSvg: SVGSVGElement;
   let mockPiecesLayer: SVGGElement;
