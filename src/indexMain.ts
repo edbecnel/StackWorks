@@ -258,6 +258,8 @@ type GlassPaletteId =
   | "lavender_sapphire"
   | "aqua_amber";
 
+const START_PAGE_LAUNCH_ERROR_STORAGE_KEY = "lasca.start.launchError";
+
 type OnlineResumeRecord = {
   serverUrl: string;
   roomId: string;
@@ -726,6 +728,16 @@ window.addEventListener("DOMContentLoaded", () => {
     elWarning.textContent = msg || "—";
     elWarning.classList.toggle("isError", Boolean(opts?.isError));
   };
+
+  let pendingStartPageLaunchError = (() => {
+    try {
+      const raw = localStorage.getItem(START_PAGE_LAUNCH_ERROR_STORAGE_KEY)?.trim() ?? "";
+      if (raw) localStorage.removeItem(START_PAGE_LAUNCH_ERROR_STORAGE_KEY);
+      return raw;
+    } catch {
+      return "";
+    }
+  })();
 
   const setRoomIdError = (isError: boolean): void => {
     elOnlineRoomId.classList.toggle("isError", isError);
@@ -2234,6 +2246,8 @@ window.addEventListener("DOMContentLoaded", () => {
       lobbyLastRooms = [];
       lobbyLastServerUrl = "";
       renderLobby([]);
+      lastShellOpenActionCache = null;
+      void syncShellOpenAction();
       return;
     }
 
@@ -2265,6 +2279,8 @@ window.addEventListener("DOMContentLoaded", () => {
         lobbyLastRooms = [];
         lobbyLastServerUrl = "";
         renderLobby([]);
+        lastShellOpenActionCache = null;
+        void syncShellOpenAction();
         return;
       }
 
@@ -2274,11 +2290,15 @@ window.addEventListener("DOMContentLoaded", () => {
       const { shown, total } = renderLobby(rooms, serverUrl);
       setLobbyStatus(`Lobby: ${shown}/${total} room${total === 1 ? "" : "s"}.`);
       lobbyLastKey = key;
+      lastShellOpenActionCache = null;
+      void syncShellOpenAction();
     } catch {
       setLobbyStatus(`Lobby: network error — server: ${serverUrl}`);
       lobbyLastRooms = [];
       lobbyLastServerUrl = "";
       renderLobby([]);
+      lastShellOpenActionCache = null;
+      void syncShellOpenAction();
     } finally {
       lobbyFetchInFlight = false;
       elLobbyRefresh && (elLobbyRefresh.disabled = false);
@@ -2753,6 +2773,11 @@ window.addEventListener("DOMContentLoaded", () => {
   let lastShellOpenActionCache:
     | { key: string; label: string; href: string; title?: string }
     | null = null;
+  let currentShellOpenAction:
+    | { kind: "navigate"; href: string }
+    | { kind: "launch-online-create"; variantId: VariantId }
+    | { kind: "disabled" }
+    = { kind: "disabled" };
 
   function getShellOpenActionLinks(): HTMLAnchorElement[] {
     const links = [
@@ -2762,7 +2787,16 @@ window.addEventListener("DOMContentLoaded", () => {
     return links.filter(Boolean) as HTMLAnchorElement[];
   }
 
-  function setShellOpenActionState(args: { label: string; href: string; title?: string }): void {
+  function setShellOpenActionState(args: {
+    label: string;
+    href: string;
+    title?: string;
+    action?:
+      | { kind: "navigate"; href: string }
+      | { kind: "launch-online-create"; variantId: VariantId }
+      | { kind: "disabled" };
+  }): void {
+    currentShellOpenAction = args.action ?? (args.href === "#" ? { kind: "disabled" } : { kind: "navigate", href: args.href });
     for (const link of getShellOpenActionLinks()) {
       link.textContent = args.label;
       link.href = args.href;
@@ -2772,6 +2806,42 @@ window.addEventListener("DOMContentLoaded", () => {
       else link.removeAttribute("title");
     }
   }
+
+  const handleShellOpenActionClick = (event: MouseEvent): void => {
+    const link = (event.target as Element | null)?.closest?.("[data-shell-open-page], .appShellLaunchLink") as HTMLAnchorElement | null;
+    if (!link) return;
+
+    if (currentShellOpenAction.kind === "disabled") {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    if (currentShellOpenAction.kind !== "launch-online-create") return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const variantId = currentShellOpenAction.variantId;
+    const variant = getVariantById(variantId);
+    if (!variant.available || !variant.entryUrl) return;
+
+    persistStartPageLaunchPrefs();
+    const serverUrl = resolveConfiguredServerUrl();
+    const { guestName, prefColor } = readOnlineLaunchIdentity();
+    setGuestDisplayName(guestName);
+    const visibility = (elOnlineVisibility.value === "private" ? "private" : "public") as RoomVisibility;
+
+    void launchOnline({
+      action: "create",
+      serverUrl,
+      prefColor,
+      visibility,
+      fallbackVariantId: variantId,
+    });
+  };
+
+  document.addEventListener("click", handleShellOpenActionClick, true);
 
   function resumeRecordMatchesSignedInAccount(record: OnlineResumeRecord): boolean {
     const userId = signedInAccountUserId.trim();
@@ -2873,13 +2943,19 @@ window.addEventListener("DOMContentLoaded", () => {
         label: lastShellOpenActionCache.label,
         href: lastShellOpenActionCache.href,
         ...(lastShellOpenActionCache.title ? { title: lastShellOpenActionCache.title } : {}),
+        action:
+          playMode === "online" && lastShellOpenActionCache.label === "Open Variant Page"
+            ? { kind: "launch-online-create", variantId: vId }
+            : (lastShellOpenActionCache.href === "#"
+              ? { kind: "disabled" }
+              : { kind: "navigate", href: lastShellOpenActionCache.href }),
       });
       return;
     }
 
     const syncId = ++shellOpenActionSyncId;
     if (!variant.available || !variant.entryUrl) {
-      setShellOpenActionState({ label: "Open Variant Page", href: "#" });
+      setShellOpenActionState({ label: "Open Variant Page", href: "#", action: { kind: "disabled" } });
       return;
     }
 
@@ -2890,7 +2966,7 @@ window.addEventListener("DOMContentLoaded", () => {
         title: `Open ${variant.displayName}.`,
       };
       lastShellOpenActionCache = { key, ...next };
-      setShellOpenActionState(next);
+      setShellOpenActionState({ ...next, action: { kind: "navigate", href: next.href } });
       return;
     }
 
@@ -2908,7 +2984,7 @@ window.addEventListener("DOMContentLoaded", () => {
         title: "Rejoin your most recent unfinished online game for this variant.",
       };
       lastShellOpenActionCache = { key, ...next };
-      setShellOpenActionState(next);
+      setShellOpenActionState({ ...next, action: { kind: "navigate", href: next.href } });
       return;
     }
 
@@ -2918,7 +2994,7 @@ window.addEventListener("DOMContentLoaded", () => {
       title: `Open ${variant.displayName} without creating a new room.`,
     };
     lastShellOpenActionCache = { key, ...next };
-    setShellOpenActionState(next);
+    setShellOpenActionState({ ...next, action: { kind: "launch-online-create", variantId: vId } });
   }
 
   const syncDelayLabel = () => {
@@ -3222,8 +3298,10 @@ window.addEventListener("DOMContentLoaded", () => {
     // Player ID field is not used from the Start Page anymore.
     elOnlinePlayerId.value = "";
 
+    const launchError = pendingStartPageLaunchError.trim();
     elLaunch.disabled = !ok;
-    setWarning(warning ?? "—", { isError: false });
+    setWarning(launchError || warning || "—", { isError: Boolean(launchError) });
+    if (launchError) pendingStartPageLaunchError = "";
     setRoomIdError(false);
 
     // If we are in online mode and the server URL changed, auto-refresh lobby once.

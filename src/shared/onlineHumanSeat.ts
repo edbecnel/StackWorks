@@ -9,6 +9,9 @@ export function resolveOnlineHumanSeat(args: {
   blackOwner: OnlineHumanSeatOwner;
   preferredColor: OnlineLaunchPreferredColor;
 }): "W" | "B" | null {
+  if (args.whiteRole === "human" && args.blackRole === "bot") return "W";
+  if (args.whiteRole === "bot" && args.blackRole === "human") return "B";
+
   const whiteHuman = args.whiteRole === "human" && args.whiteOwner === "local";
   const blackHuman = args.blackRole === "human" && args.blackOwner === "local";
 

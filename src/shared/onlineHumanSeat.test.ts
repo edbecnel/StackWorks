@@ -63,11 +63,27 @@ describe("onlineHumanSeat", () => {
     });
   });
 
-  it("uses the bot seat as creator color when the human seat belongs to the online opponent", () => {
+  it("uses the sole human seat as creator color for human-vs-bot online games", () => {
     expect(
       deriveOnlineLaunchIdentity({
         whiteRole: "human",
         blackRole: "bot",
+        whiteOwner: "remote",
+        blackOwner: "remote",
+        preferredColor: "auto",
+        signedInDisplayName: "Account User",
+        lightName: "Light Bot",
+        darkName: "Dark Bot",
+      }),
+    ).toEqual({
+      guestName: "Account User",
+      prefColor: "W",
+    });
+
+    expect(
+      deriveOnlineLaunchIdentity({
+        whiteRole: "bot",
+        blackRole: "human",
         whiteOwner: "remote",
         blackOwner: "remote",
         preferredColor: "auto",

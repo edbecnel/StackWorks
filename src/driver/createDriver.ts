@@ -14,6 +14,8 @@ import type {
   LocalSeatPlayerIdsByColor,
 } from "../shared/onlineProtocol.ts";
 
+const START_PAGE_LAUNCH_ERROR_STORAGE_KEY = "lasca.start.launchError";
+
 export function selectDriverMode(args: { search: string; envMode?: string | undefined }): DriverMode {
   const params = new URLSearchParams(args.search.startsWith("?") ? args.search : `?${args.search}`);
   const qsMode = params.get("mode");
@@ -77,6 +79,17 @@ export function consumeStartupMessage(): string | null {
 function setStartupMessage(msg: string): void {
   const s = (msg || "").trim();
   pendingStartupMessage = s ? s : null;
+}
+
+function stashStartPageLaunchError(msg: string): void {
+  if (typeof window === "undefined") return;
+  const text = (msg || "").trim();
+  if (!text) return;
+  try {
+    window.localStorage.setItem(START_PAGE_LAUNCH_ERROR_STORAGE_KEY, text);
+  } catch {
+    // ignore storage failures
+  }
 }
 
 function isPlausibleRoomId(roomId: string): boolean {
@@ -398,11 +411,18 @@ export async function createDriverAsync(args: {
     }
   };
 
-  const failToLocal = (message: string): GameDriver => {
+  const failOnlineLoad = (message: string): GameDriver => {
     setStartupMessage(message);
     showOnlineLoadMessage(message);
-    updateBrowserUrlForLocal();
-    return new LocalDriver(args.state, args.history);
+    stashStartPageLaunchError(message);
+    if (typeof window !== "undefined") {
+      try {
+        window.location.assign("./");
+      } catch {
+        // ignore navigation failures in tests/non-browser contexts
+      }
+    }
+    return new RemoteDriver(args.state);
   };
 
   // Create room
@@ -504,7 +524,7 @@ export async function createDriverAsync(args: {
       return driver;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Create failed";
-      return failToLocal(`Online create failed: ${msg}`);
+      return failOnlineLoad(`Online create failed: ${msg}`);
     }
   }
 
@@ -513,7 +533,7 @@ export async function createDriverAsync(args: {
     if (!q.roomId) throw new Error("Cannot join online room: missing roomId");
 
     if (!isPlausibleRoomId(q.roomId)) {
-      return failToLocal("Invalid Room ID");
+      return failOnlineLoad("Invalid Room ID");
     }
 
     // If we already have a resume token for this room, prefer reconnecting directly.
@@ -549,7 +569,7 @@ export async function createDriverAsync(args: {
         return driver;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        return failToLocal(`Online reconnect failed: ${msg}`);
+        return failOnlineLoad(`Online reconnect failed: ${msg}`);
       }
     }
 
@@ -627,14 +647,14 @@ export async function createDriverAsync(args: {
       }
 
       if (msg === "Room not found") {
-        return failToLocal(`Online game not found (roomId=${q.roomId})`);
+        return failOnlineLoad(`Online game not found (roomId=${q.roomId})`);
       }
 
       if (/^Failed to fetch$|NetworkError/i.test(msg)) {
-        return failToLocal(`Cannot reach server (${q.serverUrl})`);
+        return failOnlineLoad(`Cannot reach server (${q.serverUrl})`);
       }
 
-      return failToLocal(`Online join failed: ${msg}`);
+      return failOnlineLoad(`Online join failed: ${msg}`);
     }
 
     if ((import.meta as any)?.env?.DEV) {
@@ -699,13 +719,13 @@ export async function createDriverAsync(args: {
       return driver;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg === "Room not found") return failToLocal(`Online game not found (roomId=${q.roomId})`);
-      return failToLocal(`Online load failed: ${msg}`);
+      if (msg === "Room not found") return failOnlineLoad(`Online game not found (roomId=${q.roomId})`);
+      return failOnlineLoad(`Online load failed: ${msg}`);
     }
   }
 
   if (!q.roomId || !q.playerId) {
-    return failToLocal(
+    return failOnlineLoad(
       "Online mode requires: ?mode=online&create=1 OR ?mode=online&join=1&roomId=... OR ?mode=online&roomId=...&playerId=..."
     );
   }
@@ -730,8 +750,8 @@ export async function createDriverAsync(args: {
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (msg === "Room not found") return failToLocal(`Online game not found (roomId=${q.roomId})`);
-    return failToLocal(`Online reconnect failed: ${msg}`);
+    if (msg === "Room not found") return failOnlineLoad(`Online game not found (roomId=${q.roomId})`);
+    return failOnlineLoad(`Online reconnect failed: ${msg}`);
   }
 
   // Even if this page was loaded directly via a reconnect URL (roomId+playerId),

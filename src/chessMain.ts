@@ -9,7 +9,7 @@ import type { VariantId } from "./variants/variantTypes";
 import { getVariantById, rulesBoardLine } from "./variants/variantRegistry";
 import { ensureOverlayLayer } from "./render/overlays";
 import { HistoryManager } from "./game/historyManager";
-import { createDriverAsync } from "./driver/createDriver";
+import { consumeStartupMessage, createDriverAsync } from "./driver/createDriver";
 import { GameController } from "./controller/gameController";
 import { renderBoardCoords } from "./render/boardCoords";
 import { setBoardFlipped } from "./render/boardFlip";
@@ -707,6 +707,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   hudController = controller;
   controller.bind();
   shell.bindController(controller);
+  const startupMsg = consumeStartupMessage();
+  if (startupMsg) controller.showStartupMessage(startupMsg);
   // Reveal the board only after the shell has placed player panels and fitted
   // the board width, so it appears at its final size rather than flashing large.
   await nextPaint();
