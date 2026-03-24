@@ -168,6 +168,7 @@ function ensureShellStyles(): void {
       display: flex;
       flex-direction: column;
       gap: 8px;
+      flex: 0 0 auto;
       min-height: 0;
     }
 
@@ -226,7 +227,7 @@ function ensureShellStyles(): void {
     }
 
     .appShellRailFooter {
-      margin-top: auto;
+      margin-top: 0;
       display: grid;
       gap: 12px;
       flex: 0 0 auto;
@@ -661,8 +662,13 @@ function ensureShellStyles(): void {
       }
 
       .appShellNav {
+        flex: 1 1 auto;
         overflow: auto;
         padding-right: 2px;
+      }
+
+      .appShellRailFooter {
+        margin-top: auto;
       }
 
       .appShellMain {
