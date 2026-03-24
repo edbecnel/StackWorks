@@ -2,7 +2,7 @@ import type { GameController, HistoryChangeReason } from "../controller/gameCont
 
 const DEFAULT_DELAY_MS = 1000;
 const MAX_DELAY_MS = 5000;
-const PLAYBACK_MOVE_ANIMATION_MS = 230;
+const PLAYBACK_MOVE_ANIMATION_MS = 350;
 /** Cap recorded delays at 1 minute so replays of very long think moves don't freeze. */
 const MAX_RECORDED_DELAY_MS = 60_000;
 

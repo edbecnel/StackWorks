@@ -72,9 +72,9 @@ import { getInternationalDraughtsDrawStatus } from "../game/internationalDraught
 
 export type HistoryChangeReason = "move" | "undo" | "redo" | "jump" | "newGame" | "loadGame" | "gameOver";
 
-const DEFAULT_PLAYBACK_MOVE_ANIMATION_MS = 230;
-const PLAYBACK_MOVE_ANIMATION_EXTRA_HOP_MS = 30;
-const MAX_PLAYBACK_MOVE_ANIMATION_MS = 360;
+const DEFAULT_PLAYBACK_MOVE_ANIMATION_MS = 350;
+const PLAYBACK_MOVE_ANIMATION_EXTRA_HOP_MS = 0;
+const MAX_PLAYBACK_MOVE_ANIMATION_MS = 350;
 const BOARD_DRAG_THRESHOLD_PX = 6;
 const BOARD_DRAG_CLICK_SUPPRESS_MS = 300;
 
@@ -2548,7 +2548,7 @@ export class GameController {
     };
     if (!legal.some((m) => same(m, move))) return;
 
-    await this.applyChosenMove(move, { animateLocalTravel: false });
+    await this.applyChosenMove(move, { animateLocalTravel: true });
   }
 
   undo(): void {
@@ -5272,7 +5272,7 @@ export class GameController {
             move.from,
             move.to,
             movingGroup,
-            300,
+            DEFAULT_PLAYBACK_MOVE_ANIMATION_MS,
             movingCount ? [movingCount] : []
           )
         );
@@ -5294,7 +5294,7 @@ export class GameController {
                     move.over,
                     move.from,
                     ghost.stackG,
-                    300,
+                    DEFAULT_PLAYBACK_MOVE_ANIMATION_MS,
                     ghost.extras
                   )
                 );

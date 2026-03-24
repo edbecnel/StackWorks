@@ -84,7 +84,7 @@ describe("bindPlaybackControls", () => {
     await flushMicrotasks();
 
     expect(controller.jumpToHistoryAnimated).toHaveBeenCalledTimes(1);
-    expect(controller.jumpToHistoryAnimated).toHaveBeenLastCalledWith(1, 230);
+    expect(controller.jumpToHistoryAnimated).toHaveBeenLastCalledWith(1, 350);
 
     await vi.advanceTimersByTimeAsync(1_000);
     await flushMicrotasks();
@@ -97,7 +97,7 @@ describe("bindPlaybackControls", () => {
     await flushMicrotasks();
 
     expect(controller.jumpToHistoryAnimated).toHaveBeenCalledTimes(2);
-    expect(controller.jumpToHistoryAnimated).toHaveBeenLastCalledWith(2, 230);
+    expect(controller.jumpToHistoryAnimated).toHaveBeenLastCalledWith(2, 350);
   });
 
   it("suppresses gameplay toasts during playback but allows the explicit playback-paused toast", async () => {
