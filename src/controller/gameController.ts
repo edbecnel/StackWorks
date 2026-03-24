@@ -4771,31 +4771,47 @@ export class GameController {
     if (this.activeBoardPointerId === null || ev.pointerId !== this.activeBoardPointerId) return;
 
     const sourceNodeId = this.dragSourceNodeId;
-    const dragWasMoved = this.dragHasMoved;
-    this.cancelPointerInteraction();
+    const dragWasMoved =
+      this.dragHasMoved ||
+      Math.hypot(ev.clientX - this.dragStartClientX, ev.clientY - this.dragStartClientY) >= BOARD_DRAG_THRESHOLD_PX;
+    this.activeBoardPointerId = null;
+    this.dragSourceNodeId = null;
+    this.dragHasMoved = false;
+    this.dragStartSvgX = 0;
+    this.dragStartSvgY = 0;
+    this.setBoardTextSelectionSuppressed(false);
     try {
       this.svg.releasePointerCapture(ev.pointerId);
     } catch {
       // ignore
     }
 
-    if (!sourceNodeId || !dragWasMoved) return;
+    if (!sourceNodeId || !dragWasMoved) {
+      this.clearDragPreview();
+      return;
+    }
 
     this.suppressBoardClickUntilMs = Date.now() + BOARD_DRAG_CLICK_SUPPRESS_MS;
     ev.preventDefault();
 
     if (!this.selected || this.selected !== sourceNodeId) {
+      this.clearDragPreview();
       if (this.selected === sourceNodeId) this.showSelection(sourceNodeId);
       return;
     }
 
     const move = this.resolveMoveAtClientPoint(sourceNodeId, ev.clientX, ev.clientY);
     if (!move) {
+      this.clearDragPreview();
       this.showSelection(sourceNodeId);
       return;
     }
 
-    await this.applyChosenMove(move, { animateLocalTravel: false });
+    try {
+      await this.applyChosenMove(move, { animateLocalTravel: false });
+    } finally {
+      this.clearDragPreview();
+    }
   }
 
   private recomputeRepetitionCounts(): void {

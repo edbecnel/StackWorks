@@ -379,7 +379,7 @@ describe("GameController turn toast indicates capture", () => {
 
     (controller as any).maybeToastTurnChange();
     const toast = document.querySelector(".lascaToast") as HTMLElement | null;
-    expect(toast?.textContent).toBe("Dark to capture");
+    expect(toast?.textContent).toBe("Black to capture");
 
     vi.runAllTimers();
     vi.useRealTimers();
@@ -398,7 +398,7 @@ describe("GameController turn toast indicates capture", () => {
 
     (controller as any).maybeToastTurnChange();
     const toast = document.querySelector(".lascaToast") as HTMLElement | null;
-    expect(toast?.textContent).toBe("Dark to move");
+    expect(toast?.textContent).toBe("Black to move");
 
     vi.runAllTimers();
     vi.useRealTimers();
@@ -492,7 +492,7 @@ describe("GameController forced game-over toasts", () => {
     (controller as any).checkAndHandleCurrentPlayerLost();
 
     const toast = document.querySelector(".lascaToast") as HTMLElement | null;
-    expect(toast?.textContent).toBe("Dark wins — Light has no pieces");
+    expect(toast?.textContent).toBe("Black wins — White has no pieces");
   });
 });
 
@@ -1080,6 +1080,87 @@ describe("GameController board interaction", () => {
     expect(applyChosenMove).toHaveBeenCalledTimes(1);
     expect(applyChosenMove.mock.calls[0][0]).toMatchObject({ from: "r2c2", to: "r4c4" });
     expect(applyChosenMove.mock.calls[0][1]).toMatchObject({ animateLocalTravel: false });
+  });
+
+  it("treats a release far from the source as a drag even when no pointermove fired", async () => {
+    const { svg, piecesLayer } = createBoardFixture();
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "B", rank: "S" }]],
+        ["r3c3", [{ owner: "W", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+    history.push(state);
+
+    const controller = new GameController(svg, piecesLayer, null, state, history);
+    const applyChosenMove = vi.spyOn(controller as any, "applyChosenMove").mockResolvedValue(undefined);
+
+    const source = svg.querySelector("#r2c2") as SVGCircleElement;
+    const target = svg.querySelector("#r4c4") as SVGCircleElement;
+
+    await (controller as any).onClick({
+      target: source,
+      clientX: 350,
+      clientY: 350,
+    } as MouseEvent);
+
+    (controller as any).onPointerDown(makePointerEvent(source, { pointerId: 9, clientX: 350, clientY: 350 }));
+    await (controller as any).onPointerUp(makePointerEvent(target, { pointerId: 9, clientX: 550, clientY: 550 }));
+
+    expect(applyChosenMove).toHaveBeenCalledTimes(1);
+    expect(applyChosenMove.mock.calls[0][0]).toMatchObject({ from: "r2c2", to: "r4c4" });
+    expect(applyChosenMove.mock.calls[0][1]).toMatchObject({ animateLocalTravel: false });
+  });
+
+  it("keeps the drag preview visible until a drag-drop move finishes committing", async () => {
+    const { svg, piecesLayer } = createBoardFixture();
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "B", rank: "S" }]],
+        ["r3c3", [{ owner: "W", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+    history.push(state);
+
+    const controller = new GameController(svg, piecesLayer, null, state, history);
+    controller.refreshView();
+
+    let resolveMoveCommit: (() => void) | null = null;
+    const applyChosenMove = vi.spyOn(controller as any, "applyChosenMove").mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveMoveCommit = resolve;
+        })
+    );
+
+    const source = svg.querySelector("#r2c2") as SVGCircleElement;
+    const target = svg.querySelector("#r4c4") as SVGCircleElement;
+
+    (controller as any).onPointerDown(makePointerEvent(source, { pointerId: 9, clientX: 350, clientY: 350 }));
+    await (controller as any).onPointerUp(makePointerEvent(source, { pointerId: 9, clientX: 350, clientY: 350 }));
+
+    (controller as any).onPointerDown(makePointerEvent(source, { pointerId: 10, clientX: 350, clientY: 350 }));
+    (controller as any).onPointerMove(makePointerEvent(source, { pointerId: 10, clientX: 520, clientY: 520 }));
+    const pendingDrop = (controller as any).onPointerUp(makePointerEvent(target, { pointerId: 10, clientX: 550, clientY: 550 }));
+    await Promise.resolve();
+
+    const previewWhilePending = svg.querySelector("#previewStacks .dragPreviewStack") as SVGGElement | null;
+    const sourceGroupWhilePending = svg.querySelector('g.stack[data-node="r2c2"]') as SVGGElement | null;
+
+    expect(applyChosenMove).toHaveBeenCalledTimes(1);
+    expect(previewWhilePending).not.toBeNull();
+    expect(sourceGroupWhilePending?.style.visibility).toBe("hidden");
+
+    resolveMoveCommit?.();
+    await pendingDrop;
+
+    expect(svg.querySelector("#previewStacks .dragPreviewStack")).toBeNull();
   });
 
   it("drops on the intended square on scaled boards", async () => {
