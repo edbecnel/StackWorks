@@ -235,5 +235,7 @@ describe("initStartPageAppShell", () => {
     const shellStyle = document.getElementById("stackworks-app-shell-style");
     expect(shellStyle?.textContent).toContain("-webkit-line-clamp: 2;");
     expect(shellStyle?.textContent).toContain("white-space: normal;");
+    expect(shellStyle?.textContent).toContain("font-size: clamp(16px, 3.6vw, 20px);");
+    expect(shellStyle?.textContent).toContain("overflow-wrap: anywhere;");
   });
 });

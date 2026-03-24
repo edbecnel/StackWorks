@@ -777,10 +777,13 @@ function ensureShellStyles(): void {
       }
 
       .appShellTitle {
+        font-size: clamp(16px, 3.6vw, 20px);
         display: -webkit-box;
         white-space: normal;
         overflow: hidden;
         text-overflow: clip;
+        overflow-wrap: anywhere;
+        word-break: break-word;
         line-height: 1.15;
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 2;
