@@ -21,6 +21,12 @@ async function rmWithRetries(p: string): Promise<void> {
   await fs.rm(p, { recursive: true, force: true });
 }
 
+function bearerHeaderFromAuthResponse(body: any): Record<string, string> {
+  const token = typeof body?.sessionToken === "string" ? body.sessionToken.trim() : "";
+  expect(token).toMatch(/^[0-9a-f]+$/i);
+  return { authorization: `Bearer ${token}` };
+}
+
 describe("MP3 lobby", () => {
   it("lists joinable rooms and hides rooms once full", async () => {
     const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "lasca-online-lobby-"));
@@ -195,6 +201,86 @@ describe("MP3 lobby", () => {
       expect(names?.B).toBe("Bob");
 
       expect((item as any)?.hostDisplayName).toBe("Alice");
+    } finally {
+      const closing = new Promise<void>((resolve) => s.server.close(() => resolve()));
+      await closing;
+      await rmWithRetries(tmpRoot);
+    }
+  });
+
+  it("keeps multiple public bot rooms visible for the same authenticated user", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "lasca-online-lobby-auth-bots-"));
+    const gamesDir = path.join(tmpRoot, "games");
+    const authDir = path.join(tmpRoot, "auth");
+    const s = await startLascaServer({ port: 0, gamesDir, authDir, sessionTtlMs: 60_000 });
+
+    try {
+      const registerRes = await fetch(`${s.url}/api/auth/register`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: "lobby-bots@example.com",
+          password: "password12345",
+          displayName: "BotHost",
+          countryCode: "CA",
+          timeZone: "America/Toronto",
+        }),
+      });
+      const registerJson = await registerRes.json() as any;
+      expect(registerJson.error).toBeUndefined();
+      const authHeaders = {
+        "content-type": "application/json",
+        ...bearerHeaderFromAuthResponse(registerJson),
+      };
+
+      const createRoom = async (preferredColor: "W" | "B") => {
+        const initial = createInitialGameStateForVariant("lasca_7_classic" as any);
+        const history = new HistoryManager();
+        history.push(initial);
+
+        const createRes = await fetch(`${s.url}/api/create`, {
+          method: "POST",
+          headers: authHeaders,
+          body: JSON.stringify({
+            variantId: "lasca_7_classic",
+            visibility: "public",
+            preferredColor,
+            botSeats: [{ color: preferredColor === "W" ? "B" : "W", displayName: "Bot" }],
+            snapshot: {
+              state: serializeWireGameState(initial),
+              history: serializeWireHistory(history.exportSnapshots()),
+              stateVersion: 0,
+            },
+          }),
+        }).then((r) => r.json() as Promise<any>);
+
+        expect(createRes.error).toBeUndefined();
+        expect(createRes.roomId).toBeTruthy();
+        expect(createRes.visibility).toBe("public");
+        return String(createRes.roomId);
+      };
+
+      const roomA = await createRoom("W");
+      const roomB = await createRoom("B");
+
+      const lobby = await fetch(`${s.url}/api/lobby?includeFull=1`).then((r) => r.json() as Promise<any>);
+      expect(lobby.error).toBeUndefined();
+
+      const rooms = Array.isArray(lobby.rooms) ? lobby.rooms : [];
+      const ids = rooms.map((room: any) => String(room?.roomId ?? ""));
+
+      expect(ids).toContain(roomA);
+      expect(ids).toContain(roomB);
+
+      const first = rooms.find((room: any) => String(room?.roomId ?? "") === roomA);
+      const second = rooms.find((room: any) => String(room?.roomId ?? "") === roomB);
+
+      expect(first?.visibility).toBe("public");
+      expect(second?.visibility).toBe("public");
+      expect(first?.status).toBe("in_game");
+      expect(second?.status).toBe("in_game");
+      expect(first?.hostIdentity?.displayName).toBe("BotHost");
+      expect(second?.hostIdentity?.displayName).toBe("BotHost");
     } finally {
       const closing = new Promise<void>((resolve) => s.server.close(() => resolve()));
       await closing;

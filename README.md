@@ -109,7 +109,7 @@ Alternative: use the Start Page **Lobby** section to see open rooms and click **
 
 ##### Leaving an online game
 
-- If you want to leave cleanly and release your seat, use the in-game **Leave room (forfeit)** button. It confirms first, then ends the game immediately (counts as resign) and returns you to the Start Page.
+- Use the in-game **Return to Start Page** button to suspend the room and go back to the Start Page. If the game is still active, the Start Page will offer **Rejoin Game** for the same signed-in account and variant.
 - If you simply close the tab, the server starts a disconnect grace period (default ~2 minutes).
   - If your opponent is still connected when grace expires, you lose by disconnect timeout.
   - If **both players are disconnected**, the game stays paused and does not time out (so you can resume later).

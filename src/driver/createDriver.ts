@@ -6,7 +6,7 @@ import { RemoteDriver } from "./remoteDriver.ts";
 import { serializeWireGameState, serializeWireHistory, type WireSnapshot } from "../shared/wireState.ts";
 import { getGuestIdentity } from "../shared/guestIdentity.ts";
 import { buildOnlineBotSeatRequests, loadOnlineLocalSeatRecord, saveOnlineLocalSeatRecord } from "../shared/onlineLocalSeats.ts";
-import { buildSessionAuthFetchInit } from "../shared/authSessionClient";
+import { buildSessionAuthFetchInit, readAuthSessionUserId } from "../shared/authSessionClient";
 import type {
   CreateRoomResponse,
   JoinRoomResponse,
@@ -55,6 +55,10 @@ type OnlineResumeRecord = {
   color?: "W" | "B";
   /** Informational: display name used when this seat was created/joined. */
   displayName?: string;
+  /** Authenticated account user id when available. */
+  userId?: string;
+  /** Variant id for quicker Start Page resume matching. */
+  variantId?: string;
   savedAtMs: number;
 };
 
@@ -137,6 +141,8 @@ function saveOnlineResumeRecord(args: {
   playerId: string;
   color?: "W" | "B";
   displayName?: string;
+  userId?: string;
+  variantId?: string;
 }): void {
   if (typeof window === "undefined") return;
   try {
@@ -154,6 +160,8 @@ function saveOnlineResumeRecord(args: {
       playerId,
       ...(args.color ? { color: args.color } : {}),
       ...(args.displayName && args.displayName.trim() ? { displayName: args.displayName.trim() } : {}),
+      ...(args.userId && args.userId.trim() ? { userId: args.userId.trim() } : {}),
+      ...(args.variantId && args.variantId.trim() ? { variantId: args.variantId.trim() } : {}),
       savedAtMs: Date.now(),
     };
 
@@ -182,6 +190,7 @@ function updateBrowserUrlForOnline(args: {
   roomId: string;
   playerId: string;
   color?: "W" | "B";
+  variantId?: string;
 }): void {
   if (typeof window === "undefined") return;
   try {
@@ -204,7 +213,11 @@ function updateBrowserUrlForOnline(args: {
 
     // Also persist a resume token so the Start Page can resume without requiring
     // the user to manually copy the playerId.
-    saveOnlineResumeRecord({ ...args, ...(displayName ? { displayName } : {}) });
+    saveOnlineResumeRecord({
+      ...args,
+      ...(displayName ? { displayName } : {}),
+      ...(readAuthSessionUserId(args.serverUrl) ? { userId: readAuthSessionUserId(args.serverUrl) ?? undefined } : {}),
+    });
   } catch {
     // ignore
   }
@@ -356,6 +369,8 @@ export async function createDriverAsync(args: {
   const mode = selectDriverMode({ search: args.search, envMode: args.envMode });
   if (mode !== "online") return new LocalDriver(args.state, args.history);
 
+  const currentVariantId = typeof args.state.meta?.variantId === "string" ? args.state.meta.variantId : undefined;
+
   const q0 = parseOnlineQuery(args.search, args.envServerUrl);
   // Guard against accidental reloads / hand-edited URLs:
   // If a roomId is already present, never create a new room.
@@ -456,6 +471,7 @@ export async function createDriverAsync(args: {
         roomId: anyRes.roomId,
         playerId: anyRes.playerId,
         color: anyRes.color === "W" || anyRes.color === "B" ? anyRes.color : undefined,
+        variantId: currentVariantId,
       });
       if (anyRes.roomId && anyRes.localSeatPlayerIdsByColor) {
         saveOnlineLocalSeatRecord({
@@ -528,6 +544,7 @@ export async function createDriverAsync(args: {
           roomId: q.roomId,
           playerId: rec0.playerId,
           color: rec0.color,
+          variantId: currentVariantId,
         });
         return driver;
       } catch (err) {
@@ -579,6 +596,7 @@ export async function createDriverAsync(args: {
             roomId: q.roomId,
             playerId: rec.playerId,
             color: rec.color,
+            variantId: currentVariantId,
           });
           return driver;
         }
@@ -650,6 +668,7 @@ export async function createDriverAsync(args: {
       roomId: anyRes.roomId,
       playerId: anyRes.playerId,
       color: anyRes.color === "W" || anyRes.color === "B" ? anyRes.color : undefined,
+      variantId: currentVariantId,
     });
     return driver;
   }
@@ -722,6 +741,7 @@ export async function createDriverAsync(args: {
     roomId: q.roomId,
     playerId: q.playerId,
     color: q.color ?? undefined,
+    variantId: currentVariantId,
   });
   return driver;
 }

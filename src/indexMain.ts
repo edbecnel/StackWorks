@@ -1,10 +1,11 @@
 import { DEFAULT_THEME_ID, getThemeById, THEMES } from "./theme/themes";
 import { DEFAULT_VARIANT_ID, VARIANTS, getVariantById, isVariantId } from "./variants/variantRegistry";
 import type { VariantId } from "./variants/variantTypes";
-import type { GetLobbyResponse, GetRoomMetaResponse, LobbyRoomSummary, PlayerColor, RoomVisibility } from "./shared/onlineProtocol.ts";
+import type { GetLobbyResponse, GetRoomMetaResponse, GetRoomSnapshotResponse, LobbyRoomSummary, PlayerColor, RoomVisibility } from "./shared/onlineProtocol.ts";
 import { setGuestDisplayName } from "./shared/guestIdentity.ts";
 import { createSfxManager } from "./ui/sfx";
 import type { AuthMeResponse, AuthOkResponse, AuthErrorResponse, AuthUser } from "./shared/authProtocol.ts";
+import { checkCurrentPlayerLost } from "./game/gameOver.ts";
 import { listCountryOptions, listTimeZones, normalizeCountryCode, resolveCountryName, resolveLocalTimeZone } from "./shared/profileMetadata.ts";
 import { normalizeCheckerboardThemeId } from "./render/checkerboardTheme";
 import {
@@ -31,10 +32,13 @@ import { GlobalSection, readShellState } from "./config/shellState";
 import { installPlayerBotSelector, syncPlayerBotSelector } from "./ui/bot/playerBotSelector";
 import {
   buildSessionAuthFetchInit,
+  clearAuthSessionUserId,
   clearAuthSessionToken,
   persistAuthSessionFromPayload,
   readAuthSessionToken,
+  writeAuthSessionUserId,
 } from "./shared/authSessionClient";
+import { deserializeWireGameState } from "./shared/wireState.ts";
 import {
   deriveOnlineLaunchIdentity as deriveOnlineLaunchIdentityFromSeatConfig,
   resolveOnlineHumanSeat,
@@ -261,6 +265,10 @@ type OnlineResumeRecord = {
   color?: "W" | "B";
   /** Informational: display name used when this seat was created/joined. */
   displayName?: string;
+  /** Authenticated account user id when available. */
+  userId?: string;
+  /** Variant id for quicker resume targeting. */
+  variantId?: VariantId;
   savedAtMs: number;
 };
 
@@ -325,16 +333,25 @@ function sanitizeResumePlayerId(raw: unknown): string | undefined {
   return s;
 }
 
+function sanitizeResumeUserId(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const s = raw.trim();
+  if (!s) return undefined;
+  if (!/^[0-9a-f]{32}$/i.test(s)) return undefined;
+  return s;
+}
+
+function sanitizeResumeVariantId(raw: unknown): VariantId | undefined {
+  return isVariantId(raw) ? raw : undefined;
+}
+
 function resumeStorageKey(serverUrl: string, roomId: string): string {
   const s = normalizeServerUrl(serverUrl);
   const r = (roomId || "").trim();
   return `lasca.online.resume.${encodeURIComponent(s)}.${encodeURIComponent(r)}`;
 }
 
-function findAnyResumeRecordsForRoomId(roomId: string): OnlineResumeRecord[] {
-  const r = (roomId || "").trim();
-  if (!r) return [];
-
+function listOnlineResumeRecords(): OnlineResumeRecord[] {
   const out: OnlineResumeRecord[] = [];
   try {
     for (let i = 0; i < localStorage.length; i++) {
@@ -346,23 +363,24 @@ function findAnyResumeRecordsForRoomId(roomId: string): OnlineResumeRecord[] {
       const rec = JSON.parse(raw) as any;
       if (!rec || typeof rec !== "object") continue;
 
-      const recRoom = (typeof rec.roomId === "string" ? rec.roomId : "").trim();
-      if (recRoom !== r) continue;
-
-      const recServer = normalizeServerUrl(typeof rec.serverUrl === "string" ? rec.serverUrl : "");
-      if (!recServer) continue;
-
+      const serverUrl = normalizeServerUrl(typeof rec.serverUrl === "string" ? rec.serverUrl : "");
+      const roomId = (typeof rec.roomId === "string" ? rec.roomId : "").trim();
       const playerId = sanitizeResumePlayerId(rec.playerId);
-      if (!playerId) continue;
+      if (!serverUrl || !roomId || !playerId) continue;
+
       const color = rec.color === "W" || rec.color === "B" ? rec.color : undefined;
       const displayName = sanitizeResumeDisplayName(rec.displayName);
+      const userId = sanitizeResumeUserId(rec.userId);
+      const variantId = sanitizeResumeVariantId(rec.variantId);
       const savedAtMs = Number.isFinite(rec.savedAtMs) ? Number(rec.savedAtMs) : 0;
       out.push({
-        serverUrl: recServer,
-        roomId: r,
+        serverUrl,
+        roomId,
         playerId,
         ...(color ? { color } : {}),
         ...(displayName ? { displayName } : {}),
+        ...(userId ? { userId } : {}),
+        ...(variantId ? { variantId } : {}),
         savedAtMs,
       });
     }
@@ -370,6 +388,12 @@ function findAnyResumeRecordsForRoomId(roomId: string): OnlineResumeRecord[] {
     // ignore
   }
   return out;
+}
+
+function findAnyResumeRecordsForRoomId(roomId: string): OnlineResumeRecord[] {
+  const r = (roomId || "").trim();
+  if (!r) return [];
+  return listOnlineResumeRecords().filter((rec) => rec.roomId === r);
 }
 
 function resolveOnlineResumeRecord(serverUrl: string, roomId: string): OnlineResumeRecord | null {
@@ -408,6 +432,8 @@ function readOnlineResumeRecord(serverUrl: string, roomId: string): OnlineResume
       if (!playerId) continue;
       const color = rec.color === "W" || rec.color === "B" ? rec.color : undefined;
       const displayName = sanitizeResumeDisplayName(rec.displayName);
+      const userId = sanitizeResumeUserId(rec.userId);
+      const variantId = sanitizeResumeVariantId(rec.variantId);
       const savedAtMs = Number.isFinite(rec.savedAtMs) ? Number(rec.savedAtMs) : 0;
       return {
         serverUrl: s,
@@ -415,6 +441,8 @@ function readOnlineResumeRecord(serverUrl: string, roomId: string): OnlineResume
         playerId,
         ...(color ? { color } : {}),
         ...(displayName ? { displayName } : {}),
+        ...(userId ? { userId } : {}),
+        ...(variantId ? { variantId } : {}),
         savedAtMs,
       };
     }
@@ -1004,6 +1032,7 @@ window.addEventListener("DOMContentLoaded", () => {
     // app shell mounts later in startup; keep account refresh safe before that.
   };
   let signedInAccountDisplayName = "";
+  let signedInAccountUserId = "";
   let syncingOnlineHumanSeat = false;
 
   const readStoredPlayerName = (side: "W" | "B"): string => {
@@ -1443,8 +1472,10 @@ window.addEventListener("DOMContentLoaded", () => {
     const user = me.user;
     if (!user) {
       clearAuthSessionToken(serverUrl);
+      clearAuthSessionUserId(serverUrl);
       const diagnostic = describeAccountSessionDiagnostic({ serverUrl, status: "signed-out" });
       signedInAccountDisplayName = "";
+      signedInAccountUserId = "";
       setAccountStatus("Account: signed out");
       setAccountDiagnostic(diagnostic);
       syncAccountFormFromUser(null);
@@ -1455,11 +1486,15 @@ window.addEventListener("DOMContentLoaded", () => {
         diagnosticTone: diagnostic.tone,
       });
       syncOnlinePlayerSeatInputs();
+      lastShellOpenActionCache = null;
+      void syncShellOpenAction();
       return;
     }
 
     const name = typeof user.displayName === "string" ? user.displayName : "(no name)";
     signedInAccountDisplayName = name.trim();
+    signedInAccountUserId = typeof user.userId === "string" ? user.userId.trim() : "";
+    writeAuthSessionUserId(serverUrl, signedInAccountUserId);
     const email = typeof user.email === "string" ? user.email : "";
     const countryName = user.countryName ?? resolveCountryName(user.countryCode ?? "") ?? null;
     const timeZone = user.timeZone ?? null;
@@ -1485,6 +1520,8 @@ window.addEventListener("DOMContentLoaded", () => {
     prefillLocalPlayerNamesFromSignedInAccount();
     syncOnlinePlayerSeatInputs();
     syncOnlineIdentityFromBotSection();
+    lastShellOpenActionCache = null;
+    void syncShellOpenAction();
   };
 
   const withAccountBusy = async (fn: () => Promise<void>): Promise<void> => {
@@ -2712,6 +2749,178 @@ window.addEventListener("DOMContentLoaded", () => {
   });
   syncShellAccountState = appShell.setAccountState;
 
+  let shellOpenActionSyncId = 0;
+  let lastShellOpenActionCache:
+    | { key: string; label: string; href: string; title?: string }
+    | null = null;
+
+  function getShellOpenActionLinks(): HTMLAnchorElement[] {
+    const links = [
+      document.querySelector('[data-shell-open-page]') as HTMLAnchorElement | null,
+      document.querySelector('.appShellLaunchLink') as HTMLAnchorElement | null,
+    ];
+    return links.filter(Boolean) as HTMLAnchorElement[];
+  }
+
+  function setShellOpenActionState(args: { label: string; href: string; title?: string }): void {
+    for (const link of getShellOpenActionLinks()) {
+      link.textContent = args.label;
+      link.href = args.href;
+      link.style.pointerEvents = "auto";
+      link.style.opacity = "1";
+      if (args.title) link.title = args.title;
+      else link.removeAttribute("title");
+    }
+  }
+
+  function resumeRecordMatchesSignedInAccount(record: OnlineResumeRecord): boolean {
+    const userId = signedInAccountUserId.trim();
+    const displayName = signedInAccountDisplayName.trim();
+    if (!userId && !displayName) return false;
+    if (record.userId) return record.userId === userId;
+    if (!displayName || !record.displayName) return false;
+    return record.displayName.trim().toLowerCase() === displayName.toLowerCase();
+  }
+
+  function buildOnlineRejoinHref(args: {
+    entryUrl: string;
+    serverUrl: string;
+    roomId: string;
+    playerId: string;
+    color?: "W" | "B";
+  }): string {
+    const url = new URL(args.entryUrl, window.location.href);
+    url.searchParams.set("mode", "online");
+    url.searchParams.set("server", args.serverUrl);
+    url.searchParams.set("roomId", args.roomId);
+    url.searchParams.set("playerId", args.playerId);
+    if (args.color) url.searchParams.set("color", args.color);
+    return url.toString();
+  }
+
+  async function resolveLatestRejoinHrefForSelectedVariant(args: {
+    variantId: VariantId;
+    entryUrl: string;
+    playMode: PlayMode;
+  }): Promise<string | null> {
+    if (args.playMode !== "online") return null;
+    const serverUrl = normalizeServerUrl(resolveConfiguredServerUrl());
+    if (!serverUrl) return null;
+    if (!signedInAccountUserId.trim() && !signedInAccountDisplayName.trim()) return null;
+
+    const candidates = listOnlineResumeRecords()
+      .filter((record) => record.serverUrl === serverUrl)
+      .filter((record) => resumeRecordMatchesSignedInAccount(record))
+      .sort((a, b) => b.savedAtMs - a.savedAtMs);
+
+    for (const record of candidates) {
+      if (record.variantId && record.variantId !== args.variantId) continue;
+
+      let meta: GetRoomMetaResponse | null = null;
+      try {
+        const metaRes = await fetch(`${serverUrl}/api/room/${encodeURIComponent(record.roomId)}/meta`, buildSessionAuthFetchInit(serverUrl));
+        const metaJson = (await metaRes.json()) as GetRoomMetaResponse;
+        if (!metaRes.ok || (metaJson as any)?.error) continue;
+        meta = metaJson;
+      } catch {
+        continue;
+      }
+
+      if (!meta || meta.variantId !== args.variantId) continue;
+
+      try {
+        const snapRes = await fetch(
+          `${serverUrl}/api/room/${encodeURIComponent(record.roomId)}?playerId=${encodeURIComponent(record.playerId)}`,
+          buildSessionAuthFetchInit(serverUrl)
+        );
+        const snapJson = (await snapRes.json()) as GetRoomSnapshotResponse;
+        if (!snapRes.ok || (snapJson as any)?.error) continue;
+
+        const wireState = (snapJson as any)?.snapshot?.state;
+        if (!wireState) continue;
+        const state = deserializeWireGameState(wireState as any);
+        const terminal = checkCurrentPlayerLost(state as any);
+        if (terminal.reason) continue;
+
+        return buildOnlineRejoinHref({
+          entryUrl: args.entryUrl,
+          serverUrl,
+          roomId: record.roomId,
+          playerId: record.playerId,
+          color: record.color,
+        });
+      } catch {
+        continue;
+      }
+    }
+
+    return null;
+  }
+
+  async function syncShellOpenAction(): Promise<void> {
+    const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
+    const variant = getVariantById(vId);
+    const playMode = (elPlayMode.value === "online" ? "online" : "local") as PlayMode;
+    const serverUrl = normalizeServerUrl(resolveConfiguredServerUrl());
+    const fingerprint = listOnlineResumeRecords()
+      .filter((record) => record.serverUrl === serverUrl)
+      .map((record) => `${record.roomId}:${record.savedAtMs}:${record.userId ?? ""}:${record.variantId ?? ""}`)
+      .sort()
+      .join("|");
+    const key = [vId, playMode, serverUrl, signedInAccountUserId.trim(), signedInAccountDisplayName.trim().toLowerCase(), fingerprint].join("::");
+    if (lastShellOpenActionCache?.key === key) {
+      setShellOpenActionState({
+        label: lastShellOpenActionCache.label,
+        href: lastShellOpenActionCache.href,
+        ...(lastShellOpenActionCache.title ? { title: lastShellOpenActionCache.title } : {}),
+      });
+      return;
+    }
+
+    const syncId = ++shellOpenActionSyncId;
+    if (!variant.available || !variant.entryUrl) {
+      setShellOpenActionState({ label: "Open Variant Page", href: "#" });
+      return;
+    }
+
+    if (playMode !== "online") {
+      const next = {
+        label: "Open Variant Page",
+        href: variant.entryUrl,
+        title: `Open ${variant.displayName}.`,
+      };
+      lastShellOpenActionCache = { key, ...next };
+      setShellOpenActionState(next);
+      return;
+    }
+
+    const rejoinHref = await resolveLatestRejoinHrefForSelectedVariant({
+      variantId: vId,
+      entryUrl: variant.entryUrl,
+      playMode,
+    });
+    if (syncId !== shellOpenActionSyncId) return;
+
+    if (rejoinHref) {
+      const next = {
+        label: "Rejoin Game",
+        href: rejoinHref,
+        title: "Rejoin your most recent unfinished online game for this variant.",
+      };
+      lastShellOpenActionCache = { key, ...next };
+      setShellOpenActionState(next);
+      return;
+    }
+
+    const next = {
+      label: "Open Variant Page",
+      href: variant.entryUrl,
+      title: `Open ${variant.displayName} without creating a new room.`,
+    };
+    lastShellOpenActionCache = { key, ...next };
+    setShellOpenActionState(next);
+  }
+
   const syncDelayLabel = () => {
     const min = Number(elAiDelay.min || "0");
     const max = Number(elAiDelay.max || "5000");
@@ -2806,7 +3015,10 @@ window.addEventListener("DOMContentLoaded", () => {
     const v = getVariantById(vId);
     const playMode = (elPlayMode.value === "online" ? "online" : "local") as PlayMode;
 
+    elLaunch.textContent = playMode === "online" ? "Launch New Room" : "Launch";
+
     appShell.setSelectedGame(vId, { playMode });
+    void syncShellOpenAction();
 
     // Terminology:
     // - When using the Checkers (Red/Black) *pieces* (theme id: "checkers"): use Red/Black for disc games.
