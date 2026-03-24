@@ -71,17 +71,18 @@ function ensureShellStyles(): void {
       z-index: 30;
     }
 
-    .appShellRoot.navOpen .appShellOverlay {
+    .appShellRoot.leftDrawerOpen .appShellOverlay,
+    .appShellRoot.rightDrawerOpen .appShellOverlay {
       opacity: 1;
       pointer-events: auto;
     }
 
-    .appShellRail {
+    .appShellRail,
+    .appShellRightRail {
       -webkit-text-size-adjust: 100%;
       text-size-adjust: 100%;
       position: fixed;
       top: 0;
-      left: 0;
       bottom: 0;
       width: min(320px, calc(100vw - 28px));
       margin: 0;
@@ -97,11 +98,26 @@ function ensureShellStyles(): void {
       box-shadow: 0 18px 36px rgba(0, 0, 0, 0.24);
       z-index: 40;
       overflow: auto;
-      transform: translateX(calc(-100% - 16px));
       transition: transform 160ms ease;
     }
 
-    .appShellRoot.navOpen .appShellRail {
+    .appShellRail {
+      left: 0;
+      transform: translateX(calc(-100% - 16px));
+    }
+
+    .appShellRightRail {
+      right: 0;
+      left: auto;
+      border-radius: 20px 0 0 20px;
+      transform: translateX(calc(100% + 16px));
+    }
+
+    .appShellRoot.leftDrawerOpen .appShellRail {
+      transform: translateX(0);
+    }
+
+    .appShellRoot.rightDrawerOpen .appShellRightRail {
       transform: translateX(0);
     }
 
@@ -265,6 +281,7 @@ function ensureShellStyles(): void {
     }
 
     .appShellMenuToggle,
+    .appShellGamesToggle,
     .appShellHeaderAction {
       appearance: none;
       border: 1px solid rgba(255, 255, 255, 0.12);
@@ -286,11 +303,13 @@ function ensureShellStyles(): void {
       flex: 0 0 auto;
     }
 
-    .appShellMenuToggle {
+    .appShellMenuToggle,
+    .appShellGamesToggle {
       display: inline-flex;
     }
 
     .appShellMenuToggle:hover,
+    .appShellGamesToggle:hover,
     .appShellHeaderAction:hover {
       background: rgba(255, 255, 255, 0.1);
     }
@@ -410,6 +429,12 @@ function ensureShellStyles(): void {
       min-height: 0;
       display: grid;
       gap: 12px;
+    }
+
+    .appShellRightRail {
+      display: grid;
+      gap: 12px;
+      align-content: start;
     }
 
     .appShellCard {
@@ -623,25 +648,26 @@ function ensureShellStyles(): void {
       }
 
       .appShellRoot {
-        grid-template-columns: 260px minmax(0, 1fr);
+        grid-template-columns: 260px minmax(0, 1fr) 320px;
         height: 100vh;
         min-height: 100vh;
       }
 
       .appShellRoot[data-rail-mode="compact"] {
-        grid-template-columns: 92px minmax(0, 1fr);
+        grid-template-columns: 92px minmax(0, 1fr) 320px;
       }
 
       .appShellOverlay,
       .appShellMenuToggle,
+      .appShellGamesToggle,
       .appShellHeaderBrand {
         display: none;
       }
 
-      .appShellRail {
+      .appShellRail,
+      .appShellRightRail {
         position: sticky;
         top: 0;
-        left: auto;
         bottom: auto;
         width: auto;
         margin: 0;
@@ -650,11 +676,20 @@ function ensureShellStyles(): void {
         overflow: hidden;
         transform: none;
         padding: 22px 16px 18px;
-        border-right: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 0;
         box-shadow: none;
         z-index: 1;
         transition: none;
+      }
+
+      .appShellRail {
+        left: auto;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .appShellRightRail {
+        right: auto;
+        border-left: 1px solid rgba(255, 255, 255, 0.08);
       }
 
       .appShellRailClose {
@@ -673,7 +708,7 @@ function ensureShellStyles(): void {
 
       .appShellMain {
         height: 100vh;
-        padding: 20px 20px 24px 0;
+        padding: 20px;
       }
 
       .appShellHeader {
@@ -683,13 +718,13 @@ function ensureShellStyles(): void {
       }
 
       .appShellBody {
-        grid-template-columns: minmax(0, 1fr) 300px;
+        grid-template-columns: minmax(0, 1fr);
         min-height: 0;
         align-items: stretch;
       }
 
       .appShellContentSlot,
-      .appShellSidePanel {
+      .appShellRightRail {
         overflow: auto;
         padding-right: 4px;
       }
@@ -800,10 +835,11 @@ function ensureShellStyles(): void {
       }
 
       .appShellHeader {
-        grid-template-columns: auto auto minmax(0, 1fr) auto;
+        grid-template-columns: auto auto minmax(0, 1fr) auto auto;
         align-items: center;
       }
 
+      .appShellGamesToggle,
       .appShellHeaderAction {
         justify-self: end;
       }
@@ -811,7 +847,7 @@ function ensureShellStyles(): void {
 
     @media (max-width: 540px) {
       .appShellHeader {
-        grid-template-columns: auto auto minmax(0, 1fr);
+        grid-template-columns: auto auto minmax(0, 1fr) auto;
       }
 
       .appShellHeaderAction {
@@ -900,6 +936,17 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   closeButton.textContent = "Close";
   rail.appendChild(closeButton);
 
+  const sidePanel = document.createElement("aside");
+  sidePanel.className = "appShellRightRail appShellSidePanel";
+  sidePanel.id = "stackworksAppShellGamesRail";
+  sidePanel.setAttribute("aria-hidden", "true");
+
+  const sidePanelCloseButton = document.createElement("button");
+  sidePanelCloseButton.type = "button";
+  sidePanelCloseButton.className = "appShellRailClose";
+  sidePanelCloseButton.textContent = "Close";
+  sidePanel.appendChild(sidePanelCloseButton);
+
   const brand = document.createElement("div");
   brand.className = "appShellBrand";
   const brandMark = document.createElement("span");
@@ -952,12 +999,12 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   const header = document.createElement("header");
   header.className = "appShellHeader";
 
-  const menuToggle = document.createElement("button");
-  menuToggle.type = "button";
-  menuToggle.className = "appShellMenuToggle";
-  menuToggle.textContent = "Menu";
-  menuToggle.setAttribute("aria-controls", rail.id);
-  menuToggle.setAttribute("aria-expanded", "false");
+  const sectionsToggle = document.createElement("button");
+  sectionsToggle.type = "button";
+  sectionsToggle.className = "appShellMenuToggle";
+  sectionsToggle.textContent = "Sections";
+  sectionsToggle.setAttribute("aria-controls", rail.id);
+  sectionsToggle.setAttribute("aria-expanded", "false");
 
   const headerBrand = document.createElement("a");
   headerBrand.className = "appShellHeaderBrand";
@@ -996,15 +1043,20 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   helpLink.rel = "noopener noreferrer";
   helpLink.textContent = "Start help";
 
-  header.append(menuToggle, headerBrand, titleBlock, helpLink);
+  const gamesToggle = document.createElement("button");
+  gamesToggle.type = "button";
+  gamesToggle.className = "appShellGamesToggle";
+  gamesToggle.textContent = "Games";
+  gamesToggle.setAttribute("aria-controls", sidePanel.id);
+  gamesToggle.setAttribute("aria-expanded", "false");
+
+  header.append(sectionsToggle, headerBrand, titleBlock, gamesToggle, helpLink);
   main.appendChild(header);
 
   const body = document.createElement("div");
   body.className = "appShellBody";
   const contentSlot = document.createElement("div");
   contentSlot.className = "appShellContentSlot";
-  const sidePanel = document.createElement("aside");
-  sidePanel.className = "appShellSidePanel";
 
   const summaryCard = document.createElement("section");
   summaryCard.className = "appShellCard";
@@ -1069,10 +1121,10 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   const variantsGrid = variantsCard.querySelector("[data-shell-variants]") as HTMLElement;
   const playModeGrid = playCard.querySelector("[data-shell-play-modes]") as HTMLElement;
 
-  body.append(contentSlot, sidePanel);
+  body.append(contentSlot);
   sidePanel.append(summaryCard, playCard, variantsCard, quickCard);
   main.appendChild(body);
-  shell.append(overlay, rail, main);
+  shell.append(overlay, rail, main, sidePanel);
 
   const parent = opts.contentRoot.parentElement;
   if (!parent) {
@@ -1104,52 +1156,80 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
     shell.dataset.railMode = isCompactRail ? "compact" : "full";
   };
 
-  const syncNavState = (): void => {
-    const expanded = shell.classList.contains("navOpen");
+  const getActiveDrawer = (): "left" | "right" | "none" => {
+    if (shell.classList.contains("leftDrawerOpen")) return "left";
+    if (shell.classList.contains("rightDrawerOpen")) return "right";
+    return "none";
+  };
+
+  const syncDrawerState = (): void => {
+    const activeDrawer = getActiveDrawer();
     const desktop = isDesktopLayout();
-    menuToggle.setAttribute("aria-expanded", expanded ? "true" : "false");
-    rail.setAttribute("aria-hidden", desktop || expanded ? "false" : "true");
-    overlay.setAttribute("aria-hidden", expanded ? "false" : "true");
-    document.body.classList.toggle("stackworksAppShellNavLocked", expanded && !desktop);
+    sectionsToggle.setAttribute("aria-expanded", activeDrawer === "left" ? "true" : "false");
+    gamesToggle.setAttribute("aria-expanded", activeDrawer === "right" ? "true" : "false");
+    rail.setAttribute("aria-hidden", desktop || activeDrawer === "left" ? "false" : "true");
+    sidePanel.setAttribute("aria-hidden", desktop || activeDrawer === "right" ? "false" : "true");
+    overlay.setAttribute("aria-hidden", activeDrawer === "none" ? "true" : "false");
+    document.body.classList.toggle("stackworksAppShellNavLocked", activeDrawer !== "none" && !desktop);
   };
 
-  const closeNav = (restoreFocus = false): void => {
-    shell.classList.remove("navOpen");
-    syncNavState();
-    if (restoreFocus) menuToggle.focus();
+  const closeDrawers = (restoreFocusTo?: "left" | "right"): void => {
+    shell.classList.remove("leftDrawerOpen", "rightDrawerOpen");
+    syncDrawerState();
+    if (restoreFocusTo === "left") sectionsToggle.focus();
+    if (restoreFocusTo === "right") gamesToggle.focus();
   };
 
-  const openNav = (): void => {
+  const openLeftDrawer = (): void => {
     if (isDesktopLayout()) return;
-    shell.classList.add("navOpen");
-    syncNavState();
+    shell.classList.remove("rightDrawerOpen");
+    shell.classList.add("leftDrawerOpen");
+    syncDrawerState();
     closeButton.focus();
   };
 
-  const toggleNav = (): void => {
-    if (shell.classList.contains("navOpen")) {
-      closeNav(true);
+  const openRightDrawer = (): void => {
+    if (isDesktopLayout()) return;
+    shell.classList.remove("leftDrawerOpen");
+    shell.classList.add("rightDrawerOpen");
+    syncDrawerState();
+    sidePanelCloseButton.focus();
+  };
+
+  const toggleLeftDrawer = (): void => {
+    if (getActiveDrawer() === "left") {
+      closeDrawers("left");
     } else {
-      openNav();
+      openLeftDrawer();
+    }
+  };
+
+  const toggleRightDrawer = (): void => {
+    if (getActiveDrawer() === "right") {
+      closeDrawers("right");
+    } else {
+      openRightDrawer();
     }
   };
 
   const handleViewportChange = (): void => {
     if (isDesktopLayout()) {
-      closeNav(false);
+      closeDrawers();
     } else {
-      syncNavState();
+      syncDrawerState();
     }
     syncRailMode();
   };
 
-  overlay.addEventListener("click", () => closeNav(true));
-  closeButton.addEventListener("click", () => closeNav(true));
-  menuToggle.addEventListener("click", toggleNav);
+  overlay.addEventListener("click", () => closeDrawers(getActiveDrawer() === "right" ? "right" : "left"));
+  closeButton.addEventListener("click", () => closeDrawers("left"));
+  sidePanelCloseButton.addEventListener("click", () => closeDrawers("right"));
+  sectionsToggle.addEventListener("click", toggleLeftDrawer);
+  gamesToggle.addEventListener("click", toggleRightDrawer);
   desktopMedia?.addEventListener?.("change", handleViewportChange);
   compactRailMedia?.addEventListener?.("change", syncRailMode);
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeNav(true);
+    if (event.key === "Escape") closeDrawers(getActiveDrawer() === "right" ? "right" : "left");
   });
 
   const setActiveSection = (sectionId: AppShellSectionId): void => {
@@ -1166,7 +1246,7 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
       opts.onSelectPlayMode?.(focusOpts.playMode);
     }
     setActiveSection(sectionId);
-    closeNav(false);
+    closeDrawers();
     const target = resolveSectionTarget(sectionId);
     openDetailsTarget(target);
     if (sectionId === GlobalSection.Community) {
@@ -1340,7 +1420,7 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
     focusSection(GlobalSection.Community, { playMode: "online" });
   }
   syncRailMode();
-  syncNavState();
+  syncDrawerState();
 
   return {
     setActiveSection,

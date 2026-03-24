@@ -72,7 +72,7 @@ describe("initStartPageAppShell", () => {
     expect(scrollIntoView).toHaveBeenCalled();
   });
 
-  it("keeps the shell rail exposed on non-desktop viewports", () => {
+  it("opens separate Sections and Games drawers on non-desktop viewports", () => {
     installMatchMedia({ desktop: false, compactRail: false });
 
     document.body.innerHTML = `
@@ -96,12 +96,17 @@ describe("initStartPageAppShell", () => {
       initialPlayMode: "local",
     });
 
-    const menuToggle = document.querySelector(".appShellMenuToggle") as HTMLButtonElement | null;
+    const sectionsToggle = document.querySelector(".appShellMenuToggle") as HTMLButtonElement | null;
+    const gamesToggle = document.querySelector(".appShellGamesToggle") as HTMLButtonElement | null;
     const rail = document.getElementById("stackworksAppShellRail") as HTMLElement;
-    expect(menuToggle).toBeTruthy();
-    expect(menuToggle?.getAttribute("aria-expanded")).toBe("false");
+    const gamesRail = document.getElementById("stackworksAppShellGamesRail") as HTMLElement;
+    expect(sectionsToggle?.textContent).toBe("Sections");
+    expect(gamesToggle?.textContent).toBe("Games");
+    expect(sectionsToggle?.getAttribute("aria-expanded")).toBe("false");
+    expect(gamesToggle?.getAttribute("aria-expanded")).toBe("false");
     expect(rail).toBeTruthy();
     expect(rail.getAttribute("aria-hidden")).toBe("true");
+    expect(gamesRail.getAttribute("aria-hidden")).toBe("true");
 
     const headerBrand = document.querySelector(".appShellHeaderBrand") as HTMLAnchorElement | null;
     expect(headerBrand?.getAttribute("href")).toBe("./");
@@ -109,9 +114,15 @@ describe("initStartPageAppShell", () => {
     expect(headerBrand?.querySelector('.appShellHeaderBrandMark img')?.getAttribute("src")).toContain("stackworks-logo-icon.svg");
     expect(headerBrand?.querySelector('.appShellHeaderBrandWordmark img')?.getAttribute("src")).toContain("stackworks-wordmark.svg");
 
-    menuToggle?.click();
-    expect(menuToggle?.getAttribute("aria-expanded")).toBe("true");
+    sectionsToggle?.click();
+    expect(sectionsToggle?.getAttribute("aria-expanded")).toBe("true");
     expect(rail.getAttribute("aria-hidden")).toBe("false");
+
+    gamesToggle?.click();
+    expect(sectionsToggle?.getAttribute("aria-expanded")).toBe("false");
+    expect(gamesToggle?.getAttribute("aria-expanded")).toBe("true");
+    expect(rail.getAttribute("aria-hidden")).toBe("true");
+    expect(gamesRail.getAttribute("aria-hidden")).toBe("false");
   });
 
   it("switches the desktop rail into compact mode at narrower desktop widths", () => {
@@ -140,6 +151,9 @@ describe("initStartPageAppShell", () => {
 
     const shell = document.querySelector(".appShellRoot") as HTMLElement | null;
     expect(shell?.dataset.railMode).toBe("compact");
+
+    const gamesRail = document.getElementById("stackworksAppShellGamesRail") as HTMLElement | null;
+    expect(gamesRail?.getAttribute("aria-hidden")).toBe("false");
 
     const firstNav = document.querySelector(".appShellNavButton") as HTMLButtonElement | null;
     expect(firstNav?.getAttribute("aria-label")).toBe("Home");
@@ -233,6 +247,7 @@ describe("initStartPageAppShell", () => {
     });
 
     const shellStyle = document.getElementById("stackworks-app-shell-style");
+    expect(shellStyle?.textContent).toContain("grid-template-columns: 260px minmax(0, 1fr) 320px;");
     expect(shellStyle?.textContent).toContain("-webkit-line-clamp: 2;");
     expect(shellStyle?.textContent).toContain("white-space: normal;");
     expect(shellStyle?.textContent).toContain("font-size: clamp(16px, 3.6vw, 20px);");
