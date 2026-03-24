@@ -56,7 +56,8 @@ function isRecoverableStockfishFailureMessage(msg: string): boolean {
 }
 
 function parseSideSetting(v: string | null): BotSideSetting {
-  if (v === "beginner" || v === "intermediate" || v === "strong" || v === "human") return v;
+  if (v === "strong") return "advanced";
+  if (v === "beginner" || v === "intermediate" || v === "advanced" || v === "master" || v === "human") return v;
   return "human";
 }
 
@@ -1408,7 +1409,7 @@ export class ChessBotManager {
   }
 
   private resetLearning(): void {
-    for (const tier of ["beginner", "intermediate", "strong"] as const) {
+    for (const tier of ["beginner", "intermediate", "advanced", "master"] as const) {
       this.saveAdaptState(tier, normalizeAdaptState(null));
     }
   }

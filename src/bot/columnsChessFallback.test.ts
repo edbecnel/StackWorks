@@ -34,7 +34,12 @@ describe("columns chess fallback", () => {
     const legal = generateLegalMovesColumnsChess(s);
     expect(legal.length).toBeGreaterThan(0);
 
-    const m = pickFallbackMoveColumnsChess(s, { seed: "t", legalMoves: legal, timeBudgetMs: 60 });
+    const m = pickFallbackMoveColumnsChess(s, {
+      tier: "intermediate",
+      seed: "t",
+      legalMoves: legal,
+      timeBudgetMs: 60,
+    });
     expect(m).toBeTruthy();
 
     // Should apply without throwing.
@@ -54,9 +59,35 @@ describe("columns chess fallback", () => {
     const legal = generateLegalMovesColumnsChess(s);
     expect(legal.some((m) => m.kind === "capture")).toBe(true);
 
-    const m = pickFallbackMoveColumnsChess(s, { seed: "cap", legalMoves: legal, timeBudgetMs: 80 });
+    const m = pickFallbackMoveColumnsChess(s, {
+      tier: "intermediate",
+      seed: "cap",
+      legalMoves: legal,
+      timeBudgetMs: 80,
+    });
     expect(m).toBeTruthy();
     expect(m!.kind).toBe("capture");
     expect((m as any).to).toBe("r4c7");
+  });
+
+  it("keeps a preferred Stockfish move when stack-aware search does not strongly disagree", () => {
+    const s = mkEmptyColumnsChessState("W");
+    s.board.set("r7c4", [{ owner: "W", rank: "K" } as any]);
+    s.board.set("r0c4", [{ owner: "B", rank: "K" } as any]);
+    s.board.set("r6c4", [{ owner: "W", rank: "P" } as any]);
+
+    const legal = generateLegalMovesColumnsChess(s);
+    const preferred = legal.find((move) => (move as any).to === "r5c4");
+    expect(preferred).toBeTruthy();
+
+    const chosen = pickFallbackMoveColumnsChess(s, {
+      tier: "beginner",
+      seed: "preferred",
+      legalMoves: legal,
+      timeBudgetMs: 40,
+      preferredMove: preferred!,
+    });
+
+    expect(chosen).toEqual(preferred);
   });
 });

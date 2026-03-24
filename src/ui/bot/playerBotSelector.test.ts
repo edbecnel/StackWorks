@@ -17,7 +17,8 @@ describe("installPlayerBotSelector", () => {
         <option value="human">Human</option>
         <option value="easy">Beginner</option>
         <option value="medium">Intermediate</option>
-        <option value="advanced">Strong</option>
+        <option value="advanced">Advanced</option>
+        <option value="master">Master</option>
       </select>
     `;
 
@@ -69,7 +70,10 @@ describe("installPlayerBotSelector", () => {
       </div>
       <select id="storage">
         <option value="human">Human</option>
-        <option value="bot">Standard</option>
+        <option value="beginner">Beginner</option>
+        <option value="intermediate">Intermediate</option>
+        <option value="advanced">Advanced</option>
+        <option value="master">Master</option>
       </select>
     `;
 
@@ -84,12 +88,12 @@ describe("installPlayerBotSelector", () => {
       levelWrapId: "levelWrap",
     });
 
-    storage.value = "bot";
+    storage.value = "advanced";
     syncPlayerBotSelector("storage");
 
     expect(role.value).toBe("bot");
     expect(level.hidden).toBe(false);
-    expect(level.options).toHaveLength(1);
-    expect(level.options[0]?.textContent).toBe("Standard");
+    expect(level.options).toHaveLength(4);
+    expect(level.value).toBe("advanced");
   });
 });

@@ -14,8 +14,10 @@ export function kForTier(tier: BotTier): number {
       return 0.9;
     case "intermediate":
       return 0.8;
-    case "strong":
+    case "advanced":
       return 0.7;
+    case "master":
+      return 0.6;
   }
 }
 

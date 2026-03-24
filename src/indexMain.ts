@@ -257,8 +257,8 @@ function maybeResetCheckersThemePrefs(): void {
 
 type PreferredColor = "auto" | "W" | "B";
 
-type Difficulty = "human" | "easy" | "medium" | "advanced";
-type ColumnsBotSide = "human" | "bot";
+type Difficulty = "human" | "easy" | "medium" | "advanced" | "master";
+type ColumnsBotSide = "human" | "beginner" | "intermediate" | "advanced" | "master";
 type PlayMode = "local" | "online";
 type OnlineAction = "create" | "join" | "spectate" | "rejoin";
 type GlassBg = "original" | "felt" | "walnut";
@@ -293,26 +293,31 @@ const CHESSBOT_LS_KEYS = {
   delay: "lasca.chessbot.delayMs",
 } as const;
 
-type ChessBotSideSetting = "human" | "beginner" | "intermediate" | "strong";
+type ChessBotSideSetting = "human" | "beginner" | "intermediate" | "advanced" | "master";
 
 function difficultyToChessBotSide(raw: string): ChessBotSideSetting {
   if (raw === "easy") return "beginner";
   if (raw === "medium") return "intermediate";
-  if (raw === "advanced") return "strong";
+  if (raw === "advanced") return "advanced";
+  if (raw === "master") return "master";
   return "human";
 }
 
 function chessBotSideToDifficulty(raw: string | null): Difficulty {
   if (raw === "beginner") return "easy";
   if (raw === "intermediate") return "medium";
-  if (raw === "strong") return "advanced";
+  if (raw === "strong" || raw === "advanced") return "advanced";
+  if (raw === "master") return "master";
   return "human";
 }
 
 function readColumnsBotSide(key: string, fallback: ColumnsBotSide): ColumnsBotSide {
   try {
     const raw = localStorage.getItem(key);
-    return raw === "bot" ? "bot" : "human";
+    if (raw === "bot") return "intermediate";
+    if (raw === "strong") return "advanced";
+    if (raw === "beginner" || raw === "intermediate" || raw === "advanced" || raw === "master") return raw;
+    return "human";
   } catch {
     return fallback;
   }
@@ -1950,8 +1955,8 @@ window.addEventListener("DOMContentLoaded", () => {
 
     if (isColumnsChess) {
       // Columns Chess uses a separate offline bot (Human/Bot). Keep generic AI prefs untouched.
-      writeColumnsBotSide(LS_KEYS.columnsBotWhite, (elAiWhite.value === "bot" ? "bot" : "human") as ColumnsBotSide);
-      writeColumnsBotSide(LS_KEYS.columnsBotBlack, (elAiBlack.value === "bot" ? "bot" : "human") as ColumnsBotSide);
+      writeColumnsBotSide(LS_KEYS.columnsBotWhite, (elAiWhite.value === "human" ? "human" : elAiWhite.value) as ColumnsBotSide);
+      writeColumnsBotSide(LS_KEYS.columnsBotBlack, (elAiBlack.value === "human" ? "human" : elAiBlack.value) as ColumnsBotSide);
     } else {
       localStorage.setItem(LS_KEYS.aiWhite, elAiWhite.value);
       localStorage.setItem(LS_KEYS.aiBlack, elAiBlack.value);
@@ -3255,9 +3260,15 @@ window.addEventListener("DOMContentLoaded", () => {
         '<option value="human">Human</option>' +
         '<option value="easy">Beginner</option>' +
         '<option value="medium">Intermediate</option>' +
-        '<option value="advanced">Strong</option>';
+        '<option value="advanced">Advanced</option>' +
+        '<option value="master">Master</option>';
 
-      const columnsBotOptions = '<option value="human">Human</option><option value="bot">Standard</option>';
+      const columnsBotOptions =
+        '<option value="human">Human</option>' +
+        '<option value="beginner">Beginner</option>' +
+        '<option value="intermediate">Intermediate</option>' +
+        '<option value="advanced">Advanced</option>' +
+        '<option value="master">Master</option>';
 
       if (isColumnsChess) {
         setOptions(elAiWhite, "columns", columnsBotOptions);
@@ -3547,7 +3558,7 @@ window.addEventListener("DOMContentLoaded", () => {
   elAiWhite.addEventListener("change", () => {
     const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
     if (vId === "columns_chess") {
-      writeColumnsBotSide(LS_KEYS.columnsBotWhite, (elAiWhite.value === "bot" ? "bot" : "human") as ColumnsBotSide);
+      writeColumnsBotSide(LS_KEYS.columnsBotWhite, (elAiWhite.value === "human" ? "human" : elAiWhite.value) as ColumnsBotSide);
     } else {
       localStorage.setItem(LS_KEYS.aiWhite, elAiWhite.value);
     }
@@ -3565,7 +3576,7 @@ window.addEventListener("DOMContentLoaded", () => {
   elAiBlack.addEventListener("change", () => {
     const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
     if (vId === "columns_chess") {
-      writeColumnsBotSide(LS_KEYS.columnsBotBlack, (elAiBlack.value === "bot" ? "bot" : "human") as ColumnsBotSide);
+      writeColumnsBotSide(LS_KEYS.columnsBotBlack, (elAiBlack.value === "human" ? "human" : elAiBlack.value) as ColumnsBotSide);
     } else {
       localStorage.setItem(LS_KEYS.aiBlack, elAiBlack.value);
     }

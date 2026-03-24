@@ -1,10 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ColumnsChessBotManager } from "./columnsChessBotManager";
+import { createInitialGameStateForVariant } from "../game/state";
 
 class FakeController {
   private historyCb: ((reason?: any) => void) | null = null;
   private history: Array<{ index: number; isCurrent: boolean }> = [{ index: 0, isCurrent: true }];
   public sticky: { key: string | null; text: string | null } = { key: null, text: null };
+  public playedMove: any = null;
+  public state: any = { toMove: "W", phase: "select", board: new Map(), meta: { rulesetId: "columns_chess" } };
+  public legalMoves: any[] = [];
 
   addHistoryChangeCallback(cb: (reason?: any) => void): void {
     this.historyCb = cb;
@@ -23,7 +27,7 @@ class FakeController {
   }
 
   getState(): any {
-    return { toMove: "W", phase: "select", board: new Map(), meta: { rulesetId: "columns_chess" } };
+    return this.state;
   }
 
   isOver(): boolean {
@@ -51,11 +55,13 @@ class FakeController {
   }
 
   getLegalMovesForTurn(): any[] {
-    return [];
+    return this.legalMoves;
   }
 
   async playMove(_m: any): Promise<void> {
-    // ignore
+    this.playedMove = _m;
+    this.state = { ...this.state, toMove: "B" };
+    this.legalMoves = [];
   }
 }
 
@@ -89,8 +95,8 @@ describe("ColumnsChessBotManager board tap", () => {
 
   it("prepends the signed-in local account name to bot dropdowns", async () => {
     document.body.innerHTML = `
-      <select id="botWhiteSelect"><option value="human">Human</option><option value="bot">Bot</option></select>
-      <select id="botBlackSelect"><option value="human">Human</option><option value="bot">Bot</option></select>
+      <select id="botWhiteSelect"><option value="human">Human</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option><option value="master">Master</option></select>
+      <select id="botBlackSelect"><option value="human">Human</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option><option value="master">Master</option></select>
       <input id="botDelay" />
       <button id="botDelayReset"></button>
       <span id="botDelayLabel"></span>
@@ -113,7 +119,7 @@ describe("ColumnsChessBotManager board tap", () => {
     await Promise.resolve();
 
     const whiteOptions = Array.from((document.getElementById("botWhiteSelect") as HTMLSelectElement).options).map((option) => option.textContent);
-    expect(whiteOptions).toEqual(["EdB", "Human", "Bot"]);
+    expect(whiteOptions).toEqual(["EdB", "Human", "Beginner", "Intermediate", "Advanced", "Master"]);
   });
 
   it("does not show the paused bot sticky toast when jumping to a past move during playback", () => {
@@ -135,5 +141,80 @@ describe("ColumnsChessBotManager board tap", () => {
 
     expect(controller.sticky.key).toBeNull();
     expect(controller.sticky.text).toBeNull();
+  });
+
+  it("does not keep the startup pause when a fresh game starts with a human turn", () => {
+    localStorage.setItem("lasca.columnsChessBot.white", "human");
+    localStorage.setItem("lasca.columnsChessBot.black", "intermediate");
+    localStorage.setItem("lasca.columnsChessBot.paused", "true");
+
+    const controller = new FakeController();
+    controller.state = createInitialGameStateForVariant("columns_chess" as any);
+
+    document.body.innerHTML = `
+      <select id="botWhiteSelect"><option value="human">Human</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option><option value="master">Master</option></select>
+      <select id="botBlackSelect"><option value="human">Human</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option><option value="master">Master</option></select>
+      <input id="botDelay" />
+      <button id="botDelayReset"></button>
+      <span id="botDelayLabel"></span>
+      <button id="botPauseBtn"></button>
+      <button id="botResetLearningBtn"></button>
+      <span id="botStatus"></span>
+      <div id="boardWrap"></div>
+    `;
+
+    const mgr = new ColumnsChessBotManager(controller as any);
+    mgr.bind();
+
+    expect(localStorage.getItem("lasca.columnsChessBot.paused")).toBe("false");
+    vi.runAllTimers();
+    expect(controller.sticky.key).toBeNull();
+    expect(controller.sticky.text).toBeNull();
+  });
+
+  it("consults Stockfish for Columns Chess bot moves when the engine is ready", async () => {
+    const controller = new FakeController();
+    controller.state = createInitialGameStateForVariant("columns_chess" as any);
+    controller.legalMoves = [
+      { kind: "move", from: "r6c4", to: "r5c4" },
+      { kind: "move", from: "r6c4", to: "r4c4" },
+    ];
+
+    localStorage.setItem("lasca.columnsChessBot.white", "intermediate");
+    localStorage.setItem("lasca.columnsChessBot.black", "human");
+    localStorage.setItem("lasca.columnsChessBot.paused", "false");
+    localStorage.setItem("lasca.columnsChessBot.delayMs", "0");
+
+    document.body.innerHTML = `
+      <select id="botWhiteSelect"><option value="human">Human</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option><option value="master">Master</option></select>
+      <select id="botBlackSelect"><option value="human">Human</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option><option value="master">Master</option></select>
+      <input id="botDelay" />
+      <button id="botDelayReset"></button>
+      <span id="botDelayLabel"></span>
+      <button id="botPauseBtn"></button>
+      <button id="botResetLearningBtn"></button>
+      <span id="botStatus"></span>
+      <div id="boardWrap"></div>
+    `;
+
+    const bestMove = vi.fn(async () => "e2e4");
+    const engineFactory = () => ({
+      init: async () => {},
+      bestMove,
+      evaluate: async () => ({ cp: 30 }),
+      terminate: () => {},
+    });
+
+    const mgr = new ColumnsChessBotManager(controller as any, { engineFactory: engineFactory as any });
+    mgr.bind();
+    await Promise.resolve();
+    await Promise.resolve();
+    (mgr as any).settings.paused = false;
+    ;(mgr as any).kick();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(bestMove).toHaveBeenCalledTimes(1);
+    expect(controller.playedMove).toEqual(expect.objectContaining({ from: "r6c4", to: "r4c4" }));
   });
 });

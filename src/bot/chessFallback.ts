@@ -331,8 +331,10 @@ function maxDepthForTier(tier: BotTier): number {
       return 2;
     case "intermediate":
       return 3;
-    case "strong":
+    case "advanced":
       return 4;
+    case "master":
+      return 5;
   }
 }
 
@@ -342,8 +344,10 @@ function timeBudgetForTierMs(tier: BotTier): number {
       return 45;
     case "intermediate":
       return 90;
-    case "strong":
+    case "advanced":
       return 160;
+    case "master":
+      return 240;
   }
 }
 
@@ -376,7 +380,8 @@ export function pickFallbackMoveChess(
   const maxDepth = maxDepthForTier(opts.tier);
 
   // Node budget prevents pathological branching from freezing the UI.
-  const nodeBudgetBase = opts.tier === "strong" ? 140_000 : opts.tier === "intermediate" ? 55_000 : 25_000;
+  const nodeBudgetBase =
+    opts.tier === "master" ? 260_000 : opts.tier === "advanced" ? 140_000 : opts.tier === "intermediate" ? 55_000 : 25_000;
 
   let bestMove: Move | null = null;
   let bestScore = -Infinity;
@@ -456,7 +461,7 @@ export function pickFallbackMoveChess(
 
     const candidates = scoredOrdered.concat(unscored);
 
-    const limit = opts.tier === "beginner" ? 80 : opts.tier === "intermediate" ? 60 : 45;
+    const limit = opts.tier === "beginner" ? 90 : opts.tier === "intermediate" ? 70 : opts.tier === "advanced" ? 55 : 40;
     let checked = 0;
     for (const cand of candidates) {
       if (checked++ >= limit) break;

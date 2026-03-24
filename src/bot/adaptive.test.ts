@@ -17,7 +17,7 @@ describe("adaptive", () => {
 
   test("hysteresis limits applied to one step", () => {
     const s0 = { subFloat: 8.99, applied: 0 };
-    const s1 = adaptAfterGame({ tier: "strong", prev: s0, score: 1 });
+    const s1 = adaptAfterGame({ tier: "advanced", prev: s0, score: 1 });
     expect(s1.applied).toBe(1);
   });
 });

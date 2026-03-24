@@ -321,6 +321,162 @@
         padding: 10px;
       }
 
+      .chessEvalBars {
+        margin-top: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .engineEvalNumbers {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        margin-bottom: 4px;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .engineEvalNumW {
+        color: rgba(255, 255, 255, 0.95);
+      }
+
+      .engineEvalNumB {
+        color: rgba(180, 210, 255, 0.9);
+      }
+
+      .chessEvalBarTrack {
+        position: relative;
+        width: 100%;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        overflow: hidden;
+      }
+
+      .chessEvalBarTrack::after {
+        content: attr(data-hint);
+        position: absolute;
+        right: 0;
+        top: -26px;
+        max-width: 100%;
+        padding: 4px 8px;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.82);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: rgba(255, 255, 255, 0.92);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        opacity: 0;
+        transform: translateY(2px);
+        transition:
+          opacity 120ms ease,
+          transform 120ms ease;
+        pointer-events: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .chessEvalBarTrack:hover::after,
+      .chessEvalBarTrack:focus-visible::after,
+      .chessEvalBarTrack.showHint::after {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .chessEvalBarTrackBlack {
+        background: rgba(255, 255, 255, 0.18);
+      }
+
+      .chessEvalBarFill {
+        height: 100%;
+        width: 0%;
+        transition: width 180ms ease;
+      }
+
+      .chessEvalBarFillWhite {
+        background: rgba(255, 255, 255, 0.92);
+      }
+
+      .chessEvalBarFillBlack {
+        background: rgba(0, 0, 0, 0.92);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+      }
+
+      #boardWithEvalBar {
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+        flex: 0 1 auto;
+        width: 100%;
+        max-width: 100%;
+        min-height: 0;
+        gap: 0;
+        position: relative;
+      }
+
+      #evalBarOuter {
+        --eval-bar-w: 20px;
+        width: var(--eval-bar-w);
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        display: none;
+        pointer-events: none;
+        z-index: 3;
+      }
+
+      #evalBarOuter.evalBarVisible {
+        display: block;
+      }
+
+      #evalBarVertical {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 100%;
+        background: #f0ede8;
+        border-radius: 4px;
+        border: 1px solid rgba(0, 0, 0, 0.25);
+        overflow: visible;
+      }
+
+      #evalBarBlackFill {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 50%;
+        background: rgba(0, 0, 0, 0.92);
+        border-radius: 3px 3px 0 0;
+      }
+
+      #evalBarLabel {
+        position: absolute;
+        left: calc(100% + 6px);
+        right: auto;
+        top: 50%;
+        transform: translateY(-50%);
+        padding: 2px 4px;
+        min-width: 2.8em;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.82);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: rgba(255, 255, 255, 0.94);
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+        text-align: center;
+        white-space: nowrap;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+      }
+
       .panelSection h3 {
         margin: 0 0 8px 0;
         font-size: 12px;
@@ -702,9 +858,37 @@
           align-items: stretch;
         }
 
+        #boardWithEvalBar {
+          width: 100%;
+          margin-left: 0;
+          flex: 0 0 auto;
+          align-self: stretch;
+        }
+
         #boardWrap {
           align-items: flex-start;
           justify-content: flex-start;
+        }
+
+        body[data-eval-bar-visible="1"] #centerArea {
+          padding-left: max(8px, env(safe-area-inset-left));
+        }
+
+        body[data-eval-bar-visible="1"] #boardWithEvalBar {
+          width: calc(100% - 24px);
+          margin-left: 24px;
+        }
+
+        #evalBarOuter {
+          --eval-bar-w: 12px;
+        }
+
+        #evalBarLabel {
+          left: 50%;
+          right: auto;
+          font-size: 9px;
+          padding: 1px 2px;
+          transform: translate(-50%, -50%);
         }
       }
     </style>
@@ -1348,7 +1532,10 @@
                     tabindex="-1"
                   >
                     <option value="human">Human</option>
-                    <option value="bot">Standard</option>
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="advanced">Advanced</option>
+                    <option value="master">Master</option>
                   </select>
                 </div>
 
@@ -1385,7 +1572,10 @@
                     tabindex="-1"
                   >
                     <option value="human">Human</option>
-                    <option value="bot">Standard</option>
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="advanced">Advanced</option>
+                    <option value="master">Master</option>
                   </select>
                 </div>
 
@@ -1468,8 +1658,9 @@
                   margin-top: 8px;
                 "
               >
-                Columns Chess bot uses a fast fallback AI with stacking-aware
-                evaluation.
+                Columns Chess bot uses Stockfish for approximate position
+                guidance, then applies a stack-aware fallback search to refine
+                or replace that move when stacking tactics matter more.
               </div>
             </div>
           </div>
@@ -1503,7 +1694,20 @@
           ↕️
         </button>
         <div id="boardColumn">
-          <div id="boardWrap"></div>
+          <div id="boardWithEvalBar">
+            <div
+              id="evalBarOuter"
+              aria-label="Engine evaluation"
+              role="img"
+              aria-hidden="true"
+            >
+              <div id="evalBarVertical">
+                <div id="evalBarBlackFill"></div>
+                <div id="evalBarLabel">0.0</div>
+              </div>
+            </div>
+            <div id="boardWrap"></div>
+          </div>
 
           <div id="touchAnnotationPalette" aria-label="Annotation color">
             <button
@@ -1834,6 +2038,241 @@
         </div>
 
         <div class="sidebarBody">
+          <div
+            class="panelSection"
+            id="evaluationPanel"
+            data-section="evaluation"
+          >
+            <div class="sectionHeader" data-toggle="evaluation">
+              <h3>Evaluation</h3>
+              <span class="collapseBtn">▼</span>
+            </div>
+            <div class="sectionContent">
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 72px 1fr;
+                  gap: 8px 10px;
+                  align-items: center;
+                  font-size: 12px;
+                "
+              >
+                <label for="evaluationMode">Show</label>
+                <div
+                  id="evaluationMode"
+                  class="iconToggleGroup"
+                  role="group"
+                  aria-label="Evaluation display mode"
+                >
+                  <button
+                    type="button"
+                    class="panelBtn iconToggleBtn evalModeBtn"
+                    data-mode="engine"
+                    aria-pressed="false"
+                    title="Engine evaluation (Stockfish)"
+                    aria-label="Engine evaluation (Stockfish)"
+                  >
+                    &#x26A1;
+                  </button>
+                  <button
+                    type="button"
+                    class="panelBtn iconToggleBtn evalModeBtn"
+                    data-mode="material"
+                    aria-pressed="false"
+                    title="Material balance"
+                    aria-label="Material balance"
+                  >
+                    &#x26C0;
+                  </button>
+                  <button
+                    type="button"
+                    class="panelBtn iconToggleBtn evalModeBtn"
+                    data-mode="mobility"
+                    aria-pressed="false"
+                    title="Mobility (legal moves)"
+                    aria-label="Mobility (legal moves)"
+                  >
+                    &#x21C4;
+                  </button>
+                  <button
+                    type="button"
+                    class="panelBtn iconToggleBtn evalModeBtn"
+                    data-mode="center"
+                    aria-pressed="false"
+                    title="Center control"
+                    aria-label="Center control"
+                  >
+                    &#x2316;
+                  </button>
+                  <button
+                    type="button"
+                    class="panelBtn iconToggleBtn evalModeBtn"
+                    data-mode="threats"
+                    aria-pressed="false"
+                    title="Threats (attacked / hanging pieces)"
+                    aria-label="Threats (attacked / hanging pieces)"
+                  >
+                    &#x2694;
+                  </button>
+                </div>
+
+                <label
+                  id="evalBarToggleLabel"
+                  for="showEvalBarToggle"
+                  style="display: none"
+                  >Eval bar</label
+                >
+                <div
+                  id="evalBarToggleRow"
+                  style="display: none; align-items: center; gap: 6px"
+                >
+                  <input
+                    type="checkbox"
+                    id="showEvalBarToggle"
+                    style="
+                      width: 14px;
+                      height: 14px;
+                      cursor: pointer;
+                      accent-color: rgba(255, 255, 255, 0.75);
+                    "
+                  />
+                  <label
+                    for="showEvalBarToggle"
+                    style="font-size: 12px; cursor: pointer; user-select: none"
+                    >Show on board</label
+                  >
+                </div>
+              </div>
+              <div
+                id="evaluationValue"
+                style="
+                  margin-top: 10px;
+                  font-size: 12px;
+                  color: rgba(255, 255, 255, 0.78);
+                  white-space: pre-line;
+                "
+              >
+                —
+              </div>
+
+              <div
+                id="engineEvalNumbers"
+                class="engineEvalNumbers"
+                style="visibility: hidden"
+                aria-label="Engine evaluation scores"
+              >
+                <span id="engineEvalNumW">W —</span>
+                <span id="engineEvalNumB">B —</span>
+              </div>
+
+              <div class="chessEvalBars" aria-label="Evaluation quantity bars">
+                <div
+                  class="chessEvalBarTrack"
+                  aria-label="White quantity"
+                  tabindex="0"
+                  data-hint="White: 0"
+                >
+                  <div
+                    id="evaluationBarWhite"
+                    class="chessEvalBarFill chessEvalBarFillWhite"
+                    style="width: 0%"
+                  ></div>
+                </div>
+                <div
+                  class="chessEvalBarTrack chessEvalBarTrackBlack"
+                  aria-label="Black quantity"
+                  tabindex="0"
+                  data-hint="Black: 0"
+                >
+                  <div
+                    id="evaluationBarBlack"
+                    class="chessEvalBarFill chessEvalBarFillBlack"
+                    style="width: 0%"
+                  ></div>
+                </div>
+              </div>
+
+              <div
+                id="evaluationGraphSection"
+                style="display: none; margin-top: 12px"
+              >
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 10px;
+                    font-size: 11px;
+                    color: rgba(255, 255, 255, 0.68);
+                    margin-bottom: 6px;
+                  "
+                >
+                  <span>Game graph</span>
+                  <span id="evaluationGraphStatus">—</span>
+                </div>
+                <svg
+                  id="evaluationGraphSvg"
+                  viewBox="0 0 320 120"
+                  preserveAspectRatio="none"
+                  aria-label="Engine evaluation graph"
+                  style="
+                    width: 100%;
+                    height: 120px;
+                    display: block;
+                    cursor: pointer;
+                    border-radius: 10px;
+                    background: rgba(255, 255, 255, 0.04);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                  "
+                >
+                  <line
+                    x1="8"
+                    y1="60"
+                    x2="312"
+                    y2="60"
+                    stroke="rgba(255,255,255,0.16)"
+                    stroke-width="1"
+                  />
+                  <path
+                    id="evaluationGraphPath"
+                    d=""
+                    fill="none"
+                    stroke="rgba(124, 196, 255, 0.95)"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  ></path>
+                  <circle
+                    id="evaluationGraphCurrent"
+                    cx="0"
+                    cy="0"
+                    r="4"
+                    fill="rgba(255, 214, 102, 0.98)"
+                    stroke="rgba(0, 0, 0, 0.85)"
+                    stroke-width="1.5"
+                    style="display: none"
+                  ></circle>
+                  <text
+                    x="10"
+                    y="16"
+                    fill="rgba(255,255,255,0.5)"
+                    font-size="10"
+                  >
+                    White
+                  </text>
+                  <text
+                    x="10"
+                    y="112"
+                    fill="rgba(255,255,255,0.5)"
+                    font-size="10"
+                  >
+                    Black
+                  </text>
+                </svg>
+              </div>
+            </div>
+          </div>
+
           <div class="panelSection" data-section="theme">
             <div class="sectionHeader" data-toggle="theme">
               <h3>Board & Pieces</h3>

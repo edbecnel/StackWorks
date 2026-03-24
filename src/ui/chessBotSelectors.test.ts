@@ -10,14 +10,14 @@ describe("resetChessBotSelectorsToHuman", () => {
       </select>
       <select id="botBlackSelect">
         <option value="human">human</option>
-        <option value="strong">strong</option>
+        <option value="master">master</option>
       </select>
     `;
 
     const white = document.getElementById("botWhiteSelect") as HTMLSelectElement;
     const black = document.getElementById("botBlackSelect") as HTMLSelectElement;
     white.value = "beginner";
-    black.value = "strong";
+    black.value = "master";
 
     const whiteChange = vi.fn();
     const blackChange = vi.fn();

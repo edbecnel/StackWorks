@@ -1,4 +1,4 @@
-export type BotTier = "beginner" | "intermediate" | "strong";
+export type BotTier = "beginner" | "intermediate" | "advanced" | "master";
 
 export type BotPreset = {
   skill: number; // Stockfish "Skill Level" (0..20)
@@ -30,7 +30,7 @@ export const BOT_PRESETS: Record<BotTier, ReadonlyArray<BotPreset>> = {
     { skill: 12, movetimeMs: 231 },
     { skill: 13, movetimeMs: 250 },
   ],
-  strong: [
+  advanced: [
     { skill: 14, movetimeMs: 200 },
     { skill: 15, movetimeMs: 256 },
     { skill: 15, movetimeMs: 311 },
@@ -41,6 +41,18 @@ export const BOT_PRESETS: Record<BotTier, ReadonlyArray<BotPreset>> = {
     { skill: 19, movetimeMs: 589 },
     { skill: 19, movetimeMs: 644 },
     { skill: 20, movetimeMs: 700 },
+  ],
+  master: [
+    { skill: 20, movetimeMs: 800 },
+    { skill: 20, movetimeMs: 950 },
+    { skill: 20, movetimeMs: 1100 },
+    { skill: 20, movetimeMs: 1250 },
+    { skill: 20, movetimeMs: 1400 },
+    { skill: 20, movetimeMs: 1550 },
+    { skill: 20, movetimeMs: 1700 },
+    { skill: 20, movetimeMs: 1850 },
+    { skill: 20, movetimeMs: 2000 },
+    { skill: 20, movetimeMs: 2200 },
   ],
 } as const;
 

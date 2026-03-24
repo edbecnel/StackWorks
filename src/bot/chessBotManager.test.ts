@@ -204,8 +204,8 @@ describe("ChessBotManager loadGame paused toast", () => {
 
   it("prepends the signed-in local account name to bot dropdowns", async () => {
     document.body.innerHTML = `
-      <select id="botWhiteSelect"><option value="human">Human</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="strong">Strong</option></select>
-      <select id="botBlackSelect"><option value="human">Human</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="strong">Strong</option></select>
+      <select id="botWhiteSelect"><option value="human">Human</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option><option value="master">Master</option></select>
+      <select id="botBlackSelect"><option value="human">Human</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option><option value="master">Master</option></select>
       <input id="botDelay" />
       <button id="botDelayReset"></button>
       <span id="botDelayLabel"></span>
@@ -242,12 +242,13 @@ describe("ChessBotManager loadGame paused toast", () => {
       value: option.value,
     }));
 
-    expect(whiteOptions.slice(0, 5)).toEqual([
+    expect(whiteOptions.slice(0, 6)).toEqual([
       { text: "EdB", disabled: true, value: "" },
       { text: "Human", disabled: false, value: "human" },
       { text: "Beginner", disabled: false, value: "beginner" },
       { text: "Intermediate", disabled: false, value: "intermediate" },
-      { text: "Strong", disabled: false, value: "strong" },
+      { text: "Advanced", disabled: false, value: "advanced" },
+      { text: "Master", disabled: false, value: "master" },
     ]);
   });
 

@@ -51,12 +51,13 @@ import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { initGameShell } from "./ui/shell/gameShell";
 import { GameSection } from "./config/shellState";
+import { bindChessEvaluationPanel } from "./ui/chessEvaluationPanel.ts";
 import { resolveConfiguredLocalPlayerName } from "./shared/localPlayerNames";
 import { installPlayerBotSelector, syncPlayerBotSelector } from "./ui/bot/playerBotSelector";
 import type { OnlineGameDriver } from "./driver/gameDriver";
 import { hasConfiguredOnlineLocalBot } from "./shared/onlineLocalSeats";
 import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
-import { applyBoardViewportModeToSvg } from "./render/boardViewport";
+import { applyBoardViewportModeToSvg, getBoardViewportMetrics } from "./render/boardViewport";
 import { bindBoardPlayerNameOverlay } from "./render/boardPlayerNames";
 import {
   applyBoardViewportMode,
@@ -85,6 +86,8 @@ const LS_OPT_KEYS = {
 
 const LEGACY_THEME_KEY = "lasca.columnsChess.theme";
 const LEGACY_CHECKERBOARD_THEME_KEY = "lasca.opt.checkerboardTheme";
+const EVAL_BAR_GAP_PX = 3;
+const EVAL_BAR_PLAYABLE_SHIFT_LEFT_PX = 0;
 
 function readOptionalBoolPref(key: string): boolean | null {
   const raw = localStorage.getItem(key);
@@ -151,6 +154,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       { id: "status", label: "Status", targetSelector: '#leftSidebar .panelSection[data-section="status"]' },
       { id: "tools", label: "Tools", targetSelector: '#leftSidebar .panelSection[data-section="optionsActions"]' },
       { id: "bot", label: "Players", targetSelector: '#leftSidebar .panelSection[data-section="bot"]' },
+      { id: "evaluation", label: "Evaluation", targetSelector: '#rightSidebar .panelSection[data-section="evaluation"]' },
       { id: "history", label: "History", targetSelector: '#rightSidebar .panelSection[data-section="moveHistory"]' },
       { id: "rules", label: "Rules", targetSelector: '#rightSidebar .panelSection[data-section="rules"]' },
     ],
@@ -276,6 +280,89 @@ window.addEventListener("DOMContentLoaded", async () => {
       flipped: isFlipped(),
       style: (boardViewportMode === "playable" || boardCoordsInSquaresToggle?.checked) ? "inSquare" : "edge",
     });
+
+  const scheduleEvalBarGeometry = () => {
+    window.requestAnimationFrame(() => {
+      applyEvalBarGeometry();
+    });
+  };
+
+  function applyEvalBarGeometry() {
+    const boardWithEvalBarEl = document.getElementById("boardWithEvalBar") as HTMLElement | null;
+    const boardWrapEl = document.getElementById("boardWrap") as HTMLElement | null;
+    const barOuterEl = document.getElementById("evalBarOuter") as HTMLElement | null;
+    const barEl = document.getElementById("evalBarVertical") as HTMLElement | null;
+    if (!boardWithEvalBarEl || !boardWrapEl || !barEl || !barOuterEl) return;
+
+    const metrics = getBoardViewportMetrics(svg);
+    if (!metrics || !metrics.squares || !metrics.viewBox) {
+      barOuterEl.style.left = "";
+      barOuterEl.style.top = "";
+      barOuterEl.style.height = "";
+      barOuterEl.style.width = "";
+      barEl.style.top = "";
+      barEl.style.height = "";
+      return;
+    }
+
+    const sq = metrics.squares;
+    const hostRect = boardWithEvalBarEl.getBoundingClientRect();
+    const computedBarWidth = Number.parseFloat(window.getComputedStyle(barOuterEl).width);
+    const barWidth = Number.isFinite(computedBarWidth) && computedBarWidth > 0 ? computedBarWidth : 20;
+    if (hostRect.width <= 0 || hostRect.height <= 0) return;
+
+    const squareRects = Array.from(svg.querySelectorAll("#squares rect")) as SVGRectElement[];
+    let minLeft = Number.POSITIVE_INFINITY;
+    let minTop = Number.POSITIVE_INFINITY;
+    let maxBottom = Number.NEGATIVE_INFINITY;
+    for (const rect of squareRects) {
+      const r = rect.getBoundingClientRect();
+      if (!Number.isFinite(r.left) || !Number.isFinite(r.top) || !Number.isFinite(r.bottom)) continue;
+      minLeft = Math.min(minLeft, r.left);
+      minTop = Math.min(minTop, r.top);
+      maxBottom = Math.max(maxBottom, r.bottom);
+    }
+
+    if (!Number.isFinite(minLeft) || !Number.isFinite(minTop) || !Number.isFinite(maxBottom)) {
+      const ctm = svg.getScreenCTM();
+      if (!ctm) return;
+      const toScreenPoint = (x: number, y: number) => new DOMPoint(x, y).matrixTransform(ctm);
+      const squareTopLeftFallback = toScreenPoint(sq.x, sq.y);
+      const squareBottomLeftFallback = toScreenPoint(sq.x, sq.y + sq.h);
+      minLeft = squareTopLeftFallback.x;
+      minTop = squareTopLeftFallback.y;
+      maxBottom = squareBottomLeftFallback.y;
+    }
+
+    const squareTopLeft = { x: minLeft, y: minTop };
+    const squareBottomLeft = { x: minLeft, y: maxBottom };
+    let barLeft = squareTopLeft.x - hostRect.left - barWidth - EVAL_BAR_GAP_PX;
+    const barTop = squareTopLeft.y - hostRect.top;
+    const barHeight = Math.max(0, squareBottomLeft.y - squareTopLeft.y);
+
+    if (metrics.mode !== "framed") {
+      barLeft -= EVAL_BAR_PLAYABLE_SHIFT_LEFT_PX;
+    }
+
+    barOuterEl.style.width = "";
+    barOuterEl.style.left = `${barLeft.toFixed(2)}px`;
+    barOuterEl.style.top = `${barTop.toFixed(2)}px`;
+    barOuterEl.style.height = `${Math.max(0, barHeight).toFixed(2)}px`;
+    barEl.style.top = "";
+    barEl.style.height = "";
+  }
+
+  const evalBarResizeObserver = typeof ResizeObserver === "undefined"
+    ? null
+    : new ResizeObserver(() => {
+        scheduleEvalBarGeometry();
+      });
+  evalBarResizeObserver?.observe(boardWrap);
+  evalBarResizeObserver?.observe(svg);
+  window.addEventListener("resize", scheduleEvalBarGeometry);
+  window.visualViewport?.addEventListener("resize", scheduleEvalBarGeometry);
+  window.addEventListener("chessEvalBarVisibilityChanged", scheduleEvalBarGeometry);
+
   applyBoardCoords();
   syncBoardCoordsInSquaresLock();
 
@@ -285,6 +372,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     applyBoardViewportModeToSvg(svg, boardViewportMode, { boardSize: variant.boardSize });
     applyBoardCoords();
     syncBoardCoordsInSquaresLock();
+    scheduleEvalBarGeometry();
     hudController?.refreshView();
     boardPlayerNames?.sync();
   });
@@ -364,7 +452,10 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Theme switching can involve slow raster PNG loads; show spinner while themes apply.
   svg.addEventListener(THEME_WILL_CHANGE_EVENT, () => boardLoading.show());
-  svg.addEventListener(THEME_DID_CHANGE_EVENT, () => boardLoading.hide());
+  svg.addEventListener(THEME_DID_CHANGE_EVENT, () => {
+    boardLoading.hide();
+    scheduleEvalBarGeometry();
+  });
 
   const driver = await createDriverAsync({
     state,
@@ -384,6 +475,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   // the board width, so it appears at its final size rather than flashing large.
   await nextPaint();
   boardLoading.hide();
+  scheduleEvalBarGeometry();
   boardPlayerNames = bindBoardPlayerNameOverlay({ svg, controller, isFlipped });
 
   bindOfflineNavGuard(controller, ACTIVE_VARIANT_ID);
@@ -429,8 +521,9 @@ window.addEventListener("DOMContentLoaded", async () => {
     driver.mode === "online" && hasConfiguredOnlineLocalBot({ driver: driver as OnlineGameDriver, variantId: ACTIVE_VARIANT_ID });
 
   // Bot controls (Columns Chess fallback bot).
+  let bot: ColumnsChessBotManager | null = null;
   if (driver.mode !== "online" || onlineLocalBotEnabled) {
-    const bot = new ColumnsChessBotManager(controller);
+    bot = new ColumnsChessBotManager(controller);
     bot.bind();
     controller.addAnalysisModeChangeCallback((enabled) => bot.setAnalysisModeActive(enabled));
     if (driver.mode === "online") {
@@ -446,6 +539,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     const botSection = document.querySelector('[data-section="bot"]') as HTMLElement | null;
     if (botSection) botSection.style.display = "none";
   }
+
+  bindChessEvaluationPanel(controller, bot);
 
   // Columns Chess: theme select (Discs / 2D / 3D / Wooden 3D / Neo / Tournament / Candy).
   {

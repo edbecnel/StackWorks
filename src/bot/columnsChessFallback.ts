@@ -1,6 +1,7 @@
 import type { GameState } from "../game/state.ts";
 import type { Move } from "../game/moveTypes.ts";
 import type { Player } from "../types.ts";
+import type { BotTier } from "./presets.ts";
 import { applyMove } from "../game/applyMove.ts";
 import { checkCurrentPlayerLost } from "../game/gameOver.ts";
 import { createPrng } from "../shared/prng.ts";
@@ -9,6 +10,15 @@ import { generateLegalMovesColumnsChess } from "../game/movegenColumnsChess.ts";
 
 function other(p: Player): Player {
   return p === "W" ? "B" : "W";
+}
+
+function sameMove(a: Move | null | undefined, b: Move | null | undefined): boolean {
+  if (!a || !b) return false;
+  if (a.kind !== b.kind) return false;
+  if (a.from !== b.from) return false;
+  if ((a as any).to !== (b as any).to) return false;
+  if (a.kind === "capture") return (a as any).over === (b as any).over;
+  return true;
 }
 
 function nowMs(): number {
@@ -162,9 +172,11 @@ function negamax(
 export function pickFallbackMoveColumnsChess(
   state: GameState,
   opts: {
+    tier: BotTier;
     seed: string;
     legalMoves?: Move[];
     timeBudgetMs?: number;
+    preferredMove?: Move | null;
   }
 ): Move | null {
   if (state.meta?.rulesetId !== "columns_chess") return null;
@@ -175,16 +187,20 @@ export function pickFallbackMoveColumnsChess(
   rootMoves.sort((a, b) => moveOrderingKey(state, b) - moveOrderingKey(state, a));
 
   const rng = createPrng(opts.seed);
+  const preferredMove = rootMoves.find((move) => sameMove(move, opts.preferredMove)) ?? null;
 
   const start = nowMs();
-  const budget = Math.max(8, Math.min(240, Math.round(opts.timeBudgetMs ?? 70)));
+  const defaultBudget =
+    opts.tier === "master" ? 220 : opts.tier === "advanced" ? 140 : opts.tier === "intermediate" ? 80 : 35;
+  const budget = Math.max(8, Math.min(260, Math.round(opts.timeBudgetMs ?? defaultBudget)));
   const deadline = start + budget;
 
-  const maxDepth = 2;
-  const nodeBudgetBase = 40_000;
+  const maxDepth = opts.tier === "master" ? 4 : opts.tier === "advanced" ? 3 : opts.tier === "intermediate" ? 2 : 1;
+  const nodeBudgetBase = opts.tier === "master" ? 160_000 : opts.tier === "advanced" ? 85_000 : opts.tier === "intermediate" ? 40_000 : 14_000;
 
   let bestMove: Move | null = null;
   let bestScore = -Infinity;
+  let preferredScore = -Infinity;
 
   for (let depth = 1; depth <= maxDepth; depth++) {
     if (nowMs() >= deadline) break;
@@ -192,6 +208,7 @@ export function pickFallbackMoveColumnsChess(
     const nodeBudget = { remaining: nodeBudgetBase };
     let depthBestMove: Move | null = null;
     let depthBestScore = -Infinity;
+    let depthPreferredScore = -Infinity;
 
     for (const m of rootMoves) {
       if (nowMs() >= deadline) break;
@@ -204,6 +221,9 @@ export function pickFallbackMoveColumnsChess(
       }
 
       const v = -negamax(next, depth - 1, -Infinity, Infinity, deadline, nodeBudget);
+      if (preferredMove && sameMove(m, preferredMove)) {
+        depthPreferredScore = v;
+      }
       if (v > depthBestScore) {
         depthBestScore = v;
         depthBestMove = m;
@@ -216,12 +236,21 @@ export function pickFallbackMoveColumnsChess(
     if (depthBestMove) {
       bestMove = depthBestMove;
       bestScore = depthBestScore;
+      if (Number.isFinite(depthPreferredScore)) preferredScore = depthPreferredScore;
     }
   }
 
   if (!bestMove) {
     const captures = rootMoves.filter((m) => m.kind === "capture");
     return captures.length ? rng.pick(captures) : rng.pick(rootMoves);
+  }
+
+  if (preferredMove && Number.isFinite(preferredScore)) {
+    const overrideMargin =
+      opts.tier === "master" ? 45 : opts.tier === "advanced" ? 70 : opts.tier === "intermediate" ? 100 : 140;
+    if (bestScore <= preferredScore + overrideMargin) {
+      return preferredMove;
+    }
   }
 
   void bestScore;

@@ -341,8 +341,17 @@
       <div class="highlight">
         Open <b>Game Panel → Players</b> to choose <b>Human</b> or
         <b>Bot</b> for White and Black. If you choose <b>Bot</b>, the second
-        dropdown lets you choose the available bot profile.
+        dropdown lets you choose a tier (<b>Beginner</b> / <b>Intermediate</b> /
+        <b>Advanced</b> / <b>Master</b>).
       </div>
+
+      <p>
+        Columns Chess can also use <b>Stockfish</b> for approximate position
+        evaluation and first-pass move suggestions. Because Stockfish does not
+        understand stacks directly, StackWorks treats that engine output as a
+        helpful hint and lets the built-in Columns Chess search refine or
+        replace the move when stack-aware tactics disagree.
+      </p>
 
       <h3>Keyboard shortcuts</h3>
       <p>
@@ -409,7 +418,10 @@
         <li>
           <b>Move any piece freely:</b> Both sides' pieces are selectable—click
           a piece of either color to move it using legal moves. The evaluation
-          panel stays live so you can assess each hypothetical position.
+          panel stays live so you can assess each hypothetical position. In
+          <b>Engine</b> mode, Columns Chess uses an approximate Stockfish read
+          of the board because stack-specific tactics are outside standard chess
+          rules.
         </li>
         <li>Leaving Analysis returns you to the live game state.</li>
       </ul>

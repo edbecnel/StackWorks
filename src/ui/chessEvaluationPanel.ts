@@ -3,9 +3,18 @@ import type { GameState } from "../game/state";
 import type { Player, Piece } from "../types";
 import { generateLegalMoves } from "../game/movegen";
 import { isKingInCheckChess, isSquareAttackedChess } from "../game/movegenChess";
+import { isKingInCheckColumnsChess, isSquareAttackedColumnsChess } from "../game/movegenColumnsChess";
 import { checkCurrentPlayerLost } from "../game/gameOver";
-import type { ChessBotManager, EvalScore } from "../bot/chessBotManager";
+import type { EvalScore } from "../bot/chessBotManager";
 import { gameStateToFen } from "../bot/fen";
+
+type EngineEvalSource = {
+  isEngineReady(): boolean;
+  addEvalChangeListener(cb: (score: EvalScore | null, pending: boolean) => void): void;
+  getCachedEvalForFen(fen: string): EvalScore | null;
+  evaluateFen(fen: string, opts?: { movetimeMs?: number; timeoutMs?: number }): Promise<EvalScore | null>;
+  activateForEvaluation(): void;
+};
 
 type ChessEvaluationMode = "material" | "mobility" | "center" | "threats" | "engine";
 
@@ -104,7 +113,7 @@ function terminalEvalScoreForState(state: GameState): EvalScore | null {
   }
 }
 
-function graphScoreForState(state: GameState, importedScore?: EvalScore | null, bot?: ChessBotManager | null): EvalScore | null {
+function graphScoreForState(state: GameState, importedScore?: EvalScore | null, bot?: EngineEvalSource | null): EvalScore | null {
   const terminal = terminalEvalScoreForState(state);
   if (terminal) return terminal;
 
@@ -137,7 +146,24 @@ function pieceValue(rank: string): number {
 }
 
 function isChessClassic(state: GameState): boolean {
-  return (state.meta?.rulesetId ?? "") === "chess";
+  const rulesetId = state.meta?.rulesetId ?? "";
+  return rulesetId === "chess" || rulesetId === "columns_chess";
+}
+
+function isSquareAttackedForRuleset(state: GameState, square: string, by: Player): boolean {
+  return state.meta?.rulesetId === "columns_chess"
+    ? isSquareAttackedColumnsChess(state, square, by)
+    : isSquareAttackedChess(state, square, by);
+}
+
+function isKingInCheckForRuleset(state: GameState, player: Player): boolean {
+  return state.meta?.rulesetId === "columns_chess"
+    ? isKingInCheckColumnsChess(state, player)
+    : isKingInCheckChess(state, player);
+}
+
+function engineEvalPrefixForState(state: GameState): string {
+  return state.meta?.rulesetId === "columns_chess" ? "Engine eval (approx.)" : "Engine eval";
 }
 
 function iterPieces(state: GameState): Array<{ nodeId: string; piece: Piece }> {
@@ -153,6 +179,17 @@ function iterPieces(state: GameState): Array<{ nodeId: string; piece: Piece }> {
   return out;
 }
 
+function iterTopPieces(state: GameState): Array<{ nodeId: string; piece: Piece }> {
+  const out: Array<{ nodeId: string; piece: Piece }> = [];
+  for (const [nodeId, stack] of state.board.entries()) {
+    if (!stack || stack.length === 0) continue;
+    const piece = stack[stack.length - 1];
+    if (!piece) continue;
+    out.push({ nodeId, piece });
+  }
+  return out;
+}
+
 function computeMaterial(state: GameState): {
   total: Record<Player, number>;
   counts: Record<Player, Record<string, number>>;
@@ -163,7 +200,7 @@ function computeMaterial(state: GameState): {
     B: { P: 0, N: 0, B: 0, R: 0, Q: 0, K: 0 },
   };
 
-  for (const { piece } of iterPieces(state)) {
+  for (const { piece } of iterTopPieces(state)) {
     const owner = piece.owner;
     const r = String(piece.rank).toUpperCase();
     if (owner !== "W" && owner !== "B") continue;
@@ -258,7 +295,7 @@ function computePrimaryMetricForBars(
     const attackedBy = (by: Player): number => {
       let n = 0;
       for (const sq of centerSquares) {
-        if (isSquareAttackedChess(state, sq, by)) n++;
+        if (isSquareAttackedForRuleset(state, sq, by)) n++;
       }
       return n;
     };
@@ -274,7 +311,7 @@ function computePrimaryMetricForBars(
     for (const { nodeId, piece } of iterPieces(state)) {
       if (piece.owner !== p) continue;
       if (String(piece.rank).toUpperCase() === "K") continue;
-      if (isSquareAttackedChess(state, nodeId, enemy)) attacked++;
+      if (isSquareAttackedForRuleset(state, nodeId, enemy)) attacked++;
     }
     return attacked;
   };
@@ -299,8 +336,8 @@ function formatMobility(state: GameState): string {
 
   const mobility = `Mobility: White ${w} / Black ${b} (${fmtDiff(w, b, "White", "Black")})`;
 
-  const inCheckW = isKingInCheckChess({ ...state, toMove: "W" } as GameState, "W");
-  const inCheckB = isKingInCheckChess({ ...state, toMove: "B" } as GameState, "B");
+  const inCheckW = isKingInCheckForRuleset({ ...state, toMove: "W" } as GameState, "W");
+  const inCheckB = isKingInCheckForRuleset({ ...state, toMove: "B" } as GameState, "B");
   const checkLine = inCheckW
     ? "Check: White in check"
     : inCheckB
@@ -328,7 +365,7 @@ function formatCenter(state: GameState): string {
   const attacked = (by: Player): number => {
     let n = 0;
     for (const sq of centerSquares) {
-      if (isSquareAttackedChess(state, sq, by)) n++;
+      if (isSquareAttackedForRuleset(state, sq, by)) n++;
     }
     return n;
   };
@@ -364,10 +401,10 @@ function formatThreats(state: GameState): string {
       if (piece.owner !== p) continue;
       if (String(piece.rank).toUpperCase() === "K") continue;
 
-      const isAttacked = isSquareAttackedChess(state, nodeId, enemy);
+      const isAttacked = isSquareAttackedForRuleset(state, nodeId, enemy);
       if (isAttacked) attacked++;
 
-      const isDefended = isSquareAttackedChess(state, nodeId, p);
+      const isDefended = isSquareAttackedForRuleset(state, nodeId, p);
       if (isAttacked && !isDefended) hanging++;
     }
 
@@ -377,8 +414,8 @@ function formatThreats(state: GameState): string {
   const w = count("W");
   const b = count("B");
 
-  const inCheckW = isKingInCheckChess(state, "W");
-  const inCheckB = isKingInCheckChess(state, "B");
+  const inCheckW = isKingInCheckForRuleset(state, "W");
+  const inCheckB = isKingInCheckForRuleset(state, "B");
 
   const line1 = `Attacked pieces: White ${w.attacked} / Black ${b.attacked} (${fmtDiff(
     w.attacked,
@@ -397,7 +434,7 @@ function formatThreats(state: GameState): string {
   return `${line1}\n${line2}\n${line3}`;
 }
 
-export function bindChessEvaluationPanel(controller: GameController, bot?: ChessBotManager | null): void {
+export function bindChessEvaluationPanel(controller: GameController, bot?: EngineEvalSource | null): void {
   const modeRootEl = document.getElementById("evaluationMode") as HTMLElement | null;
   const valueEl = document.getElementById("evaluationValue") as HTMLElement | null;
   const barWhiteEl = document.getElementById("evaluationBarWhite") as HTMLElement | null;
@@ -651,7 +688,9 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
         btn.title = available
           ? controller.isOnlineSpectator()
             ? "Published player engine evaluation"
-            : "Engine evaluation (Stockfish)"
+            : controller.getState().meta?.rulesetId === "columns_chess"
+              ? "Approximate engine evaluation (Stockfish, stack-unaware)"
+              : "Engine evaluation (Stockfish)"
           : "Engine evaluation unavailable";
       }
     }
@@ -722,9 +761,9 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
       updateVerticalEvalBar(score, pending);
 
       if (terminalScore && "mate" in terminalScore) {
-        valueEl.textContent = `Engine eval: ${fmtEvalScore(terminalScore)}`;
+        valueEl.textContent = `${engineEvalPrefixForState(state)}: ${fmtEvalScore(terminalScore)}`;
       } else if (score !== null && !pending) {
-        valueEl.textContent = `Engine eval: ${fmtEvalScore(score)}`;
+        valueEl.textContent = `${engineEvalPrefixForState(state)}: ${fmtEvalScore(score)}`;
       } else if (spectatorPublishedOnly) {
         valueEl.textContent = "Waiting for player eval…";
       } else if (bot && !bot.isEngineReady()) {
@@ -734,7 +773,7 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Chess
           ? `Calculating\u2026 (last: ${fmtEvalScore(score)})`
           : "Calculating\u2026";
       } else {
-        valueEl.textContent = "Engine eval: —";
+        valueEl.textContent = `${engineEvalPrefixForState(state)}: —`;
       }
       renderGraph();
       return;
