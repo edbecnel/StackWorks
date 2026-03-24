@@ -124,6 +124,7 @@ function ensureShellStyles(): void {
     .appShellRailClose {
       display: inline-flex;
       align-self: flex-end;
+      justify-self: end;
       appearance: none;
       border: 1px solid rgba(255, 255, 255, 0.12);
       background: rgba(255, 255, 255, 0.05);
@@ -835,26 +836,40 @@ function ensureShellStyles(): void {
       }
 
       .appShellHeader {
-        grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-areas:
+          "sections title title"
+          "games help .";
         align-items: center;
       }
 
-      .appShellGamesToggle,
+      .appShellMenuToggle {
+        grid-area: sections;
+      }
+
+      .appShellHeaderBrand {
+        display: none;
+      }
+
+      .appShellTitleBlock {
+        grid-area: title;
+        align-self: center;
+        min-height: 36px;
+        justify-content: center;
+      }
+
+      .appShellGamesToggle {
+        grid-area: games;
+        justify-self: start;
+      }
+
       .appShellHeaderAction {
+        grid-area: help;
         justify-self: end;
       }
     }
 
     @media (max-width: 540px) {
-      .appShellHeader {
-        grid-template-columns: auto auto minmax(0, 1fr) auto;
-      }
-
-      .appShellHeaderAction {
-        grid-column: 1 / -1;
-        justify-self: start;
-      }
-
       .appShellContentSlot > .wrap > header {
         padding: 14px 15px;
       }

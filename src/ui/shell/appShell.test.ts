@@ -248,11 +248,16 @@ describe("initStartPageAppShell", () => {
 
     const shellStyle = document.getElementById("stackworks-app-shell-style");
     expect(shellStyle?.textContent).toContain("grid-template-columns: 260px minmax(0, 1fr) 320px;");
+    expect(shellStyle?.textContent).toContain('"sections title title"');
+    expect(shellStyle?.textContent).toContain('"games help ."');
+    expect(shellStyle?.textContent).toContain("align-items: center;");
+    expect(shellStyle?.textContent).toContain("min-height: 36px;");
     expect(shellStyle?.textContent).toContain("-webkit-line-clamp: 2;");
     expect(shellStyle?.textContent).toContain("white-space: normal;");
     expect(shellStyle?.textContent).toContain("font-size: clamp(16px, 3.6vw, 20px);");
     expect(shellStyle?.textContent).toContain("overflow-wrap: anywhere;");
     expect(shellStyle?.textContent).toContain("-webkit-text-size-adjust: 100%;");
+    expect(shellStyle?.textContent).toContain("justify-self: end;");
     expect(shellStyle?.textContent).toContain("margin-top: 0;");
     expect(shellStyle?.textContent).toContain("flex: 0 0 auto;");
   });
