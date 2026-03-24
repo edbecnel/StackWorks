@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { applyCheckerboardTheme } from "./checkerboardTheme";
+import { applyCheckerboardTheme, normalizeCheckerboardThemeId } from "./checkerboardTheme";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -52,5 +52,24 @@ describe("applyCheckerboardTheme", () => {
     expect(findRect(svg, 8, 8).getAttribute("fill")).toBe("#f0d9b5");
 
     svg.remove();
+  });
+
+  it("applies the Tournament ivory and walnut palette", () => {
+    const svg = make10x10CheckerboardSvg();
+
+    applyCheckerboardTheme(svg, "tournament");
+
+    expect(findRect(svg, 1, 2).getAttribute("fill")).toBe("#6B4A2B");
+    expect(findRect(svg, 1, 3).getAttribute("fill")).toBe("#F5F1E6");
+    expect(findRect(svg, 2, 2).getAttribute("fill")).toBe("#F5F1E6");
+    expect(findRect(svg, 2, 3).getAttribute("fill")).toBe("#6B4A2B");
+
+    svg.remove();
+  });
+});
+
+describe("normalizeCheckerboardThemeId", () => {
+  it("accepts the Tournament board theme id", () => {
+    expect(normalizeCheckerboardThemeId("tournament")).toBe("tournament");
   });
 });

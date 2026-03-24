@@ -641,10 +641,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   const LEGACY_THEME_KEY = "lasca.chess.theme";
   const themeFromQueryRaw = new URLSearchParams(window.location.search).get("theme")?.trim();
   const themeFromQuery = themeFromQueryRaw && themeFromQueryRaw.length > 0 ? themeFromQueryRaw : null;
-  const normalizeChessTheme = (raw: string | null | undefined): "raster2d" | "raster3d" | "neo" | "candy" => {
+  const normalizeChessTheme = (raw: string | null | undefined): "raster2d" | "raster3d" | "neo" | "staunton_glyphs" | "candy" => {
     const v = String(raw ?? "").trim().toLowerCase();
     if (v === "candy") return "candy";
     if (v === "neo") return "neo";
+    if (v === "staunton_glyphs" || v === "tournament") return "staunton_glyphs";
     if (v === "raster2d" || v === "2d") return "raster2d";
     if (v === "raster3d" || v === "3d") return "raster3d";
     return "raster3d";
@@ -800,8 +801,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   bindChessEvaluationPanel(controller, bot);
 
-  // Classic Chess: theme select (2D / 3D / Neo / Candy).
-  // Note: Neo and Candy are SVG-only and do not require external assets.
+  // Classic Chess: theme select (2D / 3D / Wooden 3D / Neo / Neo Stone / Tournament / Candy).
+  // Note: Neo, Tournament, and Candy are SVG-only and do not require external assets.
   {
     const themeSelect = document.getElementById("columnsThemeSelect") as HTMLSelectElement | null;
 
@@ -812,9 +813,11 @@ window.addEventListener("DOMContentLoaded", async () => {
           : (
         initialShellThemeValue === "neo"
           ? "neo"
+          : (initialShellThemeValue === "staunton_glyphs"
+            ? "staunton_glyphs"
           : (initialShellThemeValue === "candy"
             ? "candy"
-            : (initialShellThemeValue === WOODY_CHESS_PRESET_ID ? WOODY_CHESS_PRESET_ID : (initialShellThemeValue === "raster2d" ? "2d" : "3d"))));
+            : (initialShellThemeValue === WOODY_CHESS_PRESET_ID ? WOODY_CHESS_PRESET_ID : (initialShellThemeValue === "raster2d" ? "2d" : "3d")))));
       themeSelect.disabled = false;
 
       themeSelect.addEventListener("change", async () => {
@@ -824,9 +827,11 @@ window.addEventListener("DOMContentLoaded", async () => {
             : (
           themeSelect.value === "neo"
             ? "neo"
+            : (themeSelect.value === "staunton_glyphs"
+              ? "staunton_glyphs"
             : (themeSelect.value === "candy"
               ? "candy"
-              : (themeSelect.value === WOODY_CHESS_PRESET_ID ? WOODY_CHESS_PRESET_ID : (themeSelect.value === "2d" ? "raster2d" : "raster3d"))));
+              : (themeSelect.value === WOODY_CHESS_PRESET_ID ? WOODY_CHESS_PRESET_ID : (themeSelect.value === "2d" ? "raster2d" : "raster3d")))));
         const picked = getStoredThemeIdFromShellThemeValue(shellThemeValue);
         await themeManager.setTheme(picked);
         syncPairedTheme(shellThemeValue);

@@ -4,7 +4,7 @@ import { getThemeColorNomenclature } from "./themeColorNomenclature";
 
 describe("themeColorNomenclature", () => {
   it("maps white-black piece themes", () => {
-    for (const themeId of ["classic", "stone", "porcelain", "luminous"]) {
+    for (const themeId of ["classic", "staunton_glyphs", "stone", "porcelain", "luminous"]) {
       expect(getThemeColorNomenclature(themeId)).toBe("white-black");
     }
   });

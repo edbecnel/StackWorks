@@ -83,6 +83,9 @@ const LS_OPT_KEYS = {
   selectionStyle: `lasca.opt.${ACTIVE_VARIANT_ID}.selectionStyle`,
 };
 
+const LEGACY_THEME_KEY = "lasca.columnsChess.theme";
+const LEGACY_CHECKERBOARD_THEME_KEY = "lasca.opt.checkerboardTheme";
+
 function readOptionalBoolPref(key: string): boolean | null {
   const raw = localStorage.getItem(key);
   if (raw == null) return null;
@@ -189,7 +192,14 @@ window.addEventListener("DOMContentLoaded", async () => {
   ) as HTMLSelectElement | null;
 
   const readCheckerboardTheme = (): CheckerboardThemeId =>
-    normalizeCheckerboardThemeId(readOptionalStringPref(LS_OPT_KEYS.checkerboardTheme));
+    normalizeCheckerboardThemeId(
+      readOptionalStringPref(LS_OPT_KEYS.checkerboardTheme) ?? readOptionalStringPref(LEGACY_CHECKERBOARD_THEME_KEY),
+    );
+
+  const saveCheckerboardTheme = (id: CheckerboardThemeId): void => {
+    writeStringPref(LS_OPT_KEYS.checkerboardTheme, id);
+    writeStringPref(LEGACY_CHECKERBOARD_THEME_KEY, id);
+  };
 
   const applyCheckerboard = (id: CheckerboardThemeId) => {
     applyCheckerboardTheme(svg, id);
@@ -198,7 +208,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     const pairedTheme = getPairedCheckerboardTheme(themeValue);
     if (!pairedTheme) return;
     if (checkerboardThemeSelect) checkerboardThemeSelect.value = pairedTheme;
-    writeStringPref(LS_OPT_KEYS.checkerboardTheme, pairedTheme);
+    saveCheckerboardTheme(pairedTheme);
     applyCheckerboard(pairedTheme);
     applyBoardCoords();
   };
@@ -207,7 +217,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     checkerboardThemeSelect.value = readCheckerboardTheme();
     checkerboardThemeSelect.addEventListener("change", () => {
       const picked = normalizeCheckerboardThemeId(checkerboardThemeSelect.value);
-      writeStringPref(LS_OPT_KEYS.checkerboardTheme, picked);
+      saveCheckerboardTheme(picked);
       applyCheckerboard(picked);
       applyBoardCoords();
     });
@@ -284,10 +294,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   const themeFromQueryRaw = new URLSearchParams(window.location.search).get("theme")?.trim();
   const themeFromQuery = themeFromQueryRaw && themeFromQueryRaw.length > 0 ? themeFromQueryRaw : null;
 
-  const normalizeColumnsTheme = (raw: string | null | undefined): "columns_classic" | "raster2d" | "raster3d" | "neo" | "candy" => {
+  const normalizeColumnsTheme = (raw: string | null | undefined): "columns_classic" | "raster2d" | "raster3d" | "neo" | "staunton_glyphs" | "candy" => {
     const v = (raw ?? "").toLowerCase().trim();
     if (v === "candy") return "candy";
     if (v === "neo") return "neo";
+    if (v === "staunton_glyphs" || v === "tournament") return "staunton_glyphs";
     if (v === "raster3d" || v === "3d") return "raster3d";
     if (v === "raster2d" || v === "2d") return "raster2d";
     if (v === "columns_classic" || v === "classic" || v === "discs" || v === "disc") return "columns_classic";
@@ -296,7 +307,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const savedTheme = (() => {
     try {
-      return localStorage.getItem(THEME_KEY);
+      return localStorage.getItem(THEME_KEY) ?? localStorage.getItem(LEGACY_THEME_KEY);
     } catch {
       return null;
     }
@@ -434,27 +445,31 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (botSection) botSection.style.display = "none";
   }
 
-  // Columns Chess: theme select (Discs / 2D / 3D / Neo / Candy).
+  // Columns Chess: theme select (Discs / 2D / 3D / Wooden 3D / Neo / Tournament / Candy).
   {
     const themeSelect = document.getElementById("columnsThemeSelect") as HTMLSelectElement | null;
 
-    const setSelectValueForThemeId = (themeId: "columns_classic" | "raster2d" | "raster3d" | "neo" | "candy") => {
+    const setSelectValueForThemeId = (themeId: "columns_classic" | "raster2d" | "raster3d" | "neo" | "staunton_glyphs" | "candy") => {
       if (!themeSelect) return;
       themeSelect.value =
         themeId === "neo"
           ? "neo"
-          : (themeId === "candy" ? "candy" : (themeId === "raster3d" ? "3d" : themeId === "raster2d" ? "2d" : "discs"));
+          : (themeId === "staunton_glyphs"
+            ? "staunton_glyphs"
+            : (themeId === "candy" ? "candy" : (themeId === "raster3d" ? "3d" : themeId === "raster2d" ? "2d" : "discs")));
     };
 
     if (themeSelect) {
       themeSelect.value =
         initialShellThemeValue === "neo"
           ? "neo"
-          : (initialShellThemeValue === "candy"
+          : (initialShellThemeValue === "staunton_glyphs"
+            ? "staunton_glyphs"
+            : (initialShellThemeValue === "candy"
             ? "candy"
             : (initialShellThemeValue === WOODY_CHESS_PRESET_ID
               ? WOODY_CHESS_PRESET_ID
-              : (initialShellThemeValue === "raster3d" ? "3d" : initialShellThemeValue === "raster2d" ? "2d" : "discs")));
+              : (initialShellThemeValue === "raster3d" ? "3d" : initialShellThemeValue === "raster2d" ? "2d" : "discs"))));
     }
 
     if (themeSelect) {
@@ -462,16 +477,19 @@ window.addEventListener("DOMContentLoaded", async () => {
         const shellThemeValue =
           themeSelect.value === "neo"
             ? "neo"
-            : (themeSelect.value === "candy"
+            : (themeSelect.value === "staunton_glyphs"
+              ? "staunton_glyphs"
+              : (themeSelect.value === "candy"
               ? "candy"
               : (themeSelect.value === WOODY_CHESS_PRESET_ID
                 ? WOODY_CHESS_PRESET_ID
-                : (themeSelect.value === "3d" ? "raster3d" : themeSelect.value === "2d" ? "raster2d" : "columns_classic")));
+                : (themeSelect.value === "3d" ? "raster3d" : themeSelect.value === "2d" ? "raster2d" : "columns_classic"))));
         const picked = getStoredThemeIdFromShellThemeValue(shellThemeValue);
         await themeManager.setTheme(picked);
         syncPairedTheme(shellThemeValue);
         try {
           localStorage.setItem(THEME_KEY, picked);
+          localStorage.setItem(LEGACY_THEME_KEY, picked);
         } catch {
           // ignore
         }

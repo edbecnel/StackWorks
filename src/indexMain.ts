@@ -46,6 +46,8 @@ const LS_KEYS = {
   optChessClassicTheme: "lasca.opt.chess_classic.theme",
   optChessClassicCheckerboardTheme: "lasca.opt.chess_classic.checkerboardTheme",
   columnsChessTheme: "lasca.columnsChess.theme",
+  optColumnsChessTheme: "lasca.opt.columns_chess.theme",
+  optColumnsChessCheckerboardTheme: "lasca.opt.columns_chess.checkerboardTheme",
   checkersTheme: "lasca.checkers.theme",
   checkersCheckerboardTheme: "lasca.checkers.checkerboardTheme",
   glassBg: "lasca.theme.glassBg",
@@ -1774,6 +1776,7 @@ window.addEventListener("DOMContentLoaded", () => {
     if (isColumnsChess) {
       const next = getStoredThemeIdFromShellThemeValue(normalizeColumnsShellThemeValue(elTheme.value));
       localStorage.setItem(LS_KEYS.columnsChessTheme, next);
+      localStorage.setItem(LS_KEYS.optColumnsChessTheme, next);
     } else if (isClassicChess) {
       const next = getStoredThemeIdFromShellThemeValue(normalizeClassicShellThemeValue(elTheme.value));
       localStorage.setItem(LS_KEYS.chessTheme, next);
@@ -1790,6 +1793,7 @@ window.addEventListener("DOMContentLoaded", () => {
         : getPairedCheckerboardTheme(elTheme.value || (isCheckers ? "checkers" : null));
     if (pairedBoardTheme) {
       localStorage.setItem(LS_KEYS.optCheckerboardTheme, pairedBoardTheme);
+      if (isColumnsChess) localStorage.setItem(LS_KEYS.optColumnsChessCheckerboardTheme, pairedBoardTheme);
       if (isCheckers) localStorage.setItem(LS_KEYS.checkersCheckerboardTheme, pairedBoardTheme);
       if (isClassicChess) localStorage.setItem(LS_KEYS.optChessClassicCheckerboardTheme, pairedBoardTheme);
       if (elColumnsChessBoardTheme) elColumnsChessBoardTheme.value = pairedBoardTheme;
@@ -2296,6 +2300,11 @@ window.addEventListener("DOMContentLoaded", () => {
     optNeo.textContent = "Neo";
     elTheme.appendChild(optNeo);
 
+    const optTournament = document.createElement("option");
+    optTournament.value = "staunton_glyphs";
+    optTournament.textContent = "Tournament";
+    elTheme.appendChild(optTournament);
+
     const optNeoStone = document.createElement("option");
     optNeoStone.value = NEO_STONE_CHESS_PRESET_ID;
     optNeoStone.textContent = "Neo Stone";
@@ -2330,6 +2339,11 @@ window.addEventListener("DOMContentLoaded", () => {
     optNeo.value = "neo";
     optNeo.textContent = "Neo";
     elTheme.appendChild(optNeo);
+
+    const optTournament = document.createElement("option");
+    optTournament.value = "staunton_glyphs";
+    optTournament.textContent = "Tournament";
+    elTheme.appendChild(optTournament);
 
     const optCandy = document.createElement("option");
     optCandy.value = "candy";
@@ -2486,6 +2500,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
     try {
       localStorage.setItem(LS_KEYS.optCheckerboardTheme, pairedBoardTheme);
+      if (vId === "columns_chess") localStorage.setItem(LS_KEYS.optColumnsChessCheckerboardTheme, pairedBoardTheme);
       if (isCheckers) localStorage.setItem(LS_KEYS.checkersCheckerboardTheme, pairedBoardTheme);
       if (vId === "chess_classic") localStorage.setItem(LS_KEYS.optChessClassicCheckerboardTheme, pairedBoardTheme);
     } catch {
@@ -2502,6 +2517,7 @@ window.addEventListener("DOMContentLoaded", () => {
       const picked = normalizeColumnsChessTheme(elTheme.value);
       const next = getStoredThemeIdFromShellThemeValue(picked);
       localStorage.setItem(LS_KEYS.columnsChessTheme, next);
+      localStorage.setItem(LS_KEYS.optColumnsChessTheme, next);
       elTheme.value = picked;
       syncPairedTheme();
       return;
@@ -3155,10 +3171,12 @@ window.addEventListener("DOMContentLoaded", () => {
 
   elColumnsChessBoardTheme?.addEventListener("change", () => {
     const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
+    const isColumnsChess = vId === "columns_chess";
     const isCheckers = getVariantById(vId).rulesetId === "checkers_us";
     const isClassicChess = vId === "chess_classic";
     const next = normalizeCheckerboardThemeId(elColumnsChessBoardTheme.value);
     localStorage.setItem(LS_KEYS.optCheckerboardTheme, next);
+    if (isColumnsChess) localStorage.setItem(LS_KEYS.optColumnsChessCheckerboardTheme, next);
     if (isCheckers) localStorage.setItem(LS_KEYS.checkersCheckerboardTheme, next);
     if (isClassicChess) localStorage.setItem(LS_KEYS.optChessClassicCheckerboardTheme, next);
     elColumnsChessBoardTheme.value = next;

@@ -4,6 +4,7 @@ export const THEME_COLOR_NOMENCLATURE: Record<string, ThemeColorNomenclature> = 
   classic: "white-black",
   checkers: "red-black",
   neo: "white-black",
+  staunton_glyphs: "white-black",
   candy: "light-dark",
   raster2d: "white-black",
   columns_classic: "white-black",

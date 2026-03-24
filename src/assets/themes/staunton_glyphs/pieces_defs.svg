@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" aria-hidden="true">
+  <defs>
+    <style>
+      .tourneyLightDisc { fill: #f7f3ea; stroke: #3d2918; stroke-width: 5; }
+      .tourneyDarkDisc { fill: #2d2017; stroke: #f4efe6; stroke-width: 5; }
+      .tourneyLightRing { fill: none; stroke: rgba(61, 41, 24, 0.22); stroke-width: 2.5; }
+      .tourneyDarkRing { fill: none; stroke: rgba(244, 239, 230, 0.18); stroke-width: 2.5; }
+      .rasterPiece { image-rendering: auto; }
+    </style>
+
+    <symbol id="tourneyDiscW" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" class="tourneyLightDisc" />
+      <circle cx="50" cy="50" r="33" class="tourneyLightRing" />
+    </symbol>
+
+    <symbol id="tourneyDiscB" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="43" class="tourneyDarkDisc" />
+      <circle cx="50" cy="50" r="33" class="tourneyDarkRing" />
+    </symbol>
+
+    <symbol id="fallbackW_S" viewBox="0 0 100 100"><use href="#tourneyDiscW" /></symbol>
+    <symbol id="fallbackB_S" viewBox="0 0 100 100"><use href="#tourneyDiscB" /></symbol>
+    <symbol id="fallbackW_O" viewBox="0 0 100 100"><use href="#tourneyDiscW" /></symbol>
+    <symbol id="fallbackB_O" viewBox="0 0 100 100"><use href="#tourneyDiscB" /></symbol>
+
+    <symbol id="fallbackW_P" viewBox="0 0 100 100"><use href="#tourneyDiscW" /></symbol>
+    <symbol id="fallbackW_N" viewBox="0 0 100 100"><use href="#tourneyDiscW" /></symbol>
+    <symbol id="fallbackW_B" viewBox="0 0 100 100"><use href="#tourneyDiscW" /></symbol>
+    <symbol id="fallbackW_R" viewBox="0 0 100 100"><use href="#tourneyDiscW" /></symbol>
+    <symbol id="fallbackW_Q" viewBox="0 0 100 100"><use href="#tourneyDiscW" /></symbol>
+    <symbol id="fallbackW_K" viewBox="0 0 100 100"><use href="#tourneyDiscW" /></symbol>
+
+    <symbol id="fallbackB_P" viewBox="0 0 100 100"><use href="#tourneyDiscB" /></symbol>
+    <symbol id="fallbackB_N" viewBox="0 0 100 100"><use href="#tourneyDiscB" /></symbol>
+    <symbol id="fallbackB_B" viewBox="0 0 100 100"><use href="#tourneyDiscB" /></symbol>
+    <symbol id="fallbackB_R" viewBox="0 0 100 100"><use href="#tourneyDiscB" /></symbol>
+    <symbol id="fallbackB_Q" viewBox="0 0 100 100"><use href="#tourneyDiscB" /></symbol>
+    <symbol id="fallbackB_K" viewBox="0 0 100 100"><use href="#tourneyDiscB" /></symbol>
+
+    <symbol id="W_P" viewBox="0 0 100 100"><use href="#fallbackW_P" /><image class="rasterPiece" href="pieces/staunton_glyphs/W_SG_P.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="W_N" viewBox="0 0 100 100"><use href="#fallbackW_N" /><image class="rasterPiece" href="pieces/staunton_glyphs/W_SG_N.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="W_B" viewBox="0 0 100 100"><use href="#fallbackW_B" /><image class="rasterPiece" href="pieces/staunton_glyphs/W_SG_B.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="W_R" viewBox="0 0 100 100"><use href="#fallbackW_R" /><image class="rasterPiece" href="pieces/staunton_glyphs/W_SG_R.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="W_Q" viewBox="0 0 100 100"><use href="#fallbackW_Q" /><image class="rasterPiece" href="pieces/staunton_glyphs/W_SG_Q.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="W_K" viewBox="0 0 100 100"><use href="#fallbackW_K" /><image class="rasterPiece" href="pieces/staunton_glyphs/W_SG_K.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+
+    <symbol id="B_P" viewBox="0 0 100 100"><use href="#fallbackB_P" /><image class="rasterPiece" href="pieces/staunton_glyphs/B_SG_P.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="B_N" viewBox="0 0 100 100"><use href="#fallbackB_N" /><image class="rasterPiece" href="pieces/staunton_glyphs/B_SG_N.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="B_B" viewBox="0 0 100 100"><use href="#fallbackB_B" /><image class="rasterPiece" href="pieces/staunton_glyphs/B_SG_B.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="B_R" viewBox="0 0 100 100"><use href="#fallbackB_R" /><image class="rasterPiece" href="pieces/staunton_glyphs/B_SG_R.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="B_Q" viewBox="0 0 100 100"><use href="#fallbackB_Q" /><image class="rasterPiece" href="pieces/staunton_glyphs/B_SG_Q.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+    <symbol id="B_K" viewBox="0 0 100 100"><use href="#fallbackB_K" /><image class="rasterPiece" href="pieces/staunton_glyphs/B_SG_K.svg" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" /></symbol>
+
+    <symbol id="W_S" viewBox="0 0 100 100"><use href="#W_P" /></symbol>
+    <symbol id="B_S" viewBox="0 0 100 100"><use href="#B_P" /></symbol>
+    <symbol id="W_O" viewBox="0 0 100 100"><use href="#W_K" /></symbol>
+    <symbol id="B_O" viewBox="0 0 100 100"><use href="#B_K" /></symbol>
+  </defs>
+</svg>

@@ -105,4 +105,17 @@ describe("themeManager.bindThemeDropdown", () => {
     expect(Array.isArray(args?.items)).toBe(true);
     expect(args.items.some((item: { id: string }) => item.id === "candy")).toBe(true);
   });
+
+  it("keeps the Tournament theme out of the general dropdown items", async () => {
+    const svg = makeSvgRoot();
+    const dropdownRoot = makeDropdownRoot();
+
+    const themeManager = createThemeManager(svg);
+    await themeManager.bindThemeDropdown(dropdownRoot);
+
+    expect(createThemeDropdownMock).toHaveBeenCalledTimes(1);
+    const args = createThemeDropdownMock.mock.calls[0]?.[0];
+    expect(Array.isArray(args?.items)).toBe(true);
+    expect(args.items.some((item: { id: string }) => item.id === "staunton_glyphs")).toBe(false);
+  });
 });

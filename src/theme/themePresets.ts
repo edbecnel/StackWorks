@@ -4,8 +4,8 @@ import type { VariantId } from "../variants/variantTypes";
 export const WOODY_CHESS_PRESET_ID = "wooden3d" as const;
 export const NEO_STONE_CHESS_PRESET_ID = "neo_stone" as const;
 
-export type ShellChessThemeValue = "raster2d" | "raster3d" | "neo" | "candy" | typeof WOODY_CHESS_PRESET_ID | typeof NEO_STONE_CHESS_PRESET_ID;
-export type ShellColumnsThemeValue = "columns_classic" | "raster2d" | "raster3d" | "neo" | "candy" | typeof WOODY_CHESS_PRESET_ID;
+export type ShellChessThemeValue = "raster2d" | "raster3d" | "neo" | "staunton_glyphs" | "candy" | typeof WOODY_CHESS_PRESET_ID | typeof NEO_STONE_CHESS_PRESET_ID;
+export type ShellColumnsThemeValue = "columns_classic" | "raster2d" | "raster3d" | "neo" | "staunton_glyphs" | "candy" | typeof WOODY_CHESS_PRESET_ID;
 
 export function getPairedCheckerboardTheme(themeId: string | null | undefined): CheckerboardThemeId | null {
   switch (String(themeId ?? "").trim().toLowerCase()) {
@@ -22,6 +22,8 @@ export function getPairedCheckerboardTheme(themeId: string | null | undefined): 
     case "luminous":
     case "neo":
       return "blue";
+    case "staunton_glyphs":
+      return "tournament";
     case NEO_STONE_CHESS_PRESET_ID:
       return "stone";
     case "porcelain":
@@ -43,6 +45,7 @@ export function normalizeClassicShellThemeValue(raw: string | null | undefined):
   const value = String(raw ?? "").trim().toLowerCase();
   if (value === NEO_STONE_CHESS_PRESET_ID) return NEO_STONE_CHESS_PRESET_ID;
   if (value === "neo") return "neo";
+  if (value === "staunton_glyphs" || value === "tournament") return "staunton_glyphs";
   if (value === "candy") return "candy";
   if (value === WOODY_CHESS_PRESET_ID) return WOODY_CHESS_PRESET_ID;
   if (value === "raster2d" || value === "2d") return "raster2d";
@@ -53,6 +56,7 @@ export function normalizeClassicShellThemeValue(raw: string | null | undefined):
 export function normalizeColumnsShellThemeValue(raw: string | null | undefined): ShellColumnsThemeValue {
   const value = String(raw ?? "").trim().toLowerCase();
   if (value === "neo") return "neo";
+  if (value === "staunton_glyphs" || value === "tournament") return "staunton_glyphs";
   if (value === "candy") return "candy";
   if (value === WOODY_CHESS_PRESET_ID) return WOODY_CHESS_PRESET_ID;
   if (value === "raster3d" || value === "3d") return "raster3d";
@@ -78,10 +82,11 @@ export function getShellThemeValueFromStoredTheme(args: {
     : normalizeClassicShellThemeValue(themeId);
 }
 
-export function getStoredThemeIdFromShellThemeValue(value: ShellChessThemeValue | ShellColumnsThemeValue): "columns_classic" | "raster2d" | "raster3d" | "neo" | "candy" {
+export function getStoredThemeIdFromShellThemeValue(value: ShellChessThemeValue | ShellColumnsThemeValue): "columns_classic" | "raster2d" | "raster3d" | "neo" | "staunton_glyphs" | "candy" {
   if (value === WOODY_CHESS_PRESET_ID) return "raster3d";
   if (value === NEO_STONE_CHESS_PRESET_ID) return "neo";
   if (value === "neo") return "neo";
+  if (value === "staunton_glyphs") return "staunton_glyphs";
   if (value === "candy") return "candy";
   if (value === "raster2d") return "raster2d";
   if (value === "columns_classic") return "columns_classic";

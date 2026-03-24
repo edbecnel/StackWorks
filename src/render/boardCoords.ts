@@ -2,9 +2,39 @@ import { CHECKERBOARD_THEMES, normalizeCheckerboardThemeId, type CheckerboardThe
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
+function placeBoardCoordsLayer(svg: SVGSVGElement, layer: SVGGElement): void {
+  const pieces = svg.querySelector("#pieces") as SVGGElement | null;
+  if (!pieces || !pieces.parentNode) {
+    if (layer.parentNode !== svg) svg.appendChild(layer);
+    return;
+  }
+
+  const parent = pieces.parentNode;
+  const overlays = svg.querySelector("#overlays") as SVGGElement | null;
+
+  if (overlays && overlays.parentNode === parent) {
+    if (layer !== overlays.previousSibling) {
+      parent.insertBefore(layer, overlays);
+    }
+    return;
+  }
+
+  if (pieces.nextSibling) {
+    if (layer !== pieces.nextSibling) {
+      parent.insertBefore(layer, pieces.nextSibling);
+    }
+    return;
+  }
+
+  parent.appendChild(layer);
+}
+
 function ensureBoardCoordsLayer(svg: SVGSVGElement): SVGGElement {
   const existing = svg.querySelector("#boardCoords") as SVGGElement | null;
-  if (existing) return existing;
+  if (existing) {
+    placeBoardCoordsLayer(svg, existing);
+    return existing;
+  }
 
   const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
   g.id = "boardCoords";
@@ -12,12 +42,7 @@ function ensureBoardCoordsLayer(svg: SVGSVGElement): SVGGElement {
   g.style.userSelect = "none";
   (g.style as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect = "none";
 
-  const pieces = svg.querySelector("#pieces") as SVGGElement | null;
-  if (pieces && pieces.parentNode) {
-    pieces.parentNode.insertBefore(g, pieces);
-  } else {
-    svg.appendChild(g);
-  }
+  placeBoardCoordsLayer(svg, g);
 
   return g;
 }

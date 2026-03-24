@@ -35,6 +35,14 @@ export const THEMES: ThemeDef[] = [
     hidden: true,
   },
   {
+    id: "staunton_glyphs",
+    label: "Tournament",
+    piecesDefs: new URL("../assets/themes/staunton_glyphs/pieces_defs.svg", import.meta.url),
+    boardDefs: new URL("../assets/themes/classic/board_defs.svg", import.meta.url),
+    css: new URL("../assets/themes/classic/theme.css", import.meta.url),
+    hidden: true,
+  },
+  {
     id: "candy",
     label: "Candy",
     piecesDefs: new URL("../assets/themes/candy/pieces_defs.svg", import.meta.url),

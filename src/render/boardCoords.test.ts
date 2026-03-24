@@ -82,6 +82,10 @@ function findText(svg: SVGSVGElement, text: string): SVGTextElement {
   return found;
 }
 
+function childIds(svg: SVGSVGElement): string[] {
+  return Array.from(svg.children).map((node) => (node as Element).id || node.nodeName.toLowerCase());
+}
+
 describe("renderBoardCoords (inSquare)", () => {
   it("renders lowercase files + ranks inside squares using opponent-square base color", () => {
     const svg = makeSvg8x8();
@@ -165,9 +169,9 @@ describe("renderBoardCoords (inSquare)", () => {
     expect(Number(inSquareA.getAttribute("y"))).toBeLessThanOrEqual(900);
     expect(Number(inSquareTen.getAttribute("x"))).toBeGreaterThanOrEqual(100);
     expect(Number(inSquareTen.getAttribute("y"))).toBeGreaterThanOrEqual(100);
-    expect(inSquareTen.getAttribute("text-anchor")).toBe("end");
-    // Right edge is anchored consistently near the right side of the square (same as single-digit ranks).
-    expect(Number(inSquareTen.getAttribute("x"))).toBeCloseTo(173.6, 0);
+    expect(inSquareTen.getAttribute("text-anchor")).toBe("start");
+    // Left-column ranks stay anchored near the left side of the square, including two-digit labels.
+    expect(Number(inSquareTen.getAttribute("x"))).toBeCloseTo(106.4, 0);
   });
 
   it("renders the International Draughts perimeter numbering inside dark squares", () => {
@@ -244,5 +248,29 @@ describe("renderBoardCoords (inSquare)", () => {
     const a = findText(svg, "a");
     expect(a.style.userSelect).toBe("none");
     expect((a.style as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect).toBe("none");
+  });
+
+  it("keeps the boardCoords layer above pieces", () => {
+    const svg = makeSvg8x8();
+
+    const staleLayer = document.createElementNS(SVG_NS, "g") as SVGGElement;
+    staleLayer.id = "boardCoords";
+    svg.insertBefore(staleLayer, svg.querySelector("#pieces"));
+
+    renderBoardCoords(svg, true, 8, { style: "inSquare" });
+
+    expect(childIds(svg)).toEqual(["squares", "pieces", "boardCoords"]);
+  });
+
+  it("keeps boardCoords below overlays while staying above pieces", () => {
+    const svg = makeSvg8x8();
+
+    const overlays = document.createElementNS(SVG_NS, "g") as SVGGElement;
+    overlays.id = "overlays";
+    svg.appendChild(overlays);
+
+    renderBoardCoords(svg, true, 8, { style: "inSquare" });
+
+    expect(childIds(svg)).toEqual(["squares", "pieces", "boardCoords", "overlays"]);
   });
 });
