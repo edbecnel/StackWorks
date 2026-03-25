@@ -179,7 +179,7 @@ export type FinalizeCaptureChainRequest =
   | {
       roomId: RoomId;
       playerId: PlayerId;
-      rulesetId: "damasca" | "damasca_classic";
+      rulesetId: "damasca" | "damasca_classic" | "columns_draughts";
       landing: string;
       expectedStateVersion?: number;
     };

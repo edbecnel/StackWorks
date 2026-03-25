@@ -28,9 +28,11 @@ export function renderStackAtNode(
     boardSize?: number;
     countsLayer?: SVGGElement | null;
     spinesLayer?: SVGGElement | null;
+    /** Returns the current coord label for a nodeId; evaluated lazily at hover time for the inspector. */
+    getCoordLabel?: ((nodeId: string) => string | null) | null;
   } = {}
 ): void {
-  const { pieceSize, rulesetId, boardSize, countsLayer, spinesLayer } = opts;
+  const { pieceSize, rulesetId, boardSize, countsLayer, spinesLayer, getCoordLabel } = opts;
 
   const node = svgRoot.querySelector(`#${nodeId}`) as SVGCircleElement | null;
   if (!node || !stack.length) return;
@@ -60,12 +62,15 @@ export function renderStackAtNode(
     maybeVariantWoodenPieceHref(svgRoot, baseHref, variantSeed),
     variantSeed
   );
+  const coordLabelNow = getCoordLabel?.(nodeId) ?? null;
   const use = makeUseWithTitle(
     href,
     cx - half,
     cy - half,
     resolvedPieceSize,
-    pieceTooltip(top, { rulesetId, themeId })
+    coordLabelNow
+      ? `${pieceTooltip(top, { rulesetId, themeId })} (${coordLabelNow})`
+      : pieceTooltip(top, { rulesetId, themeId })
   );
   if (isBoardFlipped(svgRoot)) {
     use.setAttribute("transform", `rotate(180 ${cx} ${cy})`);
@@ -79,7 +84,7 @@ export function renderStackAtNode(
       const rt = (ev as PointerEvent).relatedTarget as Node | null;
       if (rt && el.contains(rt)) return;
       inspector.cancelHide();
-      inspector.show(nodeId, stack, { rulesetId, boardSize });
+      inspector.show(nodeId, stack, { rulesetId, boardSize, coordLabel: getCoordLabel?.(nodeId) ?? undefined });
     });
     // Intentionally do not hide the inspector on hover-out.
     // UX: the Stack Inspector should keep showing the last hovered stack
@@ -96,7 +101,7 @@ export function renderStackAtNode(
       // so the user can scroll/inspect the full stack.
       inspector.cancelHide();
       inspector.pin?.();
-      inspector.show(nodeId, stack, { rulesetId, boardSize });
+      inspector.show(nodeId, stack, { rulesetId, boardSize, coordLabel: getCoordLabel?.(nodeId) ?? undefined });
     };
 
     // Stop both pointerdown and click: controller selection is bound to SVG click.

@@ -496,11 +496,15 @@ export class ChessBotManager {
 
     void applySignedInNameToLocalBotSelects([this.elWhite, this.elBlack]);
 
-    // Classic Chess bot UX: always start paused (but only meaningful if a bot is enabled).
-    // This prevents surprise moves immediately on load/launch.
     if (this.settings.white !== "human" || this.settings.black !== "human") {
-      this.settings.paused = this.skipAutoPauseAtStart ? false : true;
-      this.autoPausedAtStart = !this.skipAutoPauseAtStart;
+      // Only auto-pause if the bot moves first. If the human moves first, don't
+      // pause — the bot will play immediately on its turn without any toast
+      // (mirrors Columns Chess behavior).
+      const startState = this.controller.getState();
+      const botMovesFirst = tierForPlayer(this.settings, startState.toMove) !== null;
+      const shouldPause = !this.skipAutoPauseAtStart && botMovesFirst;
+      this.settings.paused = shouldPause;
+      this.autoPausedAtStart = shouldPause;
       try {
         localStorage.setItem(LS_KEYS.paused, String(this.settings.paused));
       } catch {
@@ -1349,11 +1353,13 @@ export class ChessBotManager {
       }
     }
 
-    // Auto-pause whenever a new game starts and a bot is enabled.
-    // This covers first load, restart, and undo-back-to-start.
+    // Auto-pause on a new game/restart only if the bot moves first.
+    // If the human moves first, let the bot play immediately on its turn.
     if (this.isAtNewGame() && (this.settings.white !== "human" || this.settings.black !== "human")) {
-      this.settings.paused = true;
-      this.autoPausedAtStart = true;
+      const newGameState = this.controller.getState();
+      const botMovesFirst = tierForPlayer(this.settings, newGameState.toMove) !== null;
+      this.settings.paused = botMovesFirst;
+      this.autoPausedAtStart = botMovesFirst;
       this.autoPausedFromHistoryNav = false;
       this.autoResumeAfterHistoryNav = false;
       this.allowPausedTurnToastWhileViewingPast = false;

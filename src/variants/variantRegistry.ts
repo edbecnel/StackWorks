@@ -14,6 +14,7 @@ const RULESET_LABEL: Record<RulesetId, string> = {
   damasca_classic: "Damasca Classic",
   checkers_us: "US Checkers",
   columns_chess: "Columns Chess",
+  columns_draughts: "Columns Draughts",
   chess: "Classic Chess",
 };
 
@@ -77,6 +78,18 @@ export const VARIANTS: readonly VariantSpec[] = [
     svgAsset: checkersBoard10x10SvgUrl,
     entryUrl: "./dama",
     defaultSaveName: "draughts_10_international-save.json",
+    available: true,
+  },
+  {
+    variantId: "columns_draughts_10",
+    displayName: "Columns Draughts",
+    subtitle: "International Draughts rules + stacking captures. 10×10 board • Flying kings • Max-capture priority",
+    rulesetId: "columns_draughts",
+    boardSize: 10,
+    piecesPerSide: 20,
+    svgAsset: checkersBoard10x10SvgUrl,
+    entryUrl: "./columnsDraughts",
+    defaultSaveName: "columns_draughts_10-save.json",
     available: true,
   },
   {

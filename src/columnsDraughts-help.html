@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StackWorks — Columns Draughts Help & Rules</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      sizes="any"
+      href="./icons/stackworks-logo-icon-20260320.svg"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="./icons/apple-touch-icon-20260320.png"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        color: #e8e6e3;
+        background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+        padding: 20px;
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: rgba(42, 42, 42, 0.95);
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      }
+
+      h1 {
+        color: #fff;
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        border-bottom: 3px solid #4a9eff;
+        padding-bottom: 10px;
+      }
+
+      h2 {
+        color: #4a9eff;
+        font-size: 1.8em;
+        margin-top: 30px;
+        margin-bottom: 15px;
+      }
+
+      h3 {
+        color: #7db3ff;
+        font-size: 1.3em;
+        margin-top: 20px;
+        margin-bottom: 10px;
+      }
+
+      p {
+        margin-bottom: 15px;
+        color: #d4d4d4;
+      }
+
+      ul,
+      ol {
+        margin-left: 25px;
+        margin-bottom: 15px;
+      }
+
+      li {
+        margin-bottom: 8px;
+        color: #d4d4d4;
+      }
+
+      .highlight {
+        background: rgba(74, 158, 255, 0.2);
+        padding: 15px;
+        border-left: 4px solid #4a9eff;
+        border-radius: 4px;
+        margin: 15px 0;
+      }
+
+      .warning {
+        background: rgba(255, 184, 77, 0.2);
+        padding: 15px;
+        border-left: 4px solid #ffb84d;
+        border-radius: 4px;
+        margin: 15px 0;
+      }
+
+      .rule-box {
+        background: rgba(74, 158, 255, 0.1);
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px 0;
+        border: 1px solid rgba(74, 158, 255, 0.3);
+      }
+
+      a {
+        color: #4a9eff;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .back-link {
+        display: inline-block;
+        margin-top: 30px;
+        padding: 12px 24px;
+        background: #4a9eff;
+        color: #fff;
+        border-radius: 6px;
+        font-weight: 700;
+        transition: background 0.2s;
+      }
+
+      .back-link:hover {
+        background: rgba(74, 158, 255, 0.85);
+        text-decoration: none;
+      }
+
+      code {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: "Courier New", monospace;
+        font-size: 0.9em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>StackWorks — Columns Draughts Help &amp; Rules</h1>
+
+      <p>
+        <b>Columns Draughts</b> combines <b>International Draughts</b> movement
+        and capture rules on a <b>10×10 board</b> with
+        <b>Lasca‑style stacking captures</b>: captured pieces are not removed
+        from the board but are instead stacked under the capturing piece,
+        forming columns (stacks).
+      </p>
+
+      <h2>Table of Contents</h2>
+      <ul>
+        <li><a href="#overview">Rules Overview</a></li>
+        <li>
+          <a href="#vs-international"
+            >Columns Draughts vs International Draughts</a
+          >
+        </li>
+        <li>
+          <a href="#vs-damasca">Columns Draughts vs Damasca International</a>
+        </li>
+        <li><a href="#setup">Game Setup</a></li>
+        <li><a href="#rules">Game Rules</a></li>
+        <li><a href="#captures">Captures &amp; Multi‑Captures</a></li>
+        <li><a href="#inspector">Stack Inspector</a></li>
+        <li><a href="#interface">Using the Interface</a></li>
+      </ul>
+
+      <h2 id="overview">Rules Overview</h2>
+      <div class="rule-box">
+        <h3>Movement</h3>
+        <ul>
+          <li><strong>Men:</strong> move diagonally forward one square.</li>
+          <li>
+            <strong>Kings:</strong> "fly" on quiet moves — slide diagonally any
+            distance in any direction until blocked (International Draughts
+            flying king).
+          </li>
+        </ul>
+
+        <h3>Captures (Mandatory + Multi‑capture + Max‑capture)</h3>
+        <ul>
+          <li>
+            <strong>Mandatory:</strong> if any capture is available, you must
+            capture.
+          </li>
+          <li>
+            <strong>Multi‑capture:</strong> after a capture you must continue
+            capturing with the same moving stack until no further captures are
+            available.
+          </li>
+          <li>
+            <strong>Max‑capture rule:</strong> if multiple capture lines exist,
+            only those with the most total captures are legal (choose freely
+            among ties).
+          </li>
+          <li>
+            <strong>Anti‑loop:</strong> during a capture chain you cannot jump
+            the same square twice.
+          </li>
+        </ul>
+
+        <h3>Stacking Capture (Lasca‑style)</h3>
+        <ul>
+          <li>
+            When you jump a stack you capture only the
+            <strong>top</strong> piece of that stack.
+          </li>
+          <li>
+            The captured piece is inserted at the <strong>bottom</strong> of the
+            capturing stack.
+          </li>
+          <li>
+            The original stack loses its top piece but is otherwise undisturbed.
+          </li>
+        </ul>
+
+        <h3>Promotion</h3>
+        <ul>
+          <li>Promotion happens at <strong>end‑of‑turn</strong> only.</li>
+          <li>
+            If a Man reaches the far rank during a capture chain, it does not
+            gain King powers mid‑chain. If it reaches the far rank at any point
+            in the chain it promotes after the chain ends — even if it does not
+            finish on the far rank.
+          </li>
+        </ul>
+      </div>
+
+      <h2 id="vs-international">Columns Draughts vs International Draughts</h2>
+      <p>
+        Columns Draughts uses <b>exactly the same movement and capture rules</b>
+        as International Draughts (10×10, 20 pieces per side, flying Kings,
+        backward Men captures, max‑capture priority). The
+        <strong>only difference</strong> is what happens to a captured piece:
+      </p>
+      <div class="rule-box">
+        <ul>
+          <li>
+            <strong>International Draughts:</strong> captured pieces are
+            <strong>removed</strong> from the board after the sequence ends.
+          </li>
+          <li>
+            <strong>Columns Draughts:</strong> captured pieces are
+            <strong>stacked</strong> — the top piece of the jumped stack is
+            placed at the bottom of the capturing stack. Nothing is ever
+            permanently removed.
+          </li>
+        </ul>
+      </div>
+      <p>
+        This single change produces very different strategic dynamics: material
+        count becomes less informative, and the game stays complex deep into the
+        endgame because pieces can re‑emerge from stacks.
+      </p>
+
+      <h2 id="vs-damasca">Columns Draughts vs Damasca International</h2>
+      <p>
+        <b>Damasca International</b> is the closest relative of Columns
+        Draughts. Both use stacking captures on a built‑in checkerboard with
+        flying Officers/Kings and max‑capture. The key differences are:
+      </p>
+      <div class="rule-box">
+        <ul>
+          <li>
+            <strong>Board &amp; starting pieces:</strong> Columns Draughts uses
+            a <strong>10×10</strong> board with
+            <strong>20 pieces per side</strong>; Damasca International uses an
+            <strong>8×8</strong> board with <strong>12 per side</strong>.
+          </li>
+          <li>
+            <strong>King direction rule during a chain:</strong>
+            <ul>
+              <li>
+                <b>Damasca:</b> Kings may <em>not</em> reverse direction 180°
+                during a capture chain (no "backtracking" along the same
+                diagonal).
+              </li>
+              <li>
+                <b>Columns Draughts:</b> Kings may capture in
+                <strong>any direction</strong> at each step of a chain,
+                including reversing — matching International Draughts king
+                freedom.
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+      <p>
+        In practice, the direction freedom for Kings in Columns Draughts allows
+        longer capture chains and makes the max‑capture calculation more
+        demanding for both players.
+      </p>
+
+      <h2 id="setup">Game Setup</h2>
+      <ul>
+        <li>Board: 10×10</li>
+        <li>20 pieces per side (Men)</li>
+        <li>Light (White) moves first</li>
+        <li>
+          Pieces occupy the dark squares of the first four rows on each side
+          (standard International Draughts starting layout).
+        </li>
+      </ul>
+
+      <h2 id="rules">Game Rules</h2>
+      <div class="rule-box">
+        <h3>Movement</h3>
+        <ul>
+          <li>
+            <strong>Men:</strong> move diagonally forward one square to an empty
+            dark square.
+          </li>
+          <li>
+            <strong>Kings:</strong> slide diagonally any distance in any
+            direction to an empty dark square (flying king, no distance limit).
+          </li>
+        </ul>
+
+        <h3>Promotion</h3>
+        <ul>
+          <li>A Man promotes to a King upon reaching the far rank.</li>
+          <li>
+            Promotion happens at end of a capture sequence (no mid‑sequence King
+            powers). If a Man reaches the far rank at any point during a capture
+            chain, it promotes after the chain ends.
+          </li>
+        </ul>
+
+        <h3>Winning</h3>
+        <ul>
+          <li>
+            You win when the opponent has no legal moves (all their top pieces
+            are blocked or all have been captured into stacks you control).
+          </li>
+        </ul>
+
+        <h3>Dead‑play / draw end conditions (adjudicated)</h3>
+        <ul>
+          <li>
+            <strong>Threefold repetition:</strong> if the exact same position
+            (including full stack composition and order) occurs three times, the
+            game ends immediately and is <strong>adjudicated</strong>.
+          </li>
+          <li>
+            <strong>No‑progress counter:</strong> if there is no capture,
+            promotion, or Man advance for <strong>40 plies</strong>, the game
+            ends and is <strong>adjudicated</strong>.
+          </li>
+          <li>
+            <strong>King‑only fast path:</strong> if <strong>only</strong> Kings
+            move (no Man moves at all) for <strong>30 plies</strong>, the game
+            ends and is <strong>adjudicated</strong>.
+          </li>
+          <li>
+            Current counters are shown in the left panel:
+            <strong>Status → Dead‑play counters</strong>.
+          </li>
+        </ul>
+      </div>
+
+      <h2 id="captures">Captures &amp; Multi‑Captures</h2>
+      <div class="highlight">
+        Captures are mandatory when available. If you can continue capturing
+        with the same stack after a capture, you must continue until no further
+        captures are possible. When multiple capture lines exist, the
+        <strong>maximum‑capture rule</strong> applies — you must choose a line
+        with the greatest total number of captures.
+      </div>
+
+      <div class="rule-box">
+        <h3>How captures work</h3>
+        <ul>
+          <li>
+            <strong>Men:</strong> capture by jumping diagonally over an adjacent
+            enemy stack (forward or backward) to the empty square beyond it.
+          </li>
+          <li>
+            <strong>Kings:</strong> capture by sliding diagonally to an enemy
+            stack, jumping over it, and landing on any empty square beyond it
+            (flying capture). Multiple landing squares are available; the choice
+            affects where the chain can continue next.
+          </li>
+          <li>
+            <strong>What is captured:</strong> only the
+            <strong>top piece</strong>
+            of the jumped stack. The captured piece is placed at the
+            <strong>bottom</strong> of the capturing stack. The jumped stack
+            loses its top but keeps any remaining pieces in place.
+          </li>
+        </ul>
+
+        <h3>King direction freedom (vs Damasca)</h3>
+        <p>
+          During a capture chain, Kings in Columns Draughts can capture in any
+          direction at each step — including reversing 180° along a diagonal.
+          There is no direction restriction. This matches standard International
+          Draughts king rules.
+        </p>
+
+        <h3>Anti‑loop rule</h3>
+        <p>
+          You cannot jump the <strong>same square</strong> twice in a single
+          capture chain. This prevents infinite loops.
+        </p>
+      </div>
+
+      <h2 id="inspector">Stack Inspector</h2>
+      <div class="highlight">
+        The <strong>Stack Inspector</strong> panel (right side) shows the full
+        column of pieces under any square you hover or tap. Hover or click a
+        square to inspect its stack from top (active, controls the piece) to
+        bottom (buried).
+      </div>
+      <ul>
+        <li>
+          The <strong>top piece</strong> of a stack is the one that moves and
+          captures; pieces below it are "buried" but stay on the board.
+        </li>
+        <li>
+          A piece can escape from the bottom of a stack only if the pieces above
+          it are gradually captured away over time.
+        </li>
+        <li>
+          Stack height is visible on each square in the board view (shown as a
+          small number badge on tall stacks).
+        </li>
+      </ul>
+
+      <h2 id="interface">Using the Interface</h2>
+
+      <div class="highlight">
+        Open <b>Game Panel → Players</b> to choose <b>Human</b> or
+        <b>Bot</b> for Light and Dark. If you choose <b>Bot</b>, a second
+        dropdown appears so you can select the bot level.
+      </div>
+
+      <h3>Online play (2 players)</h3>
+      <p>
+        Online play is available via the Start Page. Player 1 creates a room,
+        then shares the <b>Room ID</b> with Player 2.
+      </p>
+      <ul>
+        <li>
+          Room visibility: when creating a room, choose
+          <b>Public</b> (spectators allowed) or <b>Private</b> (no public
+          spectating).
+        </li>
+        <li>
+          Room ID is shown in‑game in <b>Info → Online</b> and can be copied
+          with the button next to "Room ID".
+        </li>
+        <li>Player 2 joins by pasting the Room ID on the Start Page.</li>
+        <li>
+          Opponent presence: the Online panel shows opponent status with a small
+          badge under the turn indicator (green=connected, yellow=in grace,
+          red=disconnected, gray=waiting).
+        </li>
+        <li>
+          Spectating: you can spectate <b>public</b> rooms from the Start Page.
+          Private rooms require a secret watch link.
+        </li>
+        <li>
+          Report issue: open <b>Info → Online</b> and click <b>ⓘ</b> to
+          view/copy diagnostic info.
+        </li>
+      </ul>
+
+      <h3>Board coordinates</h3>
+      <ul>
+        <li>
+          Enable <b>Board Coords</b> in Options to show square labels on the
+          board edge.
+        </li>
+        <li>
+          Enable <b>Inside squares</b> to move the labels inside each dark
+          square.
+        </li>
+        <li>
+          Enable <b>International square numbering</b> to use the standard 1–50
+          numbering scheme used in International Draughts notation (forces
+          inside‑square placement).
+        </li>
+      </ul>
+
+      <h3>Board colors</h3>
+      <p>
+        Use <b>Board &amp; Pieces → Board</b> to choose from Classic, Green, and
+        Blue checkerboard color families.
+      </p>
+
+      <h3>Layout (Panels vs Menu)</h3>
+      <p>
+        StackWorks supports <b>Panels</b> mode (left/right of the board in
+        landscape; top/bottom in portrait) and a small‑screen‑friendly
+        <b>Menu</b> mode.
+      </p>
+      <ul>
+        <li>Change it via <b>Options → Layout</b> (Panels/Menu).</li>
+        <li>
+          In <b>Menu</b> mode, tap <b>☰</b> to open panel sections as dialogs.
+        </li>
+      </ul>
+
+      <h3>Keyboard shortcuts</h3>
+      <p>
+        Shortcuts use <code>Ctrl</code> (Windows/Linux) or <code>Cmd</code>
+        (macOS). Shortcuts are disabled while typing in a text field.
+      </p>
+      <ul>
+        <li><strong>Undo:</strong> <code>Ctrl/Cmd+Z</code></li>
+        <li>
+          <strong>Redo:</strong> <code>Ctrl/Cmd+Y</code> or
+          <code>Ctrl/Cmd+Shift+Z</code>
+        </li>
+        <li><strong>Save:</strong> <code>Ctrl/Cmd+S</code></li>
+        <li><strong>Resign:</strong> <code>Ctrl/Cmd+Shift+X</code></li>
+        <li><strong>Full Screen:</strong> <code>Ctrl/Cmd+Shift+F</code></li>
+        <li><strong>Toggle layout:</strong> <code>Ctrl/Cmd+Shift+L</code></li>
+        <li>
+          <strong>Show keyboard shortcuts:</strong>
+          <code>Ctrl/Cmd+Shift+?</code>
+        </li>
+      </ul>
+      <ul>
+        <li>Click a piece to select it.</li>
+        <li>Legal destinations appear as highlighted circles.</li>
+        <li>
+          <strong>Move History:</strong> Click any entry (including "Start") to
+          jump to that point in the game. Undo/Redo also navigates through
+          history.
+        </li>
+        <li>
+          During a capture chain you must continue with the same stack until the
+          chain ends.
+        </li>
+      </ul>
+
+      <a class="back-link" href="./">← Back to Start Page</a>
+    </div>
+  </body>
+</html>

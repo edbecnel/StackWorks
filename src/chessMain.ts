@@ -161,7 +161,7 @@ function deriveLegacyChessMovePreviewMode(): ChessMovePreviewMode {
   return highlightSquaresEnabled ? "stackworks-squares" : "stackworks";
 }
 
-import { readShellState } from "./config/shellState";
+import { readShellState, updateShellState } from "./config/shellState";
 import { applyBotPlayStateToCurrentPage } from "./ui/shell/playHub";
 
 window.addEventListener("DOMContentLoaded", async () => {
@@ -845,24 +845,16 @@ window.addEventListener("DOMContentLoaded", async () => {
       syncPlayerBotSelector("botBlackSelect");
     }
 
-    // --- PATCH: Always apply persisted bot settings from shell state after bot manager is initialized ---
+    // Apply bot play state written by the Start Page launcher — but only once.
+    // Consume it immediately so subsequent page reloads use whatever the user
+    // last configured on the game page, not the stale launcher assignment.
     setTimeout(() => {
       try {
         const shellState = readShellState();
         if (shellState?.botPlayState) {
           applyBotPlayStateToCurrentPage(shellState.botPlayState);
-          // --- PATCH: Pause bot and show sticky toast if needed ---
-          if (bot && typeof bot.setPaused === "function" && typeof bot.schedulePausedTurnToastSync === "function") {
-            // Check if a bot is enabled and it's a new game
-            const settings = bot.settings || (bot.loadSettings && bot.loadSettings());
-            const anyBot = settings && (settings.white !== "human" || settings.black !== "human");
-            const isAtNewGame = bot.isAtNewGame ? bot.isAtNewGame() : false;
-            if (anyBot && isAtNewGame) {
-              bot.setPaused(true);
-              bot.schedulePausedTurnToastSync();
-            }
-          }
-          // --- PATCH: Re-sync player names after persona is written ---
+          // Clear so this doesn't re-apply on the next page load.
+          updateShellState({ botPlayState: null });
           if (typeof window.syncConfiguredPlayerNames === "function") {
             window.syncConfiguredPlayerNames();
           }

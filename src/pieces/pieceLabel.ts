@@ -10,7 +10,8 @@ function usesDraughtsPieceTerminology(rulesetId?: RulesetIdLike): boolean {
     rulesetId === "draughts_international" ||
     rulesetId === "dama" ||
     rulesetId === "damasca" ||
-    rulesetId === "damasca_classic"
+    rulesetId === "damasca_classic" ||
+    rulesetId === "columns_draughts"
   );
 }
 

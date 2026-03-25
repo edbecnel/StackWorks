@@ -1,15 +1,15 @@
 import { createInitialGameStateForVariant } from "./game/state.ts";
 import type { GameState } from "./game/state.ts";
 import { renderGameState } from "./render/renderGameState.ts";
+import { createStackInspector } from "./ui/stackInspector";
 import { initSplitLayout } from "./ui/layout/splitLayout";
 import { initCollapsibleSections } from "./ui/layout/collapsibleSections";
 import { loadSvgFileInto } from "./render/loadSvgFile";
 import { createThemeManager, THEME_CHANGE_EVENT, THEME_DID_CHANGE_EVENT, THEME_WILL_CHANGE_EVENT } from "./theme/themeManager";
-import chessBoardSvgUrl from "./assets/chess_board.svg?url";
-import graphBoard8x8SvgUrl from "./assets/graph_board_8x8.svg?url";
-import checkerboardBlue10x10SvgUrl from "./assets/checkerboard_blue_10x10.svg?url";
 import checkerboardClassic10x10SvgUrl from "./assets/checkerboard_classic_10x10.svg?url";
 import checkerboardGreen10x10SvgUrl from "./assets/checkerboard_green_10x10.svg?url";
+import checkerboardBlue10x10SvgUrl from "./assets/checkerboard_blue_10x10.svg?url";
+import checkersBoard10x10SvgUrl from "./assets/checkers_board_10x10.svg?url";
 import type { Player } from "./types";
 import { GameController } from "./controller/gameController.ts";
 import { ensureOverlayLayer } from "./render/overlays.ts";
@@ -27,7 +27,7 @@ import {
   bindKeyboardShortcutsContextMenu,
 } from "./ui/gameShortcuts.ts";
 import { installHoldDrag } from "./ui/holdDrag";
-import { getVariantById, isVariantId, rulesBoardLine } from "./variants/variantRegistry";
+import { getVariantById, rulesBoardLine } from "./variants/variantRegistry";
 import type { VariantId } from "./variants/variantTypes";
 import { createDriverAsync, consumeStartupMessage } from "./driver/createDriver.ts";
 import type { OnlineGameDriver } from "./driver/gameDriver.ts";
@@ -53,9 +53,9 @@ import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { bindLeaveRoomButton } from "./ui/leaveRoomButton";
 import { initGameShell } from "./ui/shell/gameShell";
 import { GameSection } from "./config/shellState";
+import { installPlayerBotSelector, syncPlayerBotSelector } from "./ui/bot/playerBotSelector";
 import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
 import { ensureBoardCoordsInSquaresOption } from "./ui/boardCoordsInSquaresOption";
-import { installPlayerBotSelector, syncPlayerBotSelector } from "./ui/bot/playerBotSelector";
 import { applyBoardViewportModeToSvg } from "./render/boardViewport";
 import { bindBoardPlayerNameOverlay } from "./render/boardPlayerNames";
 import {
@@ -65,45 +65,10 @@ import {
   readBoardViewportMode,
 } from "./ui/boardViewportMode";
 
-const FALLBACK_VARIANT_ID: VariantId = "dama_8_classic_standard";
+const ACTIVE_VARIANT_ID = "columns_draughts_10" as const;
 
-function getActiveDamaVariantId(): VariantId {
-  const raw = window.localStorage.getItem("lasca.variantId");
-  if (raw && isVariantId(raw)) {
-    const v = getVariantById(raw);
-    if (v.rulesetId === "dama" || v.rulesetId === "checkers_us" || v.rulesetId === "draughts_international") {
-      return v.variantId;
-    }
-  }
-  return FALLBACK_VARIANT_ID;
-}
-
-const ACTIVE_VARIANT_ID: VariantId = getActiveDamaVariantId();
-
-type TenByTenCheckerboardFamily = "classic" | "green" | "blue" | "checkers";
-
-function get10x10CheckerboardFamily(variantId: VariantId): TenByTenCheckerboardFamily {
-  if (variantId !== "draughts_10_international") return "classic";
-  const raw = window.localStorage.getItem(LS_OPT_KEYS.checkerboardTheme);
-  const themeId = normalizeCheckerboardThemeId(raw);
-  if (themeId === "checkers") return "checkers";
-  if (themeId === "green") return "green";
-  if (themeId === "blue") return "blue";
-  return "classic";
-}
-
-function get10x10CheckerboardSvgByFamily(family: TenByTenCheckerboardFamily, fallbackUrl: string): string {
-  if (family === "checkers") return fallbackUrl;
-  if (family === "green") return checkerboardGreen10x10SvgUrl;
-  if (family === "blue") return checkerboardBlue10x10SvgUrl;
-  return checkerboardClassic10x10SvgUrl;
-}
-
-function saveLabelForDamaVariant(variantId: VariantId): string {
-  if (variantId === "checkers_8_us") return "checkers";
-  if (variantId === "dama_8_classic_international") return "dama_international";
-  if (variantId === "draughts_10_international") return "international_draughts";
-  return "dama";
+function saveLabelForColumnsDraughtsVariant(): string {
+  return "columns_draughts";
 }
 
 const LS_OPT_KEYS = {
@@ -117,7 +82,6 @@ const LS_OPT_KEYS = {
   boardCoordsInSquares: `lasca.opt.${ACTIVE_VARIANT_ID}.boardCoordsInSquares`,
   boardCoordsInternationalNumbers: `lasca.opt.${ACTIVE_VARIANT_ID}.boardCoordsInternationalNumbers`,
   flipBoard: `lasca.opt.${ACTIVE_VARIANT_ID}.flipBoard`,
-  board8x8Checkered: `lasca.opt.${ACTIVE_VARIANT_ID}.board8x8Checkered`,
   checkerboardTheme: `lasca.opt.${ACTIVE_VARIANT_ID}.checkerboardTheme`,
   threefold: `lasca.opt.${ACTIVE_VARIANT_ID}.threefold`,
   toasts: "lasca.opt.toasts",
@@ -130,8 +94,6 @@ function normalizeNcMoveHintStyle(v: string | null | undefined): NcMoveHintStyle
   if (v === "classic" || v === "chesscom" || v === "classic-squares") return v;
   return "chesscom";
 }
-
-const LS_THEME_KEY = `lasca.opt.${ACTIVE_VARIANT_ID}.theme`;
 
 function readOptionalBoolPref(key: string): boolean | null {
   const raw = localStorage.getItem(key);
@@ -154,6 +116,37 @@ function readOptionalStringPref(key: string): string | null {
 
 function writeStringPref(key: string, value: string): void {
   localStorage.setItem(key, value);
+}
+
+function resolvePlayerLabelForSave(args: {
+  side: "W" | "B";
+  controller: GameController;
+}): string {
+  const configuredName = resolveConfiguredLocalPlayerName(args.side);
+  if (configuredName) return configuredName;
+  const displayName = args.controller.getPlayerShellSnapshot().players[args.side].displayName?.trim() ?? "";
+  const selectId = args.side === "W" ? "aiWhiteSelect" : "aiBlackSelect";
+  const botSetting = (document.getElementById(selectId) as HTMLSelectElement | null)?.value ?? "human";
+  if (botSetting !== "human") return args.side === "W" ? "white" : "black";
+  return displayName || "human";
+}
+
+function updatePlayerColorBadge(driver: unknown, rulesetId: string, boardSize: number): void {
+  const el = document.getElementById("playerColorBadge") as HTMLElement | null;
+  if (!el) return;
+  const anyDriver = driver as any;
+  if (!anyDriver || anyDriver.mode !== "online" || typeof anyDriver.getPlayerColor !== "function") return;
+
+  const color = (anyDriver as OnlineGameDriver).getPlayerColor();
+  if (color !== "W" && color !== "B") return;
+
+  const labels = getSideLabelsForRuleset(rulesetId, { boardSize });
+  const wIcon = labels.W === "Red" ? "🔴" : "⚪";
+  el.textContent = color === "W" ? wIcon : "⚫";
+  el.style.display = "inline-flex";
+  const label = `Playing as ${color === "W" ? labels.W : labels.B}`;
+  el.title = label;
+  el.setAttribute("aria-label", label);
 }
 
 type BoardCoordsToggleUI = {
@@ -204,81 +197,21 @@ function ensureInternationalDraughtsCoordsOption(anchor: HTMLElement | null): Bo
   return { toggle, row, hint };
 }
 
-function resolvePlayerLabelForSave(args: {
-  side: "W" | "B";
-  controller: GameController;
-}): string {
-  const configuredName = resolveConfiguredLocalPlayerName(args.side);
-  if (configuredName) return configuredName;
-  const displayName = args.controller.getPlayerShellSnapshot().players[args.side].displayName?.trim() ?? "";
-  const selectId = args.side === "W" ? "aiWhiteSelect" : "aiBlackSelect";
-  const botSetting = (document.getElementById(selectId) as HTMLSelectElement | null)?.value ?? "human";
-  if (botSetting !== "human") return args.side === "W" ? "white" : "black";
-  return displayName || "human";
-}
-
-function setSvgFavicon(svgMarkup: string): void {
-  try {
-    const link =
-      (document.querySelector('link[rel="icon"]') as HTMLLinkElement | null) ??
-      (document.querySelector('link[rel="shortcut icon"]') as HTMLLinkElement | null);
-
-    const next = link ?? document.createElement("link");
-    next.rel = "icon";
-    next.type = "image/svg+xml";
-    next.sizes = "any";
-    next.href = `data:image/svg+xml,${encodeURIComponent(svgMarkup)}`;
-    if (!link) document.head.appendChild(next);
-  } catch {
-    // ignore
-  }
-}
-
-function updatePlayerColorBadge(driver: unknown, rulesetId: string, boardSize: number): void {
-  const el = document.getElementById("playerColorBadge") as HTMLElement | null;
-  if (!el) return;
-  const anyDriver = driver as any;
-  if (!anyDriver || anyDriver.mode !== "online" || typeof anyDriver.getPlayerColor !== "function") return;
-
-  const color = (anyDriver as OnlineGameDriver).getPlayerColor();
-  if (color !== "W" && color !== "B") return;
-
-  const labels = getSideLabelsForRuleset(rulesetId, { boardSize });
-  const wIcon = labels.W === "Red" ? "🔴" : "⚪";
-  el.textContent = color === "W" ? wIcon : "⚫";
-  el.style.display = "inline-flex";
-  const label = `Playing as ${color === "W" ? labels.W : labels.B}`;
-  el.title = label;
-  el.setAttribute("aria-label", label);
-}
-
 window.addEventListener("DOMContentLoaded", async () => {
   const activeVariant = getVariantById(ACTIVE_VARIANT_ID);
-  const isCheckers = activeVariant.rulesetId === "checkers_us";
-  const isInternationalDraughts = activeVariant.rulesetId === "draughts_international";
-  const shellBreadcrumb = isCheckers
-    ? "Play / Checkers"
-    : isInternationalDraughts
-      ? "Play / International Draughts"
-      : "Play / Dama";
-  const shellHelpHref = isCheckers
-    ? "./checkers-help.html"
-    : isInternationalDraughts
-      ? "./international-draughts-help.html"
-      : "./dama-help.html";
   const appRoot = document.getElementById("appRoot") as HTMLElement | null;
   if (!appRoot) throw new Error("Missing game root: #appRoot");
 
   const shell = initGameShell({
     appRoot,
     variantId: activeVariant.variantId,
-    breadcrumb: shellBreadcrumb,
+    breadcrumb: "Play / Columns Draughts",
     title: activeVariant.displayName,
     subtitle: activeVariant.subtitle,
     gameSection: GameSection.Play,
     meta: [rulesBoardLine(activeVariant.rulesetId, activeVariant.boardSize)],
     backHref: "./",
-    helpHref: shellHelpHref,
+    helpHref: "./columnsDraughts-help.html",
     activeSectionId: "play",
     navItems: [
       { id: "play", label: "Play", targetSelector: "#boardWrap" },
@@ -295,49 +228,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   let hudController: GameController | null = null;
   let boardPlayerNames: ReturnType<typeof bindBoardPlayerNameOverlay> | null = null;
 
-  // Checkers: seed default piece + board appearance when missing (first run / storage cleared).
-  if (isCheckers) {
-    try {
-      if (!localStorage.getItem(LS_THEME_KEY)) localStorage.setItem(LS_THEME_KEY, "checkers");
-      if (!localStorage.getItem(LS_OPT_KEYS.checkerboardTheme)) {
-        localStorage.setItem(LS_OPT_KEYS.checkerboardTheme, "checkers");
-      }
-    } catch {
-      // ignore
-    }
-  }
   const getCurrentSideLabels = () =>
     getSideLabelsForRuleset(activeVariant.rulesetId, { boardSize: activeVariant.boardSize });
-
-  // dama.html is also used as the entry page for multiple disc-game rulesets.
-  // Ensure the browser tab title matches the actual game.
-  document.title = activeVariant.displayName;
-
-  const elHelpLink = (document.getElementById("helpLink") as HTMLAnchorElement | null) ?? null;
-  if (elHelpLink) {
-    if (shellHelpHref) {
-      elHelpLink.href = shellHelpHref;
-      elHelpLink.style.display = "";
-    } else {
-      elHelpLink.style.display = "none";
-    }
-  }
-
-  if (isCheckers) {
-    setSvgFavicon(
-      "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'>" +
-        "<rect width='16' height='16' rx='3' ry='3' fill='#1b1b1b'/>" +
-        "<circle cx='6.1' cy='9.9' r='5.1' fill='#111111' stroke='#f5f5f5' stroke-width='0.9'/>" +
-        "<circle cx='9.9' cy='6.1' r='5.1' fill='#d21f1f' stroke='#250404' stroke-width='0.9'/>" +
-        "</svg>"
-    );
-  }
-
   const sideLabel = (player: Player): string => {
     const labels = getCurrentSideLabels();
     return player === "W" ? labels.W : labels.B;
   };
-
   const sideIcon = (player: Player): string => {
     if (player === "B") return "⚫";
     const labels = getCurrentSideLabels();
@@ -346,6 +242,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   let driverForBadge: unknown | null = null;
   let controllerForSync: GameController | null = null;
+  let updateHistoryUIForSync: (() => void) | null = null;
 
   const syncBotSideLabels = () => {
     const elAiWhiteLabel = (document.querySelector('label[for="aiWhiteRoleSelect"]') as HTMLElement | null) ?? null;
@@ -363,10 +260,9 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (driverForBadge) {
       updatePlayerColorBadge(driverForBadge, activeVariant.rulesetId, activeVariant.boardSize);
     }
+    if (updateHistoryUIForSync) updateHistoryUIForSync();
   };
 
-  // In-game Bot panel: replace the generic Light/Dark labels with the
-  // variant's terminology (may be Red/Black when Classic Checkers board is used).
   syncBotSideLabels();
 
   const gameTitleEl = document.getElementById("gameTitle");
@@ -378,20 +274,21 @@ window.addEventListener("DOMContentLoaded", async () => {
   const boardLoading = createBoardLoadingOverlay(boardWrap);
   boardLoading.show();
 
-  const useCheckered8x8 = !isCheckers && (readOptionalBoolPref(LS_OPT_KEYS.board8x8Checkered) ?? false);
-  const usesBuiltInCheckerboard = isCheckers || activeVariant.boardSize === 10;
-  const svgAsset = (() => {
-    if (activeVariant.variantId === "draughts_10_international") {
-      return get10x10CheckerboardSvgByFamily(
-        get10x10CheckerboardFamily(activeVariant.variantId),
-        activeVariant.svgAsset ?? graphBoard8x8SvgUrl,
-      );
-    }
-    if (usesBuiltInCheckerboard) return activeVariant.svgAsset ?? graphBoard8x8SvgUrl;
-    if (activeVariant.boardSize === 8 && useCheckered8x8) return chessBoardSvgUrl;
-    return activeVariant.svgAsset ?? graphBoard8x8SvgUrl;
-  })();
-  const svg = await loadSvgFileInto(boardWrap, svgAsset);
+  // Columns Draughts is always on a 10×10 checkerboard. Select the color family based on stored pref.
+  type TenByTenCheckerboardFamily = "classic" | "green" | "blue";
+  const get10x10CheckerboardFamily = (): TenByTenCheckerboardFamily => {
+    const themeId = normalizeCheckerboardThemeId(readOptionalStringPref(LS_OPT_KEYS.checkerboardTheme));
+    if (themeId === "green") return "green";
+    if (themeId === "blue") return "blue";
+    return "classic";
+  };
+  const get10x10SvgByFamily = (family: TenByTenCheckerboardFamily): string => {
+    if (family === "green") return checkerboardGreen10x10SvgUrl;
+    if (family === "blue") return checkerboardBlue10x10SvgUrl;
+    return checkerboardClassic10x10SvgUrl;
+  };
+  const svgAsset = get10x10SvgByFamily(get10x10CheckerboardFamily());
+  const svg = await loadSvgFileInto(boardWrap, svgAsset !== "" ? svgAsset : (checkersBoard10x10SvgUrl));
 
   applyBoardViewportModeToSvg(svg, boardViewportMode, { boardSize: activeVariant.boardSize });
 
@@ -405,41 +302,28 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Apply flip early so any subsequently-created layers end up in the rotated view.
   setBoardFlipped(svg, isFlipped());
 
-  // Checkerboard theme is available for built-in checkerboards and optional 8x8 checkerboards.
+  // Checkerboard theme (only relevant when using the chess-style 8x8 board)
   const checkerboardThemeRow = document.getElementById("checkerboardThemeRow") as HTMLElement | null;
   const checkerboardThemeHelp = document.getElementById("checkerboardThemeHelp") as HTMLElement | null;
   const checkerboardThemeSelect = document.getElementById("checkerboardThemeSelect") as HTMLSelectElement | null;
 
-  const shouldShowCheckerboardTheme = usesBuiltInCheckerboard || activeVariant.boardSize === 8;
-  const canUseCheckerboardTheme = usesBuiltInCheckerboard || (activeVariant.boardSize === 8 && useCheckered8x8);
-  if (checkerboardThemeRow) checkerboardThemeRow.style.display = shouldShowCheckerboardTheme ? "flex" : "none";
+  // Columns Draughts always uses a built-in 10×10 checkerboard; theme select is always enabled.
+  if (checkerboardThemeRow) checkerboardThemeRow.style.display = "flex";
   if (checkerboardThemeHelp) {
-    checkerboardThemeHelp.style.display = shouldShowCheckerboardTheme ? "block" : "none";
-    checkerboardThemeHelp.textContent = canUseCheckerboardTheme
-      ? "Checkerboard background colors"
-      : "Enable \"Checkered 8×8 board\" in Options to customize board colors";
+    checkerboardThemeHelp.style.display = "block";
+    checkerboardThemeHelp.textContent = "Checkerboard background colors";
   }
-  if (checkerboardThemeSelect) checkerboardThemeSelect.disabled = !canUseCheckerboardTheme;
+  if (checkerboardThemeSelect) checkerboardThemeSelect.disabled = false;
 
-  const readCheckerboardTheme = (): CheckerboardThemeId => {
-    const raw = readOptionalStringPref(LS_OPT_KEYS.checkerboardTheme);
-    const next = normalizeCheckerboardThemeId(raw ?? (isCheckers ? "checkers" : null));
-    if (isCheckers && raw == null) {
-      try {
-        writeStringPref(LS_OPT_KEYS.checkerboardTheme, next);
-      } catch {
-        // ignore
-      }
-    }
-    return next;
-  };
+  const readCheckerboardTheme = (): CheckerboardThemeId =>
+    normalizeCheckerboardThemeId(readOptionalStringPref(LS_OPT_KEYS.checkerboardTheme));
   const applyCheckerboard = (id: CheckerboardThemeId) => {
     applyCheckerboardTheme(svg, id);
   };
   const syncPairedTheme = (themeId: string | null | undefined): void => {
     const pairedTheme = getPairedCheckerboardTheme(themeId);
     if (!pairedTheme) return;
-    if (checkerboardThemeSelect && !checkerboardThemeSelect.disabled) {
+    if (checkerboardThemeSelect) {
       checkerboardThemeSelect.value = pairedTheme;
     }
     writeStringPref(LS_OPT_KEYS.checkerboardTheme, pairedTheme);
@@ -450,41 +334,25 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   if (checkerboardThemeSelect) {
     checkerboardThemeSelect.value = readCheckerboardTheme();
+    checkerboardThemeSelect.addEventListener("change", () => {
+      const picked = normalizeCheckerboardThemeId(checkerboardThemeSelect.value);
+      writeStringPref(LS_OPT_KEYS.checkerboardTheme, picked);
+      applyCheckerboard(picked);
+      applyBoardCoords();
+      syncTerminologyUI();
+    });
   }
 
-  if (canUseCheckerboardTheme) {
-    if (checkerboardThemeSelect) {
-      checkerboardThemeSelect.addEventListener("change", () => {
-        const picked = normalizeCheckerboardThemeId(checkerboardThemeSelect.value);
-        writeStringPref(LS_OPT_KEYS.checkerboardTheme, picked);
-        applyCheckerboard(picked);
-        applyBoardCoords();
-        syncTerminologyUI();
-      });
-    }
+  applyCheckerboard(readCheckerboardTheme());
 
-    applyCheckerboard(readCheckerboardTheme());
-  }
-
+  // No "Checkered 8×8 board" toggle for Columns Draughts (always 10×10 checkerboard).
   const board8x8CheckeredToggle = document.getElementById("board8x8CheckeredToggle") as HTMLInputElement | null;
   if (board8x8CheckeredToggle) {
-    const row = (board8x8CheckeredToggle.parentElement as HTMLElement | null) ?? null;
-    const hint = (row?.nextElementSibling as HTMLElement | null) ?? null;
-    const canToggleCheckered8x8 = !usesBuiltInCheckerboard && activeVariant.boardSize === 8;
-
-    if (!canToggleCheckered8x8) {
-      if (row) row.style.display = "none";
-      if (hint) hint.style.display = "none";
-      board8x8CheckeredToggle.disabled = true;
-    } else {
-      if (row) row.style.display = "flex";
-      if (hint) hint.style.display = "block";
-      board8x8CheckeredToggle.checked = useCheckered8x8;
-      board8x8CheckeredToggle.addEventListener("change", () => {
-        writeBoolPref(LS_OPT_KEYS.board8x8Checkered, board8x8CheckeredToggle.checked);
-        window.location.reload();
-      });
-    }
+    const row = board8x8CheckeredToggle.parentElement as HTMLElement | null;
+    const hint = row?.nextElementSibling as HTMLElement | null;
+    if (row) row.style.display = "none";
+    if (hint) hint.style.display = "none";
+    board8x8CheckeredToggle.disabled = true;
   }
 
   const boardCoordsToggle = document.getElementById("boardCoordsToggle") as HTMLInputElement | null;
@@ -493,7 +361,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     boardCoordsToggle.checked = savedBoardCoords;
   }
 
-  const canUseInSquareCoords = usesBuiltInCheckerboard || (activeVariant.boardSize === 8 && useCheckered8x8);
+  // Columns Draughts always uses a 10×10 checkerboard; in-square coords are always available.
+  const canUseInSquareCoords = true;
   const inSquaresUI = ensureBoardCoordsInSquaresOption(boardCoordsToggle);
   const savedBoardCoordsInSquares = readOptionalBoolPref(LS_OPT_KEYS.boardCoordsInSquares);
   if (inSquaresUI.toggle && savedBoardCoordsInSquares !== null) {
@@ -505,23 +374,22 @@ window.addEventListener("DOMContentLoaded", async () => {
     internationalCoordsUI.toggle.checked = savedInternationalCoords;
   }
   const syncInSquaresUI = () => {
-    const forceInSquares = boardViewportMode === "playable" || Boolean(isInternationalDraughts && internationalCoordsUI.toggle?.checked);
-    if (inSquaresUI.row) inSquaresUI.row.style.display = canUseInSquareCoords ? "flex" : "none";
-    if (inSquaresUI.hint) inSquaresUI.hint.style.display = canUseInSquareCoords ? "block" : "none";
+    const forceInSquares = boardViewportMode === "playable" || Boolean(internationalCoordsUI.toggle?.checked);
+    if (inSquaresUI.row) inSquaresUI.row.style.display = "flex";
+    if (inSquaresUI.hint) inSquaresUI.hint.style.display = "block";
     if (inSquaresUI.toggle) {
       if (forceInSquares) inSquaresUI.toggle.checked = true;
-      inSquaresUI.toggle.disabled = forceInSquares || !canUseInSquareCoords || !Boolean(boardCoordsToggle?.checked);
+      inSquaresUI.toggle.disabled = forceInSquares || !Boolean(boardCoordsToggle?.checked);
       if (inSquaresUI.row) inSquaresUI.row.style.opacity = forceInSquares ? "0.45" : "";
       if (!forceInSquares) {
         const saved = readOptionalBoolPref(LS_OPT_KEYS.boardCoordsInSquares);
         inSquaresUI.toggle.checked = saved ?? false;
       }
     }
-    const showInternationalToggle = isInternationalDraughts && canUseInSquareCoords;
-    if (internationalCoordsUI.row) internationalCoordsUI.row.style.display = showInternationalToggle ? "flex" : "none";
-    if (internationalCoordsUI.hint) internationalCoordsUI.hint.style.display = showInternationalToggle ? "block" : "none";
+    if (internationalCoordsUI.row) internationalCoordsUI.row.style.display = "flex";
+    if (internationalCoordsUI.hint) internationalCoordsUI.hint.style.display = "block";
     if (internationalCoordsUI.toggle) {
-      internationalCoordsUI.toggle.disabled = !showInternationalToggle || !Boolean(boardCoordsToggle?.checked);
+      internationalCoordsUI.toggle.disabled = !Boolean(boardCoordsToggle?.checked);
     }
   };
 
@@ -529,9 +397,9 @@ window.addEventListener("DOMContentLoaded", async () => {
     renderBoardCoords(svg, Boolean(boardCoordsToggle?.checked), activeVariant.boardSize, {
       flipped: isFlipped(),
       style:
-        isInternationalDraughts && internationalCoordsUI.toggle?.checked
+        internationalCoordsUI.toggle?.checked
           ? "inSquareInternationalDraughts"
-          : (boardViewportMode === "playable" || (canUseInSquareCoords && inSquaresUI.toggle?.checked))
+          : (boardViewportMode === "playable" || inSquaresUI.toggle?.checked)
             ? "inSquare"
             : "edge",
     });
@@ -554,10 +422,23 @@ window.addEventListener("DOMContentLoaded", async () => {
     showResizeIconToggle.checked = savedShowResizeIcon;
   }
 
+  const zoomTitle = document.getElementById("zoomTitle") as HTMLElement | null;
+  const zoomHint = document.getElementById("zoomHint") as HTMLElement | null;
+  const zoomBody = document.getElementById("zoomBody") as HTMLElement | null;
+  if (!zoomBody) throw new Error("Missing inspector container: #zoomBody");
+
+  const zoomSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg") as SVGSVGElement;
+  zoomSvg.id = "zoomSvg";
+  zoomSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  zoomSvg.setAttribute("viewBox", "0 0 120 200");
+  zoomSvg.setAttribute("role", "img");
+  zoomSvg.setAttribute("aria-label", "Stack column");
+  zoomBody.replaceChildren(zoomSvg);
+
   initSplitLayout();
 
   const themeDropdown = document.getElementById("themeDropdown") as HTMLElement | null;
-  const themeManager = createThemeManager(svg, { themeStorageKey: LS_THEME_KEY });
+  const themeManager = createThemeManager(svg, { themeStorageKey: `lasca.opt.${ACTIVE_VARIANT_ID}.theme` });
   await themeManager.bindThemeDropdown(themeDropdown, async (themeId) => {
     syncPairedTheme(themeId);
   });
@@ -572,13 +453,16 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const piecesLayer = svg.querySelector("#pieces") as SVGGElement | null;
   if (!piecesLayer) throw new Error("Missing SVG group inside board: #pieces");
+  if (!zoomTitle || !zoomHint) throw new Error("Missing inspector DOM nodes (zoomTitle/zoomHint)");
 
-  // Dama has no stacks, so there is no stack inspector.
-  const inspector = null;
+  const inspector = createStackInspector(zoomTitle, zoomHint, zoomSvg, {
+    getThemeId: () => svg.getAttribute("data-theme-id"),
+    getSourceSvg: () => svg,
+  });
 
   // Create initial game state and render once
   const state = createInitialGameStateForVariant(ACTIVE_VARIANT_ID);
-
+  
   // Create history manager and record initial state
   const history = new HistoryManager();
   history.push(state);
@@ -588,10 +472,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   const elRulesBoard = document.getElementById("statusRulesBoard");
   const elPhase = document.getElementById("statusPhase");
   const elMsg = document.getElementById("statusMessage");
-  if (elTurn) {
-    elTurn.textContent = sideLabel(state.toMove);
-  }
-  if (elRulesBoard) elRulesBoard.textContent = `${activeVariant.displayName} Rules • ${activeVariant.boardSize}×${activeVariant.boardSize} Board`;
+  if (elTurn) elTurn.textContent = sideLabel(state.toMove);
+  if (elRulesBoard) elRulesBoard.textContent = rulesBoardLine(activeVariant.rulesetId, activeVariant.boardSize);
   if (elPhase) elPhase.textContent = state.phase.charAt(0).toUpperCase() + state.phase.slice(1);
   if (elMsg) elMsg.textContent = "—";
 
@@ -878,6 +760,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+
   if (boardCoordsToggle) {
     boardCoordsToggle.addEventListener("change", () => {
       applyBoardCoords();
@@ -904,7 +787,6 @@ window.addEventListener("DOMContentLoaded", async () => {
       controller.refreshView();
     });
   }
-
   if (flipBoardToggle) {
     flipBoardToggle.addEventListener("change", () => {
       writeBoolPref(LS_OPT_KEYS.flipBoard, flipBoardToggle.checked);
@@ -942,7 +824,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   if (saveGameBtn) {
     saveGameBtn.addEventListener("click", () => {
-      const gameLabel = saveLabelForDamaVariant(ACTIVE_VARIANT_ID);
+      const gameLabel = saveLabelForColumnsDraughtsVariant();
       // In online mode, the authoritative history comes from server snapshots
       // (stored on the RemoteDriver), not the page-level HistoryManager.
       if (driver.mode === "online") {
@@ -1058,14 +940,14 @@ window.addEventListener("DOMContentLoaded", async () => {
         return `<div class="${cls}" data-history-index="${entry.index}"${currentAttr}>Start</div>`;
       };
 
-      const useInternationalNotation = isInternationalDraughts && Boolean(internationalCoordsUI.toggle?.checked);
+      const useInternationalNotation = Boolean(internationalCoordsUI.toggle?.checked);
       const formatNotation = (raw: string): string =>
         useInternationalNotation
           ? convertNotationToInternationalDraughts(raw, activeVariant.boardSize)
           : raw;
 
       const renderMoveCell = (entry: (typeof historyData)[number]) => {
-        const whoMoved = entry.toMove === "B" ? "W" : "B";
+        const whoMoved: Player = entry.toMove === "B" ? "W" : "B";
         const playerIcon = sideIcon(whoMoved);
         let label = `${playerIcon}`;
         if (entry.notation) label += ` ${formatNotation(entry.notation)}`;
@@ -1075,29 +957,27 @@ window.addEventListener("DOMContentLoaded", async () => {
       };
 
       if (moveHistoryLayout === "two") {
-        const firstMover = historyData[0]!.toMove;
-        const secondMover = firstMover === "W" ? "B" : "W";
         const totalMoves = Math.ceil((historyData.length - 1) / 2);
         const parts: string[] = [];
         parts.push('<div class="historyGrid">');
         parts.push('<div class="cell hdr">#</div>');
-        parts.push(`<div class="cell hdr">${sideIcon(firstMover)} ${sideLabel(firstMover)}</div>`);
-        parts.push(`<div class="cell hdr">${sideIcon(secondMover)} ${sideLabel(secondMover)}</div>`);
+        parts.push(`<div class="cell hdr">${sideIcon("W")} ${sideLabel("W")}</div>`);
+        parts.push(`<div class="cell hdr">${sideIcon("B")} ${sideLabel("B")}</div>`);
 
         parts.push(renderStartCell(historyData[0]!));
 
         for (let m = 1; m <= totalMoves; m++) {
-          const firstIdx = 2 * m - 1;
-          const secondIdx = 2 * m;
+          const lightIdx = 2 * m - 1;
+          const darkIdx = 2 * m;
           parts.push(`<div class="cell num">${m}.</div>`);
 
-          const firstEntry = historyData[firstIdx];
-          const secondEntry = historyData[secondIdx];
+          const lightEntry = historyData[lightIdx];
+          const darkEntry = historyData[darkIdx];
 
-          if (firstEntry) parts.push(renderMoveCell(firstEntry));
+          if (lightEntry) parts.push(renderMoveCell(lightEntry));
           else parts.push('<div class="cell"></div>');
 
-          if (secondEntry) parts.push(renderMoveCell(secondEntry));
+          if (darkEntry) parts.push(renderMoveCell(darkEntry));
           else parts.push('<div class="cell"></div>');
         }
 
@@ -1111,19 +991,19 @@ window.addEventListener("DOMContentLoaded", async () => {
                 ? "font-weight: bold; color: rgba(255, 255, 255, 0.95);"
                 : "";
               const style = `${baseStyle}${baseStyle ? " " : ""}cursor: pointer;`;
-              const currentAttr = entry.isCurrent ? ' data-is-current="1"' : "";
-              return `<div data-history-index="${entry.index}"${currentAttr} style="${style}">Start</div>`;
+              const currentAttr = entry.isCurrent ? " data-is-current=\"1\"" : "";
+              return `<div data-history-index=\"${entry.index}\"${currentAttr} style=\"${style}\">Start</div>`;
             }
 
             // For moves: toMove indicates who's about to move, so invert to get who just moved
             // If toMove is "B", White just moved. If toMove is "W", Black just moved.
-            const whoMoved = entry.toMove === "B" ? "W" : "B";
+            const whoMoved: Player = entry.toMove === "B" ? "W" : "B";
             const playerIcon = sideIcon(whoMoved);
 
             // Calculate move number: each player's move increments the counter
             const moveNum = whoMoved === "B"
-              ? Math.ceil(idx / 2) // Black: moves 1, 3, 5... → move# 1, 2, 3...
-              : Math.floor((idx + 1) / 2); // Red/Light: moves 2, 4, 6... → move# 1, 2, 3...
+              ? Math.ceil(idx / 2)  // Black: moves 1, 3, 5... → move# 1, 2, 3...
+              : Math.floor((idx + 1) / 2); // White: moves 2, 4, 6... → move# 1, 2, 3...
 
             let label = `${moveNum}. ${playerIcon}`;
             if (entry.notation) {
@@ -1133,8 +1013,8 @@ window.addEventListener("DOMContentLoaded", async () => {
               ? "font-weight: bold; color: rgba(255, 255, 255, 0.95);"
               : "";
             const style = `${baseStyle}${baseStyle ? " " : ""}cursor: pointer;`;
-            const currentAttr = entry.isCurrent ? ' data-is-current="1"' : "";
-            return `<div data-history-index="${entry.index}" data-history-who="${whoMoved}"${currentAttr} style="${style}">${label}</div>`;
+            const currentAttr = entry.isCurrent ? " data-is-current=\"1\"" : "";
+            return `<div data-history-index=\"${entry.index}\" data-history-who=\"${whoMoved}\"${currentAttr} style=\"${style}\">${label}</div>`;
           })
           .join("");
       }
@@ -1144,7 +1024,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     // Use rAF so layout reflects the updated HTML before scrolling.
     requestAnimationFrame(() => {
       if (reason === "jump" || reason === "undo" || reason === "redo") {
-        const currentEl = moveHistoryEl.querySelector('[data-is-current="1"]') as HTMLElement | null;
+        const currentEl = moveHistoryEl.querySelector("[data-is-current=\"1\"]") as HTMLElement | null;
         if (currentEl) currentEl.scrollIntoView({ block: "nearest" });
         return;
       }
@@ -1191,22 +1071,10 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // Wire up mutual-agreement draw offer (US Checkers only; controller will hide/disable as needed).
+  // Wire up offer draw button.
   const offerDrawBtn = document.getElementById("offerDrawBtn") as HTMLButtonElement | null;
   if (offerDrawBtn) {
     offerDrawBtn.addEventListener("click", () => {
-      // Local mode can include bots; restrict draw offers to two-human games.
-      if (driver.mode !== "online") {
-        const elW = document.getElementById("aiWhiteSelect") as HTMLSelectElement | null;
-        const elB = document.getElementById("aiBlackSelect") as HTMLSelectElement | null;
-        const w = (elW?.value ?? "human").toLowerCase();
-        const b = (elB?.value ?? "human").toLowerCase();
-        if (w !== "human" || b !== "human") {
-          alert("Draw offers are only available in Human vs Human games.");
-          return;
-        }
-      }
-
       void controller.offerDraw();
     });
   }
@@ -1219,6 +1087,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   controller.addHistoryChangeCallback(updateHistoryUI);
   updateHistoryUI(); // Initial update
+
+  updateHistoryUIForSync = () => updateHistoryUI("jump");
 
   bindPlaybackControls(controller);
 
@@ -1237,63 +1107,63 @@ window.addEventListener("DOMContentLoaded", async () => {
   installBoardViewportOptionUI();
 
   // Board height adjustment toggle (for Android tablets with bottom nav bar)
-  const boardHeightToggle = document.getElementById("boardHeightToggle") as HTMLButtonElement | null;
-  const centerArea = document.getElementById("centerArea") as HTMLElement | null;
-
+  const boardHeightToggle = document.getElementById('boardHeightToggle') as HTMLButtonElement | null;
+  const centerArea = document.getElementById('centerArea') as HTMLElement | null;
+  
   if (boardHeightToggle && centerArea) {
-    const STORAGE_KEY = "lasca.boardHeightReduced";
-    const POS_KEY = "lasca.boardHeightTogglePos";
+    const STORAGE_KEY = 'lasca.boardHeightReduced';
+    const POS_KEY = 'lasca.boardHeightTogglePos';
 
     const applyResizeIconVisibility = () => {
       const showResizeIcon = showResizeIconToggle?.checked ?? (readOptionalBoolPref(LS_OPT_KEYS.showResizeIcon) ?? false);
-      boardHeightToggle.style.display = showResizeIcon ? "flex" : "none";
+      boardHeightToggle.style.display = showResizeIcon ? 'flex' : 'none';
 
       if (!showResizeIcon) {
-        centerArea.classList.remove("reduced-height");
-        boardHeightToggle.textContent = "↕️";
-        boardHeightToggle.title = "Adjust board height for bottom navigation bar";
-        localStorage.setItem(STORAGE_KEY, "false");
+        centerArea.classList.remove('reduced-height');
+        boardHeightToggle.textContent = '↕️';
+        boardHeightToggle.title = 'Adjust board height for bottom navigation bar';
+        localStorage.setItem(STORAGE_KEY, 'false');
       }
     };
 
     applyResizeIconVisibility();
 
-    const isToggleVisible = () => window.getComputedStyle(boardHeightToggle).display !== "none";
+    const isToggleVisible = () => window.getComputedStyle(boardHeightToggle).display !== 'none';
 
     const drag = installHoldDrag(boardHeightToggle, {
       storageKey: POS_KEY,
       holdDelayMs: 250,
     });
-
+    
     // Restore saved state
-    const savedReduced = localStorage.getItem(STORAGE_KEY) === "true";
+    const savedReduced = localStorage.getItem(STORAGE_KEY) === 'true';
     if (isToggleVisible() && savedReduced) {
-      centerArea.classList.add("reduced-height");
-      boardHeightToggle.textContent = "⬆️";
-      boardHeightToggle.title = "Restore full board height";
+      centerArea.classList.add('reduced-height');
+      boardHeightToggle.textContent = '⬆️';
+      boardHeightToggle.title = 'Restore full board height';
     } else {
-      centerArea.classList.remove("reduced-height");
-      boardHeightToggle.textContent = "↕️";
-      boardHeightToggle.title = "Adjust board height for bottom navigation bar";
+      centerArea.classList.remove('reduced-height');
+      boardHeightToggle.textContent = '↕️';
+      boardHeightToggle.title = 'Adjust board height for bottom navigation bar';
     }
-
-    boardHeightToggle.addEventListener("click", (e) => {
+    
+    boardHeightToggle.addEventListener('click', (e) => {
       if (drag.wasDraggedRecently()) {
         e.preventDefault();
         e.stopPropagation();
         return;
       }
-      const isReduced = centerArea.classList.toggle("reduced-height");
-
+      const isReduced = centerArea.classList.toggle('reduced-height');
+      
       // Update button appearance
       if (isReduced) {
-        boardHeightToggle.textContent = "⬆️";
-        boardHeightToggle.title = "Restore full board height";
+        boardHeightToggle.textContent = '⬆️';
+        boardHeightToggle.title = 'Restore full board height';
       } else {
-        boardHeightToggle.textContent = "↕️";
-        boardHeightToggle.title = "Adjust board height for bottom navigation bar";
+        boardHeightToggle.textContent = '↕️';
+        boardHeightToggle.title = 'Adjust board height for bottom navigation bar';
       }
-
+      
       // Save state
       localStorage.setItem(STORAGE_KEY, isReduced.toString());
     });
@@ -1301,16 +1171,16 @@ window.addEventListener("DOMContentLoaded", async () => {
     // Dev helper: expose to console for testing on desktop
     (window as any).toggleBoardHeightButtonVisibility = () => {
       const currentDisplay = window.getComputedStyle(boardHeightToggle).display;
-      if (currentDisplay === "none") {
-        boardHeightToggle.style.display = "flex";
-        console.log("Board height button is now visible");
+      if (currentDisplay === 'none') {
+        boardHeightToggle.style.display = 'flex';
+        console.log('Board height button is now visible');
       } else {
-        boardHeightToggle.style.display = "";
-        console.log("Board height button visibility reset to CSS default");
+        boardHeightToggle.style.display = '';
+        console.log('Board height button visibility reset to CSS default');
       }
 
-      if (window.getComputedStyle(boardHeightToggle).display === "none") {
-        centerArea.classList.remove("reduced-height");
+      if (window.getComputedStyle(boardHeightToggle).display === 'none') {
+        centerArea.classList.remove('reduced-height');
       }
     };
   }
@@ -1318,14 +1188,14 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (showResizeIconToggle) {
     showResizeIconToggle.addEventListener("change", () => {
       writeBoolPref(LS_OPT_KEYS.showResizeIcon, showResizeIconToggle.checked);
-      const boardHeightToggle = document.getElementById("boardHeightToggle") as HTMLButtonElement | null;
+      const boardHeightToggle = document.getElementById('boardHeightToggle') as HTMLButtonElement | null;
       if (boardHeightToggle) {
-        boardHeightToggle.style.display = showResizeIconToggle.checked ? "flex" : "none";
+        boardHeightToggle.style.display = showResizeIconToggle.checked ? 'flex' : 'none';
       }
-      const centerArea = document.getElementById("centerArea") as HTMLElement | null;
+      const centerArea = document.getElementById('centerArea') as HTMLElement | null;
       if (!showResizeIconToggle.checked && centerArea) {
-        centerArea.classList.remove("reduced-height");
-        localStorage.setItem("lasca.boardHeightReduced", "false");
+        centerArea.classList.remove('reduced-height');
+        localStorage.setItem('lasca.boardHeightReduced', 'false');
       }
     });
   }
@@ -1358,7 +1228,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       const elPhase = document.getElementById("statusPhase");
       const elMsg = document.getElementById("statusMessage");
       if (elTurn) elTurn.textContent = sideLabel(next.toMove);
-      if (elRulesBoard) elRulesBoard.textContent = `${activeVariant.displayName} Rules • ${activeVariant.boardSize}×${activeVariant.boardSize} Board`;
+      if (elRulesBoard) elRulesBoard.textContent = rulesBoardLine(activeVariant.rulesetId, activeVariant.boardSize);
       if (elPhase) elPhase.textContent = next.phase.charAt(0).toUpperCase() + next.phase.slice(1);
       if (elMsg) elMsg.textContent = "—";
       currentState = next;
@@ -1370,12 +1240,11 @@ window.addEventListener("DOMContentLoaded", async () => {
       if (testMode === "R") {
         // Create a scenario where a White officer can potentially loop
         // Multiple Black stacks with Black pieces underneath (same color)
-        // Arranged to create potential capture loops
         const s: GameState = {
           board: new Map([
             // White officer starting position
             ["r1c1", [{ owner: "W", rank: "O" }]],
-
+            
             // Black stacks with Black pieces underneath (same color stacks)
             // Arranged to create potential capture loops
             ["r2c2", [{ owner: "B", rank: "S" }, { owner: "B", rank: "S" }, { owner: "B", rank: "O" }]], // Black-Black-Black officer
@@ -1383,7 +1252,7 @@ window.addEventListener("DOMContentLoaded", async () => {
             ["r4c2", [{ owner: "B", rank: "S" }, { owner: "B", rank: "S" }, { owner: "B", rank: "S" }]], // Black-Black-Black soldier
             ["r4c4", [{ owner: "B", rank: "S" }, { owner: "B", rank: "O" }]], // Black-Black officer
             ["r3c5", [{ owner: "B", rank: "S" }, { owner: "B", rank: "S" }]], // Black-Black soldier
-
+            
             // Additional pieces to prevent immediate game over
             ["r5c0", [{ owner: "B", rank: "S" }]],
             ["r6c6", [{ owner: "B", rank: "O" }]], // Officer on promotion row is OK
@@ -1395,8 +1264,8 @@ window.addEventListener("DOMContentLoaded", async () => {
         w.__rerender(s);
         return s;
       }
-
-      const rng = createPrng(`debug.__random:dama:${totalPerSide}:${toMove}:${testMode ?? ""}`);
+      
+      const rng = createPrng(`debug.__random:columns_draughts:${totalPerSide}:${toMove}:${testMode ?? ""}`);
       const s = randomMod.createRandomGameState({ totalPerSide, toMove, seed: rng.nextUint32() });
 
       // Add one random white and one random black multi-piece stack at empty nodes

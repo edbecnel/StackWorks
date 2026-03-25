@@ -84,7 +84,7 @@ function hasControlledStacks(state: GameState, p: Player): boolean {
 function legalMovesForContext(ctx: SearchContext): Move[] {
   const rulesetId = ctx.state.meta?.rulesetId ?? "lasca";
   const isDamaStyle = rulesetId === "dama" || rulesetId === "draughts_international";
-  const isDamasca = rulesetId === "damasca" || rulesetId === "damasca_classic";
+  const isDamasca = rulesetId === "damasca" || rulesetId === "damasca_classic" || rulesetId === "columns_draughts";
   const chainRules = rulesetId === "lasca" || isDamaStyle || isDamasca;
   const chainHasDir = rulesetId === "dama" || isDamasca;
   const constraints = ctx.lockedFrom
@@ -154,7 +154,7 @@ function applySearchMove(ctx: SearchContext, move: Move): SearchContext {
 
   const rulesetId = nextCtx.state.meta?.rulesetId ?? "lasca";
   const isDama = rulesetId === "dama" || rulesetId === "draughts_international";
-  const isDamasca = rulesetId === "damasca" || rulesetId === "damasca_classic";
+  const isDamasca = rulesetId === "damasca" || rulesetId === "damasca_classic" || rulesetId === "columns_draughts";
   const damaRemoval = isDama ? getDamaCaptureRemovalMode(nextCtx.state) : null;
   const isLasca = rulesetId === "lasca";
 

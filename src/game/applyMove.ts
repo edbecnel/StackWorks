@@ -22,7 +22,7 @@ export function applyMove(
   else if (rulesetId === "chess") next = applyMoveChess(state, move);
   else if (rulesetId === "checkers_us") next = applyMoveCheckersUs(state, move);
   else if (rulesetId === "dama" || rulesetId === "draughts_international") next = applyMoveDama(state, move);
-  else if (rulesetId === "damasca" || rulesetId === "damasca_classic") next = applyMoveDamasca(state, move);
+  else if (rulesetId === "damasca" || rulesetId === "damasca_classic" || rulesetId === "columns_draughts") next = applyMoveDamasca(state, move);
   else next = applyMoveLasca(state, move);
 
   // Ephemeral UI hint: highlight the origin/destination squares of the last move.

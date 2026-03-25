@@ -6,7 +6,7 @@ export const DAMASCA_NO_PROGRESS_LIMIT_PLIES = 40;
 export const DAMASCA_OFFICER_ONLY_LIMIT_PLIES = 30;
 
 function isDamascaRulesetId(rulesetId: string): boolean {
-  return rulesetId === "damasca" || rulesetId === "damasca_classic";
+  return rulesetId === "damasca" || rulesetId === "damasca_classic" || rulesetId === "columns_draughts";
 }
 
 function pieceValue(p: Piece): number {

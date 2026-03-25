@@ -42,3 +42,24 @@ export function formatNodeId(nodeId: string, format: CoordFormat, boardSize: num
   if (format === "a1") return nodeIdToA1(nodeId, boardSize);
   return nodeId;
 }
+
+/**
+ * Converts A1-format move notation for a 10×10 board to International Draughts
+ * square numbering (1–50). The separators (" → " and " × ") are preserved.
+ *
+ * Example: "B10 × D8 × F6" → "1 × 12 × 23"
+ *
+ * Only valid for boardSize === 10. Returns the original string unchanged for
+ * any other board size or when the notation contains no recognisable A1 coords.
+ */
+export function convertNotationToInternationalDraughts(notation: string, boardSize: number): string {
+  if (boardSize !== 10) return notation;
+  return notation.replace(/([A-J])(\d{1,2})/g, (_match, colStr: string, rowStr: string) => {
+    const col = colStr.charCodeAt(0) - 65; // 'A'.charCodeAt(0)
+    const row = boardSize - parseInt(rowStr, 10);
+    if (row < 0 || row >= boardSize || col < 0 || col >= boardSize) return _match;
+    if ((row + col) % 2 !== 1) return _match; // not a dark square
+    const squareNum = row * 5 + Math.floor(col / 2) + 1;
+    return String(squareNum);
+  });
+}

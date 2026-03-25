@@ -63,6 +63,7 @@ function isRulesetId(raw: unknown): raw is RulesetId {
     raw === "draughts_international" ||
     raw === "damasca" ||
     raw === "damasca_classic" ||
+    raw === "columns_draughts" ||
     raw === "checkers_us" ||
     raw === "columns_chess" ||
     raw === "chess"

@@ -6,6 +6,7 @@ export type RulesetId =
   | "damasca_classic"
   | "checkers_us"
   | "columns_chess"
+  | "columns_draughts"
   | "chess";
 
 export type DamaCaptureRemoval = "immediate" | "end_of_sequence";
@@ -17,6 +18,7 @@ export type VariantId =
   | "chess_classic"
   | "checkers_8_us"
   | "draughts_10_international"
+  | "columns_draughts_10"
   | "dama_8_classic"
   | "dama_8_classic_standard"
   | "dama_8_classic_international"

@@ -24,7 +24,7 @@ export interface GameDriver {
 
   finalizeCaptureChain(args:
     | { rulesetId: "dama" | "draughts_international"; state: GameState; landing: string; jumpedSquares: Set<string> }
-    | { rulesetId: "damasca" | "damasca_classic"; state: GameState; landing: string }
+    | { rulesetId: "damasca" | "damasca_classic" | "columns_draughts"; state: GameState; landing: string }
   ): GameState & { didPromote?: boolean };
 
   canUndo(): boolean;

@@ -58,12 +58,13 @@ export function createStackInspector(
   function show(
     nodeId: string,
     stack: Stack,
-    opts: { rulesetId?: string; boardSize?: number; flipCoords?: boolean } = {}
+    opts: { rulesetId?: string; boardSize?: number; flipCoords?: boolean; coordLabel?: string | null } = {}
   ): void {
     const n = stack.length;
     const boardSize = opts.boardSize ?? 7;
 
-    zoomTitle.textContent = `Stack @ ${nodeIdToA1View(nodeId, boardSize, Boolean(opts.flipCoords))} (×${n})`;
+    const coordStr = opts.coordLabel ?? nodeIdToA1View(nodeId, boardSize, Boolean(opts.flipCoords));
+    zoomTitle.textContent = `Stack @ ${coordStr} (×${n})`;
     zoomHint.textContent = n > MINI_SPINE_MAX_SHOWN
       ? "Full column order (bottom → top). Brackets mark pieces omitted in the mini preview spine."
       : "Full column order (bottom → top).";

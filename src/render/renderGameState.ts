@@ -9,7 +9,8 @@ export function renderGameState(
   svgRoot: SVGSVGElement,
   piecesLayer: SVGGElement,
   inspector: ReturnType<typeof createStackInspector> | null,
-  state: GameState
+  state: GameState,
+  options?: { getCoordLabel?: ((nodeId: string) => string | null) | null }
 ): void {
   piecesLayer.textContent = "";
 
@@ -36,6 +37,7 @@ export function renderGameState(
       boardSize,
       countsLayer,
       spinesLayer: miniSpinesLayer,
+      getCoordLabel: options?.getCoordLabel ?? null,
     });
   }
 }

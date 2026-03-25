@@ -83,6 +83,18 @@ function clearLayer(layer: SVGGElement): void {
   while (layer.firstChild) layer.removeChild(layer.firstChild);
 }
 
+/**
+ * Move the board-coords layer to the end of its parent so it paints above all
+ * other SVG content (pieces, mini spines, overlays, stack-count badges).
+ * Called after rendering in-square labels so they are always legible.
+ */
+function hoistBoardCoordsLayer(layer: SVGGElement): void {
+  const parent = layer.parentNode;
+  if (parent && layer !== parent.lastChild) {
+    parent.appendChild(layer);
+  }
+}
+
 export type BoardCoordsStyle = "edge" | "inSquare" | "inSquareInternationalDraughts";
 
 type SquareRect = { x: number; y: number; w: number; h: number };
@@ -334,6 +346,7 @@ export function renderBoardCoords(
   if (style === "inSquare") {
     clearLayer(layer);
     renderBoardCoordsInSquares(layer, svg, boardSize, flipped);
+    hoistBoardCoordsLayer(layer);
     return;
   }
 
@@ -344,6 +357,7 @@ export function renderBoardCoords(
     } else {
       renderBoardCoordsInSquares(layer, svg, boardSize, flipped);
     }
+    hoistBoardCoordsLayer(layer);
     return;
   }
 

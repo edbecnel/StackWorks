@@ -11,6 +11,10 @@ import {
   generateLegalMovesDamasca,
   generateLegalMovesDamascaClassic,
 } from "./movegenDamasca.ts";
+import {
+  generateCaptureMovesDraughtsColumns,
+  generateLegalMovesDraughtsColumns,
+} from "./movegenColumnsDraughts.ts";
 
 export type MovegenConstraints = {
   forcedFrom?: NodeId;
@@ -37,6 +41,7 @@ export function generateCaptureMoves(
   if (rulesetId === "dama" || rulesetId === "draughts_international") return generateCaptureMovesDama(state, constraints);
   if (rulesetId === "damasca") return generateCaptureMovesDamasca(state, constraints);
   if (rulesetId === "damasca_classic") return generateCaptureMovesDamascaClassic(state, constraints);
+  if (rulesetId === "columns_draughts") return generateCaptureMovesDraughtsColumns(state, constraints);
   return generateCaptureMovesLasca(state, constraints);
 }
 
@@ -51,5 +56,6 @@ export function generateLegalMoves(
   if (rulesetId === "dama" || rulesetId === "draughts_international") return generateLegalMovesDama(state, constraints);
   if (rulesetId === "damasca") return generateLegalMovesDamasca(state, constraints);
   if (rulesetId === "damasca_classic") return generateLegalMovesDamascaClassic(state, constraints);
+  if (rulesetId === "columns_draughts") return generateLegalMovesDraughtsColumns(state, constraints);
   return generateLegalMovesLasca(state, constraints);
 }

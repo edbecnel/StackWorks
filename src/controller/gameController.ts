@@ -225,6 +225,7 @@ export class GameController {
   private lastCheckmateBadgeSignature: string | null = null;
   private toastTimer: number | null = null;
   private toastEl: HTMLDivElement | null = null;
+  private coordLabelProvider: ((nodeId: string) => string | null) | null = null;
 
   /**
    * Page-level UI helpers sometimes need to know whether this game is online
@@ -232,6 +233,12 @@ export class GameController {
    */
   public getDriverMode(): GameDriver["mode"] {
     return this.driver.mode;
+  }
+
+  /** Set a provider function that returns a coord label (e.g. "A6" or "24") for a given nodeId.
+   *  When provided, piece hover tooltips in draughts variants include the square coordinate. */
+  public setCoordLabelProvider(fn: ((nodeId: string) => string | null) | null): void {
+    this.coordLabelProvider = fn;
   }
   public isOnlineSpectator(): boolean {
     if (this.driver.mode !== "online") return false;
@@ -2136,7 +2143,9 @@ export class GameController {
    */
   private renderAuthoritative(): void {
     // 1) board/pieces
-    renderGameState(this.svg, this.piecesLayer, this.inspector, this.state);
+    renderGameState(this.svg, this.piecesLayer, this.inspector, this.state, {
+      getCoordLabel: this.coordLabelProvider,
+    });
 
     // Persistent UI hint: last move origin/destination squares.
     try {
@@ -2605,7 +2614,7 @@ export class GameController {
     const isDamaStyle = rulesetId === "dama" || rulesetId === "draughts_international";
     const captureRemoval = isDamaStyle ? getDamaCaptureRemovalMode(this.state) : null;
     // All rulesets with multi-capture chains must prevent re-jumping the same square.
-    const isDamasca = rulesetId === "damasca" || rulesetId === "damasca_classic";
+    const isDamasca = rulesetId === "damasca" || rulesetId === "damasca_classic" || rulesetId === "columns_draughts";
     const chainRules = rulesetId === "lasca" || isDamaStyle || isDamasca;
     // Only Dama/Damasca have capture-direction constraints (Officer zigzag).
     const chainHasDir = rulesetId === "dama" || isDamasca;
@@ -4160,7 +4169,7 @@ export class GameController {
 
     if (elDeadPlayTimer) {
       const rulesetId = this.state.meta?.rulesetId ?? "lasca";
-      const isDamasca = rulesetId === "damasca" || rulesetId === "damasca_classic";
+      const isDamasca = rulesetId === "damasca" || rulesetId === "damasca_classic" || rulesetId === "columns_draughts";
       const dp = (this.state as any).damascaDeadPlay as
         | { noProgressPlies?: number; officerOnlyPlies?: number }
         | undefined;
@@ -5070,7 +5079,7 @@ export class GameController {
     }
 
     // Damasca uses special dead-play adjudication on threefold repetition.
-    const isDamasca = rulesetId === "damasca" || rulesetId === "damasca_classic";
+    const isDamasca = rulesetId === "damasca" || rulesetId === "damasca_classic" || rulesetId === "columns_draughts";
     if (isDamasca) {
       this.clearThreefoldClaimToast();
       this.recomputeRepetitionCounts();
@@ -5544,7 +5553,7 @@ export class GameController {
 
       const rulesetId = this.state.meta?.rulesetId ?? "lasca";
       const isDama = rulesetId === "dama" || rulesetId === "draughts_international";
-      const isDamasca = rulesetId === "damasca" || rulesetId === "damasca_classic";
+      const isDamasca = rulesetId === "damasca" || rulesetId === "damasca_classic" || rulesetId === "columns_draughts";
       const isLasca = rulesetId === "lasca";
       const damaCaptureRemoval = isDama ? getDamaCaptureRemovalMode(this.state) : null;
       const damaStyleRulesetId = rulesetId === "draughts_international" ? "draughts_international" : "dama";
@@ -5583,9 +5592,10 @@ export class GameController {
           }
         } else if (isDamasca) {
           // Damasca should not promote mid-chain, but finalize defensively.
-          const damascaRulesetId = (rulesetId === "damasca_classic" ? "damasca_classic" : "damasca") as
+          const damascaRulesetId = (rulesetId === "damasca_classic" ? "damasca_classic" : rulesetId === "columns_draughts" ? "columns_draughts" : "damasca") as
             | "damasca"
-            | "damasca_classic";
+            | "damasca_classic"
+            | "columns_draughts";
           if (this.driver.mode === "online") {
             this.assignControllerState(await (this.driver as OnlineGameDriver).finalizeCaptureChainRemote({
               rulesetId: damascaRulesetId,
@@ -5698,9 +5708,10 @@ export class GameController {
           }));
         }
       } else if (isDamasca) {
-        const damascaRulesetId = (rulesetId === "damasca_classic" ? "damasca_classic" : "damasca") as
+        const damascaRulesetId = (rulesetId === "damasca_classic" ? "damasca_classic" : rulesetId === "columns_draughts" ? "columns_draughts" : "damasca") as
           | "damasca"
-          | "damasca_classic";
+          | "damasca_classic"
+          | "columns_draughts";
         if (this.driver.mode === "online") {
           this.assignControllerState(await (this.driver as OnlineGameDriver).finalizeCaptureChainRemote({
             rulesetId: damascaRulesetId,
