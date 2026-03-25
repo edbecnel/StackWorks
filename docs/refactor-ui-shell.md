@@ -384,9 +384,9 @@ Chess.com's play area suggests a useful pattern: make a small number of play int
 **Coach mode definition**
 
 - [ ] `Play Coach` means `Play and Learn with an AI Coach`, not merely `play a weak bot`
-- [ ] First step is level selection: `New to chess`, `Beginner`, `Novice`, `Intermediate`, `Intermediate II`, `Advanced`, `Expert`
-- [ ] After level choice, the UI should explain the learning contract in plain language: hints available, takebacks allowed, coaching prompts, and practice-oriented feedback
-- [ ] Coach mode should minimize configuration complexity; level selection is primary, optional advanced settings are secondary
+- [x] First step is level selection: `New to chess`, `Beginner`, `Novice`, `Intermediate`, `Intermediate II`, `Advanced`, `Expert`
+- [x] After level choice, the UI should explain the learning contract in plain language: hints available, takebacks allowed, coaching prompts, and practice-oriented feedback
+- [x] Coach mode should minimize configuration complexity; level selection is primary, optional advanced settings are secondary
 
 **Mobile-first play hub rule**
 
@@ -485,8 +485,8 @@ When using chess.com play screens as visual references, translate them into Stac
 - [x] Define `GameSection` enum: `Play | Learn | Watch | History | Rules | Customize | Online`
 - [x] Define `PlaySubSection` enum: `Online | Bots | Coach | Local | Resume`
 - [x] Refine play-mode information architecture so `Friend` is a prominent shortcut but remains conceptually nested under online play in the final UX
-- [ ] Add online sub-mode state for `QuickMatch | CustomChallenge | Friend | HostedRooms | Tournaments`
-- [ ] Add bot-play state for per-side controller assignment and bot configuration so each seat can be `human` or `bot` with the restriction that `Play Bots` cannot resolve to `human` + `human`
+- [x] Add online sub-mode state for `QuickMatch | CustomChallenge | Friend | HostedRooms | Tournaments`
+- [x] Add bot-play state for per-side controller assignment and bot configuration so each seat can be `human` or `bot` with the restriction that `Play Bots` cannot resolve to `human` + `human`
 - [ ] Define `PlayerIdentity` type: `{ id: string, displayName: string, avatarUrl: string | null, side: 'local' | 'remote' | 'spectator', presenceState: PresenceState, countryCode?: string | null, countryName?: string | null, rating?: number, isBot?: boolean, isFallback?: boolean }`
 - [ ] Define `PresenceState` enum: `Online | Offline | Reconnecting | Waiting`
 - [x] Wire `ShellState` to `localStorage` for persistence across page navigations
@@ -643,13 +643,13 @@ When using chess.com play screens as visual references, translate them into Stac
 
 - [x] Create `src/ui/shell/playHub.ts` — Play hub layout with tab bar + panel switcher
 - [x] Final top-level play destinations should be: Online, Bots, Coach, Local, Resume/Rejoin when applicable
-  - [ ] **Online** — contains `Quick Match`, `Custom Challenge`, `Play a Friend`, `Hosted Rooms`, and `Tournaments` when supported
-  - [ ] **Bots** — graphical bot list with personality, rating/strength, and style summary
-    - [ ] Support two seat cards or selectors so the user can configure Side A and Side B independently as `Human` or `Bot`
+  - [x] **Online** — contains `Quick Match`, `Custom Challenge`, `Play a Friend`, `Hosted Rooms`, and `Tournaments` when supported
+  - [x] **Bots** — graphical bot list with personality, rating/strength, and style summary
+    - [x] Support two seat cards or selectors so the user can configure Side A and Side B independently as `Human` or `Bot`
     - [ ] Default `Play Bots` setup is `Human vs Bot`
-    - [ ] Optional `Watch Bots` setup is `Bot vs Bot`
-    - [ ] Allow the two bots to be different personalities/strengths or the same personality/strength on both sides
-    - [ ] Disallow `Human vs Human` inside `Play Bots`; that belongs to `Local`
+    - [x] Optional `Watch Bots` setup is `Bot vs Bot`
+    - [x] Allow the two bots to be different personalities/strengths or the same personality/strength on both sides
+    - [x] Disallow `Human vs Human` inside `Play Bots`; that belongs to `Local`
     - [ ] Keep setup compact on mobile: surface only side controller, bot selection, strength/style, and primary start action first
     - [ ] Advanced bot options belong behind a secondary settings sheet
   - [ ] **Coach** — level-first learning flow with hints/takebacks/teaching affordances
@@ -660,20 +660,20 @@ When using chess.com play screens as visual references, translate them into Stac
 - [x] `Variants` should remain selectable within game selection and mode setup, not necessarily as a permanent primary play tab in the final UX
 - [ ] Preserve all existing functionality when tabs are wired to real features
 - [x] Add clear "coming soon" / placeholder UI for unfinished tabs
-- [ ] Add `Hosted Rooms` flow with public/private/invite-only room types and room-owner controls
+- [x] Add `Hosted Rooms` flow with public/private/invite-only room types and room-owner controls
 - [ ] Implement `Custom Challenge` as an online setup surface, not as a separate top-level product area
 - [ ] Implement `Play a Friend` as a simplified online invite flow with link/code sharing and rematch friendliness
-- [ ] Implement `Play Bots` with graphical personality cards showing rank/strength/style
-  - [ ] Support `Human vs Bot` and `Bot vs Bot`
-  - [ ] Add explicit `Watch Bots` entry or toggle within the bot setup flow
-  - [ ] Allow each side to choose bot personality and skill independently
-  - [ ] Allow same-skill and mixed-skill bot pairings
+- [x] Implement `Play Bots` with graphical personality cards showing rank/strength/style
+  - [x] Support `Human vs Bot` and `Bot vs Bot`
+  - [x] Add explicit `Watch Bots` entry or toggle within the bot setup flow
+  - [x] Allow each side to choose bot personality and skill independently
+  - [x] Allow same-skill and mixed-skill bot pairings
   - [ ] Support Undo and Redo in both human-vs-bot and bot-vs-bot play
   - [ ] Preserve the current Move History with Playback in both human-vs-bot and bot-vs-bot play
   - [ ] Allow either seat to switch between `human` and `bot` during setup and during a game when supported by the controller flow
-  - [ ] Enforce the rule that `Play Bots` may never become `human` + `human`; if both sides are switched away from bot control, route the user to `Local Game` instead of silently changing the mode
-  - [ ] When a seat is bot-controlled, show the bot's identity, style, and strength in the corresponding player bar and bot setup surface
-- [ ] Implement `Play Coach` with level selection options: `New to chess`, `Beginner`, `Novice`, `Intermediate`, `Intermediate II`, `Advanced`, `Expert`
+  - [x] Enforce the rule that `Play Bots` may never become `human` + `human`; if both sides are switched away from bot control, route the user to `Local Game` instead of silently changing the mode
+  - [x] When a seat is bot-controlled, show the bot's identity, style, and strength in the corresponding player bar and bot setup surface
+- [x] Implement `Play Coach` with level selection options: `New to chess`, `Beginner`, `Novice`, `Intermediate`, `Intermediate II`, `Advanced`, `Expert`
 - [ ] Allow an online-broadcast bot mode that behaves like local play for control flow, ignores opponent connection/presence gating, and only publishes the game for public or invited observers
 
 ---

@@ -47,6 +47,7 @@ type OnlineQuery = {
   color: "W" | "B" | null;
   prefColor: "W" | "B" | null;
   visibility: "public" | "private" | null;
+  suppressBotSeats: boolean;
   watchToken: string | null;
 };
 
@@ -222,6 +223,7 @@ function updateBrowserUrlForOnline(args: {
     if (args.color) url.searchParams.set("color", args.color);
     url.searchParams.delete("create");
     url.searchParams.delete("join");
+    url.searchParams.delete("botSeats");
     window.history.replaceState(null, "", url.toString());
 
     // Also persist a resume token so the Start Page can resume without requiring
@@ -317,9 +319,10 @@ function parseOnlineQuery(search: string, envServerUrl?: string | undefined): On
   const prefColor = p === "W" || p === "B" ? p : null;
   const v = params.get("visibility");
   const visibility = v === "public" || v === "private" ? v : null;
+  const suppressBotSeats = (params.get("botSeats") ?? "").trim().toLowerCase() === "off";
   const wt = (params.get("watchToken") ?? "").trim();
   const watchToken = wt ? wt : null;
-  return { serverUrl, create, join, roomId, playerId, color, prefColor, visibility, watchToken };
+  return { serverUrl, create, join, roomId, playerId, color, prefColor, visibility, suppressBotSeats, watchToken };
 }
 
 async function postJson<TReq, TRes>(serverUrl: string, path: string, body: TReq): Promise<TRes> {
@@ -432,7 +435,7 @@ export async function createDriverAsync(args: {
       if (!variantId) throw new Error("Cannot create online room: missing state.meta.variantId");
       const guest = getGuestIdentity();
       const creatorColor = resolveCreatorColor(q.prefColor);
-      const botSeats = buildOnlineBotSeatRequests({ variantId, creatorColor });
+      const botSeats = q.suppressBotSeats ? [] : buildOnlineBotSeatRequests({ variantId, creatorColor });
       const res = await postJson<
         {
           variantId: any;

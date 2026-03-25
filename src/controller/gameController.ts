@@ -78,6 +78,54 @@ const MAX_PLAYBACK_MOVE_ANIMATION_MS = 350;
 const BOARD_DRAG_THRESHOLD_PX = 6;
 const BOARD_DRAG_CLICK_SUPPRESS_MS = 300;
 
+function normalizeOnlineResumeServerUrl(raw: string): string {
+  return (raw || "").trim().replace(/\/+$/, "");
+}
+
+function normalizeOnlineResumeRoomId(raw: string): string {
+  return (raw || "").trim();
+}
+
+function clearStoredOnlineResumeRecords(serverUrl: string, roomId: string): void {
+  if (typeof window === "undefined") return;
+
+  const normalizedServerUrl = normalizeOnlineResumeServerUrl(serverUrl);
+  const normalizedRoomId = normalizeOnlineResumeRoomId(roomId);
+  if (!normalizedServerUrl || !normalizedRoomId) return;
+
+  const keysToRemove = new Set<string>([
+    `lasca.online.resume.${encodeURIComponent(normalizedServerUrl)}.${encodeURIComponent(normalizedRoomId)}`,
+    `lasca.online.resume.${encodeURIComponent(serverUrl)}.${encodeURIComponent(roomId)}`,
+    `lasca.online.resume.${encodeURIComponent(`${normalizedServerUrl}/`)}.${encodeURIComponent(normalizedRoomId)}`,
+  ]);
+
+  try {
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (!key || !key.startsWith("lasca.online.resume.")) continue;
+      const raw = window.localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as Record<string, unknown> | null;
+      if (!parsed || typeof parsed !== "object") continue;
+      const recordServerUrl = normalizeOnlineResumeServerUrl(typeof parsed.serverUrl === "string" ? parsed.serverUrl : "");
+      const recordRoomId = normalizeOnlineResumeRoomId(typeof parsed.roomId === "string" ? parsed.roomId : "");
+      if (recordServerUrl === normalizedServerUrl && recordRoomId === normalizedRoomId) {
+        keysToRemove.add(key);
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  for (const key of keysToRemove) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // ignore
+    }
+  }
+}
+
 type ApplyChosenMoveOptions = {
   animateLocalTravel?: boolean;
 };
@@ -215,6 +263,8 @@ export class GameController {
   private readonly cursorMarkedTargets: Set<string> = new Set();
 
   private sfx: SfxManager | null = null;
+  private lastPlayedMoveSfxSignature: string | null = null;
+  private suppressOnlineGameplaySfxUntilTurnForColor: Player | null = null;
 
   private isColumnsChessRuleset(): boolean {
     return (this.state.meta?.rulesetId ?? "lasca") === "columns_chess";
@@ -376,6 +426,30 @@ export class GameController {
     }
   }
 
+  private playGameplaySfx(name: Extract<SfxName, "move" | "capture" | "promote">, nextState?: GameState): void {
+    if (this.driver.mode === "online" && this.suppressOnlineGameplaySfxUntilTurnForColor) {
+      const effectiveState = nextState ?? this.state;
+      if (effectiveState.toMove === this.suppressOnlineGameplaySfxUntilTurnForColor) {
+        this.suppressOnlineGameplaySfxUntilTurnForColor = null;
+      } else {
+        return;
+      }
+    }
+    this.playSfx(name);
+  }
+
+  private maybeClearOnlineResumeRecord(): void {
+    if (this.driver.mode !== "online") return;
+    if (!this.isGameOver && !Boolean((this.state as any)?.forcedGameOver)) return;
+
+    const remote = this.driver as Partial<OnlineGameDriver>;
+    if (typeof remote.getServerUrl !== "function" || typeof remote.getRoomId !== "function") return;
+    const serverUrl = remote.getServerUrl();
+    const roomId = remote.getRoomId();
+    if (!serverUrl || !roomId) return;
+    clearStoredOnlineResumeRecords(serverUrl, roomId);
+  }
+
   private inferMoveSfx(prev: GameState, next: GameState): SfxName {
     // Heuristic: capture => piece count drops; promotion => officer count rises.
     let prevTotal = 0;
@@ -395,6 +469,26 @@ export class GameController {
     if (nextTotal < prevTotal) return "capture";
     if (nextOfficers > prevOfficers) return "promote";
     return "move";
+  }
+
+  private getMoveSfxSignature(prev: GameState, next: GameState): string {
+    return [
+      `prev:${hashGameState(prev)}`,
+      `next:${hashGameState(next)}`,
+      `prevForced:${String((prev as any)?.forcedGameOver?.reasonCode ?? "")}:${String((prev as any)?.forcedGameOver?.message ?? "")}`,
+      `nextForced:${String((next as any)?.forcedGameOver?.reasonCode ?? "")}:${String((next as any)?.forcedGameOver?.message ?? "")}`,
+    ].join("|");
+  }
+
+  private shouldPlayMoveTransitionSfx(prev: GameState, next: GameState): boolean {
+    const signature = this.getMoveSfxSignature(prev, next);
+    if (signature === this.lastPlayedMoveSfxSignature) return false;
+    this.lastPlayedMoveSfxSignature = signature;
+    return true;
+  }
+
+  private rememberMoveTransitionSfx(prev: GameState, next: GameState): void {
+    this.lastPlayedMoveSfxSignature = this.getMoveSfxSignature(prev, next);
   }
 
   private async copyTextToClipboard(text: string): Promise<boolean> {
@@ -1806,7 +1900,14 @@ export class GameController {
     this.currentTurnHasCapture = false;
     this.clearSelection();
 
-    await this.animateRemoteOnlineTransition(previousState, next);
+    try {
+      await this.animateRemoteOnlineTransition(previousState, next);
+    } catch (err) {
+      if ((import.meta as any)?.env?.DEV) {
+        // eslint-disable-next-line no-console
+        console.warn("[controller] remote online animation failed; applying authoritative state without animation", err);
+      }
+    }
 
     this.deferTurnToastUntilAfterRender = true;
     try {
@@ -2835,7 +2936,7 @@ export class GameController {
     this.currentTurnHasCapture = false;
     this.clearSelection();
 
-    this.playSfx(this.inferMoveSfx(prev, target));
+    this.playGameplaySfx(this.inferMoveSfx(prev, target), target);
 
     // Animate using an inferred from/to (works for capture chains and multi-piece moves),
     // falling back to the target snapshot's last-move hint when available.
@@ -3099,8 +3200,15 @@ export class GameController {
     try {
       const didTurnFlip = prev?.toMove !== next.toMove;
       const didForcedOverAppear = Boolean((next as any)?.forcedGameOver) && !Boolean((prev as any)?.forcedGameOver);
-      if (!prevWasGameOver && (didForcedOverAppear || didTurnFlip)) {
-        this.playSfx(this.inferMoveSfx(prev, next));
+      const onlineMoverIsLocal = (() => {
+        if (this.driver.mode !== "online") return false;
+        const remote = this.driver as OnlineGameDriver & { controlsColor?: (color: Player) => boolean };
+        const localColor = remote.getPlayerColor();
+        if (localColor === prev.toMove) return true;
+        return typeof remote.controlsColor === "function" && remote.controlsColor(prev.toMove);
+      })();
+      if (!prevWasGameOver && !onlineMoverIsLocal && (didForcedOverAppear || didTurnFlip) && this.shouldPlayMoveTransitionSfx(prev, next)) {
+        this.playGameplaySfx(this.inferMoveSfx(prev, next), next);
       }
     } catch {
       // ignore
@@ -3852,6 +3960,8 @@ export class GameController {
     const elLoadGameInput = document.getElementById("loadGameInput") as HTMLInputElement | null;
     const isOnline = this.driver.mode === "online";
 
+    this.maybeClearOnlineResumeRecord();
+
     // Online UX: when a room is newly created and we're waiting for the opponent,
     // show a sticky toast offering to copy an invite link.
     // Call early so it still runs even if we early-return while setting status text.
@@ -4375,6 +4485,20 @@ export class GameController {
     return { x: clientX - rect.left, y: clientY - rect.top };
   }
 
+  private layerPointFromClientCoords(layer: SVGGraphicsElement | null | undefined, clientX: number, clientY: number): { x: number; y: number } {
+    const pt = (this.svg as any).createSVGPoint ? (this.svg as any).createSVGPoint() : null;
+    if (pt && layer?.getScreenCTM) {
+      pt.x = clientX;
+      pt.y = clientY;
+      const m = layer.getScreenCTM();
+      if (m && (m as any).inverse) {
+        const p = pt.matrixTransform((m as any).inverse());
+        return { x: p.x, y: p.y };
+      }
+    }
+    return this.svgPointFromClientCoords(clientX, clientY);
+  }
+
   private svgPointFromClient(ev: MouseEvent): { x: number; y: number } {
     return this.svgPointFromClientCoords(ev.clientX, ev.clientY);
   }
@@ -4707,7 +4831,7 @@ export class GameController {
     if (!this.dragSourceNodeId) return;
     this.ensureDragPreview();
     if (!this.dragPreviewGroup) return;
-    const { x, y } = this.svgPointFromClientCoords(clientX, clientY);
+    const { x, y } = this.layerPointFromClientCoords(this.previewLayer, clientX, clientY);
     const dx = x - this.dragStartSvgX;
     const dy = y - this.dragStartSvgY;
     this.dragPreviewGroup.setAttribute("transform", `translate(${dx} ${dy})`);
@@ -4740,7 +4864,7 @@ export class GameController {
     this.dragSourceNodeId = nodeId;
     this.dragStartClientX = ev.clientX;
     this.dragStartClientY = ev.clientY;
-    const dragStartPoint = this.svgPointFromClientCoords(ev.clientX, ev.clientY);
+    const dragStartPoint = this.layerPointFromClientCoords(this.previewLayer, ev.clientX, ev.clientY);
     this.dragStartSvgX = dragStartPoint.x;
     this.dragStartSvgY = dragStartPoint.y;
     this.dragHasMoved = false;
@@ -5251,8 +5375,15 @@ export class GameController {
       console.log("[controller] apply", move);
     }
 
-    this.playSfx(move.kind === "capture" ? "capture" : "move");
-    if (next.didPromote) this.playSfx("promote");
+    this.rememberMoveTransitionSfx(this.state, next);
+    const shouldPlayLocalMoveSfx = this.driver.mode !== "online";
+    if (this.driver.mode === "online") {
+      this.suppressOnlineGameplaySfxUntilTurnForColor = this.state.toMove;
+    }
+    if (shouldPlayLocalMoveSfx) {
+      this.playGameplaySfx(move.kind === "capture" ? "capture" : "move", next);
+      if (next.didPromote) this.playGameplaySfx("promote", next);
+    }
 
     const prevForAnim = this.state;
     this.assignControllerState(next);

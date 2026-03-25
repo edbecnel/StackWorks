@@ -129,6 +129,31 @@ describe("initGameShell desktop shell navigation", () => {
     expect(headerBrand?.querySelector("img")?.getAttribute("src")).toContain("stackworks-logo-icon.svg");
   });
 
+  it("mounts the richer play hub content into the right shell panel", () => {
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+
+    initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Desktop shell test",
+      backHref: "./",
+      helpHref: "./start-help",
+      gameSection: GameSection.Play,
+      navItems: [
+        { id: "play", label: "Play", targetSelector: "#appRoot" },
+        { id: "status", label: "Status", targetSelector: '#leftSidebar .panelSection[data-section="status"]' },
+        { id: "bot", label: "Bot", targetSelector: '#leftSidebar .panelSection[data-section="bot"]' },
+      ],
+    });
+
+    expect(document.querySelector(".playHubOnlineModeTabs")).not.toBeNull();
+    expect(document.querySelector('[data-bot-field="controller"]')).not.toBeNull();
+    expect(Array.from(document.querySelectorAll(".playHubAction")).some((element) => element.textContent?.includes("Create custom challenge"))).toBe(true);
+    expect(document.querySelector('[data-coach-level="beginner"]')).not.toBeNull();
+  });
+
   it("preserves configured local player names and applies the signed-in avatar only to the matching side", async () => {
     vi.useFakeTimers();
 

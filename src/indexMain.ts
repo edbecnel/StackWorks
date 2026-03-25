@@ -43,6 +43,7 @@ import {
   deriveOnlineLaunchIdentity as deriveOnlineLaunchIdentityFromSeatConfig,
   resolveOnlineHumanSeat,
 } from "./shared/onlineHumanSeat.ts";
+import { resumeRecordMatchesSignedInAccount } from "./shared/onlineResumeMatching.ts";
 
 const LS_KEYS = {
   theme: "lasca.theme",
@@ -2891,15 +2892,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
   document.addEventListener("click", handleShellOpenActionClick, true);
 
-  function resumeRecordMatchesSignedInAccount(record: OnlineResumeRecord): boolean {
-    const userId = signedInAccountUserId.trim();
-    const displayName = signedInAccountDisplayName.trim();
-    if (!userId && !displayName) return false;
-    if (record.userId) return record.userId === userId;
-    if (!displayName || !record.displayName) return false;
-    return record.displayName.trim().toLowerCase() === displayName.toLowerCase();
-  }
-
   function buildOnlineRejoinHref(args: {
     entryUrl: string;
     serverUrl: string;
@@ -2928,7 +2920,11 @@ window.addEventListener("DOMContentLoaded", () => {
 
     const candidates = listOnlineResumeRecords()
       .filter((record) => record.serverUrl === serverUrl)
-      .filter((record) => resumeRecordMatchesSignedInAccount(record))
+      .filter((record) => resumeRecordMatchesSignedInAccount({
+        record,
+        signedInUserId: signedInAccountUserId,
+        signedInDisplayName: signedInAccountDisplayName,
+      }))
       .sort((a, b) => b.savedAtMs - a.savedAtMs);
 
     for (const record of candidates) {
@@ -2991,12 +2987,9 @@ window.addEventListener("DOMContentLoaded", () => {
         label: lastShellOpenActionCache.label,
         href: lastShellOpenActionCache.href,
         ...(lastShellOpenActionCache.title ? { title: lastShellOpenActionCache.title } : {}),
-        action:
-          playMode === "online" && lastShellOpenActionCache.label === "Open Variant Page"
-            ? { kind: "launch-online-create", variantId: vId }
-            : (lastShellOpenActionCache.href === "#"
-              ? { kind: "disabled" }
-              : { kind: "navigate", href: lastShellOpenActionCache.href }),
+        action: lastShellOpenActionCache.href === "#"
+          ? { kind: "disabled" }
+          : { kind: "navigate", href: lastShellOpenActionCache.href },
       });
       return;
     }
@@ -3025,24 +3018,15 @@ window.addEventListener("DOMContentLoaded", () => {
     });
     if (syncId !== shellOpenActionSyncId) return;
 
-    if (rejoinHref) {
-      const next = {
-        label: "Rejoin Game",
-        href: rejoinHref,
-        title: "Rejoin your most recent unfinished online game for this variant.",
-      };
-      lastShellOpenActionCache = { key, ...next };
-      setShellOpenActionState({ ...next, action: { kind: "navigate", href: next.href } });
-      return;
-    }
-
     const next = {
       label: "Open Variant Page",
       href: variant.entryUrl,
-      title: `Open ${variant.displayName} without creating a new room.`,
+      title: rejoinHref
+        ? `Open ${variant.displayName}. Rejoin is available from the variant page play hub.`
+        : `Open ${variant.displayName} without creating a new room.`,
     };
     lastShellOpenActionCache = { key, ...next };
-    setShellOpenActionState({ ...next, action: { kind: "launch-online-create", variantId: vId } });
+    setShellOpenActionState({ ...next, action: { kind: "navigate", href: next.href } });
   }
 
   const syncDelayLabel = () => {

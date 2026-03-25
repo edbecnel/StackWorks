@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { GameController } from "./gameController";
 import { HistoryManager } from "../game/historyManager";
 import type { GameState } from "../game/state";
+import { setBoardFlipped } from "../render/boardFlip";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -1022,6 +1023,47 @@ describe("GameController board interaction", () => {
     expect(preview?.getAttribute("transform")).toBe("translate(100 170)");
   });
 
+  it("keeps the drag preview aligned on flipped boards", () => {
+    const { svg, piecesLayer } = createBoardFixture();
+    const history = new HistoryManager();
+    const state: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "B", rank: "S" }]],
+        ["r3c3", [{ owner: "W", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+      meta: { variantId: "chess_classic" as any, rulesetId: "chess" as any, boardSize: 8 as any },
+    };
+    history.push(state);
+
+    setBoardFlipped(svg, true);
+
+    const controller = new GameController(svg, piecesLayer, null, state, history);
+    controller.refreshView();
+
+    const previewLayer = svg.querySelector("#previewStacks") as SVGGElement;
+    (previewLayer as any).getScreenCTM = () => ({ inverse: () => ({ kind: "previewInverse" }) });
+    (svg as any).createSVGPoint = () => ({
+      x: 0,
+      y: 0,
+      matrixTransform(matrix: { kind?: string }) {
+        if (matrix?.kind === "previewInverse") return { x: this.x - 100, y: this.y - 200 };
+        return { x: this.x, y: this.y };
+      },
+    });
+
+    (controller as any).dragSourceNodeId = "r2c2";
+    (controller as any).dragStartSvgX = 250;
+    (controller as any).dragStartSvgY = 150;
+
+    (controller as any).updateDragPreview(410, 430);
+
+    const preview = svg.querySelector("#previewStacks .dragPreviewStack") as SVGGElement | null;
+    expect(preview).not.toBeNull();
+    expect(preview?.getAttribute("transform")).toBe("translate(60 80)");
+  });
+
   it("suppresses document text selection during board drag and restores it after release", async () => {
     const { svg, piecesLayer } = createBoardFixture();
     const history = new HistoryManager();
@@ -1434,6 +1476,68 @@ describe("GameController playback sound effects", () => {
     await controller.jumpToHistoryAnimated(1, 0);
 
     expect(playSfxSpy).toHaveBeenCalledWith("move");
+  });
+
+  it("does not replay the same move sound when the same online move is echoed authoritatively", () => {
+    const s0: GameState = {
+      board: new Map([
+        ["r1c1", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+    };
+
+    const s1: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+      ui: { lastMove: { from: "r1c1", to: "r2c2" } },
+    };
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, s0, new HistoryManager());
+    const playSfxSpy = vi.spyOn(controller as any, "playSfx");
+
+    (controller as any).rememberMoveTransitionSfx(s0, s1);
+    controller.setState(s1);
+
+    expect(playSfxSpy.mock.calls.some(([name]) => name === "move" || name === "capture" || name === "promote")).toBe(false);
+  });
+
+  it("does not replay move audio when the authoritative echo only adds ui.lastMove", () => {
+    const s0: GameState = {
+      board: new Map([
+        ["r1c1", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+    };
+
+    const localApplied: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+    };
+
+    const echoed: GameState = {
+      ...localApplied,
+      ui: { lastMove: { from: "r1c1", to: "r2c2" } },
+    };
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, s0, new HistoryManager());
+    const playSfxSpy = vi.spyOn(controller as any, "playSfx");
+
+    (controller as any).rememberMoveTransitionSfx(s0, localApplied);
+    controller.setState(echoed);
+
+    expect(playSfxSpy.mock.calls.some(([name]) => name === "move" || name === "capture" || name === "promote")).toBe(false);
   });
 });
 
@@ -1880,6 +1984,171 @@ describe("GameController online transport toasts", () => {
     expect(((controller as any).currentTargets as string[]).length).toBeGreaterThan(0);
   });
 
+  it("does not play external move audio for a locally controlled online mover", () => {
+    const state: GameState = {
+      board: new Map([
+        ["r1c1", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+    };
+    const next: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+      ui: { lastMove: { from: "r1c1", to: "r2c2" } },
+    };
+    const history = new HistoryManager();
+    history.push(state);
+    const driver = new FakeOnlineTransportDriver(state);
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history, driver as any);
+    const playSfxSpy = vi.spyOn(controller as any, "playSfx");
+
+    controller.setState(next);
+
+    expect(playSfxSpy.mock.calls.some(([name]) => name === "move" || name === "capture" || name === "promote")).toBe(false);
+  });
+
+  it("suppresses external self-move audio using assigned online player color even without controlsColor", () => {
+    const state: GameState = {
+      board: new Map([
+        ["r1c1", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+    };
+    const next: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+      ui: { lastMove: { from: "r1c1", to: "r2c2" } },
+    };
+    const history = new HistoryManager();
+    history.push(state);
+    const driver = new FakeOnlineTransportDriver(state) as any;
+    delete driver.controlsColor;
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history, driver);
+    const playSfxSpy = vi.spyOn(controller as any, "playSfx");
+
+    controller.setState(next);
+
+    expect(playSfxSpy.mock.calls.some(([name]) => name === "move" || name === "capture" || name === "promote")).toBe(false);
+  });
+
+  it("suppresses delayed self-move audio even before the online driver reports local color", () => {
+    const state: GameState = {
+      board: new Map([
+        ["r1c1", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+    };
+    const next: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+      ui: { lastMove: { from: "r1c1", to: "r2c2" } },
+    };
+    const history = new HistoryManager();
+    history.push(state);
+    const driver = new FakeOnlineTransportDriver(state) as any;
+    delete driver.controlsColor;
+    driver.getPlayerColor = () => null;
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history, driver);
+    const playSfxSpy = vi.spyOn(controller as any, "playSfx");
+
+    (controller as any).suppressOnlineGameplaySfxUntilTurnForColor = "W";
+    controller.setState(next);
+
+    expect(playSfxSpy.mock.calls.some(([name]) => name === "move" || name === "capture" || name === "promote")).toBe(false);
+  });
+
+  it("clears the stored online resume record once the room is over", () => {
+    const state: GameState = {
+      board: new Map([
+        ["r1c1", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+    };
+    const terminal: GameState = {
+      board: new Map([
+        ["r2c2", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+      forcedGameOver: {
+        winner: "W",
+        message: "White wins",
+      } as any,
+      ui: { lastMove: { from: "r1c1", to: "r2c2" } },
+    };
+    const history = new HistoryManager();
+    history.push(state);
+    const driver = new FakeOnlineTransportDriver(state) as any;
+    driver.getServerUrl = () => "http://localhost:9999";
+    driver.getRoomId = () => "room123";
+    const storageKey = "lasca.online.resume.http%3A%2F%2Flocalhost%3A9999.room123";
+    localStorage.setItem(storageKey, JSON.stringify({
+      serverUrl: "http://localhost:9999",
+      roomId: "room123",
+      playerId: "p1",
+      variantId: "chess_classic",
+      savedAtMs: Date.now(),
+    }));
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history, driver);
+
+    controller.setState(terminal);
+
+    expect(localStorage.getItem(storageKey)).toBeNull();
+  });
+
+  it("does not play immediate self-move audio for online local submissions", async () => {
+    const state: GameState = {
+      board: new Map([
+        ["r1c1", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+    };
+    const history = new HistoryManager();
+    history.push(state);
+    const driver = new FakeOnlineTransportDriver(state) as any;
+    driver.submitMove = vi.fn(async () => ({
+      board: new Map([
+        ["r2c2", [{ owner: "W", rank: "S" }]],
+        ["r8c8", [{ owner: "B", rank: "S" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+      ui: { lastMove: { from: "r1c1", to: "r2c2" } },
+    }));
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history, driver);
+    const playSfxSpy = vi.spyOn(controller as any, "playSfx");
+    vi.spyOn(controller as any, "renderAuthoritative").mockImplementation(() => {});
+
+    await (controller as any).applyChosenMove({ kind: "move", from: "r1c1", to: "r2c2" });
+
+    expect(playSfxSpy.mock.calls.some(([name]) => name === "move" || name === "capture" || name === "promote")).toBe(false);
+  });
+
   it("animates an opponent move when an authoritative online update arrives", async () => {
     const state: GameState = {
       board: new Map([
@@ -1912,6 +2181,46 @@ describe("GameController online transport toasts", () => {
     await Promise.resolve();
 
     expect(animateRemoteOnlineTransition).toHaveBeenCalledTimes(1);
+  });
+
+  it("still applies the authoritative online state when remote move animation fails", async () => {
+    const state: GameState = {
+      board: new Map([
+        ["r0c4", [{ owner: "B", rank: "K" }]],
+        ["r7c4", [{ owner: "W", rank: "K" }]],
+      ]),
+      toMove: "B",
+      phase: "idle",
+      meta: {
+        variantId: "chess_classic" as any,
+        rulesetId: "chess" as any,
+        boardSize: 8 as any,
+      },
+    };
+    const history = new HistoryManager();
+    history.push(state);
+    const driver = new FakeOnlineTransportDriver(state);
+
+    const controller = new GameController(mockSvg, mockPiecesLayer, null, state, history, driver as any);
+    vi.spyOn(controller as any, "animateRemoteOnlineTransition").mockRejectedValue(new Error("anim failed"));
+    controller.bind();
+
+    driver.setState({
+      board: new Map([
+        ["r1c4", [{ owner: "B", rank: "K" }]],
+        ["r7c4", [{ owner: "W", rank: "K" }]],
+      ]),
+      toMove: "W",
+      phase: "idle",
+      meta: state.meta,
+      ui: { lastMove: { from: "r0c4", to: "r1c4" } },
+    });
+    driver.triggerRealtimeUpdate();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(controller.getState().toMove).toBe("W");
+    expect(controller.getState().board.has("r1c4")).toBe(true);
   });
 
   it("hides the captured destination stack while an opponent capture animates", async () => {
