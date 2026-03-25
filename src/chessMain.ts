@@ -68,6 +68,7 @@ import {
   readBoardViewportMode,
 } from "./ui/boardViewportMode";
 import { resolveConfiguredLocalPlayerName } from "./shared/localPlayerNames";
+import { readOpenVariantPageOnlinePreview } from "./shared/openVariantPageIntent";
 import { resolveExportPlayerName } from "./shared/playerExportNames";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
@@ -795,8 +796,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Apply start-page player name prefs to the SVG name overlay (offline only).
   if (driver.mode !== "online") {
     try {
-      const nameLight = localStorage.getItem("lasca.local.nameLight")?.trim() ?? "";
-      const nameDark = localStorage.getItem("lasca.local.nameDark")?.trim() ?? "";
+      const openVariantPageOnlinePreview = readOpenVariantPageOnlinePreview(ACTIVE_VARIANT_ID);
+      const nameLight = openVariantPageOnlinePreview?.names.W ?? (localStorage.getItem("lasca.local.nameLight")?.trim() ?? "");
+      const nameDark = openVariantPageOnlinePreview?.names.B ?? (localStorage.getItem("lasca.local.nameDark")?.trim() ?? "");
       if (nameLight || nameDark) setPlayerNames(nameLight, nameDark);
     } catch { /* ignore */ }
   }

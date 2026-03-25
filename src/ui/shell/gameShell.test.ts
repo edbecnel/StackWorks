@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { initGameShell } from "./gameShell";
 import { GameSection } from "../../config/shellState";
 import type { PlayerShellSnapshot } from "../../types";
+import { saveOpenVariantPageIntent } from "../../shared/openVariantPageIntent";
 
 function installDesktopMatchMedia(): void {
   Object.defineProperty(window, "matchMedia", {
@@ -870,5 +871,86 @@ describe("initGameShell desktop shell navigation", () => {
     expect(names).toContain("WhiteHost");
     expect(names).toContain("Senet");
     expect(names).not.toContain("Delaila");
+  });
+
+  it("uses online preview identities for a plain variant page opened from online mode", async () => {
+    localStorage.setItem("lasca.local.nameLight", "EdB");
+    localStorage.setItem("lasca.local.nameDark", "Twinkle");
+    localStorage.setItem("lasca.chessbot.white", "human");
+    localStorage.setItem("lasca.chessbot.black", "human");
+    localStorage.setItem("lasca.online.seatOwnerLight", "local");
+    localStorage.setItem("lasca.online.seatOwnerDark", "remote");
+    saveOpenVariantPageIntent({ variantId: "chess_classic", playMode: "online" });
+
+    document.body.innerHTML = `
+      <div id="host">
+        <div id="appRoot">
+          <div id="leftSidebar" class="sidebar"><div class="sidebarBody"></div></div>
+          <div id="centerArea"><div id="boardWrap"><svg viewBox="0 0 1000 1000"></svg></div></div>
+          <div id="rightSidebar" class="sidebar"><div class="sidebarBody"></div></div>
+        </div>
+      </div>
+    `;
+
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false })));
+
+    const snapshot: PlayerShellSnapshot = {
+      mode: "local",
+      transportStatus: "connected",
+      serverUrl: null,
+      viewerColor: null,
+      viewerRole: "offline",
+      players: {
+        W: {
+          color: "W",
+          displayName: "White",
+          sideLabel: "White",
+          roleLabel: "Local match",
+          detailText: "To move.",
+          status: "offline",
+          statusText: "Local play",
+          isLocal: false,
+          isActiveTurn: true,
+        },
+        B: {
+          color: "B",
+          displayName: "Black",
+          sideLabel: "Black",
+          roleLabel: "Local match",
+          detailText: "Waiting for the next turn.",
+          status: "offline",
+          statusText: "Local play",
+          isLocal: false,
+          isActiveTurn: false,
+        },
+      },
+    };
+
+    const controller = {
+      getPlayerShellSnapshot: () => snapshot,
+      addHistoryChangeCallback: vi.fn(),
+      addShellSnapshotChangeCallback: vi.fn(),
+      addAnalysisModeChangeCallback: vi.fn(),
+    };
+
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+    const shell = initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Open Variant Page online preview",
+      gameSection: GameSection.Play,
+      navItems: [],
+    });
+
+    shell.bindController(controller as any);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const names = Array.from(document.querySelectorAll(".gameShellPlayerName")).map((el) => el.textContent?.trim());
+    expect(names).toContain("EdB");
+    expect(names).toContain("Online player");
+    expect(names).not.toContain("Twinkle");
   });
 });

@@ -9,6 +9,7 @@ import type { Player, PlayerIdentity, PlayerShellSnapshot } from "../../types";
 import type { VariantId } from "../../variants/variantTypes";
 import { buildSessionAuthFetchInit } from "../../shared/authSessionClient";
 import { isLocalBotSide } from "../../shared/localPlayerNames";
+import { readOpenVariantPageOnlinePreview } from "../../shared/openVariantPageIntent";
 
 export interface GameShellNavItem {
   id: string;
@@ -1491,11 +1492,14 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     const initialSnapshot = controller.getPlayerShellSnapshot();
     const topPanel = createPlayerIdentityPanel({ identity: initialSnapshot.players.B });
     const bottomPanel = createPlayerIdentityPanel({ identity: initialSnapshot.players.W });
+    const openVariantPageOnlinePreview = initialSnapshot.mode === "local"
+      ? readOpenVariantPageOnlinePreview(opts.variantId)
+      : null;
 
     const localIdentityOverrides: Partial<Record<Player, Partial<PlayerIdentity>>> = {};
 
     // Local start-page names should only seed offline/local shells.
-    if (initialSnapshot.mode === "local") {
+    if (initialSnapshot.mode === "local" && !openVariantPageOnlinePreview) {
       try {
         const nameLight = localStorage.getItem("lasca.local.nameLight")?.trim() ?? "";
         const nameDark = localStorage.getItem("lasca.local.nameDark")?.trim() ?? "";
@@ -1554,12 +1558,43 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
 
     const buildSnapshotWithOverrides = (snapshot: PlayerShellSnapshot, bottomColor: Player): PlayerShellSnapshot => {
       const nextPlayers = { ...snapshot.players };
+      if (snapshot.mode === "local" && openVariantPageOnlinePreview) {
+        for (const color of ["W", "B"] as const) {
+          const previewName = openVariantPageOnlinePreview.names[color]?.trim() ?? "";
+          if (!previewName) continue;
+          nextPlayers[color] = { ...nextPlayers[color], displayName: previewName };
+        }
+      }
       for (const color of ["W", "B"] as const) {
         const override = localIdentityOverrides[color];
         if (!override) continue;
         nextPlayers[color] = { ...nextPlayers[color], ...override };
       }
       if (snapshot.mode === "local") {
+        if (openVariantPageOnlinePreview) {
+          for (const color of ["W", "B"] as const) {
+            const identity = nextPlayers[color];
+            const isLocal = color === openVariantPageOnlinePreview.localColor;
+            nextPlayers[color] = {
+              ...identity,
+              roleLabel: `${isLocal ? "You" : "Opponent"} · ${identity.sideLabel}`,
+              ...(isLocal ? { viewerTag: "You" } : {}),
+              isLocal,
+            };
+          }
+
+          const signedInName = normalizeDisplayName(localViewerIdentityOverride?.displayName);
+          const signedInAvatarUrl = localViewerIdentityOverride?.avatarUrl?.trim() ?? "";
+          const localIdentity = nextPlayers[openVariantPageOnlinePreview.localColor];
+          nextPlayers[openVariantPageOnlinePreview.localColor] = {
+            ...localIdentity,
+            ...(signedInName ? { displayName: signedInName } : {}),
+            ...(signedInAvatarUrl && !localIdentity.avatarUrl?.trim() ? { avatarUrl: signedInAvatarUrl } : {}),
+          };
+
+          return { ...snapshot, players: nextPlayers };
+        }
+
         for (const color of ["W", "B"] as const) {
           const identity = nextPlayers[color];
           if (isLocalBotSide(color, opts.appRoot)) {

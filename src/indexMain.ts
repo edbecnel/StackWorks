@@ -43,6 +43,7 @@ import {
   deriveOnlineLaunchIdentity as deriveOnlineLaunchIdentityFromSeatConfig,
   resolveOnlineHumanSeat,
 } from "./shared/onlineHumanSeat.ts";
+import { saveOpenVariantPageIntent } from "./shared/openVariantPageIntent.ts";
 import { resumeRecordMatchesSignedInAccount } from "./shared/onlineResumeMatching.ts";
 
 const LS_KEYS = {
@@ -2820,10 +2821,21 @@ window.addEventListener("DOMContentLoaded", () => {
 
   let shellOpenActionSyncId = 0;
   let lastShellOpenActionCache:
-    | { key: string; label: string; href: string; title?: string }
+    | {
+      key: string;
+      label: string;
+      href: string;
+      title?: string;
+      action:
+        | { kind: "navigate"; href: string }
+        | { kind: "open-variant-page"; href: string; variantId: VariantId; playMode: PlayMode }
+        | { kind: "launch-online-create"; variantId: VariantId }
+        | { kind: "disabled" };
+    }
     | null = null;
   let currentShellOpenAction:
     | { kind: "navigate"; href: string }
+    | { kind: "open-variant-page"; href: string; variantId: VariantId; playMode: PlayMode }
     | { kind: "launch-online-create"; variantId: VariantId }
     | { kind: "disabled" }
     = { kind: "disabled" };
@@ -2842,6 +2854,7 @@ window.addEventListener("DOMContentLoaded", () => {
     title?: string;
     action?:
       | { kind: "navigate"; href: string }
+      | { kind: "open-variant-page"; href: string; variantId: VariantId; playMode: PlayMode }
       | { kind: "launch-online-create"; variantId: VariantId }
       | { kind: "disabled" };
   }): void {
@@ -2863,6 +2876,15 @@ window.addEventListener("DOMContentLoaded", () => {
     if (currentShellOpenAction.kind === "disabled") {
       event.preventDefault();
       event.stopPropagation();
+      return;
+    }
+
+    if (currentShellOpenAction.kind === "open-variant-page") {
+      persistStartPageLaunchPrefs();
+      saveOpenVariantPageIntent({
+        variantId: currentShellOpenAction.variantId,
+        playMode: currentShellOpenAction.playMode,
+      });
       return;
     }
 
@@ -2987,9 +3009,7 @@ window.addEventListener("DOMContentLoaded", () => {
         label: lastShellOpenActionCache.label,
         href: lastShellOpenActionCache.href,
         ...(lastShellOpenActionCache.title ? { title: lastShellOpenActionCache.title } : {}),
-        action: lastShellOpenActionCache.href === "#"
-          ? { kind: "disabled" }
-          : { kind: "navigate", href: lastShellOpenActionCache.href },
+        action: lastShellOpenActionCache.action,
       });
       return;
     }
@@ -3005,9 +3025,10 @@ window.addEventListener("DOMContentLoaded", () => {
         label: "Open Variant Page",
         href: variant.entryUrl,
         title: `Open ${variant.displayName}.`,
+        action: { kind: "open-variant-page", href: variant.entryUrl, variantId: vId, playMode } as const,
       };
       lastShellOpenActionCache = { key, ...next };
-      setShellOpenActionState({ ...next, action: { kind: "navigate", href: next.href } });
+      setShellOpenActionState(next);
       return;
     }
 
@@ -3024,9 +3045,10 @@ window.addEventListener("DOMContentLoaded", () => {
       title: rejoinHref
         ? `Open ${variant.displayName}. Rejoin is available from the variant page play hub.`
         : `Open ${variant.displayName} without creating a new room.`,
+      action: { kind: "open-variant-page", href: variant.entryUrl, variantId: vId, playMode } as const,
     };
     lastShellOpenActionCache = { key, ...next };
-    setShellOpenActionState({ ...next, action: { kind: "navigate", href: next.href } });
+    setShellOpenActionState(next);
   }
 
   const syncDelayLabel = () => {
