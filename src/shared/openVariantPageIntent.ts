@@ -1,5 +1,6 @@
 import type { Player } from "../types";
 import type { VariantId } from "../variants/variantTypes";
+import { resolveBotPersonaDisplayName } from "./localPlayerNames";
 import { resolveOnlineHumanSeat } from "./onlineHumanSeat";
 
 const LS_KEYS = {
@@ -30,6 +31,7 @@ type OpenVariantPageIntentRecord = {
 export type OpenVariantPageOnlinePreview = {
   localColor: Player;
   names: Partial<Record<Player, string>>;
+  roles: Partial<Record<Player, "human" | "bot">>;
 };
 
 function readStorage(key: string): string {
@@ -106,15 +108,19 @@ export function readOpenVariantPageOnlinePreview(variantId: VariantId): OpenVari
 
   const opponentColor: Player = localColor === "W" ? "B" : "W";
   const names: Partial<Record<Player, string>> = {};
+  const roles: Partial<Record<Player, "human" | "bot">> = {
+    [localColor]: "human",
+  };
   const localName = readStoredLocalPlayerName(localColor);
   if (localName) names[localColor] = localName;
 
   const opponentRole = opponentColor === "W" ? whiteRole : blackRole;
+  roles[opponentColor] = opponentRole;
   if (opponentRole === "human") names[opponentColor] = "Online player";
   else {
-    const botName = readStoredLocalPlayerName(opponentColor);
+    const botName = resolveBotPersonaDisplayName(opponentColor);
     if (botName) names[opponentColor] = botName;
   }
 
-  return { localColor, names };
+  return { localColor, names, roles };
 }

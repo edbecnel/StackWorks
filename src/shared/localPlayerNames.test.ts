@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { isLocalBotSide, resolveConfiguredLocalPlayerName, resolveConfiguredLocalPlayerNames } from "./localPlayerNames";
+import {
+  isLocalBotSide,
+  resolveActiveLocalSeatDisplayName,
+  resolveConfiguredLocalPlayerName,
+  resolveConfiguredLocalPlayerNames,
+} from "./localPlayerNames";
 
 describe("localPlayerNames", () => {
   afterEach(() => {
@@ -32,5 +37,32 @@ describe("localPlayerNames", () => {
     localStorage.setItem("lasca.local.nameDark", "Byron");
 
     expect(resolveConfiguredLocalPlayerNames()).toEqual({ W: "Ada-bot", B: "Byron" });
+  });
+
+  it("uses the active bot persona title for a bot-controlled side", () => {
+    document.body.innerHTML = '<select id="botWhiteSelect"><option value="human">Human</option><option value="easy" selected>Easy</option></select>';
+    localStorage.setItem("stackworks.bot.whitePersona", "endgame");
+
+    expect(resolveActiveLocalSeatDisplayName("W", { sideLabel: "White" })).toBe("Endgame bot");
+  });
+
+  it("uses the signed-in human name for the human seat when a bot game is configured", () => {
+    document.body.innerHTML = [
+      '<select id="botWhiteSelect"><option value="human" selected>Human</option><option value="easy">Easy</option></select>',
+      '<select id="botBlackSelect"><option value="human">Human</option><option value="easy" selected>Easy</option></select>',
+    ].join("");
+    localStorage.setItem("lasca.local.nameLight", "Stored White");
+
+    expect(resolveActiveLocalSeatDisplayName("W", { sideLabel: "White", signedInDisplayName: "Local Account" })).toBe("Local Account");
+  });
+
+  it("falls back to the default side label for the human seat when no signed-in user is available in a bot game", () => {
+    document.body.innerHTML = [
+      '<select id="botWhiteSelect"><option value="human" selected>Human</option><option value="easy">Easy</option></select>',
+      '<select id="botBlackSelect"><option value="human">Human</option><option value="easy" selected>Easy</option></select>',
+    ].join("");
+    localStorage.setItem("lasca.local.nameLight", "Stored White");
+
+    expect(resolveActiveLocalSeatDisplayName("W", { sideLabel: "White" })).toBe("White");
   });
 });

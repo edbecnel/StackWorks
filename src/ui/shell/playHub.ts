@@ -14,6 +14,7 @@ import {
   readShellState,
   updateShellState,
 } from "../../config/shellState";
+import { buildSessionAuthFetchInit } from "../../shared/authSessionClient";
 import type { LobbyRoomSummary } from "../../shared/onlineProtocol";
 import { getSideLabelsForRuleset } from "../../shared/sideTerminology";
 import { createTabs } from "../navigation/tabs";
@@ -106,6 +107,13 @@ type CoachGuidancePreset = {
   moveHintStyle: "classic" | "chesscom";
   emphasis: string;
   cadence: string;
+};
+
+type AuthMeResponse = {
+  ok: true;
+  user: {
+    displayName: string;
+  } | null;
 };
 
 const LAUNCHER_STORAGE_KEYS = {
@@ -245,6 +253,37 @@ function normalizeServerUrl(raw: string | null | undefined): string | null {
 function resolveConfiguredServerUrl(): string | null {
   const configured = normalizeServerUrl(readBotStorageValue(LAUNCHER_STORAGE_KEYS.onlineServerUrl));
   return configured ?? "http://localhost:8788";
+}
+
+function resolveLocalAuthServerBaseUrl(): string | null {
+  const envServerUrl = (import.meta as any)?.env?.VITE_SERVER_URL;
+  if (typeof envServerUrl === "string" && envServerUrl.trim()) {
+    return envServerUrl.trim().replace(/\/$/, "");
+  }
+  try {
+    const storedServerUrl = localStorage.getItem(LAUNCHER_STORAGE_KEYS.onlineServerUrl)?.trim() ?? "";
+    return storedServerUrl ? storedServerUrl.replace(/\/$/, "") : null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchSignedInDisplayName(): Promise<string | null> {
+  if (typeof window === "undefined" || typeof fetch !== "function") return null;
+
+  const authBaseUrl = resolveLocalAuthServerBaseUrl();
+  if (!authBaseUrl) return null;
+
+  try {
+    const authUrl = `${authBaseUrl}/api/auth/me`;
+    const res = await fetch(authUrl, buildSessionAuthFetchInit(authBaseUrl));
+    if (!res.ok) return null;
+    const body = await res.json() as AuthMeResponse;
+    const displayName = typeof body?.user?.displayName === "string" ? body.user.displayName.trim() : "";
+    return displayName || null;
+  } catch {
+    return null;
+  }
 }
 
 function getVariantMoveHintsKey(variantId: VariantId): string {
@@ -490,6 +529,36 @@ function readLegacyBotPlayState(variantId: VariantId): BotPlayState {
   };
 }
 
+function hasBotControlledSeat(state: BotPlayState | null | undefined): state is BotPlayState {
+  if (!state) return false;
+  return state.white.controller === BotControllerMode.Bot || state.black.controller === BotControllerMode.Bot;
+}
+
+function createDefaultBotPlayState(variantId: VariantId): BotPlayState {
+  const defaultLevel = getBotOptionsForVariant(variantId)[0]?.value ?? "advanced";
+  return {
+    white: {
+      controller: BotControllerMode.Human,
+      level: null,
+      persona: null,
+    },
+    black: {
+      controller: BotControllerMode.Bot,
+      level: defaultLevel,
+      persona: defaultBotPersonaForLevel(defaultLevel),
+    },
+  };
+}
+
+function resolveInitialBotPlayState(persistedState: BotPlayState | null, variantId: VariantId): BotPlayState {
+  if (hasBotControlledSeat(persistedState)) return persistedState;
+
+  const legacyState = readLegacyBotPlayState(variantId);
+  if (hasBotControlledSeat(legacyState)) return legacyState;
+
+  return createDefaultBotPlayState(variantId);
+}
+
 function writeBotPlayStateToLauncher(variantId: VariantId, state: BotPlayState): void {
   const whiteValue = state.white.controller === BotControllerMode.Bot ? state.white.level ?? "advanced" : "human";
   const blackValue = state.black.controller === BotControllerMode.Bot ? state.black.level ?? "advanced" : "human";
@@ -507,6 +576,160 @@ function writeBotPlayStateToLauncher(variantId: VariantId, state: BotPlayState):
   }
   writeLauncherValue(LAUNCHER_STORAGE_KEYS.aiWhite, whiteValue);
   writeLauncherValue(LAUNCHER_STORAGE_KEYS.aiBlack, blackValue);
+}
+
+function isCurrentPageOnlineMode(): boolean {
+  try {
+    return new URLSearchParams(window.location.search).get("mode") === "online";
+  } catch {
+    return false;
+  }
+}
+
+function getCurrentPageBotSelectors(): {
+  whiteSelect: HTMLSelectElement;
+  blackSelect: HTMLSelectElement;
+  pauseButton: HTMLButtonElement | null;
+  pausedStorageKeys: string[];
+} | null {
+  const chessWhiteSelect = document.getElementById("botWhiteSelect") as HTMLSelectElement | null;
+  const chessBlackSelect = document.getElementById("botBlackSelect") as HTMLSelectElement | null;
+  if (chessWhiteSelect && chessBlackSelect) {
+    return {
+      whiteSelect: chessWhiteSelect,
+      blackSelect: chessBlackSelect,
+      pauseButton: document.getElementById("botPauseBtn") as HTMLButtonElement | null,
+      pausedStorageKeys: ["lasca.chessbot.paused", "lasca.columnsChessBot.paused"],
+    };
+  }
+
+  const aiWhiteSelect = document.getElementById("aiWhiteSelect") as HTMLSelectElement | null;
+  const aiBlackSelect = document.getElementById("aiBlackSelect") as HTMLSelectElement | null;
+  if (aiWhiteSelect && aiBlackSelect) {
+    return {
+      whiteSelect: aiWhiteSelect,
+      blackSelect: aiBlackSelect,
+      pauseButton: document.getElementById("aiPauseBtn") as HTMLButtonElement | null,
+      pausedStorageKeys: ["lasca.ai.paused"],
+    };
+  }
+
+  return null;
+}
+
+function resolveCurrentPageBotStartAvailability(): { available: boolean; reason: string | null } {
+  if (isCurrentPageOnlineMode()) {
+    return {
+      available: false,
+      reason: "Start on this page is only available in local play. This page is currently in online mode, so use the existing online/local-bot flow or return to the launcher.",
+    };
+  }
+
+  if (getCurrentPageBotSelectors()) {
+    return { available: true, reason: null };
+  }
+
+  return {
+    available: false,
+    reason: "Start on this page is unavailable because this variant page does not expose the live bot controls needed to apply the setup directly.",
+  };
+}
+
+function resolveCurrentPageLocalBotStartAvailability(): { immediate: boolean; reason: string | null } {
+  const availability = resolveCurrentPageBotStartAvailability();
+  return {
+    immediate: availability.available,
+    reason: availability.reason,
+  };
+}
+
+export function applyBotPlayStateToCurrentPage(state: BotPlayState): boolean {
+  const selectors = getCurrentPageBotSelectors();
+  if (!selectors) return false;
+
+  // Set bot level (difficulty) selectors
+  const applySeat = (select: HTMLSelectElement, seatState: BotPlayState["white"], personaId: string): void => {
+    const desiredValue = seatState.controller === BotControllerMode.Bot ? seatState.level ?? "advanced" : "human";
+    const fallbackBotValue = Array.from(select.options)
+      .map((option) => String(option.value ?? "").trim())
+      .find((value) => value && value !== "human") ?? "human";
+    const nextValue = Array.from(select.options).some((option) => option.value === desiredValue)
+      ? desiredValue
+      : (desiredValue === "human" ? "human" : fallbackBotValue);
+    select.value = nextValue;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+
+    // Also set persona selector if present
+    const personaSelect = document.getElementById(personaId) as HTMLSelectElement | null;
+    if (personaSelect && seatState.persona) {
+      personaSelect.value = seatState.persona;
+      personaSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  };
+
+  applySeat(selectors.whiteSelect, state.white, "botWhitePersonaSelect");
+  applySeat(selectors.blackSelect, state.black, "botBlackPersonaSelect");
+
+  // Trigger player name update (if function exists globally)
+  if (typeof window.syncConfiguredPlayerNames === "function") {
+    window.syncConfiguredPlayerNames();
+  } else {
+    // Fallback: dispatch change event to trigger listeners
+    selectors.whiteSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    selectors.blackSelect.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  try {
+    for (const key of selectors.pausedStorageKeys) {
+      localStorage.setItem(key, "false");
+    }
+  } catch {
+    // ignore storage failures
+  }
+
+  const pauseButton = selectors.pauseButton;
+  if (pauseButton && !pauseButton.disabled && /resume/i.test(pauseButton.textContent ?? "")) {
+    pauseButton.click();
+  }
+
+  return true;
+}
+
+function startCurrentPageNewGame(): boolean {
+  const newGameButton = document.getElementById("newGameBtn") as HTMLButtonElement | null;
+  if (!newGameButton || newGameButton.disabled) return false;
+  newGameButton.click();
+  return true;
+}
+
+function buildCurrentVariantLocalHref(): string {
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set("mode", "local");
+    url.searchParams.delete("server");
+    url.searchParams.delete("roomId");
+    url.searchParams.delete("playerId");
+    url.searchParams.delete("watchToken");
+    url.searchParams.delete("color");
+    url.searchParams.delete("prefColor");
+    url.searchParams.delete("visibility");
+    url.searchParams.delete("create");
+    url.searchParams.delete("join");
+    url.searchParams.delete("botSeats");
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return window.location.pathname;
+  }
+}
+
+function resolveHumanSeatColor(state: BotPlayState): "W" | "B" | null {
+  const whiteHuman = state.white.controller === BotControllerMode.Human;
+  const blackHuman = state.black.controller === BotControllerMode.Human;
+  const whiteBot = state.white.controller === BotControllerMode.Bot;
+  const blackBot = state.black.controller === BotControllerMode.Bot;
+  if (whiteHuman && blackBot) return "W";
+  if (blackHuman && whiteBot) return "B";
+  return null;
 }
 
 function persistOnlineLauncherState(args: {
@@ -981,6 +1204,13 @@ function ensurePlayHubStyles(): void {
       gap: 6px;
     }
 
+    .playHubBotControllerRow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
     .playHubBotFieldLabel {
       font-size: 10px;
       letter-spacing: 0.14em;
@@ -996,6 +1226,33 @@ function ensurePlayHubStyles(): void {
       background: rgba(17, 17, 17, 0.88);
       color: rgba(255, 255, 255, 0.92);
       padding: 8px 10px;
+    }
+
+    .playHubBotControllerRow .playHubBotSelect {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .playHubBotControllerIdentity {
+      flex: 0 0 auto;
+      max-width: 100%;
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(232, 191, 112, 0.24);
+      background: rgba(202, 157, 78, 0.1);
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .playHubBotControllerIdentity[hidden] {
+      display: none;
     }
 
     .playHubBotStateNote {
@@ -1200,12 +1457,14 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
   const initialOnlineMode = ONLINE_MODE_DEFINITIONS.some((definition) => definition.id === persistedShellState.onlineSubSection)
     ? (persistedShellState.onlineSubSection as OnlineSubSection)
     : OnlineSubSection.QuickMatch;
-  let botPlayState = persistedShellState.botPlayState ?? readLegacyBotPlayState(opts.currentVariantId);
+  let botPlayState = resolveInitialBotPlayState(persistedShellState.botPlayState, opts.currentVariantId);
   let hostedRoomState: HostedRoomState = persistedShellState.hostedRoomState ?? {
     visibility: HostedRoomVisibilityMode.Public,
     ownerControl: HostedRoomOwnerControl.HostOnly,
   };
   let coachLevel: CoachLevel = persistedShellState.coachLevel ?? "beginner";
+  let signedInHumanDisplayName: string | null = null;
+  let hasRequestedSignedInHumanDisplayName = false;
 
   const root = document.createElement("section");
   root.className = "playHub";
@@ -1259,11 +1518,29 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     className: "playHubTabs",
     activeId: initialTab,
     items: [
-      { id: PlaySubSection.Online, label: "Online" },
-      { id: PlaySubSection.Bots, label: "Bots" },
-      { id: PlaySubSection.Coach, label: "Coach" },
-      { id: PlaySubSection.Local, label: "Local" },
-      ...(resumeEntries.length ? [{ id: PlaySubSection.Resume, label: "Resume" }] : []),
+      {
+        id: PlaySubSection.Online,
+        label: "Online",
+        onSelect: () => setActiveTab(PlaySubSection.Online),
+      },
+      {
+        id: PlaySubSection.Bots,
+        label: "Bots",
+        onSelect: () => setActiveTab(PlaySubSection.Bots),
+      },
+      {
+        id: PlaySubSection.Coach,
+        label: "Coach",
+        onSelect: () => setActiveTab(PlaySubSection.Coach),
+      },
+      {
+        id: PlaySubSection.Local,
+        label: "Local",
+        onSelect: () => setActiveTab(PlaySubSection.Local),
+      },
+      ...(resumeEntries.length
+        ? [{ id: PlaySubSection.Resume, label: "Resume", onSelect: () => setActiveTab(PlaySubSection.Resume) }]
+        : []),
     ],
   });
 
@@ -1690,6 +1967,14 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
   botStateNote.className = "playHubBotStateNote";
   const botActions = document.createElement("div");
   botActions.className = "playHubActions";
+  let syncBotPanel: (() => void) | null = null;
+
+  const loadSignedInHumanDisplayName = async (): Promise<void> => {
+    const nextDisplayName = await fetchSignedInDisplayName();
+    if (signedInHumanDisplayName === nextDisplayName) return;
+    signedInHumanDisplayName = nextDisplayName;
+    syncBotPanel?.();
+  };
 
   const seatBindings = ([
     { key: "white", label: sideLabels.W, description: `Choose whether ${sideLabels.W.toLowerCase()} is controlled by a person or a bot.` },
@@ -1708,12 +1993,20 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     const controllerField = document.createElement("label");
     controllerField.className = "playHubBotField";
     controllerField.innerHTML = `<span class="playHubBotFieldLabel">Controller</span>`;
+    const controllerRow = document.createElement("div");
+    controllerRow.className = "playHubBotControllerRow";
     const controllerSelect = document.createElement("select");
     controllerSelect.className = "playHubBotSelect";
     controllerSelect.dataset.botSeat = seat.key;
     controllerSelect.dataset.botField = "controller";
     controllerSelect.innerHTML = '<option value="human">Human</option><option value="bot">Bot</option>';
-    controllerField.appendChild(controllerSelect);
+    const controllerIdentity = document.createElement("span");
+    controllerIdentity.className = "playHubBotControllerIdentity";
+    controllerIdentity.dataset.botSeat = seat.key;
+    controllerIdentity.dataset.botField = "controller-identity";
+    controllerIdentity.hidden = true;
+    controllerRow.append(controllerSelect, controllerIdentity);
+    controllerField.appendChild(controllerRow);
 
     const levelField = document.createElement("label");
     levelField.className = "playHubBotField";
@@ -1749,15 +2042,23 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     card.append(header, controls);
     botSeatList.appendChild(card);
 
-    return { seat, controllerSelect, levelField, levelSelect, personaField, personaSelect };
+    return { seat, controllerSelect, controllerIdentity, levelField, levelSelect, personaField, personaSelect };
   });
 
-  const syncBotPanel = (): void => {
+  syncBotPanel = (): void => {
+    if (!hasRequestedSignedInHumanDisplayName && resolveLocalAuthServerBaseUrl()) {
+      hasRequestedSignedInHumanDisplayName = true;
+      void loadSignedInHumanDisplayName();
+    }
+
     for (const binding of seatBindings) {
       const state = botPlayState[binding.seat.key];
       binding.controllerSelect.value = state.controller;
       binding.levelSelect.value = state.level ?? botOptions[0]?.value ?? "advanced";
       binding.personaSelect.value = state.persona ?? defaultBotPersonaForLevel(state.level);
+      const controllerIdentityText = state.controller === BotControllerMode.Human ? signedInHumanDisplayName : null;
+      binding.controllerIdentity.textContent = controllerIdentityText ?? "";
+      binding.controllerIdentity.hidden = !controllerIdentityText;
       binding.levelField.hidden = state.controller !== BotControllerMode.Bot;
       binding.levelField.style.display = state.controller === BotControllerMode.Bot ? "grid" : "none";
       binding.personaField.hidden = state.controller !== BotControllerMode.Bot;
@@ -1789,10 +2090,11 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
           <p class="playHubBotProfileMeta">${persona.meta}</p>
         `;
       } else {
+        const humanDisplayName = signedInHumanDisplayName || (seatKey === "white" ? sideLabels.W : sideLabels.B);
         profile.innerHTML = `
           <div class="playHubBotProfileMeta">${seatKey === "white" ? sideLabels.W : sideLabels.B}</div>
-          <h4 class="playHubBotProfileTitle">Human-controlled seat</h4>
-          <p class="playHubBotProfileText">This seat stays with the player, while the opposite side can still run as a bot.</p>
+          <h4 class="playHubBotProfileTitle">${humanDisplayName}</h4>
+          <p class="playHubBotProfileText">${signedInHumanDisplayName ? "Signed-in local player for this seat." : "Default local human player for this seat."}</p>
         `;
       }
       botProfiles.appendChild(profile);
@@ -1807,6 +2109,82 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
       }));
       if (opts.localAction) botActions.appendChild(createAction(opts.localAction));
       return;
+    }
+
+    const localStart = resolveCurrentPageLocalBotStartAvailability();
+    botActions.appendChild(createAction({
+      label: bothBots ? "Start new offline watch match" : "Start new offline bot game",
+      description: localStart.immediate
+        ? (bothBots
+          ? "Apply these bot seats and reload the page to guarantee overlays and board fit are correct."
+          : "Apply this setup and replace the current game with a fresh offline bot game using the page's normal new-game flow.")
+        : (localStart.reason ?? "Save this setup and reload the current page into local bot play."),
+      href: !localStart.immediate || isCurrentPageOnlineMode() ? buildCurrentVariantLocalHref() : undefined,
+      onSelect: () => {
+        // Always persist the latest bot settings to both localStorage and shell state before reload
+        writeLauncherValue(LAUNCHER_STORAGE_KEYS.playMode, "local");
+        writeBotPlayStateToLauncher(opts.currentVariantId, botPlayState);
+        updateShellState({
+          activeGame: opts.currentVariantId,
+          activeSection: GlobalSection.Games,
+          playSubSection: PlaySubSection.Bots,
+          botPlayState,
+        });
+        if (bothBots && localStart.immediate && !isCurrentPageOnlineMode()) {
+          // Force a full reload to guarantee overlays and board fit are correct (matches manual refresh)
+          window.location.reload();
+          return;
+        }
+        if (localStart.immediate && !isCurrentPageOnlineMode()) {
+          if (applyBotPlayStateToCurrentPage(botPlayState)) {
+            startCurrentPageNewGame();
+          }
+        }
+      },
+    }));
+
+    const humanSeatColor = resolveHumanSeatColor(botPlayState);
+    if (humanSeatColor) {
+      botActions.appendChild(createAction({
+        label: "Start online bot room here",
+        description: "Create a new online room on this variant page with the human seat local and the opposite seat configured as a local bot.",
+        href: buildCurrentVariantOnlineHref({
+          action: "create",
+          serverUrl: configuredServerUrl,
+          prefColor: humanSeatColor,
+          visibility: "public",
+        }),
+        onSelect: () => {
+          // Assign the bot seat as a local bot for this client before creating the room.
+          // This ensures hasConfiguredOnlineLocalBot returns true and the bot manager is started.
+          writeBotPlayStateToLauncher(opts.currentVariantId, botPlayState);
+          // Save a local seat record for the bot seat so the driver knows this client controls it.
+          try {
+            const serverUrl = configuredServerUrl;
+            const roomId = localStorage.getItem(LAUNCHER_STORAGE_KEYS.onlineRoomId) || "";
+            const localSeatPlayerIdsByColor = { W: null, B: null };
+            // Assign the bot seat to this client (opposite of humanSeatColor)
+            const botColor = humanSeatColor === "W" ? "B" : "W";
+            localSeatPlayerIdsByColor[botColor] = "local-bot";
+            window.localStorage.setItem(
+              `stackworks.online.localSeat.${serverUrl}.${roomId}`,
+              JSON.stringify({ serverUrl, roomId, localSeatPlayerIdsByColor, savedAtMs: Date.now() })
+            );
+          } catch {}
+          updateShellState({
+            activeGame: opts.currentVariantId,
+            activeSection: GlobalSection.Games,
+            playSubSection: PlaySubSection.Bots,
+            botPlayState,
+          });
+        },
+      }));
+    } else if (bothBots) {
+      botActions.appendChild(createAction({
+        label: "Start online bot room unavailable",
+        description: "Online bot rooms currently support a local human plus one configured local bot seat. Bot-vs-bot online broadcast mode is still not implemented.",
+        disabled: true,
+      }));
     }
 
     if (bothBots) {
@@ -1892,7 +2270,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
   }
 
   syncBotPanel();
-  botsPanel.append(botSeatList, botProfiles, botStateNote, botActions);
+  botsPanel.append(botStateNote, botActions, botSeatList, botProfiles);
   panels.set(PlaySubSection.Bots, botsPanel);
 
   const coachPanel = document.createElement("div");
@@ -2034,11 +2412,23 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
         description: entry.description,
         href: entry.href,
         onSelect: () => {
-          updateShellState({
-            activeGame: opts.currentVariantId,
-            activeSection: GlobalSection.Community,
-            playSubSection: PlaySubSection.Online,
-          });
+          // If this is a local/offline game, trigger a true new game initialization
+          // by applying the current bot/player settings and starting a new game.
+          // Otherwise, fall back to the default resume logic for online games.
+          const isOffline = !entry.serverUrl || entry.serverUrl === "local" || entry.serverUrl === "";
+          if (isOffline) {
+            // Apply current bot/player settings (preserve user config)
+            writeLauncherValue(LAUNCHER_STORAGE_KEYS.playMode, "local");
+            writeBotPlayStateToLauncher(opts.currentVariantId, botPlayState);
+            // Force a full reload to guarantee overlays and board fit are correct (matches manual refresh)
+            window.location.reload();
+          } else {
+            updateShellState({
+              activeGame: opts.currentVariantId,
+              activeSection: GlobalSection.Community,
+              playSubSection: PlaySubSection.Online,
+            });
+          }
         },
       }));
     }

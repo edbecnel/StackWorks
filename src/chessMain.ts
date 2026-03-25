@@ -67,7 +67,12 @@ import {
   installBoardViewportOptionUI,
   readBoardViewportMode,
 } from "./ui/boardViewportMode";
-import { resolveConfiguredLocalPlayerName } from "./shared/localPlayerNames";
+import {
+  fetchSignedInLocalDisplayName,
+  hasAnyLocalBotSide,
+  resolveActiveLocalSeatDisplayNames,
+  resolveConfiguredLocalPlayerName,
+} from "./shared/localPlayerNames";
 import { readOpenVariantPageOnlinePreview } from "./shared/openVariantPageIntent";
 import { resolveExportPlayerName } from "./shared/playerExportNames";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
@@ -155,6 +160,9 @@ function deriveLegacyChessMovePreviewMode(): ChessMovePreviewMode {
   const highlightSquaresEnabled = readOptionalBoolPref(LS_OPT_KEYS.highlightSquares) ?? false;
   return highlightSquaresEnabled ? "stackworks-squares" : "stackworks";
 }
+
+import { readShellState } from "./config/shellState";
+import { applyBotPlayStateToCurrentPage } from "./ui/shell/playHub";
 
 window.addEventListener("DOMContentLoaded", async () => {
   const variant = getVariantById(ACTIVE_VARIANT_ID);
@@ -350,21 +358,23 @@ window.addEventListener("DOMContentLoaded", async () => {
       clipEl = document.createElementNS(SVG_NS, "clipPath") as SVGClipPathElement;
       clipEl.id = "playerNameClip";
       const r = document.createElementNS(SVG_NS, "rect") as SVGRectElement;
+      const verticalPadding = PLAYER_NAME_FONT_SIZE;
       // In playable mode, the viewBox is already cropped to the squares span.
       // In framed mode, we still clip to the viewBox so names stay inside the board.
       r.setAttribute("x", String(vb.x));
-      r.setAttribute("y", String(vb.y));
+      r.setAttribute("y", String(vb.y - verticalPadding));
       r.setAttribute("width", String(vb.w));
-      r.setAttribute("height", String(vb.h));
+      r.setAttribute("height", String(vb.h + verticalPadding * 2));
       clipEl.appendChild(r);
       defs.appendChild(clipEl);
     } else {
       const r = clipEl.querySelector("rect") as SVGRectElement | null;
       if (r) {
+        const verticalPadding = PLAYER_NAME_FONT_SIZE;
         r.setAttribute("x", String(vb.x));
-        r.setAttribute("y", String(vb.y));
+        r.setAttribute("y", String(vb.y - verticalPadding));
         r.setAttribute("width", String(vb.w));
-        r.setAttribute("height", String(vb.h));
+        r.setAttribute("height", String(vb.h + verticalPadding * 2));
       }
     }
 
@@ -428,9 +438,9 @@ window.addEventListener("DOMContentLoaded", async () => {
         boardSize: variant.boardSize,
         // Small top strip is OK because the HUD badges are positioned very close
         // to the board edge in playable mode.
-        reservedTop: 52,
+        reservedTop: namesShown ? 62 : 52,
         // Bottom only needs to be large enough for the bottom name when shown.
-        reservedBottom: namesShown ? 44 : 12,
+        reservedBottom: namesShown ? 62 : 12,
       });
     } else {
       // Leaving playable-area mode: restore the original viewBox + outer chrome.
@@ -579,6 +589,44 @@ window.addEventListener("DOMContentLoaded", async () => {
     updatePlayerNameDisplay();
   };
 
+  let signedInHumanDisplayName: string | null = null;
+  let hasRequestedSignedInHumanDisplayName = false;
+
+  const syncConfiguredPlayerNames = (): void => {
+    if (driver.mode === "online") {
+      // Use online identities for player names in online mode.
+      const onlineIdentities = (driver as OnlineGameDriver).getIdentityByColor?.();
+      // Fallback to preview names if available (e.g. before room fully loads)
+      const preview = readOpenVariantPageOnlinePreview(ACTIVE_VARIANT_ID);
+      const w = (onlineIdentities?.W?.displayName || preview?.names.W || "").trim();
+      const b = (onlineIdentities?.B?.displayName || preview?.names.B || "").trim();
+      setPlayerNames(w, b);
+      return;
+    }
+    const openVariantPageOnlinePreview = readOpenVariantPageOnlinePreview(ACTIVE_VARIANT_ID);
+    if (openVariantPageOnlinePreview) {
+      setPlayerNames(openVariantPageOnlinePreview.names.W ?? "", openVariantPageOnlinePreview.names.B ?? "");
+      return;
+    }
+    // Always resolve local seat display names, which handles bot persona names for bot seats.
+    const names = resolveActiveLocalSeatDisplayNames({
+      root: document,
+      signedInDisplayName: signedInHumanDisplayName,
+      sideLabels: { W: "White", B: "Black" },
+    });
+    setPlayerNames(names.W, names.B);
+  };
+
+  const maybeLoadSignedInHumanDisplayName = (): void => {
+    if (driver.mode === "online" || hasRequestedSignedInHumanDisplayName || !hasAnyLocalBotSide(document)) return;
+    hasRequestedSignedInHumanDisplayName = true;
+    void fetchSignedInLocalDisplayName().then((nextDisplayName) => {
+      if (signedInHumanDisplayName === nextDisplayName) return;
+      signedInHumanDisplayName = nextDisplayName;
+      syncConfiguredPlayerNames();
+    });
+  };
+
   // Apply initial disabled state (no names known yet at load time).
   syncShowPlayerNamesUI();
 
@@ -708,6 +756,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   hudController = controller;
   controller.bind();
   shell.bindController(controller);
+  // Force overlay and board fit sync after binding controller (fixes missing player names/board sizing on resume)
+  if (typeof shell.syncPanels === "function") shell.syncPanels();
+  window.dispatchEvent(new Event("resize"));
   const startupMsg = consumeStartupMessage();
   if (startupMsg) controller.showStartupMessage(startupMsg);
   // Reveal the board only after the shell has placed player panels and fitted
@@ -747,6 +798,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
 
   bindStartPageConfirm(controller, ACTIVE_VARIANT_ID);
+
   installPlayerBotSelector({
     storageSelectId: "botWhiteSelect",
     roleSelectId: "botWhiteRoleSelect",
@@ -759,6 +811,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     levelSelectId: "botBlackLevelSelect",
     levelWrapId: "botBlackLevelWrap",
   });
+
+
 
   const onlineLocalBotEnabled =
     driver.mode === "online" && hasConfiguredOnlineLocalBot({ driver: driver as OnlineGameDriver, variantId: ACTIVE_VARIANT_ID });
@@ -790,17 +844,64 @@ window.addEventListener("DOMContentLoaded", async () => {
       syncPlayerBotSelector("botWhiteSelect");
       syncPlayerBotSelector("botBlackSelect");
     }
+
+    // --- PATCH: Always apply persisted bot settings from shell state after bot manager is initialized ---
+    setTimeout(() => {
+      try {
+        const shellState = readShellState();
+        if (shellState?.botPlayState) {
+          applyBotPlayStateToCurrentPage(shellState.botPlayState);
+          // --- PATCH: Pause bot and show sticky toast if needed ---
+          if (bot && typeof bot.setPaused === "function" && typeof bot.schedulePausedTurnToastSync === "function") {
+            // Check if a bot is enabled and it's a new game
+            const settings = bot.settings || (bot.loadSettings && bot.loadSettings());
+            const anyBot = settings && (settings.white !== "human" || settings.black !== "human");
+            const isAtNewGame = bot.isAtNewGame ? bot.isAtNewGame() : false;
+            if (anyBot && isAtNewGame) {
+              bot.setPaused(true);
+              bot.schedulePausedTurnToastSync();
+            }
+          }
+          // --- PATCH: Re-sync player names after persona is written ---
+          if (typeof window.syncConfiguredPlayerNames === "function") {
+            window.syncConfiguredPlayerNames();
+          }
+        }
+      } catch {}
+    }, 0);
     return b;
   })() : null;
 
-  // Apply start-page player name prefs to the SVG name overlay (offline only).
-  if (driver.mode !== "online") {
-    try {
-      const openVariantPageOnlinePreview = readOpenVariantPageOnlinePreview(ACTIVE_VARIANT_ID);
-      const nameLight = openVariantPageOnlinePreview?.names.W ?? (localStorage.getItem("lasca.local.nameLight")?.trim() ?? "");
-      const nameDark = openVariantPageOnlinePreview?.names.B ?? (localStorage.getItem("lasca.local.nameDark")?.trim() ?? "");
-      if (nameLight || nameDark) setPlayerNames(nameLight, nameDark);
-    } catch { /* ignore */ }
+
+
+  // Always apply player name overlays and reserve space for overlays, regardless of mode.
+  try {
+    if (driver.mode === "online") {
+      // For online games, set player names from online identities if available.
+      const onlineIdentities = (driver as any).getIdentityByColor?.();
+      if (onlineIdentities) {
+        playerWhiteName = onlineIdentities.W?.displayName?.trim() || "";
+        playerBlackName = onlineIdentities.B?.displayName?.trim() || "";
+      }
+    } else {
+      // Always resolve local seat display names, which handles bot persona names for bot seats (including 2-bot watch mode).
+      const names = resolveActiveLocalSeatDisplayNames({
+        root: document,
+        signedInDisplayName: signedInHumanDisplayName,
+        sideLabels: { W: "White", B: "Black" },
+      });
+      playerWhiteName = names.W;
+      playerBlackName = names.B;
+    }
+    updatePlayerNameDisplay();
+  } catch { /* ignore */ }
+
+  for (const selector of ["#botWhiteSelect", "#botBlackSelect"]) {
+    const control = document.querySelector(selector) as HTMLSelectElement | null;
+    control?.addEventListener("change", () => {
+      syncConfiguredPlayerNames();
+      maybeLoadSignedInHumanDisplayName();
+    });
   }
 
   bindChessEvaluationPanel(controller, bot);

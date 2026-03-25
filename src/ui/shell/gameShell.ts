@@ -8,7 +8,7 @@ import type { GameController } from "../../controller/gameController";
 import type { Player, PlayerIdentity, PlayerShellSnapshot } from "../../types";
 import type { VariantId } from "../../variants/variantTypes";
 import { buildSessionAuthFetchInit } from "../../shared/authSessionClient";
-import { isLocalBotSide } from "../../shared/localPlayerNames";
+import { hasAnyLocalBotSide, isLocalBotSide, resolveActiveLocalSeatDisplayNames } from "../../shared/localPlayerNames";
 import { readOpenVariantPageOnlinePreview } from "../../shared/openVariantPageIntent";
 
 export interface GameShellNavItem {
@@ -1499,7 +1499,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     const localIdentityOverrides: Partial<Record<Player, Partial<PlayerIdentity>>> = {};
 
     // Local start-page names should only seed offline/local shells.
-    if (initialSnapshot.mode === "local" && !openVariantPageOnlinePreview) {
+    if (initialSnapshot.mode === "local" && !openVariantPageOnlinePreview && !hasAnyLocalBotSide(opts.appRoot)) {
       try {
         const nameLight = localStorage.getItem("lasca.local.nameLight")?.trim() ?? "";
         const nameDark = localStorage.getItem("lasca.local.nameDark")?.trim() ?? "";
@@ -1571,15 +1571,33 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
         nextPlayers[color] = { ...nextPlayers[color], ...override };
       }
       if (snapshot.mode === "local") {
+        if (hasAnyLocalBotSide(opts.appRoot)) {
+          const nextNames = resolveActiveLocalSeatDisplayNames({
+            root: opts.appRoot,
+            signedInDisplayName: localViewerIdentityOverride?.displayName ?? null,
+            sideLabels: {
+              W: nextPlayers.W.sideLabel,
+              B: nextPlayers.B.sideLabel,
+            },
+            fallbackDisplayNames: {
+              W: nextPlayers.W.displayName,
+              B: nextPlayers.B.displayName,
+            },
+          });
+          nextPlayers.W = { ...nextPlayers.W, displayName: nextNames.W };
+          nextPlayers.B = { ...nextPlayers.B, displayName: nextNames.B };
+        }
+
         if (openVariantPageOnlinePreview) {
           for (const color of ["W", "B"] as const) {
             const identity = nextPlayers[color];
             const isLocal = color === openVariantPageOnlinePreview.localColor;
+            const previewRole = openVariantPageOnlinePreview.roles[color] ?? (isLocal ? "human" : "human");
             nextPlayers[color] = {
               ...identity,
-              roleLabel: `${isLocal ? "You" : "Opponent"} · ${identity.sideLabel}`,
-              ...(isLocal ? { viewerTag: "You" } : {}),
-              isLocal,
+              roleLabel: `${isLocal ? "You" : previewRole === "bot" ? "Bot" : "Opponent"} · ${identity.sideLabel}`,
+              ...(isLocal ? { viewerTag: "You" } : previewRole === "bot" ? { viewerTag: "Bot" } : {}),
+              isLocal: isLocal && previewRole !== "bot",
             };
           }
 
@@ -1722,6 +1740,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     const rightSidebar = opts.appRoot.querySelector("#rightSidebar") as HTMLElement | null;
     if (!leftSidebar || !rightSidebar) return;
     if (leftSidebar.dataset.gameShellEnhanced === "1" && rightSidebar.dataset.gameShellEnhanced === "1") return;
+    let revealLegacyTargetPanels: (() => void) | null = null;
 
     const createPairTabs = (): { root: HTMLDivElement; legacyBtn: HTMLButtonElement; shellBtn: HTMLButtonElement } => {
       const root = document.createElement("div");
@@ -1815,6 +1834,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
 
       const openNavItemTarget = (item: GameShellNavItem): void => {
         if (item.targetSelector) {
+          revealLegacyTargetPanels?.();
           const target = document.querySelector(item.targetSelector) as HTMLElement | null;
           target?.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
         }
@@ -1879,6 +1899,15 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
         const actionList = document.createElement("div");
         actionList.className = "gameShellDesktopActionList";
         actionList.appendChild(createSectionActionButton(item));
+
+        const backToPlayHubButton = document.createElement("button");
+        backToPlayHubButton.type = "button";
+        backToPlayHubButton.className = "gameShellDesktopActionButton";
+        backToPlayHubButton.innerHTML = '<span class="gameShellDesktopActionLabel">Back to Play Hub</span><span class="gameShellDesktopActionDescription">Return to the main Play Hub actions for this game.</span>';
+        backToPlayHubButton.addEventListener("click", () => {
+          setActiveSection("play");
+        });
+        actionList.appendChild(backToPlayHubButton);
 
         if (item.id === "rules" && opts.helpHref) {
           const helpLink = document.createElement("a");
@@ -2015,6 +2044,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
         button.setAttribute("aria-pressed", isActive ? "true" : "false");
       }
     };
+    revealLegacyTargetPanels = () => applyMode("legacy");
 
     for (const button of [leftTabs.legacyBtn, rightTabs.legacyBtn]) {
       button.addEventListener("click", () => applyMode("legacy"));

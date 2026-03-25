@@ -103,6 +103,46 @@ describe("initGameShell desktop shell navigation", () => {
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
   });
 
+  it("reveals legacy target panels from shell action cards and offers a path back to Play Hub", () => {
+    localStorage.setItem("stackworks.gameShell.desktopPanelMode", "shell");
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+
+    initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Desktop shell test",
+      gameSection: GameSection.Play,
+      navItems: [
+        { id: "play", label: "Play", targetSelector: "#appRoot" },
+        { id: "status", label: "Status", targetSelector: '#leftSidebar .panelSection[data-section="status"]' },
+      ],
+    });
+
+    const statusNavButton = Array.from(document.querySelectorAll(".gameShellDesktopNavButton")).find((button) =>
+      button.textContent?.includes("Status"),
+    ) as HTMLButtonElement | undefined;
+    statusNavButton?.click();
+
+    const backButton = Array.from(document.querySelectorAll(".gameShellDesktopActionButton")).find((button) =>
+      button.textContent?.includes("Back to Play Hub"),
+    ) as HTMLButtonElement | undefined;
+    expect(backButton).toBeDefined();
+
+    const openStatusButton = Array.from(document.querySelectorAll(".gameShellDesktopActionButton")).find((button) =>
+      button.textContent?.includes("Open status panel"),
+    ) as HTMLButtonElement | undefined;
+    openStatusButton?.click();
+
+    expect((document.getElementById("leftSidebar") as HTMLElement).dataset.gameShellPanelMode).toBe("legacy");
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+
+    backButton?.click();
+
+    expect(document.querySelector('.gameShellDesktopSectionPanel.isActive[data-section-id="play"]')).not.toBeNull();
+  });
+
   it("uses the brand icon as a Start Page link in both shell header treatments", () => {
     const appRoot = document.getElementById("appRoot") as HTMLElement;
 
@@ -347,6 +387,8 @@ describe("initGameShell desktop shell navigation", () => {
   });
 
   it("labels a local bot-controlled side as Bot instead of You", async () => {
+    localStorage.setItem("stackworks.bot.whitePersona", "teacher");
+
     document.body.innerHTML = `
       <div id="host">
         <div id="appRoot">
@@ -424,11 +466,95 @@ describe("initGameShell desktop shell navigation", () => {
     await Promise.resolve();
 
     const roles = Array.from(document.querySelectorAll(".gameShellPlayerRole")).map((el) => el.textContent?.trim());
+    const names = Array.from(document.querySelectorAll(".gameShellPlayerName")).map((el) => el.textContent?.trim());
     const metaChips = Array.from(document.querySelectorAll(".gameShellPlayerMetaChip")).map((el) => el.textContent?.trim());
 
     expect(fetchMock).toHaveBeenCalled();
+    expect(names).toContain("Teacher bot");
+    expect(names).toContain("Local Account");
     expect(roles.at(-1)).toBe("Bot · White");
     expect(metaChips).toContain("Bot");
+  });
+
+  it("falls back to the human side label in the shell bars when a bot game has no signed-in user", async () => {
+    localStorage.setItem("stackworks.bot.whitePersona", "teacher");
+
+    document.body.innerHTML = `
+      <div id="host">
+        <div id="appRoot">
+          <div id="leftSidebar" class="sidebar"><div class="sidebarBody"></div></div>
+          <div id="centerArea">
+            <div id="boardWrap">
+              <svg viewBox="0 0 1000 1000"></svg>
+            </div>
+            <select id="aiWhiteSelect"><option value="human">Human</option><option value="easy" selected>Easy</option></select>
+            <select id="aiBlackSelect"><option value="human" selected>Human</option><option value="easy">Easy</option></select>
+          </div>
+          <div id="rightSidebar" class="sidebar"><div class="sidebarBody"></div></div>
+        </div>
+      </div>
+    `;
+
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ ok: true, user: null }) })));
+
+    const snapshot: PlayerShellSnapshot = {
+      mode: "local",
+      transportStatus: "connected",
+      serverUrl: null,
+      viewerColor: null,
+      viewerRole: "offline",
+      players: {
+        W: {
+          color: "W",
+          displayName: "White",
+          sideLabel: "White",
+          roleLabel: "Local match",
+          detailText: "To move.",
+          status: "offline",
+          statusText: "Local play",
+          isLocal: false,
+          isActiveTurn: true,
+        },
+        B: {
+          color: "B",
+          displayName: "Black",
+          sideLabel: "Black",
+          roleLabel: "Local match",
+          detailText: "Waiting for the next turn.",
+          status: "offline",
+          statusText: "Local play",
+          isLocal: false,
+          isActiveTurn: false,
+        },
+      },
+    };
+
+    const controller = {
+      getPlayerShellSnapshot: () => snapshot,
+      addHistoryChangeCallback: vi.fn(),
+      addShellSnapshotChangeCallback: vi.fn(),
+      addAnalysisModeChangeCallback: vi.fn(),
+    };
+
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+    const shell = initGameShell({
+      appRoot,
+      variantId: "checkers_8_us",
+      breadcrumb: "Play / Checkers",
+      title: "Checkers",
+      subtitle: "Local bot fallback shell test",
+      gameSection: GameSection.Play,
+      navItems: [],
+    });
+
+    shell.bindController(controller as any);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const names = Array.from(document.querySelectorAll(".gameShellPlayerName")).map((el) => el.textContent?.trim());
+
+    expect(names).toContain("Teacher bot");
+    expect(names).toContain("Black");
   });
 
   it("updates the active-turn chip when the shell snapshot flips turns", async () => {
@@ -873,11 +999,11 @@ describe("initGameShell desktop shell navigation", () => {
     expect(names).not.toContain("Delaila");
   });
 
-  it("uses online preview identities for a plain variant page opened from online mode", async () => {
+  it("uses online preview bot identities for a plain variant page opened from online mode", async () => {
     localStorage.setItem("lasca.local.nameLight", "EdB");
-    localStorage.setItem("lasca.local.nameDark", "Twinkle");
     localStorage.setItem("lasca.chessbot.white", "human");
-    localStorage.setItem("lasca.chessbot.black", "human");
+    localStorage.setItem("lasca.chessbot.black", "easy");
+    localStorage.setItem("stackworks.bot.blackPersona", "teacher");
     localStorage.setItem("lasca.online.seatOwnerLight", "local");
     localStorage.setItem("lasca.online.seatOwnerDark", "remote");
     saveOpenVariantPageIntent({ variantId: "chess_classic", playMode: "online" });
@@ -949,8 +1075,10 @@ describe("initGameShell desktop shell navigation", () => {
     await Promise.resolve();
 
     const names = Array.from(document.querySelectorAll(".gameShellPlayerName")).map((el) => el.textContent?.trim());
+    const roles = Array.from(document.querySelectorAll(".gameShellPlayerRole")).map((el) => el.textContent?.trim());
     expect(names).toContain("EdB");
-    expect(names).toContain("Online player");
-    expect(names).not.toContain("Twinkle");
+    expect(names).toContain("Teacher bot");
+    expect(names).not.toContain("Online player");
+    expect(roles).toContain("Bot · Black");
   });
 });

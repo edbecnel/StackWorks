@@ -113,6 +113,26 @@ describe("createPlayHub", () => {
     expect(document.querySelector('.playHubOnlineModePanel.isActive .playHubOnlineModeTitle')?.textContent).toBe("Hosted Rooms");
   });
 
+  it("switches the rendered panel when the user clicks the Bots tab", () => {
+    const hub = createPlayHub({
+      currentVariantId: "chess_classic",
+      backHref: "/",
+    });
+
+    document.body.appendChild(hub.element);
+
+    const botsTab = Array.from(document.querySelectorAll('.playHub > .stackworksTabs[role="tablist"] [role="tab"]')).find((tab) =>
+      tab.textContent?.trim() === "Bots",
+    ) as HTMLButtonElement | undefined;
+
+    botsTab?.click();
+
+    expect(document.querySelectorAll('.playHubPanel.isActive [data-bot-field="controller"]')).toHaveLength(2);
+
+    const persistedState = JSON.parse(localStorage.getItem("stackworks.shell.state") ?? "{}") as Record<string, unknown>;
+    expect(persistedState.playSubSection).toBe("bots");
+  });
+
   it("wires Play a Friend to a private online launcher configuration", () => {
     const hub = createPlayHub({
       currentVariantId: "chess_classic",
@@ -192,7 +212,7 @@ describe("createPlayHub", () => {
           },
           {
             roomId: "def456",
-            variantId: "lasca",
+            variantId: "lasca_7_classic",
             visibility: "public",
             status: "waiting",
             hostDisplayName: "Other Variant",
@@ -258,6 +278,170 @@ describe("createPlayHub", () => {
     expect(persistedState.playSubSection).toBe("local");
   });
 
+  it("can start the configured chess bot match on the current page", () => {
+    document.body.innerHTML = `
+      <select id="botWhiteSelect">
+        <option value="human">Human</option>
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+      </select>
+      <select id="botBlackSelect">
+        <option value="human">Human</option>
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+      </select>
+      <button id="botPauseBtn" type="button">Resume bot</button>
+      <button id="newGameBtn" type="button">New Game</button>
+    `;
+    const whiteSelect = document.getElementById("botWhiteSelect") as HTMLSelectElement;
+    const blackSelect = document.getElementById("botBlackSelect") as HTMLSelectElement;
+    const pauseButton = document.getElementById("botPauseBtn") as HTMLButtonElement;
+    const newGameButton = document.getElementById("newGameBtn") as HTMLButtonElement;
+    const whiteChange = vi.fn();
+    const blackChange = vi.fn();
+    const pauseClick = vi.fn();
+    const newGameClick = vi.fn();
+    whiteSelect.addEventListener("change", whiteChange);
+    blackSelect.addEventListener("change", blackChange);
+    pauseButton.addEventListener("click", pauseClick);
+    newGameButton.addEventListener("click", newGameClick);
+
+    const hub = createPlayHub({
+      currentVariantId: "chess_classic",
+      backHref: "/start",
+    });
+
+    document.body.appendChild(hub.element);
+    hub.setActiveTab(PlaySubSection.Bots);
+
+    const startAction = Array.from(document.querySelectorAll(".playHubAction")).find((element) =>
+      element.textContent?.includes("Start new offline bot game"),
+    ) as HTMLButtonElement | undefined;
+
+    startAction?.click();
+
+    expect(whiteSelect.value).toBe("human");
+    expect(blackSelect.value).toBe("easy");
+    expect(whiteChange).toHaveBeenCalledTimes(1);
+    expect(blackChange).toHaveBeenCalledTimes(1);
+    expect(pauseClick).toHaveBeenCalledTimes(1);
+    expect(newGameClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("can start the configured generic ai match on the current page", () => {
+    document.body.innerHTML = `
+      <select id="aiWhiteSelect">
+        <option value="human">Human</option>
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+      </select>
+      <select id="aiBlackSelect">
+        <option value="human">Human</option>
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+      </select>
+      <button id="aiPauseBtn" type="button">Resume AI</button>
+      <button id="newGameBtn" type="button">New Game</button>
+    `;
+    const whiteSelect = document.getElementById("aiWhiteSelect") as HTMLSelectElement;
+    const blackSelect = document.getElementById("aiBlackSelect") as HTMLSelectElement;
+    const pauseButton = document.getElementById("aiPauseBtn") as HTMLButtonElement;
+    const newGameButton = document.getElementById("newGameBtn") as HTMLButtonElement;
+    const whiteChange = vi.fn();
+    const blackChange = vi.fn();
+    const pauseClick = vi.fn();
+    const newGameClick = vi.fn();
+    whiteSelect.addEventListener("change", whiteChange);
+    blackSelect.addEventListener("change", blackChange);
+    pauseButton.addEventListener("click", pauseClick);
+    newGameButton.addEventListener("click", newGameClick);
+
+    const hub = createPlayHub({
+      currentVariantId: "lasca_7_classic",
+      backHref: "/start",
+    });
+
+    document.body.appendChild(hub.element);
+    hub.setActiveTab(PlaySubSection.Bots);
+
+    const startAction = Array.from(document.querySelectorAll(".playHubAction")).find((element) =>
+      element.textContent?.includes("Start new offline bot game"),
+    ) as HTMLButtonElement | undefined;
+
+    startAction?.click();
+
+    expect(whiteSelect.value).toBe("human");
+    expect(blackSelect.value).toBe("easy");
+    expect(whiteChange).toHaveBeenCalledTimes(1);
+    expect(blackChange).toHaveBeenCalledTimes(1);
+    expect(pauseClick).toHaveBeenCalledTimes(1);
+    expect(newGameClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers an online bot room action for human-versus-bot setups", () => {
+    window.history.replaceState({}, "", "/chess.html?mode=local");
+
+    const hub = createPlayHub({
+      currentVariantId: "chess_classic",
+      backHref: "/start",
+    });
+
+    document.body.appendChild(hub.element);
+    hub.setActiveTab(PlaySubSection.Bots);
+
+    const onlineAction = Array.from(document.querySelectorAll(".playHubAction")).find((element) =>
+      element.textContent?.includes("Start online bot room here"),
+    ) as HTMLAnchorElement | undefined;
+
+    expect(onlineAction).toBeTruthy();
+    expect(onlineAction?.getAttribute("href")).toContain("mode=online");
+    expect(onlineAction?.getAttribute("href")).toContain("create=1");
+    expect(onlineAction?.getAttribute("href")).toContain("prefColor=W");
+    expect(onlineAction?.getAttribute("href")).not.toContain("botSeats=off");
+  });
+
+  it("defaults Play Bots to human versus bot when no bot setup exists", () => {
+    localStorage.setItem("lasca.chessbot.white", "human");
+    localStorage.setItem("lasca.chessbot.black", "human");
+
+    const hub = createPlayHub({
+      currentVariantId: "chess_classic",
+      backHref: "/start",
+    });
+
+    document.body.appendChild(hub.element);
+    hub.setActiveTab(PlaySubSection.Bots);
+
+    const controllerSelects = Array.from(document.querySelectorAll('[data-bot-field="controller"]')) as HTMLSelectElement[];
+    const levelSelects = Array.from(document.querySelectorAll('[data-bot-field="level"]')) as HTMLSelectElement[];
+
+    expect(controllerSelects).toHaveLength(2);
+    expect(controllerSelects[0]?.value).toBe("human");
+    expect(controllerSelects[1]?.value).toBe("bot");
+    expect(levelSelects[1]?.value).toBe("easy");
+    expect(document.querySelector(".playHubBotStateTitle")?.textContent).toContain("Two-seat bot setup");
+  });
+
+  it("preserves an existing bot-controlled setup instead of forcing the default", () => {
+    localStorage.setItem("lasca.chessbot.white", "easy");
+    localStorage.setItem("lasca.chessbot.black", "human");
+
+    const hub = createPlayHub({
+      currentVariantId: "chess_classic",
+      backHref: "/start",
+    });
+
+    document.body.appendChild(hub.element);
+    hub.setActiveTab(PlaySubSection.Bots);
+
+    const controllerSelects = Array.from(document.querySelectorAll('[data-bot-field="controller"]')) as HTMLSelectElement[];
+    const levelSelects = Array.from(document.querySelectorAll('[data-bot-field="level"]')) as HTMLSelectElement[];
+
+    expect(controllerSelects[0]?.value).toBe("bot");
+    expect(controllerSelects[1]?.value).toBe("human");
+    expect(levelSelects[0]?.value).toBe("easy");
+  });
+
   it("persists independent bot personalities per seat", () => {
     const hub = createPlayHub({
       currentVariantId: "chess_classic",
@@ -279,6 +463,99 @@ describe("createPlayHub", () => {
     const botPlayState = normalizeBotPlayState(persistedState.botPlayState);
     expect(botPlayState?.white.persona).toBe("endgame");
     expect(document.querySelectorAll(".playHubBotProfileTitle")[0]?.textContent).toContain("Endgame bot");
+  });
+
+  it("shows the signed-in user name for human bot-profile seats", async () => {
+    localStorage.setItem("lasca.online.serverUrl", "http://localhost:8788");
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ ok: true, user: { displayName: "Local Account" } }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const hub = createPlayHub({
+      currentVariantId: "chess_classic",
+      backHref: "/start",
+    });
+
+    document.body.appendChild(hub.element);
+    hub.setActiveTab(PlaySubSection.Bots);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const titles = Array.from(document.querySelectorAll(".playHubBotProfileTitle")).map((element) => element.textContent?.trim() ?? "");
+    expect(titles).toContain("Local Account");
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:8788/api/auth/me", { credentials: "include" });
+  });
+
+  it("shows the signed-in user name beside a Human controller dropdown", async () => {
+    localStorage.setItem("lasca.online.serverUrl", "http://localhost:8788");
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ ok: true, user: { displayName: "Local Account" } }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const hub = createPlayHub({
+      currentVariantId: "chess_classic",
+      backHref: "/start",
+    });
+
+    document.body.appendChild(hub.element);
+    hub.setActiveTab(PlaySubSection.Bots);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const identities = Array.from(document.querySelectorAll('[data-bot-field="controller-identity"]')) as HTMLSpanElement[];
+    expect(identities[0]?.textContent?.trim()).toBe("Local Account");
+    expect(identities[0]?.hidden).toBe(false);
+    expect(identities[1]?.hidden).toBe(true);
+  });
+
+  it("does not show the controller identity chip when that seat is set to Bot", async () => {
+    localStorage.setItem("lasca.online.serverUrl", "http://localhost:8788");
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ ok: true, user: { displayName: "Local Account" } }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const hub = createPlayHub({
+      currentVariantId: "chess_classic",
+      backHref: "/start",
+    });
+
+    document.body.appendChild(hub.element);
+    hub.setActiveTab(PlaySubSection.Bots);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const controllerSelects = Array.from(document.querySelectorAll('[data-bot-field="controller"]')) as HTMLSelectElement[];
+    controllerSelects[0].value = "bot";
+    controllerSelects[0].dispatchEvent(new Event("change", { bubbles: true }));
+
+    const identities = Array.from(document.querySelectorAll('[data-bot-field="controller-identity"]')) as HTMLSpanElement[];
+    expect(identities[0]?.hidden).toBe(true);
+    expect(getComputedStyle(identities[0]).display).toBe("none");
+  });
+
+  it("falls back to the default human side label when no signed-in user is available", async () => {
+    localStorage.setItem("lasca.online.serverUrl", "http://localhost:8788");
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ ok: true, user: null }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const hub = createPlayHub({
+      currentVariantId: "chess_classic",
+      backHref: "/start",
+    });
+
+    document.body.appendChild(hub.element);
+    hub.setActiveTab(PlaySubSection.Bots);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const titles = Array.from(document.querySelectorAll(".playHubBotProfileTitle")).map((element) => element.textContent?.trim() ?? "");
+    expect(titles).toContain("White");
+    expect(titles).toContain("Teacher bot");
   });
 
   it("surfaces watch-bots mode when both seats are bot-controlled", () => {

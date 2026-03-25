@@ -1,5 +1,6 @@
 import type { OnlineGameDriver } from "../driver/gameDriver.ts";
 import type { PlayerColor, LocalSeatPlayerIdsByColor, OnlineBotSeatRequest } from "./onlineProtocol.ts";
+import { resolveBotPersonaDisplayName } from "./localPlayerNames";
 import type { VariantId } from "../variants/variantTypes";
 
 const LS_KEYS = {
@@ -60,8 +61,12 @@ function isConfiguredBotColor(variantId: VariantId, color: PlayerColor): boolean
   return readTrimmedStorage(isWhite ? LS_KEYS.aiWhite : LS_KEYS.aiBlack) !== "human";
 }
 
-function readSeatDisplayName(color: PlayerColor): string | undefined {
+function readHumanSeatDisplayName(color: PlayerColor): string | undefined {
   return sanitizeDisplayName(readTrimmedStorage(color === "W" ? LS_KEYS.localPlayerLight : LS_KEYS.localPlayerDark));
+}
+
+function readBotSeatDisplayName(color: PlayerColor): string | undefined {
+  return sanitizeDisplayName(resolveBotPersonaDisplayName(color));
 }
 
 export function buildOnlineBotSeatRequests(args: {
@@ -74,7 +79,7 @@ export function buildOnlineBotSeatRequests(args: {
     if (!isConfiguredBotColor(args.variantId, color)) continue;
     out.push({
       color,
-      ...(readSeatDisplayName(color) ? { displayName: readSeatDisplayName(color) } : {}),
+      ...(readBotSeatDisplayName(color) ? { displayName: readBotSeatDisplayName(color) } : {}),
     });
   }
   return out;

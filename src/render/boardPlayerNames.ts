@@ -1,4 +1,9 @@
 import type { GameController } from "../controller/gameController";
+import {
+  fetchSignedInLocalDisplayName,
+  hasAnyLocalBotSide,
+  resolveActiveLocalSeatDisplayNames,
+} from "../shared/localPlayerNames";
 import type { PlayerShellSnapshot } from "../types";
 import { getBoardViewportMetrics } from "./boardViewport";
 
@@ -52,10 +57,11 @@ function ensurePlayerNameClip(svg: SVGSVGElement, viewBox: ParsedViewBox): void 
   }
   const rect = clipEl.querySelector("rect") as SVGRectElement | null;
   if (!rect) return;
+  const verticalPadding = PLAYER_NAME_FONT_SIZE;
   rect.setAttribute("x", String(viewBox.x));
-  rect.setAttribute("y", String(viewBox.y));
+  rect.setAttribute("y", String(viewBox.y - verticalPadding));
   rect.setAttribute("width", String(viewBox.w));
-  rect.setAttribute("height", String(viewBox.h));
+  rect.setAttribute("height", String(viewBox.h + verticalPadding * 2));
 }
 
 function makePlayerNameText(label: string, x: number, y: number, bold: boolean): SVGTextElement {
@@ -97,11 +103,44 @@ export function bindBoardPlayerNameOverlay(args: {
 }): BoardPlayerNameOverlayHandle {
   const { svg, controller, isFlipped } = args;
   const initialSnapshot = controller.getPlayerShellSnapshot();
-  const storedNames = initialSnapshot.mode === "local"
-    ? readStoredLocalPlayerNames()
-    : { white: "", black: "" };
-  if (storedNames.white || storedNames.black) {
-    controller.setLocalPlayerDisplayNames({ W: storedNames.white, B: storedNames.black });
+  let signedInHumanDisplayName: string | null = null;
+  let hasRequestedSignedInHumanDisplayName = false;
+
+  const syncLocalSeatDisplayNames = (): void => {
+    const snapshot = controller.getPlayerShellSnapshot();
+    if (snapshot.mode !== "local") return;
+
+    const fallbackStoredNames = readStoredLocalPlayerNames();
+    const nextNames = resolveActiveLocalSeatDisplayNames({
+      root: document,
+      signedInDisplayName: signedInHumanDisplayName,
+      sideLabels: {
+        W: snapshot.players.W.sideLabel,
+        B: snapshot.players.B.sideLabel,
+      },
+      fallbackDisplayNames: {
+        W: fallbackStoredNames.white,
+        B: fallbackStoredNames.black,
+      },
+    });
+
+    controller.setLocalPlayerDisplayNames(nextNames);
+  };
+
+  const maybeLoadSignedInHumanDisplayName = (): void => {
+    if (hasRequestedSignedInHumanDisplayName || !hasAnyLocalBotSide(document)) return;
+    hasRequestedSignedInHumanDisplayName = true;
+    void fetchSignedInLocalDisplayName().then((nextDisplayName) => {
+      if (signedInHumanDisplayName === nextDisplayName) return;
+      signedInHumanDisplayName = nextDisplayName;
+      syncLocalSeatDisplayNames();
+      render();
+    });
+  };
+
+  if (initialSnapshot.mode === "local") {
+    syncLocalSeatDisplayNames();
+    maybeLoadSignedInHumanDisplayName();
   }
 
   const layer = ensurePlayerNameLayer(svg);
@@ -139,9 +178,19 @@ export function bindBoardPlayerNameOverlay(args: {
     if (bottomName) layer.appendChild(makePlayerNameText(bottomName, centerX, bottomY, bottomIsBold));
   };
 
+  const syncLocalNamesAndRender = (): void => {
+    syncLocalSeatDisplayNames();
+    maybeLoadSignedInHumanDisplayName();
+    render();
+  };
+
   controller.addHistoryChangeCallback(() => render());
   controller.addShellSnapshotChangeCallback(() => render());
   controller.addAnalysisModeChangeCallback(() => render());
+  for (const selector of ["#aiWhiteSelect", "#aiBlackSelect", "#botWhiteSelect", "#botBlackSelect"]) {
+    const control = document.querySelector(selector) as HTMLSelectElement | null;
+    control?.addEventListener("change", syncLocalNamesAndRender);
+  }
   render();
 
   return {

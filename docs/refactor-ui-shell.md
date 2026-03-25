@@ -646,7 +646,7 @@ When using chess.com play screens as visual references, translate them into Stac
   - [x] **Online** — contains `Quick Match`, `Custom Challenge`, `Play a Friend`, `Hosted Rooms`, and `Tournaments` when supported
   - [x] **Bots** — graphical bot list with personality, rating/strength, and style summary
     - [x] Support two seat cards or selectors so the user can configure Side A and Side B independently as `Human` or `Bot`
-    - [ ] Default `Play Bots` setup is `Human vs Bot`
+    - [x] Default `Play Bots` setup is `Human vs Bot`
     - [x] Optional `Watch Bots` setup is `Bot vs Bot`
     - [x] Allow the two bots to be different personalities/strengths or the same personality/strength on both sides
     - [x] Disallow `Human vs Human` inside `Play Bots`; that belongs to `Local`

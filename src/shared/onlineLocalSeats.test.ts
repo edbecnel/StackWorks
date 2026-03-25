@@ -80,7 +80,7 @@ describe("onlineLocalSeats", () => {
   it("builds create-room bot seat requests for non-creator configured bot seats", () => {
     localStorage.setItem("lasca.ai.white", "human");
     localStorage.setItem("lasca.ai.black", "advanced");
-    localStorage.setItem("lasca.local.nameDark", "Night Bot");
+    localStorage.setItem("stackworks.bot.blackPersona", "endgame");
 
     expect(
       buildOnlineBotSeatRequests({
@@ -90,7 +90,7 @@ describe("onlineLocalSeats", () => {
     ).toEqual([
       {
         color: "B",
-        displayName: "Night Bot",
+        displayName: "Endgame bot",
       },
     ]);
   });

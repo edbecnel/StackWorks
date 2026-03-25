@@ -236,4 +236,74 @@ describe("bindBoardPlayerNameOverlay", () => {
     expect(weights).toEqual(["800", "500"]);
     expect(overlay.hasNames()).toBe(true);
   });
+
+  it("renders the bot persona and signed-in human name for a local bot game", async () => {
+    const svg = makeSvg();
+    document.body.insertAdjacentHTML("beforeend", [
+      '<select id="botWhiteSelect"><option value="human" selected>Human</option><option value="easy">Easy</option></select>',
+      '<select id="botBlackSelect"><option value="human">Human</option><option value="easy" selected>Easy</option></select>',
+    ].join(""));
+    localStorage.setItem("stackworks.bot.blackPersona", "teacher");
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ ok: true, user: { displayName: "Local Account" } }),
+    })));
+
+    const snapshot = makeLocalSnapshot();
+    const controller = {
+      getPlayerShellSnapshot: () => snapshot,
+      setLocalPlayerDisplayNames: vi.fn((names: Partial<Record<"W" | "B", string>>) => {
+        if (typeof names.W === "string" && names.W.trim()) snapshot.players.W.displayName = names.W.trim();
+        if (typeof names.B === "string" && names.B.trim()) snapshot.players.B.displayName = names.B.trim();
+      }),
+      addHistoryChangeCallback: vi.fn(),
+      addShellSnapshotChangeCallback: vi.fn(),
+      addAnalysisModeChangeCallback: vi.fn(),
+    };
+
+    bindBoardPlayerNameOverlay({
+      svg,
+      controller: controller as any,
+      isFlipped: () => false,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const labels = Array.from(svg.querySelectorAll("#playerNameLayer text")).map((node) => node.textContent);
+    expect(labels).toEqual(["Teacher bot", "Local Account"]);
+  });
+
+  it("falls back to the human side label when no signed-in user is available for a local bot game", async () => {
+    const svg = makeSvg();
+    document.body.insertAdjacentHTML("beforeend", [
+      '<select id="botWhiteSelect"><option value="human" selected>Human</option><option value="easy">Easy</option></select>',
+      '<select id="botBlackSelect"><option value="human">Human</option><option value="easy" selected>Easy</option></select>',
+    ].join(""));
+    localStorage.setItem("stackworks.bot.blackPersona", "teacher");
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ ok: true, user: null }),
+    })));
+
+    const snapshot = makeLocalSnapshot();
+    const controller = {
+      getPlayerShellSnapshot: () => snapshot,
+      setLocalPlayerDisplayNames: vi.fn((names: Partial<Record<"W" | "B", string>>) => {
+        if (typeof names.W === "string" && names.W.trim()) snapshot.players.W.displayName = names.W.trim();
+        if (typeof names.B === "string" && names.B.trim()) snapshot.players.B.displayName = names.B.trim();
+      }),
+      addHistoryChangeCallback: vi.fn(),
+      addShellSnapshotChangeCallback: vi.fn(),
+      addAnalysisModeChangeCallback: vi.fn(),
+    };
+
+    bindBoardPlayerNameOverlay({
+      svg,
+      controller: controller as any,
+      isFlipped: () => false,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const labels = Array.from(svg.querySelectorAll("#playerNameLayer text")).map((node) => node.textContent);
+    expect(labels).toEqual(["Teacher bot", "White"]);
+  });
 });
