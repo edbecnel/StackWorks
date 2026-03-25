@@ -21,7 +21,7 @@ export function resolveChessBotUiMode(args: {
   }
 
   return {
-    createBotManager: true,
+    createBotManager: args.onlineLocalBotEnabled,
     showBotSection: args.onlineLocalBotEnabled,
     disableBotSelectors: true,
     resetSelectorsToHuman: !args.onlineLocalBotEnabled,
