@@ -50,6 +50,7 @@ import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { bindLeaveRoomButton } from "./ui/leaveRoomButton";
 import { initGameShell } from "./ui/shell/gameShell";
 import { GameSection } from "./config/shellState";
+import { consumeShellBotPlayState } from "./shared/consumeShellBotPlayState";
 import { installPlayerBotSelector, syncPlayerBotSelector } from "./ui/bot/playerBotSelector";
 import { bindPanelLayoutMenuMode, installPanelLayoutOptionUI } from "./ui/panelLayoutMode";
 import { ensureBoardCoordsInSquaresOption } from "./ui/boardCoordsInSquaresOption";
@@ -691,6 +692,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       syncPlayerBotSelector("aiWhiteSelect");
       syncPlayerBotSelector("aiBlackSelect");
     }
+    consumeShellBotPlayState();
   }
 
 

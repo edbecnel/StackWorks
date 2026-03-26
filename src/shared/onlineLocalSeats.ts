@@ -53,7 +53,7 @@ function sanitizeDisplayName(raw: string): string | undefined {
 function isConfiguredBotColor(variantId: VariantId, color: PlayerColor): boolean {
   const isWhite = color === "W";
   if (variantId === "columns_chess") {
-    return readTrimmedStorage(isWhite ? LS_KEYS.columnsBotWhite : LS_KEYS.columnsBotBlack) === "bot";
+    return readTrimmedStorage(isWhite ? LS_KEYS.columnsBotWhite : LS_KEYS.columnsBotBlack) !== "human";
   }
   if (variantId === "chess_classic") {
     return readTrimmedStorage(isWhite ? LS_KEYS.chessBotWhite : LS_KEYS.chessBotBlack) !== "human";

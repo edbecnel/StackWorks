@@ -51,6 +51,7 @@ import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { initGameShell } from "./ui/shell/gameShell";
 import { GameSection } from "./config/shellState";
+import { consumeShellBotPlayState } from "./shared/consumeShellBotPlayState";
 import { bindChessEvaluationPanel } from "./ui/chessEvaluationPanel.ts";
 import { resolveConfiguredLocalPlayerName } from "./shared/localPlayerNames";
 import { installPlayerBotSelector, syncPlayerBotSelector } from "./ui/bot/playerBotSelector";
@@ -534,6 +535,8 @@ window.addEventListener("DOMContentLoaded", async () => {
       syncPlayerBotSelector("botWhiteSelect");
       syncPlayerBotSelector("botBlackSelect");
     }
+
+    consumeShellBotPlayState();
   } else {
     // Hide bot panel in online mode.
     const botSection = document.querySelector('[data-section="bot"]') as HTMLElement | null;

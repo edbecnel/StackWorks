@@ -79,6 +79,13 @@ export class RemoteDriver implements GameDriver {
   private authoritativeStaleTimer: number | null = null;
   private pendingActionAckTimer: number | null = null;
   private pendingActionToken: number = 0;
+  // Tracks whether a state-mutating action (submitMove / finalizeCaptureChain) is
+  // currently awaiting its HTTP response.  While true, incoming realtime snapshots
+  // are held in deferredRealtimeSnapshot and only processed after the action
+  // completes.  This prevents a WebSocket echo from re-rendering pieces and
+  // cancelling the local move animation.
+  private pendingMoveActionInFlight: boolean = false;
+  private deferredRealtimeSnapshot: WireSnapshot | null = null;
   private onRealtimeUpdate: (() => void) | null = null;
   private realtimeListeners = new Map<string, Set<(payload: any) => void>>();
   private resyncInFlight: Promise<void> | null = null;
@@ -383,6 +390,18 @@ export class RemoteDriver implements GameDriver {
   private endPendingAction(token: number): void {
     if (token !== this.pendingActionToken) return;
     this.clearPendingActionAckTimer();
+    if (this.pendingMoveActionInFlight) {
+      this.pendingMoveActionInFlight = false;
+      // Flush a snapshot that arrived while the move action was in flight.
+      // By this point lastStateVersion has been updated by the HTTP response,
+      // so the echo will be detected as a duplicate (changed=false) and will
+      // not trigger a re-render that would cancel the local move animation.
+      const deferred = this.deferredRealtimeSnapshot;
+      this.deferredRealtimeSnapshot = null;
+      if (deferred) {
+        this.enqueueRealtimeSnapshot(deferred);
+      }
+    }
   }
 
   private clearResumeWatchdog(): void {
@@ -832,6 +851,19 @@ export class RemoteDriver implements GameDriver {
     if (this.ignoreRealtimeSnapshotsUntilResync) return;
     if (this.resyncInFlight) return;
 
+    // While a move-mutating action (submitMove / finalizeCaptureChain) is
+    // awaiting its HTTP response, hold the incoming snapshot.  The server
+    // typically broadcasts the WebSocket echo before the HTTP response
+    // returns; processing it now would cause a renderAuthoritative() call
+    // that jumps pieces to their final positions and cancels the local
+    // move animation.  We release the deferred snapshot in endPendingAction
+    // after the HTTP response has updated lastStateVersion, at which point
+    // it will be detected as a version-duplicate (changed=false).
+    if (this.pendingMoveActionInFlight) {
+      this.deferredRealtimeSnapshot = snapshot; // coalesce — keep latest
+      return;
+    }
+
     const now = this.nowMs();
     if (this.burstWindowStartMs === 0 || now - this.burstWindowStartMs > 200) {
       this.burstWindowStartMs = now;
@@ -943,6 +975,7 @@ export class RemoteDriver implements GameDriver {
   async submitMove(_move: Move): Promise<GameState & { didPromote?: boolean }> {
     const ids = this.requireIds();
     const pendingActionToken = this.beginPendingAction("submitMove");
+    this.pendingMoveActionInFlight = true;
     let res: SubmitMoveResponse;
     try {
       res = await this.postJson<SubmitMoveRequest, SubmitMoveResponse>("/api/submitMove", {
@@ -988,6 +1021,7 @@ export class RemoteDriver implements GameDriver {
   ): Promise<GameState & { didPromote?: boolean }> {
     const ids = this.requireIds();
     const pendingActionToken = this.beginPendingAction("finalizeCaptureChain");
+    this.pendingMoveActionInFlight = true;
     const req: FinalizeCaptureChainRequest =
       args.rulesetId === "dama" || args.rulesetId === "draughts_international"
         ? {

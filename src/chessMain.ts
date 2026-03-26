@@ -161,8 +161,7 @@ function deriveLegacyChessMovePreviewMode(): ChessMovePreviewMode {
   return highlightSquaresEnabled ? "stackworks-squares" : "stackworks";
 }
 
-import { readShellState, updateShellState } from "./config/shellState";
-import { applyBotPlayStateToCurrentPage } from "./ui/shell/playHub";
+import { consumeShellBotPlayState } from "./shared/consumeShellBotPlayState";
 
 window.addEventListener("DOMContentLoaded", async () => {
   const variant = getVariantById(ACTIVE_VARIANT_ID);
@@ -845,22 +844,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       syncPlayerBotSelector("botBlackSelect");
     }
 
-    // Apply bot play state written by the Start Page launcher — but only once.
-    // Consume it immediately so subsequent page reloads use whatever the user
-    // last configured on the game page, not the stale launcher assignment.
-    setTimeout(() => {
-      try {
-        const shellState = readShellState();
-        if (shellState?.botPlayState) {
-          applyBotPlayStateToCurrentPage(shellState.botPlayState);
-          // Clear so this doesn't re-apply on the next page load.
-          updateShellState({ botPlayState: null });
-          if (typeof window.syncConfiguredPlayerNames === "function") {
-            window.syncConfiguredPlayerNames();
-          }
-        }
-      } catch {}
-    }, 0);
+    consumeShellBotPlayState();
     return b;
   })() : null;
 
