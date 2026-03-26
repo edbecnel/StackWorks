@@ -92,11 +92,14 @@ export function resolveActiveLocalSeatDisplayName(side: Player, options: LocalSe
     return resolveBotPersonaDisplayName(side, sideLabel);
   }
 
+  const storedName = readStoredName(side);
+
   if (hasAnyLocalBotSide(root)) {
-    return signedInDisplayName || sideLabel;
+    // Prefer the stored name (set by Start Page or shell launch) over the
+    // signed-in identity, so explicitly-named players are always shown.
+    return storedName || signedInDisplayName || sideLabel;
   }
 
-  const storedName = readStoredName(side);
   return storedName || fallbackDisplayName || sideLabel;
 }
 

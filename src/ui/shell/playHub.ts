@@ -1230,7 +1230,7 @@ function ensurePlayHubStyles(): void {
 
     .playHubBotControllerRow .playHubBotSelect {
       flex: 1 1 auto;
-      min-width: 0;
+      min-width: max-content;
     }
 
     .playHubBotControllerIdentity {
@@ -2059,12 +2059,18 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
       const controllerIdentityText = state.controller === BotControllerMode.Human ? signedInHumanDisplayName : null;
       binding.controllerIdentity.textContent = controllerIdentityText ?? "";
       binding.controllerIdentity.hidden = !controllerIdentityText;
-      binding.levelField.hidden = state.controller !== BotControllerMode.Bot;
-      binding.levelField.style.display = state.controller === BotControllerMode.Bot ? "grid" : "none";
-      binding.personaField.hidden = state.controller !== BotControllerMode.Bot;
-      binding.personaField.style.display = state.controller === BotControllerMode.Bot ? "grid" : "none";
-      binding.levelSelect.disabled = state.controller !== BotControllerMode.Bot;
-      binding.personaSelect.disabled = state.controller !== BotControllerMode.Bot;
+      const isBotSeat = state.controller === BotControllerMode.Bot;
+      // Use visibility:hidden instead of display:none so the 3-column grid keeps
+      // its full width — if the fields were removed from layout the card would
+      // shrink and make the controller select narrower when Human is selected.
+      binding.levelField.style.visibility = isBotSeat ? "" : "hidden";
+      binding.levelField.style.pointerEvents = isBotSeat ? "" : "none";
+      binding.levelField.removeAttribute("hidden");
+      binding.personaField.style.visibility = isBotSeat ? "" : "hidden";
+      binding.personaField.style.pointerEvents = isBotSeat ? "" : "none";
+      binding.personaField.removeAttribute("hidden");
+      binding.levelSelect.disabled = !isBotSeat;
+      binding.personaSelect.disabled = !isBotSeat;
     }
 
     const bothHuman = botPlayState.white.controller === BotControllerMode.Human && botPlayState.black.controller === BotControllerMode.Human;
@@ -2115,9 +2121,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     botActions.appendChild(createAction({
       label: bothBots ? "Start new offline watch match" : "Start new offline bot game",
       description: localStart.immediate
-        ? (bothBots
-          ? "Apply these bot seats and reload the page to guarantee overlays and board fit are correct."
-          : "Apply this setup and replace the current game with a fresh offline bot game using the page's normal new-game flow.")
+        ? "Apply these bot seats and reload the page to guarantee overlays and board fit are correct."
         : (localStart.reason ?? "Save this setup and reload the current page into local bot play."),
       href: !localStart.immediate || isCurrentPageOnlineMode() ? buildCurrentVariantLocalHref() : undefined,
       onSelect: () => {
@@ -2130,15 +2134,10 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
           playSubSection: PlaySubSection.Bots,
           botPlayState,
         });
-        if (bothBots && localStart.immediate && !isCurrentPageOnlineMode()) {
-          // Force a full reload to guarantee overlays and board fit are correct (matches manual refresh)
-          window.location.reload();
-          return;
-        }
         if (localStart.immediate && !isCurrentPageOnlineMode()) {
-          if (applyBotPlayStateToCurrentPage(botPlayState)) {
-            startCurrentPageNewGame();
-          }
+          // Always force a full reload for all configurations (bot+bot, human+bot) to
+          // guarantee overlays, board fit, and player names are all initialised correctly.
+          window.location.reload();
         }
       },
     }));

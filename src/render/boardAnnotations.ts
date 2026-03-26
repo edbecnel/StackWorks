@@ -524,7 +524,7 @@ function drawArrowMark(layer: SVGGElement, mark: BoardArrowMark): void {
 
   // Arrow head triangle (aligned to the final segment).
   const headLen = touchLike ? 14 : 18;
-  const headW = touchLike ? 20 : 28;
+  const headW = touchLike ? 25 : 35;
   const hx = b.cx - headUx * 5;
   const hy = b.cy - headUy * 5;
   const px = -headUy;

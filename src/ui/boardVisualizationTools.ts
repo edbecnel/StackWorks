@@ -535,12 +535,6 @@ export function installBoardVisualizationTools(
     if (!to) return;
     if (to === from) return;
 
-    // Arrow drags are gated by piece-specific movement rules on the source square.
-    // Knights: only valid knight-move targets.
-    // Pawns: only forward/capture squares according to the pawn's colour and position.
-    // All other pieces: any target is allowed.
-    if (!isValidArrowTarget(from, to, getGameState)) return;
-
     if (kind === "touch" && eraseMode) {
       eraseArrow(state, from, to);
     } else {
