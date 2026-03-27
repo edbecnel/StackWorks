@@ -189,6 +189,7 @@ export class GameController {
   private historyListeners: Array<(reason: HistoryChangeReason) => void> = [];
   private inputEnabled: boolean = true;
   private lastInputEnabled: boolean = true;
+  private shellStartupPlayLockEnabled: boolean = false;
 
   // Analysis mode: local-only sandbox moves on the current position.
   // When enabled, moves are applied locally and never submitted to the server.
@@ -2597,6 +2598,15 @@ export class GameController {
     this.refreshSelectableCursors();
   }
 
+  setShellStartupPlayLockEnabled(enabled: boolean): void {
+    this.shellStartupPlayLockEnabled = enabled;
+    if (enabled) {
+      this.setInputEnabled(false);
+      return;
+    }
+    this.refreshSelectableCursors();
+  }
+
   getCaptureChainConstraints(): {
     lockedCaptureFrom: string | null;
     lockedCaptureDir: { dr: number; dc: number } | null;
@@ -4713,6 +4723,7 @@ export class GameController {
 
   private canProcessBoardInput(): boolean {
     if (this.isGameOver) return false;
+    if (this.shellStartupPlayLockEnabled) return false;
     if (!this.inputEnabled) return false;
 
     if (this.driver.mode === "online") {

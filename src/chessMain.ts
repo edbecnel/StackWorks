@@ -211,6 +211,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const boardWrap = document.getElementById("boardWrap") as HTMLElement | null;
   if (!boardWrap) throw new Error("Missing board container: #boardWrap");
+  const launchModeParam = new URLSearchParams(window.location.search).get("mode");
+  const hasExplicitPlayMode = launchModeParam === "local" || launchModeParam === "online";
 
   const boardLoading = createBoardLoadingOverlay(boardWrap);
   boardLoading.show();
@@ -581,9 +583,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
 
   const setPlayerNames = (white: string, black: string) => {
-    playerWhiteName = white;
-    playerBlackName = black;
-    controllerRef?.setLocalPlayerDisplayNames({ W: white, B: black });
+    const startupLockActive = !hasExplicitPlayMode;
+    const nextWhite = startupLockActive ? "White" : white;
+    const nextBlack = startupLockActive ? "Black" : black;
+    playerWhiteName = nextWhite;
+    playerBlackName = nextBlack;
+    controllerRef?.setLocalPlayerDisplayNames({ W: nextWhite, B: nextBlack });
     syncShowPlayerNamesUI();
     updatePlayerNameDisplay();
   };
@@ -754,6 +759,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   controllerRef = controller;
   hudController = controller;
   controller.bind();
+  const startupPlayLockActive = !hasExplicitPlayMode;
+  if (startupPlayLockActive) {
+    controller.setInputEnabled(false);
+    controller.showStartupMessage("Play is locked on initial open. Use the Play Hub to start a Local or Online game.");
+  }
   shell.bindController(controller);
   // Force overlay and board fit sync after binding controller (fixes missing player names/board sizing on resume)
   if (typeof shell.syncPanels === "function") shell.syncPanels();
@@ -866,10 +876,9 @@ window.addEventListener("DOMContentLoaded", async () => {
         signedInDisplayName: signedInHumanDisplayName,
         sideLabels: { W: "White", B: "Black" },
       });
-      playerWhiteName = names.W;
-      playerBlackName = names.B;
+      setPlayerNames(names.W, names.B);
     }
-    updatePlayerNameDisplay();
+    if (driver.mode === "online") updatePlayerNameDisplay();
   } catch { /* ignore */ }
 
   for (const selector of ["#botWhiteSelect", "#botBlackSelect"]) {

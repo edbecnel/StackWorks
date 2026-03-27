@@ -482,6 +482,7 @@ function ensureGameShellStyles(): void {
     .gameShellDesktopShellBody {
       padding: 10px;
       flex: 1 1 auto;
+      min-height: 0;
       overflow: auto;
       flex-direction: column;
       gap: 10px;
@@ -775,10 +776,18 @@ function ensureGameShellStyles(): void {
     .gameShellDesktopSectionPanel {
       display: none;
       gap: 12px;
+      min-height: 0;
     }
 
     .gameShellDesktopSectionPanel.isActive {
       display: grid;
+    }
+
+    .gameShellDesktopSectionPanel[data-section-id="play"] > .gameShellDesktopShellCard {
+      min-height: 0;
+      max-height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
     }
 
     :fullscreen .gameShellHeader,
@@ -1406,7 +1415,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     backLink.className = "gameShellAction";
     backLink.href = opts.backHref;
     backLink.textContent = "Start Page";
-    backLink.addEventListener("click", closeCompactMenu);
+    backLink.addEventListener("click", () => closeCompactMenu());
     actions.appendChild(backLink);
   }
 
@@ -1417,7 +1426,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     helpLink.target = "_blank";
     helpLink.rel = "noopener noreferrer";
     helpLink.textContent = "Help";
-    helpLink.addEventListener("click", closeCompactMenu);
+    helpLink.addEventListener("click", () => closeCompactMenu());
     actions.appendChild(helpLink);
   }
 
@@ -1490,6 +1499,19 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     }
 
     const initialSnapshot = controller.getPlayerShellSnapshot();
+    const queryMode = new URLSearchParams(window.location.search).get("mode");
+    const hasExplicitPlayMode = queryMode === "local" || queryMode === "online";
+    const startupPlayLockActive = !hasExplicitPlayMode;
+    if (startupPlayLockActive) {
+      controller.setShellStartupPlayLockEnabled(true);
+      boardAnchor.style.pointerEvents = "none";
+      boardAnchor.style.cursor = "not-allowed";
+      const nestedBoardWrap = opts.appRoot.querySelector("#boardWrap") as HTMLElement | null;
+      if (nestedBoardWrap) {
+        nestedBoardWrap.style.pointerEvents = "none";
+        nestedBoardWrap.style.cursor = "not-allowed";
+      }
+    }
     const topPanel = createPlayerIdentityPanel({ identity: initialSnapshot.players.B });
     const bottomPanel = createPlayerIdentityPanel({ identity: initialSnapshot.players.W });
     const openVariantPageOnlinePreview = initialSnapshot.mode === "local"
@@ -1558,6 +1580,19 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
 
     const buildSnapshotWithOverrides = (snapshot: PlayerShellSnapshot, bottomColor: Player): PlayerShellSnapshot => {
       const nextPlayers = { ...snapshot.players };
+      if (startupPlayLockActive && snapshot.mode === "local") {
+        for (const color of ["W", "B"] as const) {
+          const identity = nextPlayers[color];
+          nextPlayers[color] = {
+            ...identity,
+            displayName: identity.sideLabel,
+            roleLabel: identity.sideLabel,
+            isLocal: false,
+            viewerTag: undefined,
+          };
+        }
+        return { ...snapshot, players: nextPlayers };
+      }
       if (snapshot.mode === "local" && openVariantPageOnlinePreview) {
         for (const color of ["W", "B"] as const) {
           const previewName = openVariantPageOnlinePreview.names[color]?.trim() ?? "";

@@ -2135,9 +2135,9 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
           botPlayState,
         });
         if (localStart.immediate && !isCurrentPageOnlineMode()) {
-          // Always force a full reload for all configurations (bot+bot, human+bot) to
-          // guarantee overlays, board fit, and player names are all initialised correctly.
-          window.location.reload();
+          // Reload through an explicit local-mode URL so shell startup lock is
+          // bypassed for intentional in-shell starts.
+          navigateToHref(buildCurrentVariantLocalHref());
         }
       },
     }));
@@ -2419,8 +2419,8 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
             // Apply current bot/player settings (preserve user config)
             writeLauncherValue(LAUNCHER_STORAGE_KEYS.playMode, "local");
             writeBotPlayStateToLauncher(opts.currentVariantId, botPlayState);
-            // Force a full reload to guarantee overlays and board fit are correct (matches manual refresh)
-            window.location.reload();
+            // Navigate with explicit local mode so shell startup lock is bypassed.
+            navigateToHref(buildCurrentVariantLocalHref());
           } else {
             updateShellState({
               activeGame: opts.currentVariantId,

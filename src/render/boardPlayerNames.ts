@@ -103,12 +103,22 @@ export function bindBoardPlayerNameOverlay(args: {
 }): BoardPlayerNameOverlayHandle {
   const { svg, controller, isFlipped } = args;
   const initialSnapshot = controller.getPlayerShellSnapshot();
+  const queryMode = new URLSearchParams(window.location.search).get("mode");
+  const hasExplicitPlayMode = queryMode === "local" || queryMode === "online";
+  const startupPlayLockActive = !hasExplicitPlayMode;
   let signedInHumanDisplayName: string | null = null;
   let hasRequestedSignedInHumanDisplayName = false;
 
   const syncLocalSeatDisplayNames = (): void => {
     const snapshot = controller.getPlayerShellSnapshot();
     if (snapshot.mode !== "local") return;
+    if (startupPlayLockActive) {
+      controller.setLocalPlayerDisplayNames({
+        W: snapshot.players.W.sideLabel,
+        B: snapshot.players.B.sideLabel,
+      });
+      return;
+    }
 
     const fallbackStoredNames = readStoredLocalPlayerNames();
     const nextNames = resolveActiveLocalSeatDisplayNames({
