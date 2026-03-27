@@ -244,6 +244,25 @@ function writeBoolLauncherValue(key: string, value: boolean): void {
   writeLauncherValue(key, value ? "1" : "0");
 }
 
+function readPreferredOnlineColor(): "W" | "B" {
+  const raw = readBotStorageValue("lasca.online.prefColor");
+  return raw === "B" ? "B" : "W";
+}
+
+function writePreferredOnlineColor(color: "W" | "B"): void {
+  writeLauncherValue("lasca.online.prefColor", color);
+}
+
+function readStoredLocalPlayerName(color: "W" | "B"): string {
+  const key = color === "W" ? "lasca.local.nameLight" : "lasca.local.nameDark";
+  return readBotStorageValue(key)?.trim() ?? "";
+}
+
+function writeStoredLocalPlayerName(color: "W" | "B", value: string): void {
+  const key = color === "W" ? "lasca.local.nameLight" : "lasca.local.nameDark";
+  writeLauncherValue(key, value.trim());
+}
+
 function normalizeServerUrl(raw: string | null | undefined): string | null {
   const value = typeof raw === "string" ? raw.trim() : "";
   if (!value) return null;
@@ -673,10 +692,6 @@ export function applyBotPlayStateToCurrentPage(state: BotPlayState): boolean {
   // Trigger player name update (if function exists globally)
   if (typeof window.syncConfiguredPlayerNames === "function") {
     window.syncConfiguredPlayerNames();
-  } else {
-    // Fallback: dispatch change event to trigger listeners
-    selectors.whiteSelect.dispatchEvent(new Event("change", { bubbles: true }));
-    selectors.blackSelect.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
   try {
@@ -730,6 +745,22 @@ function resolveHumanSeatColor(state: BotPlayState): "W" | "B" | null {
   if (whiteHuman && blackBot) return "W";
   if (blackHuman && whiteBot) return "B";
   return null;
+}
+
+function deriveTwoHumanPlayState(state: BotPlayState): BotPlayState {
+  return {
+    ...state,
+    white: {
+      controller: BotControllerMode.Human,
+      level: null,
+      persona: null,
+    },
+    black: {
+      controller: BotControllerMode.Human,
+      level: null,
+      persona: null,
+    },
+  };
 }
 
 function persistOnlineLauncherState(args: {
@@ -974,6 +1005,51 @@ function ensurePlayHubStyles(): void {
       gap: 6px;
     }
 
+    .playHubSidePicker {
+      display: grid;
+      gap: 6px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      padding: 10px;
+    }
+
+    .playHubSidePickerLabel {
+      margin: 0;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.52);
+    }
+
+    .playHubSidePickerTabs {
+      display: inline-flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .playHubSidePickerOption {
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.04);
+      color: rgba(255, 255, 255, 0.9);
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .playHubSidePickerOption:hover,
+    .playHubSidePickerOption:focus-visible {
+      background: rgba(255, 255, 255, 0.1);
+      outline: none;
+    }
+
+    .playHubSidePickerOption.isActive {
+      border-color: rgba(232, 191, 112, 0.34);
+      background: linear-gradient(180deg, rgba(202, 157, 78, 0.18), rgba(202, 157, 78, 0.06));
+    }
+
     .playHubOnlineModeHeader {
       display: grid;
       gap: 4px;
@@ -1103,7 +1179,8 @@ function ensurePlayHubStyles(): void {
       color: rgba(255, 255, 255, 0.5);
     }
 
-    .playHubHostedSelect {
+    .playHubHostedSelect,
+    .playHubHostedInput {
       width: 100%;
       min-height: 38px;
       border-radius: 10px;
@@ -1465,6 +1542,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
   let coachLevel: CoachLevel = persistedShellState.coachLevel ?? "beginner";
   let signedInHumanDisplayName: string | null = null;
   let hasRequestedSignedInHumanDisplayName = false;
+  let preferredOnlineColor: "W" | "B" = readPreferredOnlineColor();
 
   const root = document.createElement("section");
   root.className = "playHub";
@@ -1554,6 +1632,38 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
 
   const onlinePanel = document.createElement("div");
   onlinePanel.className = "playHubPanel";
+  const syncOnlineCreateHrefCallbacks: Array<() => void> = [];
+  const onlineColorPicker = document.createElement("section");
+  onlineColorPicker.className = "playHubSidePicker";
+  onlineColorPicker.innerHTML = '<p class="playHubSidePickerLabel">Your color</p>';
+  const onlineColorTabs = document.createElement("div");
+  onlineColorTabs.className = "playHubSidePickerTabs";
+  const onlineColorButtons = new Map<"W" | "B", HTMLButtonElement>();
+  for (const color of ["W", "B"] as const) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "playHubSidePickerOption";
+    button.textContent = color === "W" ? sideLabels.W : sideLabels.B;
+    button.addEventListener("click", () => {
+      preferredOnlineColor = color;
+      writePreferredOnlineColor(color);
+      syncOnlineColorPicker();
+    });
+    onlineColorButtons.set(color, button);
+    onlineColorTabs.appendChild(button);
+  }
+  onlineColorPicker.appendChild(onlineColorTabs);
+  const syncOnlineColorPicker = (): void => {
+    for (const [color, button] of onlineColorButtons) {
+      const isActive = color === preferredOnlineColor;
+      button.classList.toggle("isActive", isActive);
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    }
+    for (const syncHref of syncOnlineCreateHrefCallbacks) {
+      syncHref();
+    }
+  };
+  syncOnlineColorPicker();
   const onlineModeTabs = createTabs({
     className: "playHubOnlineModeTabs",
     activeId: initialOnlineMode,
@@ -1590,12 +1700,19 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     const modeActions = document.createElement("div");
     modeActions.className = "playHubActions";
     if (definition.id === OnlineSubSection.QuickMatch && configuredServerUrl) {
-      modeActions.appendChild(createAction({
+      const quickMatchAction = createAction({
         label: "Host quick match here",
         description: "Reload this variant page in online create mode with a public room ready to host immediately.",
-        href: buildCurrentVariantOnlineHref({ action: "create", serverUrl: configuredServerUrl, visibility: "public", suppressBotSeats: true }),
+        href: buildCurrentVariantOnlineHref({
+          action: "create",
+          serverUrl: configuredServerUrl,
+          prefColor: preferredOnlineColor,
+          visibility: "public",
+          suppressBotSeats: true,
+        }),
         onSelect: () => {
           writeLauncherValue(LAUNCHER_STORAGE_KEYS.onlineServerUrl, configuredServerUrl);
+          writePreferredOnlineColor(preferredOnlineColor);
           persistOnlineLauncherState({
             variantId: opts.currentVariantId,
             onlineSubSection: OnlineSubSection.QuickMatch,
@@ -1603,7 +1720,19 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
             activeSection: GlobalSection.Games,
           });
         },
-      }));
+      });
+      if (quickMatchAction instanceof HTMLAnchorElement) {
+        syncOnlineCreateHrefCallbacks.push(() => {
+          quickMatchAction.href = buildCurrentVariantOnlineHref({
+            action: "create",
+            serverUrl: configuredServerUrl,
+            prefColor: preferredOnlineColor,
+            visibility: "public",
+            suppressBotSeats: true,
+          });
+        });
+      }
+      modeActions.appendChild(quickMatchAction);
       if (resumeEntries.length > 0) {
         const latestResume = resumeEntries[0];
         modeActions.appendChild(createAction({
@@ -1634,12 +1763,19 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
       modeActions.appendChild(createAction(opts.onlineAction));
     }
     if (configuredServerUrl && definition.id === OnlineSubSection.CustomChallenge) {
-      modeActions.appendChild(createAction({
+      const customChallengeAction = createAction({
         label: "Create custom challenge here",
         description: "Reload this variant page in online create mode with the current variant selected and challenge setup persisted.",
-        href: buildCurrentVariantOnlineHref({ action: "create", serverUrl: configuredServerUrl, visibility: "public", suppressBotSeats: true }),
+        href: buildCurrentVariantOnlineHref({
+          action: "create",
+          serverUrl: configuredServerUrl,
+          prefColor: preferredOnlineColor,
+          visibility: "public",
+          suppressBotSeats: true,
+        }),
         onSelect: () => {
           writeLauncherValue(LAUNCHER_STORAGE_KEYS.onlineServerUrl, configuredServerUrl);
+          writePreferredOnlineColor(preferredOnlineColor);
           persistOnlineLauncherState({
             variantId: opts.currentVariantId,
             onlineSubSection: OnlineSubSection.CustomChallenge,
@@ -1647,15 +1783,34 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
             activeSection: GlobalSection.Games,
           });
         },
-      }));
+      });
+      if (customChallengeAction instanceof HTMLAnchorElement) {
+        syncOnlineCreateHrefCallbacks.push(() => {
+          customChallengeAction.href = buildCurrentVariantOnlineHref({
+            action: "create",
+            serverUrl: configuredServerUrl,
+            prefColor: preferredOnlineColor,
+            visibility: "public",
+            suppressBotSeats: true,
+          });
+        });
+      }
+      modeActions.appendChild(customChallengeAction);
     }
     if (configuredServerUrl && definition.id === OnlineSubSection.Friend) {
-      modeActions.appendChild(createAction({
+      const friendAction = createAction({
         label: "Create private invite room here",
         description: "Reload this variant page in online create mode with a private friend room ready to configure.",
-        href: buildCurrentVariantOnlineHref({ action: "create", serverUrl: configuredServerUrl, visibility: "private", suppressBotSeats: true }),
+        href: buildCurrentVariantOnlineHref({
+          action: "create",
+          serverUrl: configuredServerUrl,
+          prefColor: preferredOnlineColor,
+          visibility: "private",
+          suppressBotSeats: true,
+        }),
         onSelect: () => {
           writeLauncherValue(LAUNCHER_STORAGE_KEYS.onlineServerUrl, configuredServerUrl);
+          writePreferredOnlineColor(preferredOnlineColor);
           persistOnlineLauncherState({
             variantId: opts.currentVariantId,
             onlineSubSection: OnlineSubSection.Friend,
@@ -1663,7 +1818,19 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
             activeSection: GlobalSection.Games,
           });
         },
-      }));
+      });
+      if (friendAction instanceof HTMLAnchorElement) {
+        syncOnlineCreateHrefCallbacks.push(() => {
+          friendAction.href = buildCurrentVariantOnlineHref({
+            action: "create",
+            serverUrl: configuredServerUrl,
+            prefColor: preferredOnlineColor,
+            visibility: "private",
+            suppressBotSeats: true,
+          });
+        });
+      }
+      modeActions.appendChild(friendAction);
     }
     if (opts.backHref) {
       modeActions.appendChild(createAction({
@@ -1908,20 +2075,34 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
       hostedGrid.append(hostedCard, hostedDiscoveryCard, hostedValueCard);
 
       if (configuredServerUrl) {
-        modeActions.appendChild(createAction({
+        const hostedCreateAction = createAction({
           label: "Create hosted room",
           description: "Reload this variant page in online create mode with the current hosted-room policy already persisted.",
           href: buildCurrentVariantOnlineHref({
             action: "create",
             serverUrl: configuredServerUrl,
+            prefColor: preferredOnlineColor,
             visibility: hostedRoomState.visibility === HostedRoomVisibilityMode.Public ? "public" : "private",
             suppressBotSeats: true,
           }),
           onSelect: () => {
             writeLauncherValue(LAUNCHER_STORAGE_KEYS.onlineServerUrl, configuredServerUrl);
+            writePreferredOnlineColor(preferredOnlineColor);
             persistHostedRoomLauncherState({ variantId: opts.currentVariantId, hostedRoomState });
           },
-        }));
+        });
+        if (hostedCreateAction instanceof HTMLAnchorElement) {
+          syncOnlineCreateHrefCallbacks.push(() => {
+            hostedCreateAction.href = buildCurrentVariantOnlineHref({
+              action: "create",
+              serverUrl: configuredServerUrl,
+              prefColor: preferredOnlineColor,
+              visibility: hostedRoomState.visibility === HostedRoomVisibilityMode.Public ? "public" : "private",
+              suppressBotSeats: true,
+            });
+          });
+        }
+        modeActions.appendChild(hostedCreateAction);
         modeActions.appendChild(createAction({
           label: "Refresh live rooms",
           description: "Reload the latest public rooms for this variant from the configured online server.",
@@ -1954,7 +2135,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     onlineModePanels.set(definition.id, modePanel);
   }
 
-  onlinePanel.append(onlineModeTabs.element, ...onlineModePanels.values());
+  onlinePanel.append(onlineColorPicker, onlineModeTabs.element, ...onlineModePanels.values());
   panels.set(PlaySubSection.Online, onlinePanel);
 
   const botsPanel = document.createElement("div");
@@ -1968,12 +2149,14 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
   const botActions = document.createElement("div");
   botActions.className = "playHubActions";
   let syncBotPanel: (() => void) | null = null;
+  let syncLocalNamesCard: (() => void) | null = null;
 
   const loadSignedInHumanDisplayName = async (): Promise<void> => {
     const nextDisplayName = await fetchSignedInDisplayName();
     if (signedInHumanDisplayName === nextDisplayName) return;
     signedInHumanDisplayName = nextDisplayName;
     syncBotPanel?.();
+    syncLocalNamesCard?.();
   };
 
   const seatBindings = ([
@@ -2134,6 +2317,9 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
           playSubSection: PlaySubSection.Bots,
           botPlayState,
         });
+        if (applyBotPlayStateToCurrentPage(botPlayState)) {
+          if (startCurrentPageNewGame()) return;
+        }
         if (localStart.immediate && !isCurrentPageOnlineMode()) {
           // Reload through an explicit local-mode URL so shell startup lock is
           // bypassed for intentional in-shell starts.
@@ -2349,8 +2535,75 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
 
   const localPanel = document.createElement("div");
   localPanel.className = "playHubPanel";
+  const localPlayersCard = document.createElement("section");
+  localPlayersCard.className = "playHubSidePicker";
+  localPlayersCard.innerHTML = '<p class="playHubSidePickerLabel">Local players</p>';
+  const localPlayersFields = document.createElement("div");
+  localPlayersFields.className = "playHubHostedFields";
+  const localWhiteField = document.createElement("label");
+  localWhiteField.className = "playHubHostedField";
+  localWhiteField.innerHTML = `<span class="playHubHostedFieldLabel">${sideLabels.W} name</span>`;
+  const localWhiteInput = document.createElement("input");
+  localWhiteInput.className = "playHubHostedInput";
+  localWhiteInput.type = "text";
+  localWhiteInput.maxLength = 40;
+  localWhiteInput.placeholder = `${sideLabels.W} player`;
+  const localBlackField = document.createElement("label");
+  localBlackField.className = "playHubHostedField";
+  localBlackField.innerHTML = `<span class="playHubHostedFieldLabel">${sideLabels.B} name</span>`;
+  const localBlackInput = document.createElement("input");
+  localBlackInput.className = "playHubHostedInput";
+  localBlackInput.type = "text";
+  localBlackInput.maxLength = 40;
+  localBlackInput.placeholder = `${sideLabels.B} player`;
+  const localNameSuggestions = document.createElement("datalist");
+  localNameSuggestions.id = `playHubLocalNameSuggestions-${opts.currentVariantId}`;
+  localWhiteInput.setAttribute("list", localNameSuggestions.id);
+  localBlackInput.setAttribute("list", localNameSuggestions.id);
+  syncLocalNamesCard = (): void => {
+    if (!hasRequestedSignedInHumanDisplayName && resolveLocalAuthServerBaseUrl()) {
+      hasRequestedSignedInHumanDisplayName = true;
+      void loadSignedInHumanDisplayName();
+    }
+    const signedIn = signedInHumanDisplayName?.trim() ?? "";
+    localNameSuggestions.replaceChildren();
+    if (signedIn) {
+      const option = document.createElement("option");
+      option.value = signedIn;
+      localNameSuggestions.appendChild(option);
+    }
+  };
+  localWhiteInput.value = readStoredLocalPlayerName("W");
+  localBlackInput.value = readStoredLocalPlayerName("B");
+  localWhiteInput.addEventListener("input", () => writeStoredLocalPlayerName("W", localWhiteInput.value));
+  localBlackInput.addEventListener("input", () => writeStoredLocalPlayerName("B", localBlackInput.value));
+  localWhiteField.appendChild(localWhiteInput);
+  localBlackField.appendChild(localBlackInput);
+  localPlayersFields.append(localWhiteField, localBlackField);
+  localPlayersCard.append(localPlayersFields, localNameSuggestions);
+  syncLocalNamesCard();
   const localActions = document.createElement("div");
   localActions.className = "playHubActions";
+  const localStart = resolveCurrentPageLocalBotStartAvailability();
+  localActions.appendChild(createAction({
+    label: "Start local 2-player game",
+    description: "Local mode is always two humans. Set names above, then start same-device play.",
+    href: buildCurrentVariantLocalHref(),
+    onSelect: () => {
+      writeStoredLocalPlayerName("W", localWhiteInput.value);
+      writeStoredLocalPlayerName("B", localBlackInput.value);
+      const nextState = deriveTwoHumanPlayState(botPlayState);
+      writeLauncherValue(LAUNCHER_STORAGE_KEYS.playMode, "local");
+      writeBotPlayStateToLauncher(opts.currentVariantId, nextState);
+      updateShellState({
+        activeGame: opts.currentVariantId,
+        activeSection: GlobalSection.Games,
+        playSubSection: PlaySubSection.Local,
+        botPlayState: nextState,
+      });
+      navigateToHref(buildCurrentVariantLocalHref());
+    },
+  }));
   if (opts.localAction) {
     localActions.appendChild(createAction(opts.localAction));
   }
@@ -2397,7 +2650,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     variantsList.appendChild(button);
   }
   variantsSection.append(variantsTitle, variantsList);
-  localPanel.append(localActions, variantsSection);
+  localPanel.append(localPlayersCard, localActions, variantsSection);
   panels.set(PlaySubSection.Local, localPanel);
 
   if (resumeEntries.length) {

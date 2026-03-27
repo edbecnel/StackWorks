@@ -21,7 +21,9 @@ export function resolveChessBotUiMode(args: {
   }
 
   return {
-    createBotManager: args.onlineLocalBotEnabled,
+    // Keep a local manager alive for engine-eval support in online play,
+    // even when this client is not controlling a local bot seat.
+    createBotManager: true,
     showBotSection: args.onlineLocalBotEnabled,
     disableBotSelectors: true,
     resetSelectorsToHuman: !args.onlineLocalBotEnabled,

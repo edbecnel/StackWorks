@@ -520,10 +520,11 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const onlineLocalBotEnabled =
     driver.mode === "online" && hasConfiguredOnlineLocalBot({ driver: driver as OnlineGameDriver, variantId: ACTIVE_VARIANT_ID });
+  const isOnlineSpectator = driver.mode === "online" && (driver as OnlineGameDriver).getPlayerId() === "spectator";
 
   // Bot controls (Columns Chess fallback bot).
   let bot: ColumnsChessBotManager | null = null;
-  if (driver.mode !== "online" || onlineLocalBotEnabled) {
+  if (driver.mode !== "online" || !isOnlineSpectator) {
     bot = new ColumnsChessBotManager(controller);
     bot.bind();
     controller.addAnalysisModeChangeCallback((enabled) => bot.setAnalysisModeActive(enabled));
@@ -538,7 +539,13 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     consumeShellBotPlayState();
   } else {
-    // Hide bot panel in online mode.
+    // Hide bot panel for online spectators.
+    const botSection = document.querySelector('[data-section="bot"]') as HTMLElement | null;
+    if (botSection) botSection.style.display = "none";
+  }
+
+  if (driver.mode === "online" && !onlineLocalBotEnabled) {
+    // Human-vs-human online should not expose bot seat controls.
     const botSection = document.querySelector('[data-section="bot"]') as HTMLElement | null;
     if (botSection) botSection.style.display = "none";
   }

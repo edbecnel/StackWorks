@@ -12,9 +12,9 @@ describe("resolveChessBotUiMode", () => {
     });
   });
 
-  it("does not create a bot manager for online human clients", () => {
+  it("creates a hidden manager for online human clients to power eval", () => {
     expect(resolveChessBotUiMode({ driverMode: "online", onlineLocalBotEnabled: false })).toEqual({
-      createBotManager: false,
+      createBotManager: true,
       showBotSection: false,
       disableBotSelectors: true,
       resetSelectorsToHuman: true,
