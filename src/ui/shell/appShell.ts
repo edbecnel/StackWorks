@@ -138,7 +138,7 @@ function ensureShellStyles(): void {
     .appShellBrand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 0;
     }
 
     .appShellBrandMark {
@@ -152,6 +152,7 @@ function ensureShellStyles(): void {
       border: 1px solid rgba(255, 255, 255, 0.08);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
       flex: 0 0 auto;
+      display: none;
     }
 
     .appShellBrandMark img {
@@ -169,7 +170,7 @@ function ensureShellStyles(): void {
 
     .appShellBrandWordmark {
       display: block;
-      max-width: 150px;
+      max-width: 140px;
       width: 100%;
       height: auto;
     }
@@ -334,6 +335,7 @@ function ensureShellStyles(): void {
       border: 1px solid rgba(255, 255, 255, 0.08);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
       flex: 0 0 auto;
+      display: none;
     }
 
     .appShellHeaderBrandMark img {
@@ -344,7 +346,7 @@ function ensureShellStyles(): void {
 
     .appShellHeaderBrandWordmark {
       display: block;
-      width: min(118px, 100%);
+      width: min(118px, 30vw);
       max-width: 100%;
       height: auto;
     }
@@ -739,6 +741,10 @@ function ensureShellStyles(): void {
         justify-content: center;
       }
 
+    .appShellRoot[data-rail-mode="compact"] .appShellBrandMark {
+      display: inline-flex;
+    }
+
       .appShellRoot[data-rail-mode="compact"] .appShellBrandLockup,
       .appShellRoot[data-rail-mode="compact"] .appShellRailMeta,
       .appShellRoot[data-rail-mode="compact"] .accountRailCardEyebrow,
@@ -817,9 +823,27 @@ function ensureShellStyles(): void {
       }
     }
 
+    @media (max-width: 760px) {
+      .appShellHeaderBrandWordmark {
+        display: none;
+      }
+
+      .appShellHeaderBrandMark {
+        display: inline-flex;
+      }
+    }
+
     @media (max-width: 620px) {
       .appShellSubtitle {
         display: none;
+      }
+
+      .appShellHeaderBrandWordmark {
+        display: none;
+      }
+
+      .appShellHeaderBrandMark {
+        display: inline-flex;
       }
 
       .appShellTitle {
@@ -836,26 +860,18 @@ function ensureShellStyles(): void {
       }
 
       .appShellHeader {
-        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-columns: auto minmax(0, 1fr);
         grid-template-areas:
-          "sections title title"
-          "games help .";
+          "brand title"
+          "sections sections"
+          "games games"
+          "help help";
         align-items: center;
       }
 
       .appShellMenuToggle {
         grid-area: sections;
-      }
-
-      .appShellHeaderBrand {
-        display: none;
-      }
-
-      .appShellTitleBlock {
-        grid-area: title;
-        align-self: center;
-        min-height: 36px;
-        justify-content: center;
+        justify-self: start;
       }
 
       .appShellGamesToggle {
@@ -863,9 +879,21 @@ function ensureShellStyles(): void {
         justify-self: start;
       }
 
+      .appShellHeaderBrand {
+        display: inline-flex;
+        grid-area: brand;
+        justify-self: start;
+      }
+
+      .appShellTitleBlock {
+        grid-area: title;
+        align-self: center;
+        min-height: 28px;
+      }
+
       .appShellHeaderAction {
         grid-area: help;
-        justify-self: end;
+        justify-self: start;
       }
     }
 
@@ -880,12 +908,18 @@ function ensureShellStyles(): void {
     }
 
     @media (max-width: 560px) {
+      .appShellHeaderBrand {
+        gap: 0;
+      }
+    }
+
+    @media (max-width: 520px) {
       .appShellHeaderBrandWordmark {
         display: none;
       }
 
-      .appShellHeaderBrand {
-        gap: 0;
+      .appShellHeaderBrandMark {
+        display: inline-flex;
       }
     }
   `;

@@ -474,6 +474,42 @@ function readOnlineResumeRecord(serverUrl: string, roomId: string): OnlineResume
   }
 }
 
+function removeOnlineResumeRecords(serverUrl: string, roomId: string): void {
+  try {
+    const s = normalizeServerUrl(serverUrl);
+    const r = (roomId || "").trim();
+    if (!s || !r) return;
+
+    const keysToDelete = new Set<string>([
+      resumeStorageKey(s, r),
+      `lasca.online.resume.${encodeURIComponent(serverUrl)}.${encodeURIComponent(r)}`,
+      `lasca.online.resume.${encodeURIComponent(serverUrl)}.${encodeURIComponent(roomId)}`,
+      `lasca.online.resume.${encodeURIComponent(`${s}/`)}.${encodeURIComponent(r)}`,
+    ]);
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith("lasca.online.resume.")) continue;
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      try {
+        const rec = JSON.parse(raw) as any;
+        const recServer = normalizeServerUrl(typeof rec?.serverUrl === "string" ? rec.serverUrl : "");
+        const recRoom = (typeof rec?.roomId === "string" ? rec.roomId : "").trim();
+        if (recServer === s && recRoom === r) keysToDelete.add(key);
+      } catch {
+        // ignore malformed records
+      }
+    }
+
+    for (const key of keysToDelete) {
+      localStorage.removeItem(key);
+    }
+  } catch {
+    // ignore
+  }
+}
+
 function byId<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
   if (!el) throw new Error(`Missing element: #${id}`);
@@ -2954,9 +2990,15 @@ window.addEventListener("DOMContentLoaded", () => {
 
       let meta: GetRoomMetaResponse | null = null;
       try {
-        const metaRes = await fetch(`${serverUrl}/api/room/${encodeURIComponent(record.roomId)}/meta`, buildSessionAuthFetchInit(serverUrl));
+        const metaRes = await fetch(
+          `${serverUrl}/api/room/${encodeURIComponent(record.roomId)}/meta`,
+          buildSessionAuthFetchInit(serverUrl),
+        );
         const metaJson = (await metaRes.json()) as GetRoomMetaResponse;
-        if (!metaRes.ok || (metaJson as any)?.error) continue;
+        if (!metaRes.ok || (metaJson as any)?.error) {
+          removeOnlineResumeRecords(serverUrl, record.roomId);
+          continue;
+        }
         meta = metaJson;
       } catch {
         continue;

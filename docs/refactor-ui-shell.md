@@ -521,6 +521,61 @@ When using chess.com play screens as visual references, translate them into Stac
 
 ---
 
+## Next Sprint — Implementation Batch (Tracking Checklist)
+
+- [x] **Ticket 1: Complete shell logo placement rules**
+  - [x] Wire footer/simple branding to `stackworks-wordmark.svg`
+  - [x] Enforce "no horizontal logo in narrow spaces" in `src/ui/branding/logo.ts`
+  - [x] Verify logo variant fallback behavior remains CSS-sized and aspect-safe
+
+- [x] **Ticket 2: Finish responsive left-rail behavior in `appShell.ts`**
+  - [x] Ensure responsive rail behavior uses compact icon-first mode on narrower desktop widths and drawer/overlay navigation on mobile breakpoints
+  - [x] Keep desktop rail persistent and avoid full-page chrome scroll
+  - [x] Verify nav affordances remain usable in collapsed and expanded states
+
+- [ ] **Ticket 3: Finalize shell brand + global nav wiring**
+  - [ ] Confirm top-left brand/logo slot is rendered in all shell pages
+  - [x] Confirm global nav includes `Home`, `Games`, `Community`, `Account`, `Settings`
+  - [x] Confirm active-state highlighting and navigation links are correct per page
+
+- [ ] **Ticket 4: Mobile scroll + compact header hardening**
+  - [ ] Verify center/right panel areas use natural touch scrolling on mobile
+  - [ ] Ensure narrow portrait layouts keep only a shallow header strip
+  - [ ] Remove any residual tall desktop-style header behavior from portrait gameplay surfaces
+
+- [ ] **Ticket 5: Start-page parity validation (no launch regressions)**
+  - [ ] Confirm offline launch flows remain unchanged
+  - [ ] Confirm online/lobby/create/join flows remain unchanged
+  - [ ] Confirm existing launch settings and state restoration still work
+
+- [ ] **Ticket 6: Player identity completeness (avatar + status + orientation)**
+  - [ ] Add guest/default avatar fallback in `src/ui/player/playerAvatar.ts`
+  - [ ] Keep uploaded profile avatar as primary source with graceful fallback
+  - [ ] Add bot identity avatar/card treatment for bot-controlled seats
+  - [ ] Complete status badge states: `Online`, `Offline`, `Reconnecting`, `Waiting for opponent`
+  - [ ] Complete orientation-aware identity layout and dynamic rotate updates in `src/ui/player/playerIdentityPanel.ts`
+
+- [ ] **Ticket 7: Fully integrate identity metadata into `gameShell.ts`**
+  - [ ] Ensure country/profile metadata is pulled from existing identity/account sources when available
+  - [ ] Ensure integration works across all supported variants without rules coupling
+  - [ ] Validate online, friend, bot, spectate, and replay identity rendering paths remain stable
+
+- [ ] **Ticket 8: Remove user-facing legacy panel toggle when parity is reached**
+  - [ ] Confirm shell-side nav/action panels cover all required legacy actions
+  - [ ] Remove user-facing `Legacy panels` fallback toggle from production UI
+  - [ ] Keep any temporary migration internals hidden from end users
+
+### Sprint Exit Criteria
+
+- [ ] All 8 sprint tickets above are either completed or explicitly deferred with owner + rationale
+- [ ] No regressions in offline launch, online lobby/room, friend flow, bot flow, spectate, or replay entry points
+- [ ] Mobile portrait still preserves board-first layout with shallow header and natural touch scrolling
+- [ ] Desktop still uses left/right panel strategy without reintroducing a persistent tall top game header
+- [ ] Player identity bars render correctly (name/avatar/country/status) across online, bot, friend, spectate, and replay contexts
+- [ ] Any temporary migration controls are non-user-facing or removed for production builds
+
+---
+
 ## Deliverable 5 — Phased Task Checklist
 
 ---
@@ -536,16 +591,16 @@ When using chess.com play screens as visual references, translate them into Stac
     - [x] Collapsed sidebar / compact nav → `stackworks-logo-icon.svg`
     - [x] In-game board/shell logo treatment must be a clickable link with the same behavior as the `Start Page` action
     - [x] Favicon / browser tab / app icon base → `stackworks-logo-icon.svg`
-    - [ ] Footer / simple text branding → `stackworks-wordmark.svg`
+    - [x] Footer / simple text branding → `stackworks-wordmark.svg`
     - [x] One-color / fallback / print / theme-conflict → `stackworks-logo-mono.svg`
   - [x] Size with CSS only; never hardcode `width`/`height` attributes
   - [x] Preserve aspect ratio on all variants; do not stretch
-  - [ ] Never use horizontal logo in narrow/tight spaces
+  - [x] Never use horizontal logo in narrow/tight spaces
   - [x] All placements use `<img>` or inline `<svg>`; do not rasterize
 - [x] Create `src/ui/shell/appShell.ts` — left rail + header + main content slot + right panel slot
   - [ ] Responsive left rail (collapsed icon-only on mobile)
-  - [ ] Brand/logo slot in top-left
-  - [ ] Global nav items: Home, Games, Community, Account, Settings
+  - [x] Brand/logo slot in top-left
+  - [x] Global nav items: Home, Games, Community, Account, Settings
   - [x] Lower-left account/auth card: signed-in user avatar + name, or `Sign Up` / `Log In` actions when signed out
   - [x] Desktop shell should avoid whole-page vertical scrolling for primary chrome: keep the left rail at a fixed viewport height, with the middle content area and right panel content scrolling internally as needed
   - [x] Start Page internal scroll areas should reuse the same scrollbar styling as the game pages: narrow dark-gray scrollbars that lighten on hover
@@ -620,7 +675,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] Reduce first-view cognitive load so the default home screen shows game choice plus primary play actions before advanced settings, help, or secondary content
 - [ ] Remove the old start page layout after the game-first shell covers all current entry actions without regression
 - [ ] Keep existing `localStorage` data sources and behavior working
-- [ ] Wire `ShellState.activeGame` on game card selection
+- [x] Wire `ShellState.activeGame` on game card selection
 
 ### Phase 2.5 — Profile Identity
 

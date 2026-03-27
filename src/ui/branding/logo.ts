@@ -1,33 +1,24 @@
-export type LogoVariant = "horizontal" | "icon" | "wordmark" | "mono";
-
 export type LogoPlacement = "desktop-header" | "mobile-header" | "compact-nav" | "footer" | "fallback";
+export type LogoVariant = "horizontal" | "wordmark" | "icon" | "mono";
 
-export interface RenderLogoOptions {
-  variant?: LogoVariant;
+type LogoRenderOptions = {
   placement?: LogoPlacement;
+  variant?: LogoVariant;
   alt?: string;
   className?: string;
-  assetBasePath?: string;
   ariaHidden?: boolean;
-}
+};
 
-const LOGO_ASSET_BY_VARIANT: Record<LogoVariant, string> = {
+const LOGO_SOURCES: Record<LogoVariant, string> = {
+  // Horizontal and wordmark both resolve to the current .games asset.
   horizontal: "stackworks-logo-horizontal.games.svg",
+  wordmark: "stackworks-logo-horizontal.games.svg",
   icon: "stackworks-logo-icon.svg",
-  wordmark: "stackworks-wordmark.svg",
   mono: "stackworks-logo-mono.svg",
 };
 
-function normalizeAssetBasePath(assetBasePath?: string): string {
-  const trimmed = (assetBasePath ?? "/icons").trim();
-  if (!trimmed) return "/icons";
-  return trimmed.endsWith("/") ? trimmed.slice(0, -1) : trimmed;
-}
-
 export function resolveLogoVariant(placement?: LogoPlacement): LogoVariant {
   switch (placement) {
-    case "desktop-header":
-      return "horizontal";
     case "mobile-header":
     case "compact-nav":
       return "icon";
@@ -35,35 +26,44 @@ export function resolveLogoVariant(placement?: LogoPlacement): LogoVariant {
       return "wordmark";
     case "fallback":
       return "mono";
+    case "desktop-header":
     default:
       return "horizontal";
   }
 }
 
-export function createLogoImage(opts: RenderLogoOptions = {}): HTMLImageElement {
-  const placement = opts.placement;
+export function createLogoImage(opts: LogoRenderOptions = {}): HTMLImageElement {
+  const placement = opts.placement ?? "desktop-header";
   const variant = opts.variant ?? resolveLogoVariant(placement);
-  const src = `${normalizeAssetBasePath(opts.assetBasePath)}/${LOGO_ASSET_BY_VARIANT[variant]}`;
-
   const img = document.createElement("img");
-  img.src = src;
-  img.alt = opts.ariaHidden ? "" : (opts.alt ?? "StackWorks");
-  img.decoding = "async";
-  img.loading = "eager";
+  img.src = `/icons/${LOGO_SOURCES[variant]}`;
+  img.alt = opts.alt ?? "StackWorks";
   img.draggable = false;
-  img.className = opts.className ?? "";
   img.dataset.logoVariant = variant;
-  if (placement) img.dataset.logoPlacement = placement;
-
-  if (opts.ariaHidden) {
-    img.setAttribute("aria-hidden", "true");
-  }
-
+  img.dataset.logoPlacement = placement;
+  if (opts.className) img.className = opts.className;
+  if (opts.ariaHidden) img.setAttribute("aria-hidden", "true");
   return img;
 }
 
-export function renderLogo(container: HTMLElement, opts: RenderLogoOptions = {}): HTMLImageElement {
+export function renderLogo(container: HTMLElement, opts: LogoRenderOptions = {}): HTMLImageElement {
   const img = createLogoImage(opts);
-  container.replaceChildren(img);
+  container.appendChild(img);
   return img;
 }
+
+const logoPlacementRules = {
+  horizontal: {
+    maxWidth: "100%",
+    maxHeight: "50px",
+    "@media (max-width: 600px)": {
+      display: "none",
+    },
+  },
+  icon: {
+    maxWidth: "40px",
+    height: "auto",
+  },
+};
+
+export default logoPlacementRules;
