@@ -357,6 +357,12 @@ export function createThemeManager(svgRoot: SVGSVGElement, opts?: { themeStorage
   // Default to the current palette.
   let glassPaletteId: GlassPaletteId = readSavedGlassPaletteId(glassPaletteStorageKey) ?? "yellow_blue";
 
+  function emitThemeVariantChange(): void {
+    const themeId = currentId ?? svgRoot.getAttribute("data-theme-id");
+    if (!themeId) return;
+    svgRoot.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT, { detail: { themeId } }));
+  }
+
   function updateGlassUi(themeId: string | null) {
     const enabled = themeId === "glass";
     if (glassPaletteRowEl) {
@@ -465,6 +471,9 @@ export function createThemeManager(svgRoot: SVGSVGElement, opts?: { themeStorage
       glassPaletteId = next;
       saveGlassPaletteId(glassPaletteId, glassPaletteStorageKey);
       updateGlassUi(currentId ?? svgRoot.getAttribute("data-theme-id"));
+      if ((currentId ?? svgRoot.getAttribute("data-theme-id")) === "glass") {
+        emitThemeVariantChange();
+      }
     });
 
     updateGlassUi(currentId ?? svgRoot.getAttribute("data-theme-id"));
@@ -486,6 +495,9 @@ export function createThemeManager(svgRoot: SVGSVGElement, opts?: { themeStorage
       saveGlassBgMode(glassBgMode, glassBgStorageKey);
       // Only affects visuals when glass theme is active.
       updateGlassUi(currentId ?? svgRoot.getAttribute("data-theme-id"));
+      if ((currentId ?? svgRoot.getAttribute("data-theme-id")) === "glass") {
+        emitThemeVariantChange();
+      }
     });
 
     updateGlassUi(currentId ?? svgRoot.getAttribute("data-theme-id"));

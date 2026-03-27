@@ -8,8 +8,8 @@ describe("pieceTooltip", () => {
     expect(pieceTooltip({ owner: "B", rank: "O" }, { rulesetId: "dama", themeId: "classic" })).toBe("Black King");
   });
 
-  it("uses Light/Dark nomenclature for tooltips on supported non-chess themes", () => {
-    expect(pieceTooltip({ owner: "W", rank: "S" }, { rulesetId: "dama", themeId: "candy" })).toBe("Light Man");
+  it("uses metadata-driven nomenclature for non-chess theme tooltips", () => {
+    expect(pieceTooltip({ owner: "W", rank: "S" }, { rulesetId: "dama", themeId: "candy" })).toBe("Pink Man");
     expect(pieceTooltip({ owner: "B", rank: "O" }, { rulesetId: "draughts_international", themeId: "glass" })).toBe("Dark King");
   });
 

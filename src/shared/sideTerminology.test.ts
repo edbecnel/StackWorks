@@ -3,37 +3,35 @@ import { describe, expect, it } from "vitest";
 import { getSideLabelsForRuleset } from "./sideTerminology";
 
 describe("sideTerminology", () => {
-  const lightDarkThemeIds = ["candy", "wooden", "metal", "semiprecious", "glass", "turtle"];
-
   it("uses White/Black for International Draughts by default", () => {
     localStorage.clear();
     expect(getSideLabelsForRuleset("draughts_international")).toEqual({ W: "White", B: "Black" });
   });
 
-  it("uses Light/Dark for International Draughts on non-black-non-white piece themes", () => {
-    for (const themeId of lightDarkThemeIds) {
-      localStorage.clear();
-      localStorage.setItem("lasca.theme", themeId);
-      expect(getSideLabelsForRuleset("draughts_international")).toEqual({ W: "Light", B: "Dark" });
-    }
+  it("prefers active variant theme storage over legacy keys", () => {
+    localStorage.clear();
+    localStorage.setItem("lasca.variantId", "dama_8");
+    localStorage.setItem("lasca.opt.dama_8.theme", "candy");
+    localStorage.setItem("lasca.theme", "classic");
+    expect(getSideLabelsForRuleset("dama")).toEqual({ W: "Pink", B: "Violet" });
   });
 
-  it("uses Light/Dark for all non-chess rulesets on non-black-non-white piece themes", () => {
-    for (const rulesetId of ["dama", "lasca", "damasca", "damasca_classic"]) {
-      for (const themeId of lightDarkThemeIds) {
-        localStorage.clear();
-        localStorage.setItem("lasca.theme", themeId);
-        expect(getSideLabelsForRuleset(rulesetId)).toEqual({ W: "Light", B: "Dark" });
-      }
-    }
+  it("uses metadata defaults for non-chess themes", () => {
+    localStorage.clear();
+    localStorage.setItem("lasca.theme", "metal");
+    expect(getSideLabelsForRuleset("dama")).toEqual({ W: "Steel", B: "Copper" });
+
+    localStorage.clear();
+    localStorage.setItem("lasca.theme", "turtle");
+    expect(getSideLabelsForRuleset("damasca")).toEqual({ W: "Khaki", B: "Green" });
   });
 
-  it("uses Light/Dark for US Checkers on supported non-black-non-white piece themes", () => {
-    for (const themeId of lightDarkThemeIds) {
-      localStorage.clear();
-      localStorage.setItem("lasca.checkers.theme", themeId);
-      expect(getSideLabelsForRuleset("checkers_us")).toEqual({ W: "Light", B: "Dark" });
-    }
+  it("uses metadata variant labels for glass palettes", () => {
+    localStorage.clear();
+    localStorage.setItem("lasca.variantId", "dama_8");
+    localStorage.setItem("lasca.opt.dama_8.theme", "glass");
+    localStorage.setItem("lasca.opt.dama_8.theme.glassPalette", "cyan_violet");
+    expect(getSideLabelsForRuleset("dama")).toEqual({ W: "Cyan", B: "Violet" });
   });
 
   it("keeps Red/Black for International Draughts when the checkers theme is active", () => {
@@ -43,11 +41,9 @@ describe("sideTerminology", () => {
   });
 
   it("keeps Red/Black for non-chess rulesets when the checkers theme is active", () => {
-    for (const rulesetId of ["dama", "lasca", "damasca", "damasca_classic"]) {
-      localStorage.clear();
-      localStorage.setItem("lasca.theme", "checkers");
-      expect(getSideLabelsForRuleset(rulesetId)).toEqual({ W: "Red", B: "Black" });
-    }
+    localStorage.clear();
+    localStorage.setItem("lasca.theme", "checkers");
+    expect(getSideLabelsForRuleset("dama")).toEqual({ W: "Red", B: "Black" });
 
     localStorage.clear();
     localStorage.setItem("lasca.checkers.theme", "checkers");
@@ -73,6 +69,7 @@ describe("sideTerminology", () => {
 
   it("uses White/Black for chess-like identifiers", () => {
     localStorage.clear();
+    localStorage.setItem("lasca.theme", "candy");
     expect(getSideLabelsForRuleset("chess")).toEqual({ W: "White", B: "Black" });
     expect(getSideLabelsForRuleset("chess_classic")).toEqual({ W: "White", B: "Black" });
     expect(getSideLabelsForRuleset("columns_chess")).toEqual({ W: "White", B: "Black" });

@@ -249,6 +249,36 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Create initial game state and render once
   const state = createInitialGameStateForVariant(activeVariant.variantId);
+  const getCurrentSideLabels = () =>
+    getSideLabelsForRuleset(activeVariant.rulesetId, {
+      boardSize: activeVariant.boardSize,
+      themeId: svg.getAttribute("data-theme-id"),
+    });
+  const sideLabel = (player: Player): string => {
+    const labels = getCurrentSideLabels();
+    return player === "W" ? labels.W : labels.B;
+  };
+  const sideIcon = (player: Player): string => {
+    if (player === "B") return "⚫";
+    return sideLabel("W") === "Red" ? "🔴" : "⚪";
+  };
+  let controllerForSync: GameController | null = null;
+  let updateHistoryUIForSync: ((reason?: import("./controller/gameController.ts").HistoryChangeReason) => void) | null = null;
+  const syncBotSideLabels = () => {
+    const elAiWhiteLabel = (document.querySelector('label[for="aiWhiteRoleSelect"]') as HTMLElement | null) ?? null;
+    const elAiBlackLabel = (document.querySelector('label[for="aiBlackRoleSelect"]') as HTMLElement | null) ?? null;
+    if (elAiWhiteLabel) elAiWhiteLabel.textContent = sideLabel("W");
+    if (elAiBlackLabel) elAiBlackLabel.textContent = sideLabel("B");
+  };
+  const syncTerminologyUI = () => {
+    syncBotSideLabels();
+    const elTurn = document.getElementById("statusTurn");
+    if (elTurn) {
+      const toMove = controllerForSync?.getState().toMove ?? state.toMove;
+      elTurn.textContent = sideLabel(toMove);
+    }
+    if (updateHistoryUIForSync) updateHistoryUIForSync("jump");
+  };
   
   // Create history manager and record initial state
   const history = new HistoryManager();
@@ -259,7 +289,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   const elRulesBoard = document.getElementById("statusRulesBoard");
   const elPhase = document.getElementById("statusPhase");
   const elMsg = document.getElementById("statusMessage");
-  if (elTurn) elTurn.textContent = state.toMove === "B" ? "Dark" : "Light";
+  if (elTurn) elTurn.textContent = sideLabel(state.toMove);
   if (elRulesBoard) elRulesBoard.textContent = rulesBoardLine(activeVariant.rulesetId, activeVariant.boardSize);
   if (elPhase) elPhase.textContent = state.phase.charAt(0).toUpperCase() + state.phase.slice(1);
   if (elMsg) elMsg.textContent = "—";
@@ -275,7 +305,10 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Theme switching can involve slow raster PNG loads; show spinner while themes apply.
   svg.addEventListener(THEME_WILL_CHANGE_EVENT, () => boardLoading.show());
-  svg.addEventListener(THEME_DID_CHANGE_EVENT, () => boardLoading.hide());
+  svg.addEventListener(THEME_DID_CHANGE_EVENT, () => {
+    boardLoading.hide();
+    syncTerminologyUI();
+  });
 
   // In dev, force a full reload when modules (like state) change
   if (import.meta.hot) {
@@ -318,6 +351,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   const controller = new GameController(svg, piecesLayer, inspector, state, history, driver);
+  controllerForSync = controller;
   hudController = controller;
   controller.bind();
   shell.bindController(controller);
@@ -693,8 +727,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
       const renderMoveCell = (entry: (typeof historyData)[number]) => {
         // For moves: toMove indicates who's about to move, so invert to get who just moved.
-        const whoMoved = entry.toMove === "B" ? "W" : "B";
-        const playerIcon = whoMoved === "B" ? "⚫" : "⚪";
+        const whoMoved: Player = entry.toMove === "B" ? "W" : "B";
+        const playerIcon = sideIcon(whoMoved);
         let label = `${playerIcon}`;
         if (entry.notation) label += ` ${entry.notation}`;
         const cls = `cell clickable${entry.isCurrent ? " current" : ""}`;
@@ -707,8 +741,8 @@ window.addEventListener("DOMContentLoaded", async () => {
         const parts: string[] = [];
         parts.push('<div class="historyGrid">');
         parts.push('<div class="cell hdr">#</div>');
-        parts.push('<div class="cell hdr">⚪ Light</div>');
-        parts.push('<div class="cell hdr">⚫ Dark</div>');
+        parts.push(`<div class="cell hdr">${sideIcon("W")} ${sideLabel("W")}</div>`);
+        parts.push(`<div class="cell hdr">${sideIcon("B")} ${sideLabel("B")}</div>`);
 
         parts.push(renderStartCell(historyData[0]!));
 
@@ -743,16 +777,17 @@ window.addEventListener("DOMContentLoaded", async () => {
 
             // For moves: toMove indicates who's about to move, so invert to get who just moved
             // If toMove is "B", White just moved. If toMove is "W", Black just moved.
-            const playerWhoMoved = entry.toMove === "B" ? "Light" : "Dark";
-            const playerIcon = playerWhoMoved === "Dark" ? "⚫" : "⚪";
-            const whoMoved = playerWhoMoved === "Light" ? "W" : "B";
+            const whoMoved: Player = entry.toMove === "B" ? "W" : "B";
+            const movedLabel = sideLabel(whoMoved);
+            const playerIcon = sideIcon(whoMoved);
 
             // Calculate move number: each player's move increments the counter
-            const moveNum = playerWhoMoved === "Dark"
+            const moveNum = whoMoved === "B"
               ? Math.ceil(idx / 2) // Black: moves 1, 3, 5... → move# 1, 2, 3...
               : Math.floor((idx + 1) / 2); // White: moves 2, 4, 6... → move# 1, 2, 3...
 
             let label = `${moveNum}. ${playerIcon}`;
+            if (movedLabel) label += ` ${movedLabel}`;
             if (entry.notation) {
               label += ` ${entry.notation}`;
             }
@@ -778,6 +813,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       moveHistoryEl.scrollTop = moveHistoryEl.scrollHeight;
     });
   };
+  updateHistoryUIForSync = updateHistoryUI;
 
   if (moveHistoryEl) {
     moveHistoryEl.addEventListener("click", (ev) => {
@@ -810,7 +846,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         driver.mode === "online"
           ? (driver as OnlineGameDriver).getPlayerColor()
           : controller.getState().toMove;
-      const currentPlayer = localColor === "B" ? "Dark" : localColor === "W" ? "Light" : "—";
+      const currentPlayer = localColor === "B" ? sideLabel("B") : localColor === "W" ? sideLabel("W") : "—";
       const confirmed = confirm(`Are you sure you want to resign as ${currentPlayer}?`);
       if (confirmed) {
         void controller.resign();
@@ -974,7 +1010,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       const elRulesBoard = document.getElementById("statusRulesBoard");
       const elPhase = document.getElementById("statusPhase");
       const elMsg = document.getElementById("statusMessage");
-      if (elTurn) elTurn.textContent = next.toMove === "B" ? "Dark" : "Light";
+      if (elTurn) elTurn.textContent = sideLabel(next.toMove);
       if (elRulesBoard) elRulesBoard.textContent = rulesBoardLine(activeVariant.rulesetId, activeVariant.boardSize);
       if (elPhase) elPhase.textContent = next.phase.charAt(0).toUpperCase() + next.phase.slice(1);
       if (elMsg) elMsg.textContent = "—";
