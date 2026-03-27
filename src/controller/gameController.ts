@@ -434,8 +434,12 @@ export class GameController {
     }
   }
 
-  private playGameplaySfx(name: Extract<SfxName, "move" | "capture" | "promote">, nextState?: GameState): void {
-    if (this.driver.mode === "online" && this.suppressOnlineGameplaySfxUntilTurnForColor) {
+  private playGameplaySfx(
+    name: Extract<SfxName, "move" | "capture" | "promote">,
+    nextState?: GameState,
+    opts?: { skipOnlineSuppression?: boolean }
+  ): void {
+    if (!opts?.skipOnlineSuppression && this.driver.mode === "online" && this.suppressOnlineGameplaySfxUntilTurnForColor) {
       const effectiveState = nextState ?? this.state;
       if (effectiveState.toMove === this.suppressOnlineGameplaySfxUntilTurnForColor) {
         this.suppressOnlineGameplaySfxUntilTurnForColor = null;
@@ -1289,6 +1293,15 @@ export class GameController {
     if (typeof remote.controlsColor === "function") return remote.controlsColor(this.state.toMove as Player);
     if (!color) return false;
     return this.state.toMove === color;
+  }
+
+  /**
+   * True when this client is allowed to submit a move for the current turn.
+   * Used by bot managers to avoid issuing remote moves for seats this client
+   * does not control.
+   */
+  public canLocalMachineActOnTurn(): boolean {
+    return this.isLocalPlayersTurn();
   }
 
   private startOnlinePolling(): void {
@@ -3226,6 +3239,12 @@ export class GameController {
     try {
       const didTurnFlip = prev?.toMove !== next.toMove;
       const didForcedOverAppear = Boolean((next as any)?.forcedGameOver) && !Boolean((prev as any)?.forcedGameOver);
+      const prevVersionRaw = Number((prev as any)?.stateVersion);
+      const nextVersionRaw = Number((next as any)?.stateVersion);
+      const hasVersionAdvance =
+        Number.isFinite(prevVersionRaw) && Number.isFinite(nextVersionRaw)
+          ? nextVersionRaw > prevVersionRaw
+          : true;
       const onlineMoverIsLocal = (() => {
         if (this.driver.mode !== "online") return false;
         const remote = this.driver as OnlineGameDriver & { controlsColor?: (color: Player) => boolean };
@@ -3233,7 +3252,13 @@ export class GameController {
         if (localColor === prev.toMove) return true;
         return typeof remote.controlsColor === "function" && remote.controlsColor(prev.toMove);
       })();
-      if (!prevWasGameOver && !onlineMoverIsLocal && (didForcedOverAppear || didTurnFlip) && this.shouldPlayMoveTransitionSfx(prev, next)) {
+      if (
+        !prevWasGameOver &&
+        hasVersionAdvance &&
+        !onlineMoverIsLocal &&
+        (didForcedOverAppear || didTurnFlip) &&
+        this.shouldPlayMoveTransitionSfx(prev, next)
+      ) {
         this.playGameplaySfx(this.inferMoveSfx(prev, next), next);
       }
     } catch {
@@ -5353,10 +5378,11 @@ export class GameController {
         next = await this.driver.submitMove(move);
       }
     } catch (err) {
-      this.playSfx("error");
+      const msg = err instanceof Error ? err.message : "Move failed";
+      const isSeatControlError = typeof msg === "string" && msg.includes("Local machine does not control the active seat");
+      if (!isSeatControlError) this.playSfx("error");
       // eslint-disable-next-line no-console
       console.error("[controller] driver submitMove failed", err);
-      const msg = err instanceof Error ? err.message : "Move failed";
 
       // In online mode, a failed submit often means our local view is stale
       // (opponent moved, grace timeout fired, etc). Resync once so UI doesn't
@@ -5394,7 +5420,7 @@ export class GameController {
         return;
       }
 
-      this.showBanner(msg, 2500);
+      if (!isSeatControlError) this.showBanner(msg, 2500);
       return;
     }
     if (import.meta.env && import.meta.env.DEV) {
@@ -5403,13 +5429,13 @@ export class GameController {
     }
 
     this.rememberMoveTransitionSfx(this.state, next);
-    const shouldPlayLocalMoveSfx = this.driver.mode !== "online";
+    const shouldPlayLocalMoveSfx = true;
     if (this.driver.mode === "online") {
       this.suppressOnlineGameplaySfxUntilTurnForColor = this.state.toMove;
     }
     if (shouldPlayLocalMoveSfx) {
-      this.playGameplaySfx(move.kind === "capture" ? "capture" : "move", next);
-      if (next.didPromote) this.playGameplaySfx("promote", next);
+      this.playGameplaySfx(move.kind === "capture" ? "capture" : "move", next, { skipOnlineSuppression: true });
+      if (next.didPromote) this.playGameplaySfx("promote", next, { skipOnlineSuppression: true });
     }
 
     const prevForAnim = this.state;

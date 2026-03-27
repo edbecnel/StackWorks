@@ -1448,6 +1448,15 @@ export class ChessBotManager {
     if (this.busy) return;
     if (this.controller.isOver()) return;
 
+    // Online safety: only the client that controls the active seat may submit.
+    if (
+      this.controller.getDriverMode() === "online" &&
+      typeof this.controller.canLocalMachineActOnTurn === "function" &&
+      !this.controller.canLocalMachineActOnTurn()
+    ) {
+      return;
+    }
+
     const state = this.controller.getState();
     const rulesetId = state.meta?.rulesetId;
     if (rulesetId !== "chess") return;
