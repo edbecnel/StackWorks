@@ -1951,6 +1951,8 @@ export class GameController {
 
   private maybeToastTurnChange(): void {
     if (this.isGameOver) return;
+    // Suppress turn toasts if the game is in a locked/startup state (e.g., before local play is started)
+    if (this.shellStartupPlayLockEnabled) return;
 
     // If an AI/bot pause-resume sticky toast is active, don't flash a timed
     // generic turn-change toast underneath it.
@@ -2607,6 +2609,10 @@ export class GameController {
     this.refreshSelectableCursors();
   }
 
+  isShellStartupPlayLockEnabled(): boolean {
+    return this.shellStartupPlayLockEnabled;
+  }
+
   getCaptureChainConstraints(): {
     lockedCaptureFrom: string | null;
     lockedCaptureDir: { dr: number; dc: number } | null;
@@ -2657,6 +2663,7 @@ export class GameController {
 
   async playMove(move: Move): Promise<void> {
     if (this.isGameOver) return;
+    if (this.shellStartupPlayLockEnabled) return;
 
     // Ensure move is still legal under the current turn constraints.
     const legal = this.getLegalMovesForTurn();

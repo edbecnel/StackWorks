@@ -32,6 +32,11 @@ export function bindStartPageConfirm(controller: GameController, variantId: Vari
   };
 
   const shouldConfirmLeave = (): boolean => {
+    // Startup-locked shells have not begun a playable game; avoid loss prompts
+    // when the user is taking an intentional start action.
+    if (typeof (controller as any).isShellStartupPlayLockEnabled === "function" && (controller as any).isShellStartupPlayLockEnabled()) {
+      return false;
+    }
     // After a terminal result, leaving is expected; avoid extra warnings.
     return hasBegun && !controller.isOver() && !isTerminalNow();
   };

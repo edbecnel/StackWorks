@@ -32,6 +32,11 @@ export function bindOfflineNavGuard(controller: GameController, variantId: Varia
   };
 
   const shouldWarnLoss = (): boolean => {
+    // Startup-locked shells haven't started a playable game yet, so navigating
+    // to an explicit start action (e.g. local mode relaunch) should not warn.
+    if (typeof (controller as any).isShellStartupPlayLockEnabled === "function" && (controller as any).isShellStartupPlayLockEnabled()) {
+      return false;
+    }
     // Once the game is terminal, losing the page state is no longer a surprise.
     return hasBegun && !controller.isOver() && !isTerminalNow();
   };

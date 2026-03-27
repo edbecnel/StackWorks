@@ -932,6 +932,8 @@ window.addEventListener("DOMContentLoaded", async () => {
       if (confirmed) {
         const freshState = createInitialGameStateForVariant(ACTIVE_VARIANT_ID);
         controller.newGame(freshState);
+        controller.setInputEnabled(true); // Unlock input after new game
+        boardPlayerNames?.sync(); // Ensure overlays/UI are updated
       }
     });
   }

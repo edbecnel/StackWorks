@@ -1380,7 +1380,11 @@ function setLauncherVariant(variantId: VariantId): void {
 }
 
 function navigateToHref(href: string): void {
-  window.location.href = href;
+  try {
+    window.location.href = href;
+  } catch {
+    // Test environments (jsdom) do not implement full navigation.
+  }
 }
 
 function updatePlayHubState(currentVariantId: VariantId, playSubSection: PlaySubSection, onlineSubSection?: OnlineSubSection | null): void {
@@ -2317,8 +2321,15 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
           playSubSection: PlaySubSection.Bots,
           botPlayState,
         });
+        const currentMode = (() => {
+          try {
+            return new URLSearchParams(window.location.search).get("mode");
+          } catch {
+            return null;
+          }
+        })();
         if (applyBotPlayStateToCurrentPage(botPlayState)) {
-          if (startCurrentPageNewGame()) return;
+          if (startCurrentPageNewGame() && currentMode === "local") return;
         }
         if (localStart.immediate && !isCurrentPageOnlineMode()) {
           // Reload through an explicit local-mode URL so shell startup lock is

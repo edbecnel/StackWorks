@@ -1151,7 +1151,9 @@ window.addEventListener("DOMContentLoaded", async () => {
         if (!ok) return;
       }
       controller.newGame(createInitialGameStateForVariant(ACTIVE_VARIANT_ID));
+      controller.setInputEnabled(true); // Unlock input after new game
       setPlayerNames("", "");
+      updatePlayerNameDisplay(); // Ensure overlays/UI are updated
     });
   }
 
