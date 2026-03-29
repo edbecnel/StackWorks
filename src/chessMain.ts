@@ -634,6 +634,13 @@ window.addEventListener("DOMContentLoaded", async () => {
     setPlayerNames(names.W, names.B);
   };
 
+  try {
+    (window as Window & { syncConfiguredPlayerNames?: () => void }).syncConfiguredPlayerNames =
+      syncConfiguredPlayerNames;
+  } catch {
+    // ignore (non-browser / locked down environments)
+  }
+
   const maybeLoadSignedInHumanDisplayName = (): void => {
     if (driver.mode === "online" || hasRequestedSignedInHumanDisplayName || !hasAnyLocalBotSide(document)) return;
     hasRequestedSignedInHumanDisplayName = true;
@@ -1187,8 +1194,8 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
       controller.newGame(createInitialGameStateForVariant(ACTIVE_VARIANT_ID));
       controller.setInputEnabled(true); // Unlock input after new game
-      setPlayerNames("", "");
-      updatePlayerNameDisplay(); // Ensure overlays/UI are updated
+      // Re-resolve from bot selectors / local seats (Play Hub in-page restarts used to clear names via `setPlayerNames("", "")`).
+      syncConfiguredPlayerNames();
     });
   }
 

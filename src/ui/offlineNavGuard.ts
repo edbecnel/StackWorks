@@ -4,6 +4,36 @@ import type { VariantId } from "../variants/variantTypes";
 import { shouldConfirmDiscardCurrentGame } from "./newGameDiscardConfirm";
 import { allowConfirmedNavigation, consumeConfirmedNavigationAllowance } from "./navigationPromptGate";
 
+/** Shown before Play Hub forces a full reload to apply offline bot setup (avoids the generic browser reload prompt). */
+export const OFFLINE_BOT_START_RELOAD_CONFIRM_MESSAGE =
+  "The page will reload to apply your bot setup. Any in-progress local game will be lost unless you saved it. Continue?";
+
+function isTerminalLocalGameState(controller: GameController): boolean {
+  try {
+    const state = controller.getState();
+    const forcedMsg = (state as any)?.forcedGameOver?.message;
+    if (typeof forcedMsg === "string" && forcedMsg.trim()) return true;
+    const r = checkCurrentPlayerLost(state);
+    return Boolean(r.winner) || Boolean(r.reason);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * True when leaving/reloading could lose local progress (matches offline `beforeunload` / back-button guard).
+ * Always false for online drivers.
+ */
+export function shouldWarnOfflineNavigationLoss(controller: GameController, variantId: VariantId): boolean {
+  if (controller.getDriverMode() === "online") return false;
+  if (typeof (controller as any).isShellStartupPlayLockEnabled === "function" && (controller as any).isShellStartupPlayLockEnabled()) {
+    return false;
+  }
+  if (controller.isOver()) return false;
+  if (isTerminalLocalGameState(controller)) return false;
+  return shouldConfirmDiscardCurrentGame(controller, variantId);
+}
+
 export function bindOfflineNavGuard(controller: GameController, variantId: VariantId): void {
   if (typeof window === "undefined" || typeof document === "undefined") return;
 
@@ -15,29 +45,7 @@ export function bindOfflineNavGuard(controller: GameController, variantId: Varia
   if (anyWin[BIND_KEY]) return;
   anyWin[BIND_KEY] = true;
 
-  const isTerminalNow = (): boolean => {
-    try {
-      const state = controller.getState();
-      const forcedMsg = (state as any)?.forcedGameOver?.message;
-      if (typeof forcedMsg === "string" && forcedMsg.trim()) return true;
-      const r = checkCurrentPlayerLost(state);
-      return Boolean(r.winner) || Boolean(r.reason);
-    } catch {
-      return false;
-    }
-  };
-
-  const shouldWarnLoss = (): boolean => {
-    // Startup-locked shells haven't started a playable game yet, so navigating
-    // to an explicit start action (e.g. local mode relaunch) should not warn.
-    if (typeof (controller as any).isShellStartupPlayLockEnabled === "function" && (controller as any).isShellStartupPlayLockEnabled()) {
-      return false;
-    }
-    if (controller.isOver()) return false;
-    if (isTerminalNow()) return false;
-    // Match "discard current game?" semantics: no warn at initial position with empty history.
-    return shouldConfirmDiscardCurrentGame(controller, variantId);
-  };
+  const shouldWarnLoss = (): boolean => shouldWarnOfflineNavigationLoss(controller, variantId);
 
   const TOAST_KEY = "offline_nav_guard";
   const toastText = "Refreshing or going back will lose the current game.";

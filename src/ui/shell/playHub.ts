@@ -61,6 +61,12 @@ export interface PlayHubOptions {
    * Not used by default; wire this when the game page can re-bind the online driver in-place.
    */
   tryCompleteSameDocumentOnlineNavigation?: (href: string) => boolean;
+  /**
+   * Before a full reload for “Start new offline bot game”, run a custom confirm when local progress could be lost.
+   * Return false to cancel. Implementations should call `allowConfirmedNavigation()` when returning true so the
+   * browser’s generic reload `beforeunload` prompt is skipped.
+   */
+  confirmOfflineBotStartReloadIfNeeded?: () => boolean;
 }
 
 export interface PlayHubController {
@@ -2416,7 +2422,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     botActions.appendChild(createHubAction({
       label: bothBots ? "Start new offline watch match" : "Start new offline bot game",
       description: localStart.immediate
-        ? "Reloads this page with your seat setup so the board and on-board names initialize reliably."
+        ? "Applies this seat setup on the current page and starts a fresh game when local play is already open."
         : (localStart.reason ?? "Save this setup and open explicit local play on the current variant page."),
       href: buildCurrentVariantLocalHref(),
       onSelect: () => {
@@ -2429,6 +2435,11 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
           botPlayState,
         });
         if (!confirmLeavingOnlineForExplicitLocalNavigation()) return true;
+        if (localStart.immediate) {
+          const finish = finishExplicitLocalStartOnCurrentPage(botPlayState);
+          if (finish === "handled" || finish === "aborted") return true;
+        }
+        if (opts.confirmOfflineBotStartReloadIfNeeded && !opts.confirmOfflineBotStartReloadIfNeeded()) return true;
         navigateToLocalVariantForcingFullLoad(buildCurrentVariantLocalHref());
         return true;
       },

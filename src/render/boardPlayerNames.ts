@@ -179,10 +179,8 @@ export function bindBoardPlayerNameOverlay(args: {
     const whiteName = snapshot.players.W.displayName?.trim() ?? "";
     const blackName = snapshot.players.B.displayName?.trim() ?? "";
     if (!whiteName && !blackName) {
-      if (snapshot.mode !== "local") {
-        const emptyLayer = ensurePlayerNameLayer(svg);
-        while (emptyLayer.firstChild) emptyLayer.removeChild(emptyLayer.firstChild);
-      }
+      const emptyLayer = ensurePlayerNameLayer(svg);
+      while (emptyLayer.firstChild) emptyLayer.removeChild(emptyLayer.firstChild);
       return;
     }
 

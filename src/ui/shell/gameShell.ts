@@ -1,5 +1,10 @@
 import { renderLogo } from "../branding/logo";
 import { createTabs } from "../navigation/tabs";
+import { allowConfirmedNavigation } from "../navigationPromptGate";
+import {
+  OFFLINE_BOT_START_RELOAD_CONFIRM_MESSAGE,
+  shouldWarnOfflineNavigationLoss,
+} from "../offlineNavGuard";
 import { createPlayHub, type PlayHubAction } from "./playHub";
 import { isBoardFlipped } from "../../render/boardFlip";
 import { createPlayerIdentityPanel } from "../player/playerIdentityPanel";
@@ -1226,6 +1231,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
   document.body.classList.add("stackworksGameShellEnabled");
   const initialShellState = readShellState();
   let forwardCommitExplicitLocalPlayMode: (() => void) | null = null;
+  let playHubOfflineBotReloadControllerRef: GameController | null = null;
 
   const shell = document.createElement("div");
   shell.className = "gameShellRoot";
@@ -1820,6 +1826,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
       scheduleBoardFit();
     };
     forwardCommitExplicitLocalPlayMode = commitExplicitLocalPlayMode;
+    playHubOfflineBotReloadControllerRef = controller;
 
     didBindController = true;
   };
@@ -2018,6 +2025,14 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
         backHref: opts.backHref,
         helpHref: opts.helpHref,
         commitExplicitLocalPlayMode: () => forwardCommitExplicitLocalPlayMode?.(),
+        confirmOfflineBotStartReloadIfNeeded: () => {
+          const c = playHubOfflineBotReloadControllerRef;
+          if (!c) return true;
+          if (!shouldWarnOfflineNavigationLoss(c, opts.variantId)) return true;
+          const ok = window.confirm(OFFLINE_BOT_START_RELOAD_CONFIRM_MESSAGE);
+          if (ok) allowConfirmedNavigation();
+          return ok;
+        },
         onlineAction: createNavAction(
           ["online", "status", "play"],
           "Review live game status",
