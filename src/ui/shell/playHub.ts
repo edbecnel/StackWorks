@@ -519,6 +519,53 @@ function getBotOptionsForVariant(variantId: VariantId): readonly BotOption[] {
   ];
 }
 
+/** Value for the "Beginner" tier for this variant's `<select>` (e.g. `beginner` vs legacy `easy`). */
+function getDefaultBeginnerBotLevelValue(options: readonly BotOption[]): BotDifficulty {
+  const beginner = options.find((o) => o.value === "beginner");
+  if (beginner) return beginner.value;
+  const easy = options.find((o) => o.value === "easy");
+  if (easy) return easy.value;
+  return options[0]?.value ?? "beginner";
+}
+
+/**
+ * Maps stored launcher/shell levels onto the current variant's option values.
+ * Unknown or empty values fall back to the beginner tier so the level `<select>` never shows a blank selection.
+ */
+function resolveBotLevelForVariantSelect(
+  level: BotDifficulty | null | undefined,
+  options: readonly BotOption[],
+): BotDifficulty {
+  const valid = new Set(options.map((o) => o.value));
+  const raw = level == null ? "" : String(level).trim();
+  if (raw && valid.has(raw)) return raw as BotDifficulty;
+
+  if (raw === "easy" && valid.has("beginner")) return "beginner";
+  if (raw === "beginner" && valid.has("easy")) return "easy";
+  if (raw === "medium" && valid.has("intermediate")) return "intermediate";
+  if (raw === "intermediate" && valid.has("medium")) return "medium";
+
+  return getDefaultBeginnerBotLevelValue(options);
+}
+
+function normalizeBotPlayStateLevels(state: BotPlayState, variantId: VariantId): BotPlayState {
+  const options = getBotOptionsForVariant(variantId);
+  const fixSeat = (seat: BotPlayState["white"]): BotPlayState["white"] => {
+    if (seat.controller !== BotControllerMode.Bot) return seat;
+    const resolved = resolveBotLevelForVariantSelect(seat.level, options);
+    if (resolved === seat.level) return seat;
+    return {
+      ...seat,
+      level: resolved,
+      persona: seat.persona ?? defaultBotPersonaForLevel(resolved),
+    };
+  };
+  return {
+    white: fixSeat(state.white),
+    black: fixSeat(state.black),
+  };
+}
+
 function readBotStorageValue(key: string): string | null {
   try {
     return localStorage.getItem(key);
@@ -607,17 +654,25 @@ function createDefaultBotPlayState(variantId: VariantId): BotPlayState {
 }
 
 function resolveInitialBotPlayState(persistedState: BotPlayState | null, variantId: VariantId): BotPlayState {
-  if (hasBotControlledSeat(persistedState)) return persistedState;
-
-  const legacyState = readLegacyBotPlayState(variantId);
-  if (hasBotControlledSeat(legacyState)) return legacyState;
-
-  return createDefaultBotPlayState(variantId);
+  let resolved: BotPlayState;
+  if (hasBotControlledSeat(persistedState)) {
+    resolved = persistedState;
+  } else {
+    const legacyState = readLegacyBotPlayState(variantId);
+    if (hasBotControlledSeat(legacyState)) {
+      resolved = legacyState;
+    } else {
+      resolved = createDefaultBotPlayState(variantId);
+    }
+  }
+  return normalizeBotPlayStateLevels(resolved, variantId);
 }
 
 function writeBotPlayStateToLauncher(variantId: VariantId, state: BotPlayState): void {
-  const whiteValue = state.white.controller === BotControllerMode.Bot ? state.white.level ?? "advanced" : "human";
-  const blackValue = state.black.controller === BotControllerMode.Bot ? state.black.level ?? "advanced" : "human";
+  const options = getBotOptionsForVariant(variantId);
+  const fallbackBot = getDefaultBeginnerBotLevelValue(options);
+  const whiteValue = state.white.controller === BotControllerMode.Bot ? state.white.level ?? fallbackBot : "human";
+  const blackValue = state.black.controller === BotControllerMode.Bot ? state.black.level ?? fallbackBot : "human";
   writeLauncherValue(getBotPersonaStorageKey("white"), state.white.controller === BotControllerMode.Bot ? state.white.persona ?? defaultBotPersonaForLevel(state.white.level) : "");
   writeLauncherValue(getBotPersonaStorageKey("black"), state.black.controller === BotControllerMode.Bot ? state.black.persona ?? defaultBotPersonaForLevel(state.black.level) : "");
 
@@ -1653,6 +1708,9 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     ? (persistedShellState.onlineSubSection as OnlineSubSection)
     : OnlineSubSection.QuickMatch;
   let botPlayState = resolveInitialBotPlayState(persistedShellState.botPlayState, opts.currentVariantId);
+  if (JSON.stringify(botPlayState) !== JSON.stringify(persistedShellState.botPlayState)) {
+    updateShellState({ botPlayState });
+  }
   let hostedRoomState: HostedRoomState = persistedShellState.hostedRoomState ?? {
     visibility: HostedRoomVisibilityMode.Public,
     ownerControl: HostedRoomOwnerControl.HostOnly,
@@ -2355,8 +2413,14 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     for (const binding of seatBindings) {
       const state = botPlayState[binding.seat.key];
       binding.controllerSelect.value = state.controller;
-      binding.levelSelect.value = state.level ?? botOptions[0]?.value ?? "advanced";
-      binding.personaSelect.value = state.persona ?? defaultBotPersonaForLevel(state.level);
+      const resolvedBotLevel = resolveBotLevelForVariantSelect(state.level, botOptions);
+      binding.levelSelect.value =
+        state.controller === BotControllerMode.Bot
+          ? resolvedBotLevel
+          : getDefaultBeginnerBotLevelValue(botOptions);
+      binding.personaSelect.value =
+        state.persona ??
+        defaultBotPersonaForLevel(state.controller === BotControllerMode.Bot ? resolvedBotLevel : null);
       const controllerIdentityText = state.controller === BotControllerMode.Human ? signedInHumanDisplayName : null;
       binding.controllerIdentity.textContent = controllerIdentityText ?? "";
       binding.controllerIdentity.hidden = !controllerIdentityText;
@@ -2538,7 +2602,10 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
         ...botPlayState,
         [binding.seat.key]: {
           controller: nextController,
-          level: nextController === BotControllerMode.Bot ? ((binding.levelSelect.value as BotDifficulty) || botOptions[0]?.value || null) : null,
+          level:
+            nextController === BotControllerMode.Bot
+              ? resolveBotLevelForVariantSelect(binding.levelSelect.value as BotDifficulty, botOptions)
+              : null,
           persona: nextController === BotControllerMode.Bot ? (binding.personaSelect.value as BotPersona) : null,
         },
       };
@@ -2550,7 +2617,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
         ...botPlayState,
         [binding.seat.key]: {
           controller: BotControllerMode.Bot,
-          level: (binding.levelSelect.value as BotDifficulty) || botOptions[0]?.value || null,
+          level: resolveBotLevelForVariantSelect(binding.levelSelect.value as BotDifficulty, botOptions),
           persona: (binding.personaSelect.value as BotPersona) || defaultBotPersonaForLevel(binding.levelSelect.value as BotDifficulty),
         },
       };
@@ -2562,7 +2629,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
         ...botPlayState,
         [binding.seat.key]: {
           controller: BotControllerMode.Bot,
-          level: (binding.levelSelect.value as BotDifficulty) || botOptions[0]?.value || null,
+          level: resolveBotLevelForVariantSelect(binding.levelSelect.value as BotDifficulty, botOptions),
           persona: (binding.personaSelect.value as BotPersona) || defaultBotPersonaForLevel(binding.levelSelect.value as BotDifficulty),
         },
       };

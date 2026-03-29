@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   BotControllerMode,
+  GlobalSection,
   normalizeBotPersona,
   normalizeCoachLevel,
   normalizeBotPlayState,
@@ -384,6 +385,36 @@ describe("createPlayHub", () => {
     expect(controllerSelects[0]?.value).toBe("bot");
     expect(controllerSelects[1]?.value).toBe("human");
     expect(levelSelects[0]?.value).toBe("beginner");
+  });
+
+  it("maps cross-variant beginner levels onto the current variant so Bot level is never blank", () => {
+    localStorage.setItem(
+      "stackworks.shell.state",
+      JSON.stringify({
+        activeGame: "lasca_7_classic",
+        activeSection: GlobalSection.Games,
+        botPlayState: {
+          white: { controller: "human", level: null, persona: null },
+          black: { controller: "bot", level: "beginner", persona: "balanced" },
+        },
+      }),
+    );
+
+    const hub = createPlayHub({
+      currentVariantId: "lasca_7_classic",
+      backHref: "/start",
+    });
+
+    document.body.appendChild(hub.element);
+    hub.setActiveTab(PlaySubSection.Bots);
+
+    const levelSelects = Array.from(document.querySelectorAll('[data-bot-field="level"]')) as HTMLSelectElement[];
+    expect(levelSelects[1]?.value).toBe("easy");
+
+    const persisted = JSON.parse(localStorage.getItem("stackworks.shell.state") ?? "{}") as {
+      botPlayState?: { black?: { level?: string } };
+    };
+    expect(persisted.botPlayState?.black?.level).toBe("easy");
   });
 
   it("persists independent bot personalities per seat", () => {
