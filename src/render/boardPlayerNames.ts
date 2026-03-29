@@ -5,7 +5,12 @@ import {
   resolveActiveLocalSeatDisplayNames,
 } from "../shared/localPlayerNames";
 import type { PlayerShellSnapshot } from "../types";
+import {
+  BOARD_VIEWPORT_MODE_CHANGED_EVENT,
+  STACKWORKS_BOARD_CHROME_REFLOW_DONE_EVENT,
+} from "../ui/boardViewportMode";
 import { getBoardViewportMetrics } from "./boardViewport";
+import { urlHasExplicitPlayMode } from "../ui/shell/explicitLocalModeNavigation";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const PLAYER_NAME_LAYER_ID = "playerNameLayer";
@@ -37,8 +42,16 @@ function parseViewBox(svg: SVGSVGElement): ParsedViewBox {
 }
 
 function ensurePlayerNameLayer(svg: SVGSVGElement): SVGGElement {
-  const existing = svg.querySelector(`#${PLAYER_NAME_LAYER_ID}`) as SVGGElement | null;
-  if (existing) return existing;
+  const inSvg = svg.querySelector(`#${PLAYER_NAME_LAYER_ID}`) as SVGGElement | null;
+  if (inSvg) return inSvg;
+  const stray = document.getElementById(PLAYER_NAME_LAYER_ID);
+  if (stray && !svg.contains(stray)) {
+    try {
+      stray.remove();
+    } catch {
+      // ignore
+    }
+  }
   const layer = document.createElementNS(SVG_NS, "g") as SVGGElement;
   layer.id = PLAYER_NAME_LAYER_ID;
   layer.setAttribute("pointer-events", "none");
@@ -96,6 +109,16 @@ function currentTurn(snapshot: PlayerShellSnapshot): "W" | "B" {
   return "W";
 }
 
+/** Re-run playable viewBox + shell/board fit after names change (second in-page local start, etc.). */
+function schedulePlayableViewportRefit(svg: SVGSVGElement): void {
+  try {
+    if (getBoardViewportMetrics(svg)?.mode !== "playable") return;
+    window.dispatchEvent(new Event(BOARD_VIEWPORT_MODE_CHANGED_EVENT));
+  } catch {
+    // ignore
+  }
+}
+
 export function bindBoardPlayerNameOverlay(args: {
   svg: SVGSVGElement;
   controller: GameController;
@@ -103,16 +126,14 @@ export function bindBoardPlayerNameOverlay(args: {
 }): BoardPlayerNameOverlayHandle {
   const { svg, controller, isFlipped } = args;
   const initialSnapshot = controller.getPlayerShellSnapshot();
-  const queryMode = new URLSearchParams(window.location.search).get("mode");
-  const hasExplicitPlayMode = queryMode === "local" || queryMode === "online";
-  const startupPlayLockActive = !hasExplicitPlayMode;
   let signedInHumanDisplayName: string | null = null;
   let hasRequestedSignedInHumanDisplayName = false;
 
   const syncLocalSeatDisplayNames = (): void => {
     const snapshot = controller.getPlayerShellSnapshot();
     if (snapshot.mode !== "local") return;
-    if (startupPlayLockActive) {
+    if (controller.isLoadedGameSeatLabelsActive()) return;
+    if (!urlHasExplicitPlayMode() && controller.isShellStartupPlayLockEnabled()) {
       controller.setLocalPlayerDisplayNames({
         W: snapshot.players.W.sideLabel,
         B: snapshot.players.B.sideLabel,
@@ -132,6 +153,10 @@ export function bindBoardPlayerNameOverlay(args: {
         W: fallbackStoredNames.white,
         B: fallbackStoredNames.black,
       },
+      savePinnedSeatNames: {
+        W: controller.getSavePinnedSeatDisplayName("W"),
+        B: controller.getSavePinnedSeatDisplayName("B"),
+      },
     });
 
     controller.setLocalPlayerDisplayNames(nextNames);
@@ -145,23 +170,24 @@ export function bindBoardPlayerNameOverlay(args: {
       signedInHumanDisplayName = nextDisplayName;
       syncLocalSeatDisplayNames();
       render();
+      schedulePlayableViewportRefit(svg);
     });
   };
 
-  if (initialSnapshot.mode === "local") {
-    syncLocalSeatDisplayNames();
-    maybeLoadSignedInHumanDisplayName();
-  }
-
-  const layer = ensurePlayerNameLayer(svg);
-
   const render = (): void => {
-    while (layer.firstChild) layer.removeChild(layer.firstChild);
-
     const snapshot = controller.getPlayerShellSnapshot();
     const whiteName = snapshot.players.W.displayName?.trim() ?? "";
     const blackName = snapshot.players.B.displayName?.trim() ?? "";
-    if (!whiteName && !blackName) return;
+    if (!whiteName && !blackName) {
+      if (snapshot.mode !== "local") {
+        const emptyLayer = ensurePlayerNameLayer(svg);
+        while (emptyLayer.firstChild) emptyLayer.removeChild(emptyLayer.firstChild);
+      }
+      return;
+    }
+
+    const liveLayer = ensurePlayerNameLayer(svg);
+    while (liveLayer.firstChild) liveLayer.removeChild(liveLayer.firstChild);
 
     const metrics = getBoardViewportMetrics(svg);
     const viewBox = metrics?.viewBox ?? parseViewBox(svg);
@@ -184,27 +210,63 @@ export function bindBoardPlayerNameOverlay(args: {
     const topIsBold = turn === topColor;
     const bottomIsBold = turn !== topColor;
 
-    if (topName) layer.appendChild(makePlayerNameText(topName, centerX, topY, topIsBold));
-    if (bottomName) layer.appendChild(makePlayerNameText(bottomName, centerX, bottomY, bottomIsBold));
+    if (topName) liveLayer.appendChild(makePlayerNameText(topName, centerX, topY, topIsBold));
+    if (bottomName) liveLayer.appendChild(makePlayerNameText(bottomName, centerX, bottomY, bottomIsBold));
   };
 
-  const syncLocalNamesAndRender = (): void => {
+  /**
+   * Push resolved local/bot seat labels into the controller, then redraw.
+   * Does not dispatch `boardViewportModeChanged` (avoids loops with viewport listeners).
+   */
+  const resyncSeatLabelsAndRedraw = (): void => {
     syncLocalSeatDisplayNames();
     maybeLoadSignedInHumanDisplayName();
     render();
   };
 
-  controller.addHistoryChangeCallback(() => render());
+  const syncLocalNamesAndRender = (): void => {
+    resyncSeatLabelsAndRedraw();
+    schedulePlayableViewportRefit(svg);
+  };
+
+  const anySvg = svg as SVGSVGElement & { __stackworksBoardNamesReflowListener?: () => void };
+  if (typeof window !== "undefined" && !anySvg.__stackworksBoardNamesReflowListener) {
+    anySvg.__stackworksBoardNamesReflowListener = () => {
+      syncLocalNamesAndRender();
+    };
+    window.addEventListener(STACKWORKS_BOARD_CHROME_REFLOW_DONE_EVENT, anySvg.__stackworksBoardNamesReflowListener);
+  }
+
+  controller.addHistoryChangeCallback((reason) => {
+    // `newGame` clears save pins but not `localShellDisplayNames`; re-resolve so shell + board
+    // do not keep a loaded game's labels. `loadGame` re-syncs when saves omit `playerNames`
+    // (pin cleared) while still skipping overwrites while `isLoadedGameSeatLabelsActive()`.
+    if (reason === "newGame" || reason === "loadGame") {
+      syncLocalNamesAndRender();
+    } else {
+      render();
+    }
+  });
   controller.addShellSnapshotChangeCallback(() => render());
   controller.addAnalysisModeChangeCallback(() => render());
   for (const selector of ["#aiWhiteSelect", "#aiBlackSelect", "#botWhiteSelect", "#botBlackSelect"]) {
     const control = document.querySelector(selector) as HTMLSelectElement | null;
-    control?.addEventListener("change", syncLocalNamesAndRender);
+    control?.addEventListener("change", () => {
+      controller.clearSeatDisplayNamesSavePin();
+      syncLocalNamesAndRender();
+    });
   }
-  render();
+
+  if (initialSnapshot.mode === "local") {
+    syncLocalNamesAndRender();
+  } else {
+    render();
+    schedulePlayableViewportRefit(svg);
+  }
 
   return {
-    sync: render,
+    /** Used after viewport/zoom reflow; must re-resolve names — plain `render` only cleared the layer. */
+    sync: resyncSeatLabelsAndRedraw,
     hasNames: () => {
       const snapshot = controller.getPlayerShellSnapshot();
       return Boolean(snapshot.players.W.displayName?.trim() || snapshot.players.B.displayName?.trim());

@@ -182,17 +182,21 @@ export function applyBoardViewportModeToSvg(
     return metrics;
   }
 
+  // Always return to the true asset viewBox before stashing + cropping. Otherwise a
+  // second in-page "Start offline bot game" (same document, still playable) can keep
+  // a *cropped* viewBox while `stashSvgViewBox` refuses to re-record the original —
+  // names and HUD then fall outside the computed crop ("zoomed in" / clipped).
+  restoreSvgViewBox(svg);
   stashSvgViewBox(svg);
 
   // Reserve blank strips above/below for names + indicators.
   // IMPORTANT: the UI can render up to two stacked badges at the top-left
   // (turn indicator + opponent presence). To avoid overlapping the top row
   // of squares, reserve enough for two 33px icons + padding.
-  // Keep this tight to minimize whitespace.
-  // With the playable-area HUD (turn + presence) positioned near the board edge
-  // and laid out side-by-side, we can keep these strips small.
-  const minTop = 48;
-  const minBottom = 12;
+  // Bottom strip must fit on-board player names (~30px font + gap); small boards
+  // have a small `squares.step`, so defaults alone are not enough.
+  const minTop = 56;
+  const minBottom = 52;
 
   const defaultTop = Math.round(squares.step * 0.65);
   const defaultBottom = Math.round(squares.step * 0.45);

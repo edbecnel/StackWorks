@@ -25,6 +25,11 @@ type LocalSeatDisplayNameOptions = {
   sideLabel?: string | null;
   fallbackDisplayName?: string | null;
   signedInDisplayName?: string | null;
+  /**
+   * Labels from a loaded save / PGN (controller-pinned). For bot-controlled seats this wins over
+   * persona titles so file names are not replaced by "Teacher bot", etc.
+   */
+  savePinnedDisplayName?: string | null;
 };
 
 type LocalSeatDisplayNamesOptions = {
@@ -32,10 +37,27 @@ type LocalSeatDisplayNamesOptions = {
   sideLabels?: Partial<Record<Player, string | null | undefined>>;
   fallbackDisplayNames?: Partial<Record<Player, string | null | undefined>>;
   signedInDisplayName?: string | null;
+  savePinnedSeatNames?: Partial<Record<Player, string | null | undefined>>;
 };
 
 function sideStorageKey(side: Player): string {
   return side === "W" ? LOCAL_PLAYER_NAME_KEYS.light : LOCAL_PLAYER_NAME_KEYS.dark;
+}
+
+/** Persists a local human seat name; empty string removes the stored value. */
+export function writeStoredLocalPlayerName(side: Player, name: string): void {
+  try {
+    const t = name.trim();
+    if (!t) localStorage.removeItem(sideStorageKey(side));
+    else localStorage.setItem(sideStorageKey(side), t);
+  } catch {
+    // ignore storage failures
+  }
+}
+
+export function writeStoredLocalPlayerNames(names: Partial<Record<Player, string>>): void {
+  if ("W" in names) writeStoredLocalPlayerName("W", names.W ?? "");
+  if ("B" in names) writeStoredLocalPlayerName("B", names.B ?? "");
 }
 
 function sideSelectIds(side: Player): readonly string[] {
@@ -87,17 +109,23 @@ export function resolveActiveLocalSeatDisplayName(side: Player, options: LocalSe
     : defaultSideLabel(side);
   const fallbackDisplayName = typeof options.fallbackDisplayName === "string" ? options.fallbackDisplayName.trim() : "";
   const signedInDisplayName = typeof options.signedInDisplayName === "string" ? options.signedInDisplayName.trim() : "";
+  const savePinned =
+    typeof options.savePinnedDisplayName === "string" ? options.savePinnedDisplayName.trim() : "";
 
   if (isLocalBotSide(side, root)) {
+    if (savePinned) return savePinned;
     return resolveBotPersonaDisplayName(side, sideLabel);
   }
+
+  if (savePinned) return savePinned;
 
   const storedName = readStoredName(side);
 
   if (hasAnyLocalBotSide(root)) {
-    // Prefer the stored name (set by Start Page or shell launch) over the
-    // signed-in identity, so explicitly-named players are always shown.
-    return storedName || signedInDisplayName || sideLabel;
+    // Human vs local bot: prefer the signed-in account name when present so save/PGN
+    // leftovers in localStorage do not mask the current player on shell + board.
+    // Without a session, keep stored names (Play Hub / Local tab) then side labels.
+    return signedInDisplayName || storedName || sideLabel;
   }
 
   return storedName || fallbackDisplayName || sideLabel;
@@ -111,12 +139,14 @@ export function resolveActiveLocalSeatDisplayNames(options: LocalSeatDisplayName
       sideLabel: options.sideLabels?.W,
       fallbackDisplayName: options.fallbackDisplayNames?.W,
       signedInDisplayName: options.signedInDisplayName,
+      savePinnedDisplayName: options.savePinnedSeatNames?.W,
     }),
     B: resolveActiveLocalSeatDisplayName("B", {
       root,
       sideLabel: options.sideLabels?.B,
       fallbackDisplayName: options.fallbackDisplayNames?.B,
       signedInDisplayName: options.signedInDisplayName,
+      savePinnedDisplayName: options.savePinnedSeatNames?.B,
     }),
   };
 }

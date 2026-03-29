@@ -79,6 +79,11 @@ describe("bindBoardPlayerNameOverlay", () => {
     const controller = {
       getPlayerShellSnapshot: () => snapshot,
       setLocalPlayerDisplayNames,
+      isShellStartupPlayLockEnabled: vi.fn(() => false),
+      clearSeatDisplayNamesSavePin: vi.fn(),
+      getSavePinnedSeatDisplayName: vi.fn(() => undefined),
+      isLoadedGameSeatLabelsActive: vi.fn(() => false),
+      pinSeatDisplayNamesFromSavedGame: vi.fn(),
       addHistoryChangeCallback: vi.fn(),
       addShellSnapshotChangeCallback: vi.fn(),
       addAnalysisModeChangeCallback: vi.fn(),
@@ -109,6 +114,11 @@ describe("bindBoardPlayerNameOverlay", () => {
         if (typeof names.W === "string" && names.W.trim()) snapshot.players.W.displayName = names.W.trim();
         if (typeof names.B === "string" && names.B.trim()) snapshot.players.B.displayName = names.B.trim();
       }),
+      isShellStartupPlayLockEnabled: vi.fn(() => false),
+      clearSeatDisplayNamesSavePin: vi.fn(),
+      getSavePinnedSeatDisplayName: vi.fn(() => undefined),
+      isLoadedGameSeatLabelsActive: vi.fn(() => false),
+      pinSeatDisplayNamesFromSavedGame: vi.fn(),
       addHistoryChangeCallback: vi.fn(),
       addShellSnapshotChangeCallback: vi.fn(),
       addAnalysisModeChangeCallback: vi.fn(),
@@ -165,6 +175,11 @@ describe("bindBoardPlayerNameOverlay", () => {
     const controller = {
       getPlayerShellSnapshot: () => snapshot,
       setLocalPlayerDisplayNames,
+      isShellStartupPlayLockEnabled: vi.fn(() => false),
+      clearSeatDisplayNamesSavePin: vi.fn(),
+      getSavePinnedSeatDisplayName: vi.fn(() => undefined),
+      isLoadedGameSeatLabelsActive: vi.fn(() => false),
+      pinSeatDisplayNamesFromSavedGame: vi.fn(),
       addHistoryChangeCallback: vi.fn(),
       addShellSnapshotChangeCallback: vi.fn(),
       addAnalysisModeChangeCallback: vi.fn(),
@@ -218,6 +233,11 @@ describe("bindBoardPlayerNameOverlay", () => {
     const controller = {
       getPlayerShellSnapshot: () => snapshot,
       setLocalPlayerDisplayNames: vi.fn(),
+      isShellStartupPlayLockEnabled: vi.fn(() => false),
+      clearSeatDisplayNamesSavePin: vi.fn(),
+      getSavePinnedSeatDisplayName: vi.fn(() => undefined),
+      isLoadedGameSeatLabelsActive: vi.fn(() => false),
+      pinSeatDisplayNamesFromSavedGame: vi.fn(),
       addHistoryChangeCallback: vi.fn(),
       addShellSnapshotChangeCallback: vi.fn(),
       addAnalysisModeChangeCallback: vi.fn(),
@@ -239,6 +259,8 @@ describe("bindBoardPlayerNameOverlay", () => {
 
   it("renders the bot persona and signed-in human name for a local bot game", async () => {
     const svg = makeSvg();
+    localStorage.removeItem("lasca.local.nameLight");
+    localStorage.removeItem("lasca.local.nameDark");
     document.body.insertAdjacentHTML("beforeend", [
       '<select id="botWhiteSelect"><option value="human" selected>Human</option><option value="easy">Easy</option></select>',
       '<select id="botBlackSelect"><option value="human">Human</option><option value="easy" selected>Easy</option></select>',
@@ -256,6 +278,11 @@ describe("bindBoardPlayerNameOverlay", () => {
         if (typeof names.W === "string" && names.W.trim()) snapshot.players.W.displayName = names.W.trim();
         if (typeof names.B === "string" && names.B.trim()) snapshot.players.B.displayName = names.B.trim();
       }),
+      isShellStartupPlayLockEnabled: vi.fn(() => false),
+      clearSeatDisplayNamesSavePin: vi.fn(),
+      getSavePinnedSeatDisplayName: vi.fn(() => undefined),
+      isLoadedGameSeatLabelsActive: vi.fn(() => false),
+      pinSeatDisplayNamesFromSavedGame: vi.fn(),
       addHistoryChangeCallback: vi.fn(),
       addShellSnapshotChangeCallback: vi.fn(),
       addAnalysisModeChangeCallback: vi.fn(),
@@ -274,6 +301,8 @@ describe("bindBoardPlayerNameOverlay", () => {
 
   it("falls back to the human side label when no signed-in user is available for a local bot game", async () => {
     const svg = makeSvg();
+    localStorage.removeItem("lasca.local.nameLight");
+    localStorage.removeItem("lasca.local.nameDark");
     document.body.insertAdjacentHTML("beforeend", [
       '<select id="botWhiteSelect"><option value="human" selected>Human</option><option value="easy">Easy</option></select>',
       '<select id="botBlackSelect"><option value="human">Human</option><option value="easy" selected>Easy</option></select>',
@@ -291,6 +320,11 @@ describe("bindBoardPlayerNameOverlay", () => {
         if (typeof names.W === "string" && names.W.trim()) snapshot.players.W.displayName = names.W.trim();
         if (typeof names.B === "string" && names.B.trim()) snapshot.players.B.displayName = names.B.trim();
       }),
+      isShellStartupPlayLockEnabled: vi.fn(() => false),
+      clearSeatDisplayNamesSavePin: vi.fn(),
+      getSavePinnedSeatDisplayName: vi.fn(() => undefined),
+      isLoadedGameSeatLabelsActive: vi.fn(() => false),
+      pinSeatDisplayNamesFromSavedGame: vi.fn(),
       addHistoryChangeCallback: vi.fn(),
       addShellSnapshotChangeCallback: vi.fn(),
       addAnalysisModeChangeCallback: vi.fn(),
@@ -305,5 +339,50 @@ describe("bindBoardPlayerNameOverlay", () => {
 
     const labels = Array.from(svg.querySelectorAll("#playerNameLayer text")).map((node) => node.textContent);
     expect(labels).toEqual(["Teacher bot", "White"]);
+  });
+
+  it("re-syncs controller display names from storage on newGame so stale snapshots are not kept", () => {
+    const svg = makeSvg();
+    localStorage.setItem("lasca.local.nameLight", "Ada");
+    localStorage.setItem("lasca.local.nameDark", "Byron");
+
+    const snapshot = makeLocalSnapshot();
+    let historyReasonHandler: ((reason: string) => void) | null = null;
+    const setLocalPlayerDisplayNames = vi.fn((names: Partial<Record<"W" | "B", string>>) => {
+      if (typeof names.W === "string" && names.W.trim()) snapshot.players.W.displayName = names.W.trim();
+      else snapshot.players.W.displayName = "White";
+      if (typeof names.B === "string" && names.B.trim()) snapshot.players.B.displayName = names.B.trim();
+      else snapshot.players.B.displayName = "Black";
+    });
+    const controller = {
+      getPlayerShellSnapshot: () => snapshot,
+      setLocalPlayerDisplayNames,
+      isShellStartupPlayLockEnabled: vi.fn(() => false),
+      clearSeatDisplayNamesSavePin: vi.fn(),
+      getSavePinnedSeatDisplayName: vi.fn(() => undefined),
+      isLoadedGameSeatLabelsActive: vi.fn(() => false),
+      pinSeatDisplayNamesFromSavedGame: vi.fn(),
+      addHistoryChangeCallback: vi.fn((cb: (reason: string) => void) => {
+        historyReasonHandler = cb;
+      }),
+      addShellSnapshotChangeCallback: vi.fn(),
+      addAnalysisModeChangeCallback: vi.fn(),
+    };
+
+    bindBoardPlayerNameOverlay({
+      svg,
+      controller: controller as any,
+      isFlipped: () => false,
+    });
+
+    snapshot.players.W.displayName = "StaleFromLoadedGame";
+    snapshot.players.B.displayName = "OtherStale";
+
+    expect(historyReasonHandler).not.toBeNull();
+    historyReasonHandler!("newGame");
+
+    expect(setLocalPlayerDisplayNames).toHaveBeenLastCalledWith({ W: "Ada", B: "Byron" });
+    const labels = Array.from(svg.querySelectorAll("#playerNameLayer text")).map((node) => node.textContent);
+    expect(labels).toEqual(["Byron", "Ada"]);
   });
 });

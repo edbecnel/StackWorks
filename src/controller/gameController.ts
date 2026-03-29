@@ -182,6 +182,10 @@ export class GameController {
   private driver: GameDriver;
   private readonly shellSnapshotListeners: Array<() => void> = [];
   private readonly localShellDisplayNames: Partial<Record<Player, string>> = {};
+  /** When true, `getSavePinnedSeatDisplayName` exposes labels that must beat bot persona in shell/board resolution. */
+  private seatDisplayNamesPinnedFromSaveFile = false;
+  /** Authoritative labels from the last save/PGN load; beats bot persona and shell re-resolution until cleared. */
+  private loadedGameSeatLabels: Partial<Record<Player, string>> | null = null;
 
   private drawOfferInputLockActive: boolean = false;
   private lastPromptedDrawOfferNonce: number | null = null;
@@ -2523,6 +2527,52 @@ export class GameController {
     this.fireShellSnapshotChange();
   }
 
+  pinSeatDisplayNamesFromSavedGame(): void {
+    this.seatDisplayNamesPinnedFromSaveFile = true;
+  }
+
+  clearSeatDisplayNamesSavePin(): void {
+    this.seatDisplayNamesPinnedFromSaveFile = false;
+    this.loadedGameSeatLabels = null;
+  }
+
+  /**
+   * Sets in-memory + shell labels from a save file or PGN (localStorage should already be written by the caller).
+   * `loadedGameSeatLabels` forces the shell to skip bot-persona rewrites until the user changes seating or starts a new game.
+   */
+  establishLoadedGameSeatLabels(white: string, black: string): void {
+    const w = String(white ?? "").trim();
+    const b = String(black ?? "").trim();
+    this.loadedGameSeatLabels = null;
+    if (w || b) {
+      this.loadedGameSeatLabels = {};
+      if (w) this.loadedGameSeatLabels.W = w;
+      if (b) this.loadedGameSeatLabels.B = b;
+    }
+    this.setLocalPlayerDisplayNames({ W: w, B: b });
+    if (w || b) this.pinSeatDisplayNamesFromSavedGame();
+    else this.seatDisplayNamesPinnedFromSaveFile = false;
+    this.fireShellSnapshotChange();
+  }
+
+  isLoadedGameSeatLabelsActive(): boolean {
+    if (!this.loadedGameSeatLabels) return false;
+    const w = this.loadedGameSeatLabels.W?.trim() ?? "";
+    const b = this.loadedGameSeatLabels.B?.trim() ?? "";
+    return Boolean(w || b);
+  }
+
+  /** Labels from the last save/PGN apply; used to override bot persona until seating controls change. */
+  getSavePinnedSeatDisplayName(color: Player): string | undefined {
+    const fromFile = this.loadedGameSeatLabels?.[color]?.trim();
+    if (fromFile) return fromFile;
+    if (!this.seatDisplayNamesPinnedFromSaveFile) return undefined;
+    const raw = this.localShellDisplayNames[color];
+    if (raw === undefined) return undefined;
+    const t = String(raw).trim();
+    return t || undefined;
+  }
+
   private checkAndHandleCurrentPlayerLost(): boolean {
     const result = checkCurrentPlayerLost(this.state);
     const isTerminal = Boolean(result.reason) || Boolean(result.winner);
@@ -3603,6 +3653,8 @@ export class GameController {
   }
 
   private resolveLocalShellDisplayName(color: Player): string {
+    const fromLoaded = this.loadedGameSeatLabels?.[color]?.trim();
+    if (fromLoaded) return fromLoaded;
     return this.localShellDisplayNames[color] ?? this.sideLabel(color);
   }
 
@@ -3893,6 +3945,7 @@ export class GameController {
     this.resetGameOverToastDedupe();
     this.clearGameOverStickyToast();
     this.clearSelection();
+    this.clearSeatDisplayNamesSavePin();
 
     this.recomputeRepetitionCounts();
     
@@ -3922,6 +3975,7 @@ export class GameController {
     }
   ): void {
     if (historyData && historyData.states && historyData.states.length > 0) {
+      // Keep full history for stepping, but start playback at the initial position (like PGN import).
       this.driver.replaceHistory({
         ...historyData,
         currentIndex: 0,

@@ -89,8 +89,8 @@ describe("applyBoardViewportModeToSvg", () => {
     expect(metrics?.squares?.y).toBe(100);
     expect(metrics?.squares?.w).toBe(800);
     expect(metrics?.squares?.h).toBe(800);
-    expect(metrics?.extraTop).toBeGreaterThanOrEqual(52);
-    expect(metrics?.extraBottom).toBeGreaterThanOrEqual(12);
+    expect(metrics?.extraTop).toBeGreaterThanOrEqual(56);
+    expect(metrics?.extraBottom).toBeGreaterThanOrEqual(52);
 
     // ViewBox should begin at the squares' left edge and extend above and below.
     const vb = svg.getAttribute("viewBox") ?? "";
@@ -133,7 +133,19 @@ describe("applyBoardViewportModeToSvg", () => {
 
     const metrics = getBoardViewportMetrics(svg);
     expect(metrics?.mode).toBe("playable");
-    expect(metrics?.extraTop).toBeGreaterThanOrEqual(52);
-    expect(metrics?.extraBottom).toBeGreaterThanOrEqual(12);
+    expect(metrics?.extraTop).toBeGreaterThanOrEqual(56);
+    expect(metrics?.extraBottom).toBeGreaterThanOrEqual(52);
+  });
+
+  it("re-applying playable mode does not progressively shrink the viewBox (in-page local restarts)", () => {
+    const svg = makeSvg8x8();
+
+    applyBoardViewportModeToSvg(svg, "playable", { boardSize: 8 });
+    const vb1 = svg.getAttribute("viewBox") ?? "";
+    applyBoardViewportModeToSvg(svg, "playable", { boardSize: 8 });
+    const vb2 = svg.getAttribute("viewBox") ?? "";
+
+    expect(vb1).toBe(vb2);
+    expect(vb1.length).toBeGreaterThan(0);
   });
 });

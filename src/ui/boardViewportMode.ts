@@ -2,6 +2,9 @@ import type { BoardViewportMode } from "../render/boardViewport";
 
 export const BOARD_VIEWPORT_MODE_CHANGED_EVENT = "boardViewportModeChanged";
 
+/** Fired after `scheduleFullBoardChromeReflow` finishes its deferred pass so overlays can resync. */
+export const STACKWORKS_BOARD_CHROME_REFLOW_DONE_EVENT = "stackworks:boardChromeReflowDone";
+
 const LS_KEY = "lasca.ui.boardViewport";
 
 function detectDefaultBoardViewportMode(): BoardViewportMode {

@@ -32,6 +32,8 @@ import {
   normalizeSelectionStyle,
 } from "./render/highlightStyles";
 import { buildPlayerNamedSaveFilename, saveGameToFile, loadGameFromFile } from "./game/saveLoad";
+import { commitShellThenApplySavePlayerNames } from "./ui/applySaveFilePlayerSession";
+import { writeStoredLocalPlayerNames } from "./shared/localPlayerNames";
 import { createSfxManager } from "./ui/sfx";
 import type { Stack } from "./types";
 import { bindPlaybackControls } from "./ui/playbackControls.ts";
@@ -585,9 +587,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
 
   const setPlayerNames = (white: string, black: string) => {
-    const startupLockActive = !hasExplicitPlayMode;
-    const nextWhite = startupLockActive ? "White" : white;
-    const nextBlack = startupLockActive ? "Black" : black;
+    const mode = new URLSearchParams(window.location.search).get("mode");
+    const startupLockActive = mode !== "local" && mode !== "online";
+    const bypassStartupLock = Boolean(controllerRef?.isLoadedGameSeatLabelsActive?.());
+    const nextWhite = startupLockActive && !bypassStartupLock ? "White" : white;
+    const nextBlack = startupLockActive && !bypassStartupLock ? "Black" : black;
     playerWhiteName = nextWhite;
     playerBlackName = nextBlack;
     controllerRef?.setLocalPlayerDisplayNames({ W: nextWhite, B: nextBlack });
@@ -619,6 +623,10 @@ window.addEventListener("DOMContentLoaded", async () => {
       root: document,
       signedInDisplayName: signedInHumanDisplayName,
       sideLabels: { W: "White", B: "Black" },
+      savePinnedSeatNames: {
+        W: controller.getSavePinnedSeatDisplayName("W"),
+        B: controller.getSavePinnedSeatDisplayName("B"),
+      },
     });
     setPlayerNames(names.W, names.B);
   };
@@ -878,6 +886,10 @@ window.addEventListener("DOMContentLoaded", async () => {
         root: document,
         signedInDisplayName: signedInHumanDisplayName,
         sideLabels: { W: "White", B: "Black" },
+        savePinnedSeatNames: {
+          W: controller.getSavePinnedSeatDisplayName("W"),
+          B: controller.getSavePinnedSeatDisplayName("B"),
+        },
       });
       setPlayerNames(names.W, names.B);
     }
@@ -887,6 +899,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   for (const selector of ["#botWhiteSelect", "#botBlackSelect"]) {
     const control = document.querySelector(selector) as HTMLSelectElement | null;
     control?.addEventListener("change", () => {
+      controller.clearSeatDisplayNamesSavePin();
       syncConfiguredPlayerNames();
       maybeLoadSignedInHumanDisplayName();
     });
@@ -1198,6 +1211,10 @@ window.addEventListener("DOMContentLoaded", async () => {
       });
       saveGameToFile(currentState, history, filename, {
         includeTiming: exportPgnTimingToggle?.checked ?? true,
+        playerNames: {
+          W: resolvedPlayerNameForSave("W"),
+          B: resolvedPlayerNameForSave("B"),
+        },
       });
     });
   }
@@ -1212,13 +1229,13 @@ window.addEventListener("DOMContentLoaded", async () => {
           rulesetId: "chess",
           boardSize: 8,
         });
-        setPlayerNames("", "");
-        controller.loadGame(loaded.state, loaded.history);
-        try {
-          controller.jumpToHistory(0);
-        } catch {
-          // ignore
+        commitShellThenApplySavePlayerNames(shell, controller, loaded.playerNames);
+        if (loaded.playerNames) {
+          setPlayerNames(loaded.playerNames.W.trim(), loaded.playerNames.B.trim());
+        } else {
+          syncConfiguredPlayerNames();
         }
+        controller.loadGame(loaded.state, loaded.history);
       } catch (error) {
         // eslint-disable-next-line no-console
         console.error("Failed to load game:", error);
@@ -1402,6 +1419,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const importSinglePgnGame = (gamePgn: string): void => {
     resetChessBotSelectorsToHuman();
+    shell.commitExplicitLocalPlayMode?.();
 
     const chess = new Chess();
     let loadedOk = true;
@@ -1492,21 +1510,15 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
 
     controller.loadGame(s, hm.exportSnapshots());
-    // Imported PGNs should start at the beginning so Playback can run forward
-    // immediately without requiring a page refresh.
-    try {
-      controller.jumpToHistory(0);
-    } catch {
-      // ignore
-    }
 
     const isGenericName = (n: string) => !n || n === "?" || n === "White" || n === "Black" || n === "-";
     const rawWhite = parsePgnHeader("White");
     const rawBlack = parsePgnHeader("Black");
-    setPlayerNames(
-      isGenericName(rawWhite) ? "" : rawWhite,
-      isGenericName(rawBlack) ? "" : rawBlack,
-    );
+    const nextW = isGenericName(rawWhite) ? "" : rawWhite;
+    const nextB = isGenericName(rawBlack) ? "" : rawBlack;
+    writeStoredLocalPlayerNames({ W: nextW, B: nextB });
+    controller.establishLoadedGameSeatLabels(nextW, nextB);
+    setPlayerNames(nextW, nextB);
 
     controller.toast("PGN imported", 1800, { force: true });
   };

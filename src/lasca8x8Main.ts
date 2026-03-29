@@ -13,6 +13,7 @@ import { GameController } from "./controller/gameController.ts";
 import { ensureOverlayLayer } from "./render/overlays.ts";
 import { ALL_NODES } from "./game/board.ts";
 import { buildPlayerNamedSaveFilename, saveGameToFile, loadGameFromFile } from "./game/saveLoad.ts";
+import { commitShellThenApplySavePlayerNames } from "./ui/applySaveFilePlayerSession";
 import { HistoryManager } from "./game/historyManager.ts";
 import { consumeReloadSaveState, stashReloadSaveState } from "./game/reloadSaveState.ts";
 import { RULES } from "./game/ruleset.ts";
@@ -785,7 +786,12 @@ window.addEventListener("DOMContentLoaded", async () => {
           state: currentState,
           resolvePlayerLabel: (side) => resolvePlayerLabelForSave({ side, controller }),
         });
-        saveGameToFile(currentState, hm, filename);
+        saveGameToFile(currentState, hm, filename, {
+          playerNames: {
+            W: resolvePlayerLabelForSave({ side: "W", controller }),
+            B: resolvePlayerLabelForSave({ side: "B", controller }),
+          },
+        });
         return;
       }
 
@@ -795,7 +801,12 @@ window.addEventListener("DOMContentLoaded", async () => {
         state: currentState,
         resolvePlayerLabel: (side) => resolvePlayerLabelForSave({ side, controller }),
       });
-      saveGameToFile(currentState, history, filename);
+      saveGameToFile(currentState, history, filename, {
+        playerNames: {
+          W: resolvePlayerLabelForSave({ side: "W", controller }),
+          B: resolvePlayerLabelForSave({ side: "B", controller }),
+        },
+      });
     });
   }
 
@@ -828,7 +839,9 @@ window.addEventListener("DOMContentLoaded", async () => {
           rulesetId: activeVariant.rulesetId,
           boardSize: activeVariant.boardSize,
         });
+        commitShellThenApplySavePlayerNames(shell, controller, loaded.playerNames);
         controller.loadGame(loaded.state, loaded.history);
+        boardPlayerNames?.sync();
       } catch (error) {
         console.error("Failed to load game:", error);
         const msg = error instanceof Error ? error.message : String(error);

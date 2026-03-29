@@ -4,6 +4,18 @@ import { GameSection } from "../../config/shellState";
 import type { PlayerShellSnapshot } from "../../types";
 import { saveOpenVariantPageIntent } from "../../shared/openVariantPageIntent";
 
+/** Shell name tests use a mock controller; keep “startup lock” off so panels show snapshot names (real pages sync lock with URL via bind). */
+function shellControllerLockStubs() {
+  return {
+    setShellStartupPlayLockEnabled: vi.fn(),
+    isShellStartupPlayLockEnabled: vi.fn(() => false),
+    pinSeatDisplayNamesFromSavedGame: vi.fn(),
+    clearSeatDisplayNamesSavePin: vi.fn(),
+    getSavePinnedSeatDisplayName: vi.fn(() => undefined),
+    isLoadedGameSeatLabelsActive: vi.fn(() => false),
+  };
+}
+
 function installDesktopMatchMedia(): void {
   Object.defineProperty(window, "matchMedia", {
     writable: true,
@@ -257,6 +269,7 @@ describe("initGameShell desktop shell navigation", () => {
     };
 
     const controller = {
+      ...shellControllerLockStubs(),
       getPlayerShellSnapshot: () => snapshot,
       addHistoryChangeCallback: vi.fn(),
       addShellSnapshotChangeCallback: vi.fn(),
@@ -355,6 +368,7 @@ describe("initGameShell desktop shell navigation", () => {
     };
 
     const controller = {
+      ...shellControllerLockStubs(),
       getPlayerShellSnapshot: () => snapshot,
       addHistoryChangeCallback: vi.fn(),
       addShellSnapshotChangeCallback: vi.fn(),
@@ -444,6 +458,7 @@ describe("initGameShell desktop shell navigation", () => {
     };
 
     const controller = {
+      ...shellControllerLockStubs(),
       getPlayerShellSnapshot: () => snapshot,
       addHistoryChangeCallback: vi.fn(),
       addShellSnapshotChangeCallback: vi.fn(),
@@ -530,6 +545,7 @@ describe("initGameShell desktop shell navigation", () => {
     };
 
     const controller = {
+      ...shellControllerLockStubs(),
       getPlayerShellSnapshot: () => snapshot,
       addHistoryChangeCallback: vi.fn(),
       addShellSnapshotChangeCallback: vi.fn(),
@@ -606,6 +622,7 @@ describe("initGameShell desktop shell navigation", () => {
 
     let onHistoryChange: (() => void) | null = null;
     const controller = {
+      ...shellControllerLockStubs(),
       getPlayerShellSnapshot: () => snapshot,
       addHistoryChangeCallback: vi.fn((cb: () => void) => {
         onHistoryChange = cb;
@@ -710,6 +727,7 @@ describe("initGameShell desktop shell navigation", () => {
     };
 
     const controller = {
+      ...shellControllerLockStubs(),
       getPlayerShellSnapshot: () => snapshot,
       addHistoryChangeCallback: vi.fn(),
       addShellSnapshotChangeCallback: vi.fn(),
@@ -791,6 +809,7 @@ describe("initGameShell desktop shell navigation", () => {
     };
 
     const controller = {
+      ...shellControllerLockStubs(),
       getPlayerShellSnapshot: () => snapshot,
       addHistoryChangeCallback: vi.fn(),
       addShellSnapshotChangeCallback: vi.fn(),
@@ -886,6 +905,7 @@ describe("initGameShell desktop shell navigation", () => {
     };
 
     const controller = {
+      ...shellControllerLockStubs(),
       getPlayerShellSnapshot: () => snapshot,
       addHistoryChangeCallback: vi.fn(),
       addShellSnapshotChangeCallback: vi.fn(),
@@ -971,6 +991,7 @@ describe("initGameShell desktop shell navigation", () => {
     };
 
     const controller = {
+      ...shellControllerLockStubs(),
       getPlayerShellSnapshot: () => snapshot,
       addHistoryChangeCallback: vi.fn(),
       addShellSnapshotChangeCallback: vi.fn(),
@@ -1053,6 +1074,7 @@ describe("initGameShell desktop shell navigation", () => {
     };
 
     const controller = {
+      ...shellControllerLockStubs(),
       getPlayerShellSnapshot: () => snapshot,
       addHistoryChangeCallback: vi.fn(),
       addShellSnapshotChangeCallback: vi.fn(),

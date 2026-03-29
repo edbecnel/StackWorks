@@ -1,4 +1,5 @@
 import { setBoardPlayAreaZoom } from "../render/boardPlayAreaZoom";
+import { STACKWORKS_BOARD_CHROME_REFLOW_DONE_EVENT } from "./boardViewportMode";
 
 export type PanelLayoutMode = "panels" | "menu";
 
@@ -567,6 +568,53 @@ function scheduleBoardViewportFitSync(): void {
     anyWin.__boardViewportFitSyncQueued = 0;
     syncBoardViewportFit();
   }
+}
+
+/**
+ * Re-apply board zoom, #boardWrap max-height fit, viewport mode, and shell resize handlers.
+ * Needed when "Start new offline bot game" finishes in-page a second time (no navigation) —
+ * `commitExplicitLocalPlayMode` is a no-op once the shell is already unlocked, so chrome
+ * would otherwise stay on stale layout/theme geometry until a full reload.
+ */
+export function scheduleFullBoardChromeReflow(): void {
+  scheduleBoardPlayAreaZoomSync();
+  scheduleBoardViewportFitSync();
+  const fire = (): void => {
+    try {
+      window.dispatchEvent(new Event("boardViewportModeChanged"));
+      window.dispatchEvent(new Event("panelLayoutModeChanged"));
+      window.dispatchEvent(new Event("resize"));
+    } catch {
+      // ignore
+    }
+  };
+  fire();
+  const fireReflowDone = (): void => {
+    try {
+      window.dispatchEvent(new CustomEvent(STACKWORKS_BOARD_CHROME_REFLOW_DONE_EVENT));
+    } catch {
+      // ignore
+    }
+  };
+  try {
+    window.requestAnimationFrame(() => {
+      scheduleBoardPlayAreaZoomSync();
+      scheduleBoardViewportFitSync();
+      fire();
+      fireReflowDone();
+    });
+  } catch {
+    scheduleBoardPlayAreaZoomSync();
+    scheduleBoardViewportFitSync();
+    fire();
+    fireReflowDone();
+  }
+  window.setTimeout(() => {
+    scheduleBoardPlayAreaZoomSync();
+    scheduleBoardViewportFitSync();
+    fire();
+    fireReflowDone();
+  }, 0);
 }
 
 function createButton(text: string): HTMLButtonElement {

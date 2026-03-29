@@ -131,6 +131,28 @@ describe("saveLoad", () => {
     expect(loaded.state.meta!.variantId).toBeDefined();
   });
 
+  it("round-trips playerNames on v3 saves", () => {
+    const s0: GameState = {
+      board: new Map([["r6c0", [{ owner: "W", rank: "S" }]]]),
+      toMove: "W",
+      phase: "idle",
+    };
+    const s1: GameState = {
+      board: new Map([["r5c1", [{ owner: "W", rank: "S" }]]]),
+      toMove: "B",
+      phase: "idle",
+    };
+    const history = new HistoryManager();
+    history.push(s0, "Start");
+    history.push(s1, "A1 → B2");
+    const save = serializeSaveData(s1, history, {
+      playerNames: { W: "Alice", B: "Bob" },
+    });
+    expect((save as { playerNames?: { W: string; B: string } }).playerNames).toEqual({ W: "Alice", B: "Bob" });
+    const loaded = deserializeSaveData(save);
+    expect(loaded.playerNames).toEqual({ W: "Alice", B: "Bob" });
+  });
+
   it("omits recorded move times when includeTiming is false", () => {
     const s0: GameState = {
       board: new Map([["r6c0", [{ owner: "W", rank: "S" }]]]),

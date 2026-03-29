@@ -32,6 +32,7 @@ import {
   normalizeSelectionStyle,
 } from "./render/highlightStyles";
 import { buildPlayerNamedSaveFilename, saveGameToFile, loadGameFromFile } from "./game/saveLoad";
+import { commitShellThenApplySavePlayerNames } from "./ui/applySaveFilePlayerSession";
 import { createSfxManager } from "./ui/sfx";
 import type { Stack } from "./types";
 import { bindPlaybackControls } from "./ui/playbackControls.ts";
@@ -844,7 +845,12 @@ window.addEventListener("DOMContentLoaded", async () => {
         state: currentState,
         resolvePlayerLabel: (side) => resolvePlayerLabelForSave({ side, controller }),
       });
-      saveGameToFile(currentState, history, filename);
+      saveGameToFile(currentState, history, filename, {
+        playerNames: {
+          W: resolvePlayerLabelForSave({ side: "W", controller }),
+          B: resolvePlayerLabelForSave({ side: "B", controller }),
+        },
+      });
     });
   }
   if (loadGameBtn && loadGameInput) {
@@ -858,7 +864,9 @@ window.addEventListener("DOMContentLoaded", async () => {
           rulesetId: "columns_chess",
           boardSize: 8,
         });
+        commitShellThenApplySavePlayerNames(shell, controller, loaded.playerNames);
         controller.loadGame(loaded.state, loaded.history);
+        boardPlayerNames?.sync();
       } catch (error) {
         // eslint-disable-next-line no-console
         console.error("Failed to load game:", error);

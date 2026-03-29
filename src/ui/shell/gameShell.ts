@@ -10,7 +10,7 @@ import type { VariantId } from "../../variants/variantTypes";
 import { buildSessionAuthFetchInit } from "../../shared/authSessionClient";
 import { hasAnyLocalBotSide, isLocalBotSide, resolveActiveLocalSeatDisplayNames } from "../../shared/localPlayerNames";
 import { readOpenVariantPageOnlinePreview } from "../../shared/openVariantPageIntent";
-import { replaceHistoryWithExplicitLocalMode } from "./explicitLocalModeNavigation";
+import { replaceHistoryWithExplicitLocalMode, urlHasExplicitPlayMode } from "./explicitLocalModeNavigation";
 
 export interface GameShellNavItem {
   id: string;
@@ -1588,7 +1588,11 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
 
     const buildSnapshotWithOverrides = (snapshot: PlayerShellSnapshot, bottomColor: Player): PlayerShellSnapshot => {
       const nextPlayers = { ...snapshot.players };
-      if (startupPlayLockUiActive && snapshot.mode === "local") {
+      if (
+        snapshot.mode === "local" &&
+        !urlHasExplicitPlayMode() &&
+        controller.isShellStartupPlayLockEnabled()
+      ) {
         for (const color of ["W", "B"] as const) {
           const identity = nextPlayers[color];
           nextPlayers[color] = {
@@ -1614,7 +1618,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
         nextPlayers[color] = { ...nextPlayers[color], ...override };
       }
       if (snapshot.mode === "local") {
-        if (hasAnyLocalBotSide(opts.appRoot)) {
+        if (hasAnyLocalBotSide(opts.appRoot) && !controller.isLoadedGameSeatLabelsActive()) {
           const nextNames = resolveActiveLocalSeatDisplayNames({
             root: opts.appRoot,
             signedInDisplayName: localViewerIdentityOverride?.displayName ?? null,
@@ -1625,6 +1629,10 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
             fallbackDisplayNames: {
               W: nextPlayers.W.displayName,
               B: nextPlayers.B.displayName,
+            },
+            savePinnedSeatNames: {
+              W: controller.getSavePinnedSeatDisplayName("W"),
+              B: controller.getSavePinnedSeatDisplayName("B"),
             },
           });
           nextPlayers.W = { ...nextPlayers.W, displayName: nextNames.W };
@@ -1744,7 +1752,24 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
       }
     };
 
+    const syncLocalStorageIntoIdentityOverrides = (): void => {
+      if (openVariantPageOnlinePreview) return;
+      if (hasAnyLocalBotSide(opts.appRoot)) return;
+      if (controller.getPlayerShellSnapshot().mode !== "local") return;
+      try {
+        const nameLight = localStorage.getItem("lasca.local.nameLight")?.trim() ?? "";
+        const nameDark = localStorage.getItem("lasca.local.nameDark")?.trim() ?? "";
+        if (nameLight) localIdentityOverrides.W = { displayName: nameLight };
+        else delete localIdentityOverrides.W;
+        if (nameDark) localIdentityOverrides.B = { displayName: nameDark };
+        else delete localIdentityOverrides.B;
+      } catch {
+        // ignore
+      }
+    };
+
     const syncPanels = (): void => {
+      syncLocalStorageIntoIdentityOverrides();
       const boardSvg = opts.appRoot.querySelector("#boardWrap svg") as SVGSVGElement | null;
       const flipped = boardSvg ? isBoardFlipped(boardSvg) : false;
       const topColor = flipped ? "W" : "B";
@@ -1761,7 +1786,10 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     controller.addAnalysisModeChangeCallback(() => syncPanels());
     for (const selector of ["#aiWhiteSelect", "#aiBlackSelect", "#botWhiteSelect", "#botBlackSelect"]) {
       const control = opts.appRoot.querySelector(selector) as HTMLSelectElement | null;
-      control?.addEventListener("change", syncPanels);
+      control?.addEventListener("change", () => {
+        controller.clearSeatDisplayNamesSavePin();
+        syncPanels();
+      });
     }
     window.addEventListener("resize", scheduleBoardFit);
     window.visualViewport?.addEventListener("resize", scheduleBoardFit);

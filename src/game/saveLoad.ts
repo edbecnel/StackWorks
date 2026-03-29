@@ -44,6 +44,12 @@ export interface SerializedSaveFileV2 {
   history: SerializedHistory;
 }
 
+/** Optional v3 root field: player display names from the session that created the save. */
+export interface SaveFilePlayerNames {
+  W: string;
+  B: string;
+}
+
 export interface SerializedSaveFileV3 {
   saveVersion: 3;
   variantId: VariantId;
@@ -52,6 +58,7 @@ export interface SerializedSaveFileV3 {
   damaCaptureRemoval?: DamaCaptureRemoval;
   current: SerializedGameState;
   history?: SerializedHistory;
+  playerNames?: SaveFilePlayerNames;
 }
 
 export type SerializedSaveFile = SerializedGameState | SerializedSaveFileV2 | SerializedSaveFileV3;
@@ -207,7 +214,7 @@ export function deserializeGameState(data: SerializedGameState): GameState {
 export function serializeSaveData(
   state: GameState,
   history?: HistoryManager,
-  opts?: { includeTiming?: boolean }
+  opts?: { includeTiming?: boolean; playerNames?: SaveFilePlayerNames }
 ): SerializedSaveFile {
   const meta = getMetaForState(state);
 
@@ -218,6 +225,14 @@ export function serializeSaveData(
     boardSize: meta.boardSize,
     ...(meta.rulesetId === "dama" ? { damaCaptureRemoval: meta.damaCaptureRemoval ?? "immediate" } : {}),
     current: serializeGameState({ ...state, meta }),
+    ...(opts?.playerNames
+      ? {
+          playerNames: {
+            W: String(opts.playerNames.W ?? "").trim(),
+            B: String(opts.playerNames.B ?? "").trim(),
+          },
+        }
+      : {}),
   };
 
   if (!history) return base;
@@ -238,6 +253,15 @@ export function serializeSaveData(
   };
 }
 
+function parseV3PlayerNames(v3: { playerNames?: unknown }): SaveFilePlayerNames | undefined {
+  const pn = v3.playerNames;
+  if (!pn || typeof pn !== "object") return undefined;
+  const rec = pn as Record<string, unknown>;
+  const W = typeof rec.W === "string" ? rec.W.trim() : "";
+  const B = typeof rec.B === "string" ? rec.B.trim() : "";
+  return { W, B };
+}
+
 export function deserializeSaveData(
   data: SerializedSaveFile,
   expected?: GameMeta
@@ -250,6 +274,7 @@ export function deserializeSaveData(
     emtMs?: Array<number | null>;
     evals?: Array<EvalScore | null>;
   };
+  playerNames?: SaveFilePlayerNames;
 } {
   const stableBoardForCompare = (s: GameState): string => {
     const entries = Array.from(s.board.entries())
@@ -308,10 +333,14 @@ export function deserializeSaveData(
     // that the game continues (and re-saves) as the currently running variant.
     if (expectedMeta) meta = expectedMeta;
 
+    const savedPlayerNames = parseV3PlayerNames(v3);
+    const withNames = <T extends object>(o: T): T & { playerNames?: SaveFilePlayerNames } =>
+      savedPlayerNames ? { ...o, playerNames: savedPlayerNames } : o;
+
     const current = deserializeGameState(v3.current as SerializedGameState);
     const state: GameState = { ...current, meta };
 
-    if (!v3.history) return { state };
+    if (!v3.history) return withNames({ state });
 
     const states = (v3.history.states || []).map((s: SerializedGameState) => ({ ...deserializeGameState(s), meta }));
     const notation = Array.isArray(v3.history.notation) ? v3.history.notation : [];
@@ -322,7 +351,7 @@ export function deserializeSaveData(
 
     if (states.length === 0) {
       // History is missing/invalid; fall back to the current position.
-      return { state };
+      return withNames({ state });
     }
 
     // Prefer loading the explicitly saved `current` state, while still restoring history.
@@ -351,10 +380,10 @@ export function deserializeSaveData(
       currentIndex = states.length - 1;
     }
 
-    return {
+    return withNames({
       state: states[currentIndex],
       history: { states, notation, currentIndex, ...(emtMs ? { emtMs } : {}), ...(evals ? { evals } : {}) },
-    };
+    });
   }
 
   // v2: history wrapper without metadata
@@ -441,7 +470,7 @@ export function saveGameToFile(
   state: GameState,
   history?: HistoryManager,
   filename = "lasca-game.json",
-  opts?: { includeTiming?: boolean }
+  opts?: { includeTiming?: boolean; playerNames?: SaveFilePlayerNames }
 ): void {
   const serialized = serializeSaveData(state, history, opts);
   const json = JSON.stringify(serialized, null, 2);
@@ -497,6 +526,7 @@ export function loadGameFromFile(
 ): Promise<{
   state: GameState;
   history?: { states: GameState[]; notation: string[]; currentIndex: number; emtMs?: Array<number | null> };
+  playerNames?: SaveFilePlayerNames;
 }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

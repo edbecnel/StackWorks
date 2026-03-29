@@ -31,3 +31,14 @@ export function replaceHistoryWithExplicitLocalMode(): void {
     // ignore
   }
 }
+
+/** Live URL check — not the shell bind-time flag — so replaceState / load can reveal real local names. */
+export function urlHasExplicitPlayMode(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const m = new URLSearchParams(window.location.search).get("mode");
+    return m === "local" || m === "online";
+  } catch {
+    return false;
+  }
+}

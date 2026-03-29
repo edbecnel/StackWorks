@@ -27,6 +27,8 @@ import {
   takeShellNewGameConfirmCancelled,
 } from "./shellNewGameBypass";
 import { allowConfirmedNavigation } from "../navigationPromptGate";
+import { BOARD_VIEWPORT_MODE_CHANGED_EVENT } from "../boardViewportMode";
+import { scheduleFullBoardChromeReflow } from "../panelLayoutMode";
 import { ONLINE_SUSPEND_CONTINUE_CONFIRM_MESSAGE } from "../startPageConfirm";
 import { getVariantById } from "../../variants/variantRegistry";
 import type { VariantId } from "../../variants/variantTypes";
@@ -963,10 +965,12 @@ function ensurePlayHubStyles(): void {
     }
 
     .playHubAction:disabled,
+    .playHubAction.playHubActionDisabled,
     .playHubVariantButton:disabled {
       cursor: default;
       opacity: 0.55;
       background: rgba(255, 255, 255, 0.03);
+      pointer-events: none;
     }
 
     .playHubVariantButton.isActive {
@@ -1409,6 +1413,30 @@ function navigateToHref(href: string): void {
   }
 }
 
+/** Full document load: assigning the same URL often does not reload; use reload() so board chrome and names re-init. */
+function navigateToLocalVariantForcingFullLoad(href: string): void {
+  try {
+    const target = new URL(href, window.location.href);
+    const current = new URL(window.location.href);
+    const sameDocument =
+      target.origin === current.origin &&
+      target.pathname === current.pathname &&
+      target.search === current.search &&
+      target.hash === current.hash;
+    if (sameDocument) {
+      try {
+        window.location.reload();
+      } catch {
+        // jsdom and some embedded environments do not implement reload.
+      }
+      return;
+    }
+    window.location.href = target.href;
+  } catch {
+    navigateToHref(href);
+  }
+}
+
 function updatePlayHubState(currentVariantId: VariantId, playSubSection: PlaySubSection, onlineSubSection?: OnlineSubSection | null): void {
   const persistedPlaySubSection = playSubSection === PlaySubSection.Resume ? PlaySubSection.Online : playSubSection;
   updateShellState({
@@ -1524,13 +1552,27 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
       if (newGameBtn && !newGameBtn.disabled) {
         const started = startCurrentPageNewGame();
         if (!started) return "aborted";
-        if (currentMode === "local") return "handled";
+        if (currentMode === "local") {
+          // Second+ in-page start skips `commitExplicitLocalPlayMode` (shell already unlocked);
+          // re-run the same zoom/viewport/resize chain as first load so board chrome is not stale.
+          scheduleFullBoardChromeReflow();
+          // One more pass after layout applies so board name overlay can resync (see `boardPlayerNames.sync`).
+          requestAnimationFrame(() => {
+            try {
+              window.dispatchEvent(new Event(BOARD_VIEWPORT_MODE_CHANGED_EVENT));
+            } catch {
+              // ignore
+            }
+          });
+          return "handled";
+        }
       }
     }
     const localStartInner = resolveCurrentPageLocalBotStartAvailability();
     if (localStartInner.immediate && !isCurrentPageOnlineMode()) {
       if (opts.commitExplicitLocalPlayMode) {
         opts.commitExplicitLocalPlayMode();
+        scheduleFullBoardChromeReflow();
         return "handled";
       }
       return "navigate";
@@ -1571,6 +1613,10 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
 
     if (action.disabled) {
       element.setAttribute("aria-disabled", "true");
+      if (element instanceof HTMLAnchorElement) {
+        element.classList.add("playHubActionDisabled");
+        element.tabIndex = -1;
+      }
     }
 
     return element;
@@ -2362,9 +2408,9 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     botActions.appendChild(createHubAction({
       label: bothBots ? "Start new offline watch match" : "Start new offline bot game",
       description: localStart.immediate
-        ? "Apply these seats and start on this page when possible so the board SVG is not reloaded."
+        ? "Reloads this page with your seat setup so the board and on-board names initialize reliably."
         : (localStart.reason ?? "Save this setup and open explicit local play on the current variant page."),
-      href: !localStart.immediate || isCurrentPageOnlineMode() ? buildCurrentVariantLocalHref() : undefined,
+      href: buildCurrentVariantLocalHref(),
       onSelect: () => {
         writeLauncherValue(LAUNCHER_STORAGE_KEYS.playMode, "local");
         writeBotPlayStateToLauncher(opts.currentVariantId, botPlayState);
@@ -2374,10 +2420,8 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
           playSubSection: PlaySubSection.Bots,
           botPlayState,
         });
-        const finish = finishExplicitLocalStartOnCurrentPage(botPlayState);
-        if (finish === "aborted" || finish === "handled") return true;
         if (!confirmLeavingOnlineForExplicitLocalNavigation()) return true;
-        navigateToHref(buildCurrentVariantLocalHref());
+        navigateToLocalVariantForcingFullLoad(buildCurrentVariantLocalHref());
         return true;
       },
     }));

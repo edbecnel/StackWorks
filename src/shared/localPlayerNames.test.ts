@@ -56,12 +56,21 @@ describe("localPlayerNames", () => {
     expect(resolveActiveLocalSeatDisplayName("W", { sideLabel: "White", signedInDisplayName: "Local Account" })).toBe("Local Account");
   });
 
-  it("falls back to the default side label for the human seat when no signed-in user is available in a bot game", () => {
+  it("uses stored local name for the human seat when not signed in (bot game)", () => {
     document.body.innerHTML = [
       '<select id="botWhiteSelect"><option value="human" selected>Human</option><option value="easy">Easy</option></select>',
       '<select id="botBlackSelect"><option value="human">Human</option><option value="easy" selected>Easy</option></select>',
     ].join("");
     localStorage.setItem("lasca.local.nameLight", "Stored White");
+
+    expect(resolveActiveLocalSeatDisplayName("W", { sideLabel: "White" })).toBe("Stored White");
+  });
+
+  it("falls back to the side label when not signed in and no stored name (bot game)", () => {
+    document.body.innerHTML = [
+      '<select id="botWhiteSelect"><option value="human" selected>Human</option><option value="easy">Easy</option></select>',
+      '<select id="botBlackSelect"><option value="human">Human</option><option value="easy" selected>Easy</option></select>',
+    ].join("");
 
     expect(resolveActiveLocalSeatDisplayName("W", { sideLabel: "White" })).toBe("White");
   });

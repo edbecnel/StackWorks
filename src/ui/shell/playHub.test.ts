@@ -278,33 +278,8 @@ describe("createPlayHub", () => {
     expect(persistedState.playSubSection).toBe("local");
   });
 
-  it("can start the configured chess bot match on the current page", () => {
-    document.body.innerHTML = `
-      <select id="botWhiteSelect">
-        <option value="human">Human</option>
-        <option value="easy">Easy</option>
-        <option value="medium">Medium</option>
-      </select>
-      <select id="botBlackSelect">
-        <option value="human">Human</option>
-        <option value="easy">Easy</option>
-        <option value="medium">Medium</option>
-      </select>
-      <button id="botPauseBtn" type="button">Resume bot</button>
-      <button id="newGameBtn" type="button">New Game</button>
-    `;
-    const whiteSelect = document.getElementById("botWhiteSelect") as HTMLSelectElement;
-    const blackSelect = document.getElementById("botBlackSelect") as HTMLSelectElement;
-    const pauseButton = document.getElementById("botPauseBtn") as HTMLButtonElement;
-    const newGameButton = document.getElementById("newGameBtn") as HTMLButtonElement;
-    const whiteChange = vi.fn();
-    const blackChange = vi.fn();
-    const pauseClick = vi.fn();
-    const newGameClick = vi.fn();
-    whiteSelect.addEventListener("change", whiteChange);
-    blackSelect.addEventListener("change", blackChange);
-    pauseButton.addEventListener("click", pauseClick);
-    newGameButton.addEventListener("click", newGameClick);
+  it("persists chess bot launcher keys when starting offline bot game (full load: reload or navigate)", () => {
+    window.history.replaceState({}, "", "/chess.html?mode=local");
 
     const hub = createPlayHub({
       currentVariantId: "chess_classic",
@@ -316,45 +291,17 @@ describe("createPlayHub", () => {
 
     const startAction = Array.from(document.querySelectorAll(".playHubAction")).find((element) =>
       element.textContent?.includes("Start new offline bot game"),
-    ) as HTMLButtonElement | undefined;
+    ) as HTMLAnchorElement | undefined;
 
+    expect(startAction?.getAttribute("href")).toContain("mode=local");
     startAction?.click();
 
-    expect(whiteSelect.value).toBe("human");
-    expect(blackSelect.value).toBe("easy");
-    expect(whiteChange).toHaveBeenCalledTimes(1);
-    expect(blackChange).toHaveBeenCalledTimes(1);
-    expect(pauseClick).toHaveBeenCalledTimes(1);
-    expect(newGameClick).toHaveBeenCalledTimes(1);
+    expect(window.localStorage.getItem("lasca.chessbot.white")).toBe("human");
+    expect(window.localStorage.getItem("lasca.chessbot.black")).not.toBe("human");
   });
 
-  it("can start the configured generic ai match on the current page", () => {
-    document.body.innerHTML = `
-      <select id="aiWhiteSelect">
-        <option value="human">Human</option>
-        <option value="easy">Easy</option>
-        <option value="medium">Medium</option>
-      </select>
-      <select id="aiBlackSelect">
-        <option value="human">Human</option>
-        <option value="easy">Easy</option>
-        <option value="medium">Medium</option>
-      </select>
-      <button id="aiPauseBtn" type="button">Resume AI</button>
-      <button id="newGameBtn" type="button">New Game</button>
-    `;
-    const whiteSelect = document.getElementById("aiWhiteSelect") as HTMLSelectElement;
-    const blackSelect = document.getElementById("aiBlackSelect") as HTMLSelectElement;
-    const pauseButton = document.getElementById("aiPauseBtn") as HTMLButtonElement;
-    const newGameButton = document.getElementById("newGameBtn") as HTMLButtonElement;
-    const whiteChange = vi.fn();
-    const blackChange = vi.fn();
-    const pauseClick = vi.fn();
-    const newGameClick = vi.fn();
-    whiteSelect.addEventListener("change", whiteChange);
-    blackSelect.addEventListener("change", blackChange);
-    pauseButton.addEventListener("click", pauseClick);
-    newGameButton.addEventListener("click", newGameClick);
+  it("persists generic ai launcher keys when starting offline bot game (full load: reload or navigate)", () => {
+    window.history.replaceState({}, "", "/lasca.html?mode=local");
 
     const hub = createPlayHub({
       currentVariantId: "lasca_7_classic",
@@ -366,16 +313,13 @@ describe("createPlayHub", () => {
 
     const startAction = Array.from(document.querySelectorAll(".playHubAction")).find((element) =>
       element.textContent?.includes("Start new offline bot game"),
-    ) as HTMLButtonElement | undefined;
+    ) as HTMLAnchorElement | undefined;
 
+    expect(startAction?.getAttribute("href")).toContain("mode=local");
     startAction?.click();
 
-    expect(whiteSelect.value).toBe("human");
-    expect(blackSelect.value).toBe("easy");
-    expect(whiteChange).toHaveBeenCalledTimes(1);
-    expect(blackChange).toHaveBeenCalledTimes(1);
-    expect(pauseClick).toHaveBeenCalledTimes(1);
-    expect(newGameClick).toHaveBeenCalledTimes(1);
+    expect(window.localStorage.getItem("lasca.ai.white")).toBe("human");
+    expect(window.localStorage.getItem("lasca.ai.black")).not.toBe("human");
   });
 
   it("offers an online bot room action for human-versus-bot setups", () => {
