@@ -48,6 +48,8 @@ import { setBoardFlipped } from "./render/boardFlip";
 import { setStackWorksGameTitle } from "./ui/gameTitle";
 import { getSideLabelsForRuleset } from "./shared/sideTerminology";
 import { nodeIdToA1, convertNotationToInternationalDraughts } from "./game/coordFormat";
+import { isShellNewGameConfirmSuppressed, markShellNewGameConfirmCancelled } from "./ui/shell/shellNewGameBypass";
+import { registerNewGameDiscardConfirmQuery, shouldConfirmDiscardCurrentGame } from "./ui/newGameDiscardConfirm";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { bindLeaveRoomButton } from "./ui/leaveRoomButton";
@@ -558,6 +560,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   bindOfflineNavGuard(controller, ACTIVE_VARIANT_ID);
 
   bindStartPageConfirm(controller, ACTIVE_VARIANT_ID);
+  registerNewGameDiscardConfirmQuery(() => shouldConfirmDiscardCurrentGame(controller, ACTIVE_VARIANT_ID));
 
   controllerForSync = controller;
   bindFullScreenButton();
@@ -810,11 +813,18 @@ window.addEventListener("DOMContentLoaded", async () => {
   const newGameBtn = document.getElementById("newGameBtn") as HTMLButtonElement | null;
   if (newGameBtn) {
     newGameBtn.addEventListener("click", () => {
-      const confirmed = confirm("Start a new game? This will clear the current game and undo history.");
-      if (confirmed) {
-        const freshState = createInitialGameStateForVariant(ACTIVE_VARIANT_ID);
-        controller.newGame(freshState);
+      if (
+        !isShellNewGameConfirmSuppressed() &&
+        shouldConfirmDiscardCurrentGame(controller, ACTIVE_VARIANT_ID)
+      ) {
+        const confirmed = confirm("Start a new game? This will clear the current game and undo history.");
+        if (!confirmed) {
+          markShellNewGameConfirmCancelled();
+          return;
+        }
       }
+      const freshState = createInitialGameStateForVariant(ACTIVE_VARIANT_ID);
+      controller.newGame(freshState);
     });
   }
 

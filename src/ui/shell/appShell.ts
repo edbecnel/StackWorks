@@ -1380,6 +1380,11 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
       opts.onSelectGame?.(game.variantId);
       focusSection(GlobalSection.Games);
     });
+    button.addEventListener("dblclick", () => {
+      if (!game.available || !game.entryUrl) return;
+      opts.onSelectGame?.(game.variantId);
+      window.location.href = game.entryUrl;
+    });
     variantButtons.set(game.variantId, button);
     variantsGrid.appendChild(button);
   }

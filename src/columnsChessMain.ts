@@ -47,6 +47,8 @@ import { ColumnsChessBotManager } from "./bot/columnsChessBotManager.ts";
 import { installBoardVisualizationTools } from "./ui/boardVisualizationTools";
 import { setStackWorksGameTitle } from "./ui/gameTitle";
 import { bindTouchAnnotationPalette } from "./ui/touchAnnotationPalette";
+import { isShellNewGameConfirmSuppressed, markShellNewGameConfirmCancelled } from "./ui/shell/shellNewGameBypass";
+import { registerNewGameDiscardConfirmQuery, shouldConfirmDiscardCurrentGame } from "./ui/newGameDiscardConfirm";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { initGameShell } from "./ui/shell/gameShell";
@@ -517,6 +519,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
 
   bindStartPageConfirm(controller, ACTIVE_VARIANT_ID);
+  registerNewGameDiscardConfirmQuery(() => shouldConfirmDiscardCurrentGame(controller, ACTIVE_VARIANT_ID));
 
   const onlineLocalBotEnabled =
     driver.mode === "online" && hasConfiguredOnlineLocalBot({ driver: driver as OnlineGameDriver, variantId: ACTIVE_VARIANT_ID });
@@ -799,9 +802,15 @@ window.addEventListener("DOMContentLoaded", async () => {
   const newGameBtn = document.getElementById("newGameBtn") as HTMLButtonElement | null;
   if (newGameBtn) {
     newGameBtn.addEventListener("click", () => {
-      if (!controller.isOver()) {
+      if (
+        !isShellNewGameConfirmSuppressed() &&
+        shouldConfirmDiscardCurrentGame(controller, ACTIVE_VARIANT_ID)
+      ) {
         const ok = confirm("Start a new Columns Chess game? Current game will be lost.");
-        if (!ok) return;
+        if (!ok) {
+          markShellNewGameConfirmCancelled();
+          return;
+        }
       }
       controller.newGame(createInitialGameStateForVariant(ACTIVE_VARIANT_ID));
     });

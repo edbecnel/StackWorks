@@ -2157,11 +2157,13 @@ export class GameController {
    * 2) draw previews last
    * 3) safety belt: re-append preview-related layers so they stay on top
    */
-  private renderAuthoritative(): void {
+  private renderAuthoritative(opts?: { skipPieceLayer?: boolean }): void {
     // 1) board/pieces
-    renderGameState(this.svg, this.piecesLayer, this.inspector, this.state, {
-      getCoordLabel: this.coordLabelProvider,
-    });
+    if (!opts?.skipPieceLayer) {
+      renderGameState(this.svg, this.piecesLayer, this.inspector, this.state, {
+        getCoordLabel: this.coordLabelProvider,
+      });
+    }
 
     // Persistent UI hint: last move origin/destination squares.
     try {
@@ -3873,6 +3875,12 @@ export class GameController {
   }
 
   newGame(initialState: GameState): void {
+    const skipPieceLayer =
+      !this.isGameOver &&
+      !this.driver.canUndo() &&
+      !this.driver.canRedo() &&
+      hashGameState(this.state) === hashGameState(initialState);
+
     // Clear history and start fresh
     this.driver.clearHistory();
     this.driver.pushHistory(initialState);
@@ -3888,8 +3896,8 @@ export class GameController {
 
     this.recomputeRepetitionCounts();
     
-    // Re-render the board
-    this.renderAuthoritative();
+    // Re-render the board (skip rebuilding piece nodes if already showing this setup)
+    this.renderAuthoritative(skipPieceLayer ? { skipPieceLayer: true } : undefined);
     
     // Check for mandatory captures at game start
     this.recomputeMandatoryCapture();

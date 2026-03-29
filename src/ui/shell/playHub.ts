@@ -18,13 +18,24 @@ import { buildSessionAuthFetchInit } from "../../shared/authSessionClient";
 import type { LobbyRoomSummary } from "../../shared/onlineProtocol";
 import { getSideLabelsForRuleset } from "../../shared/sideTerminology";
 import { createTabs } from "../navigation/tabs";
+import { hostPageRequestsDiscardConfirmForNewGame } from "../newGameDiscardConfirm";
+import { buildExplicitLocalModeUrlString } from "./explicitLocalModeNavigation";
+import {
+  beginShellTrackedNewGameClick,
+  clickNewGameBtnSuppressingConfirm,
+  endShellTrackedNewGameClick,
+  takeShellNewGameConfirmCancelled,
+} from "./shellNewGameBypass";
+import { allowConfirmedNavigation } from "../navigationPromptGate";
+import { ONLINE_SUSPEND_CONTINUE_CONFIRM_MESSAGE } from "../startPageConfirm";
 import { getVariantById } from "../../variants/variantRegistry";
 import type { VariantId } from "../../variants/variantTypes";
 
 export interface PlayHubAction {
   label: string;
   description: string;
-  onSelect?: () => void;
+  /** Return true to suppress the anchor’s default navigation (handled in-page or programmatic navigate). */
+  onSelect?: () => void | boolean;
   href?: string;
   external?: boolean;
   disabled?: boolean;
@@ -37,6 +48,17 @@ export interface PlayHubOptions {
   onlineAction?: PlayHubAction | null;
   botAction?: PlayHubAction | null;
   localAction?: PlayHubAction | null;
+  /**
+   * After the URL is updated to explicit local mode without a document load, releases shell staging lock
+   * and input (applies to any local seating: PvP, Pv bot, or bot watch).
+   */
+  commitExplicitLocalPlayMode?: () => void;
+  /**
+   * When a play-hub link points at the same variant HTML page with online query params (e.g. create/join),
+   * the host may complete the transition without reloading. Return true to cancel the default navigation.
+   * Not used by default; wire this when the game page can re-bind the online driver in-place.
+   */
+  tryCompleteSameDocumentOnlineNavigation?: (href: string) => boolean;
 }
 
 export interface PlayHubController {
@@ -605,6 +627,14 @@ function isCurrentPageOnlineMode(): boolean {
   }
 }
 
+/** Confirms before navigating from an online room to explicit local/bot play on the same variant. */
+function confirmLeavingOnlineForExplicitLocalNavigation(): boolean {
+  if (!isCurrentPageOnlineMode()) return true;
+  const ok = window.confirm(ONLINE_SUSPEND_CONTINUE_CONFIRM_MESSAGE);
+  if (ok) allowConfirmedNavigation();
+  return ok;
+}
+
 function getCurrentPageBotSelectors(): {
   whiteSelect: HTMLSelectElement;
   blackSelect: HTMLSelectElement;
@@ -713,28 +743,20 @@ export function applyBotPlayStateToCurrentPage(state: BotPlayState): boolean {
 function startCurrentPageNewGame(): boolean {
   const newGameButton = document.getElementById("newGameBtn") as HTMLButtonElement | null;
   if (!newGameButton || newGameButton.disabled) return false;
-  newGameButton.click();
-  return true;
+  if (hostPageRequestsDiscardConfirmForNewGame()) {
+    beginShellTrackedNewGameClick();
+    try {
+      newGameButton.click();
+    } finally {
+      endShellTrackedNewGameClick();
+    }
+    return !takeShellNewGameConfirmCancelled();
+  }
+  return clickNewGameBtnSuppressingConfirm();
 }
 
 function buildCurrentVariantLocalHref(): string {
-  try {
-    const url = new URL(window.location.href);
-    url.searchParams.set("mode", "local");
-    url.searchParams.delete("server");
-    url.searchParams.delete("roomId");
-    url.searchParams.delete("playerId");
-    url.searchParams.delete("watchToken");
-    url.searchParams.delete("color");
-    url.searchParams.delete("prefColor");
-    url.searchParams.delete("visibility");
-    url.searchParams.delete("create");
-    url.searchParams.delete("join");
-    url.searchParams.delete("botSeats");
-    return `${url.pathname}${url.search}${url.hash}`;
-  } catch {
-    return window.location.pathname;
-  }
+  return buildExplicitLocalModeUrlString();
 }
 
 function resolveHumanSeatColor(state: BotPlayState): "W" | "B" | null {
@@ -1475,40 +1497,6 @@ function readResumeEntries(currentVariantId: VariantId, limit = 2): ResumeEntry[
     }));
 }
 
-function createAction(action: PlayHubAction): HTMLElement {
-  const element = action.href ? document.createElement("a") : document.createElement("button");
-  element.className = "playHubAction";
-  element.innerHTML = `<span class="playHubActionLabel">${action.label}</span><span class="playHubActionDescription">${action.description}</span>`;
-
-  if (element instanceof HTMLAnchorElement) {
-    element.href = action.href as string;
-    if (action.external) {
-      element.target = "_blank";
-      element.rel = "noopener noreferrer";
-    }
-    element.addEventListener("click", (event) => {
-      if (action.disabled) {
-        event.preventDefault();
-        return;
-      }
-      action.onSelect?.();
-    });
-  } else {
-    element.type = "button";
-    element.disabled = Boolean(action.disabled);
-    element.addEventListener("click", () => {
-      if (action.disabled) return;
-      action.onSelect?.();
-    });
-  }
-
-  if (action.disabled) {
-    element.setAttribute("aria-disabled", "true");
-  }
-
-  return element;
-}
-
 function createPlaceholder(title: string, description: string): HTMLElement {
   const placeholder = document.createElement("div");
   placeholder.className = "playHubPlaceholder";
@@ -1521,6 +1509,72 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
   const resumeEntries = readResumeEntries(opts.currentVariantId);
   const persistedShellState = readShellState();
   const variant = getVariantById(opts.currentVariantId);
+
+  /** In-page finish for explicit local play on the current variant page (any local seat mix). */
+  const finishExplicitLocalStartOnCurrentPage = (botPlayState: BotPlayState): "aborted" | "handled" | "navigate" => {
+    const currentMode = (() => {
+      try {
+        return new URLSearchParams(window.location.search).get("mode");
+      } catch {
+        return null;
+      }
+    })();
+    if (applyBotPlayStateToCurrentPage(botPlayState)) {
+      const newGameBtn = document.getElementById("newGameBtn") as HTMLButtonElement | null;
+      if (newGameBtn && !newGameBtn.disabled) {
+        const started = startCurrentPageNewGame();
+        if (!started) return "aborted";
+        if (currentMode === "local") return "handled";
+      }
+    }
+    const localStartInner = resolveCurrentPageLocalBotStartAvailability();
+    if (localStartInner.immediate && !isCurrentPageOnlineMode()) {
+      if (opts.commitExplicitLocalPlayMode) {
+        opts.commitExplicitLocalPlayMode();
+        return "handled";
+      }
+      return "navigate";
+    }
+    return "navigate";
+  };
+
+  const createHubAction = (action: PlayHubAction): HTMLElement => {
+    const element = action.href ? document.createElement("a") : document.createElement("button");
+    element.className = "playHubAction";
+    element.innerHTML = `<span class="playHubActionLabel">${action.label}</span><span class="playHubActionDescription">${action.description}</span>`;
+
+    if (element instanceof HTMLAnchorElement) {
+      element.href = action.href as string;
+      if (action.external) {
+        element.target = "_blank";
+        element.rel = "noopener noreferrer";
+      }
+      element.addEventListener("click", (event) => {
+        if (action.disabled) {
+          event.preventDefault();
+          return;
+        }
+        const onSelectResult = action.onSelect?.();
+        const suppressNav =
+          onSelectResult === true ||
+          (typeof action.href === "string" && Boolean(opts.tryCompleteSameDocumentOnlineNavigation?.(action.href)));
+        if (suppressNav) event.preventDefault();
+      });
+    } else {
+      element.type = "button";
+      element.disabled = Boolean(action.disabled);
+      element.addEventListener("click", () => {
+        if (action.disabled) return;
+        action.onSelect?.();
+      });
+    }
+
+    if (action.disabled) {
+      element.setAttribute("aria-disabled", "true");
+    }
+
+    return element;
+  };
   const sideLabels = getSideLabelsForRuleset(variant.rulesetId, { boardSize: variant.boardSize });
   const botOptions = getBotOptionsForVariant(opts.currentVariantId);
   const configuredServerUrl = resolveConfiguredServerUrl();
@@ -1704,7 +1758,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     const modeActions = document.createElement("div");
     modeActions.className = "playHubActions";
     if (definition.id === OnlineSubSection.QuickMatch && configuredServerUrl) {
-      const quickMatchAction = createAction({
+      const quickMatchAction = createHubAction({
         label: "Host quick match here",
         description: "Reload this variant page in online create mode with a public room ready to host immediately.",
         href: buildCurrentVariantOnlineHref({
@@ -1739,7 +1793,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
       modeActions.appendChild(quickMatchAction);
       if (resumeEntries.length > 0) {
         const latestResume = resumeEntries[0];
-        modeActions.appendChild(createAction({
+        modeActions.appendChild(createHubAction({
           label: latestResume.label,
           description: "Reload this variant page directly into your most recent unfinished online game for this variant.",
           href: latestResume.href,
@@ -1752,7 +1806,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
           },
         }));
       }
-      modeActions.appendChild(createAction({
+      modeActions.appendChild(createHubAction({
         label: "Browse joinable rooms",
         description: "Stay on this variant page and switch to Hosted Rooms to join or spectate active public rooms.",
         onSelect: () => {
@@ -1764,10 +1818,10 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
       }));
     }
     if (definition.id === OnlineSubSection.QuickMatch && opts.onlineAction) {
-      modeActions.appendChild(createAction(opts.onlineAction));
+      modeActions.appendChild(createHubAction(opts.onlineAction));
     }
     if (configuredServerUrl && definition.id === OnlineSubSection.CustomChallenge) {
-      const customChallengeAction = createAction({
+      const customChallengeAction = createHubAction({
         label: "Create custom challenge here",
         description: "Reload this variant page in online create mode with the current variant selected and challenge setup persisted.",
         href: buildCurrentVariantOnlineHref({
@@ -1802,7 +1856,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
       modeActions.appendChild(customChallengeAction);
     }
     if (configuredServerUrl && definition.id === OnlineSubSection.Friend) {
-      const friendAction = createAction({
+      const friendAction = createHubAction({
         label: "Create private invite room here",
         description: "Reload this variant page in online create mode with a private friend room ready to configure.",
         href: buildCurrentVariantOnlineHref({
@@ -1837,7 +1891,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
       modeActions.appendChild(friendAction);
     }
     if (opts.backHref) {
-      modeActions.appendChild(createAction({
+      modeActions.appendChild(createHubAction({
         label: definition.launcherLabel,
         description: definition.launcherDescription,
         onSelect: () => {
@@ -1852,7 +1906,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
       }));
     }
     if (opts.helpHref && definition.id === OnlineSubSection.QuickMatch) {
-      modeActions.appendChild(createAction({
+      modeActions.appendChild(createHubAction({
         label: "Read online help",
         description: "Open the current game's rules and room guidance in a separate tab.",
         href: opts.helpHref,
@@ -1985,7 +2039,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
           const actions = document.createElement("div");
           actions.className = "playHubHostedRoomActions";
           if (serverUrl) {
-            const joinAction = createAction({
+            const joinAction = createHubAction({
               label: "Join room",
               description: "Reload this variant page directly into join mode for this room.",
               href: buildCurrentVariantOnlineHref({ action: "join", serverUrl, roomId: room.roomId }),
@@ -2001,7 +2055,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
             joinAction.classList.add("playHubHostedInlineAction");
             actions.appendChild(joinAction);
 
-            const spectateAction = createAction({
+            const spectateAction = createHubAction({
               label: "Spectate",
               description: room.visibility === "private"
                 ? "Private rooms require a watch link."
@@ -2079,7 +2133,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
       hostedGrid.append(hostedCard, hostedDiscoveryCard, hostedValueCard);
 
       if (configuredServerUrl) {
-        const hostedCreateAction = createAction({
+        const hostedCreateAction = createHubAction({
           label: "Create hosted room",
           description: "Reload this variant page in online create mode with the current hosted-room policy already persisted.",
           href: buildCurrentVariantOnlineHref({
@@ -2107,7 +2161,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
           });
         }
         modeActions.appendChild(hostedCreateAction);
-        modeActions.appendChild(createAction({
+        modeActions.appendChild(createHubAction({
           label: "Refresh live rooms",
           description: "Reload the latest public rooms for this variant from the configured online server.",
           onSelect: () => {
@@ -2115,7 +2169,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
           },
         }));
         if (opts.backHref) {
-          modeActions.appendChild(createAction({
+          modeActions.appendChild(createHubAction({
             label: "Open full lobby",
             description: "Return to the launcher with online mode focused on the current server.",
             href: buildOnlineLauncherHref(opts.backHref, { action: "create", serverUrl: configuredServerUrl }),
@@ -2295,24 +2349,23 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
 
     botActions.replaceChildren();
     if (bothHuman) {
-      botActions.appendChild(createAction({
+      botActions.appendChild(createHubAction({
         label: "Switch to Local setup",
         description: "Both seats are human, so this configuration belongs under Local instead of Play Bots.",
         onSelect: () => setActiveTab(PlaySubSection.Local),
       }));
-      if (opts.localAction) botActions.appendChild(createAction(opts.localAction));
+      if (opts.localAction) botActions.appendChild(createHubAction(opts.localAction));
       return;
     }
 
     const localStart = resolveCurrentPageLocalBotStartAvailability();
-    botActions.appendChild(createAction({
+    botActions.appendChild(createHubAction({
       label: bothBots ? "Start new offline watch match" : "Start new offline bot game",
       description: localStart.immediate
-        ? "Apply these bot seats and reload the page to guarantee overlays and board fit are correct."
-        : (localStart.reason ?? "Save this setup and reload the current page into local bot play."),
+        ? "Apply these seats and start on this page when possible so the board SVG is not reloaded."
+        : (localStart.reason ?? "Save this setup and open explicit local play on the current variant page."),
       href: !localStart.immediate || isCurrentPageOnlineMode() ? buildCurrentVariantLocalHref() : undefined,
       onSelect: () => {
-        // Always persist the latest bot settings to both localStorage and shell state before reload
         writeLauncherValue(LAUNCHER_STORAGE_KEYS.playMode, "local");
         writeBotPlayStateToLauncher(opts.currentVariantId, botPlayState);
         updateShellState({
@@ -2321,27 +2374,17 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
           playSubSection: PlaySubSection.Bots,
           botPlayState,
         });
-        const currentMode = (() => {
-          try {
-            return new URLSearchParams(window.location.search).get("mode");
-          } catch {
-            return null;
-          }
-        })();
-        if (applyBotPlayStateToCurrentPage(botPlayState)) {
-          if (startCurrentPageNewGame() && currentMode === "local") return;
-        }
-        if (localStart.immediate && !isCurrentPageOnlineMode()) {
-          // Reload through an explicit local-mode URL so shell startup lock is
-          // bypassed for intentional in-shell starts.
-          navigateToHref(buildCurrentVariantLocalHref());
-        }
+        const finish = finishExplicitLocalStartOnCurrentPage(botPlayState);
+        if (finish === "aborted" || finish === "handled") return true;
+        if (!confirmLeavingOnlineForExplicitLocalNavigation()) return true;
+        navigateToHref(buildCurrentVariantLocalHref());
+        return true;
       },
     }));
 
     const humanSeatColor = resolveHumanSeatColor(botPlayState);
     if (humanSeatColor) {
-      botActions.appendChild(createAction({
+      botActions.appendChild(createHubAction({
         label: "Start online bot room here",
         description: "Create a new online room on this variant page with the human seat local and the opposite seat configured as a local bot.",
         href: buildCurrentVariantOnlineHref({
@@ -2376,7 +2419,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
         },
       }));
     } else if (bothBots) {
-      botActions.appendChild(createAction({
+      botActions.appendChild(createHubAction({
         label: "Start online bot room unavailable",
         description: "Online bot rooms currently support a local human plus one configured local bot seat. Bot-vs-bot online broadcast mode is still not implemented.",
         disabled: true,
@@ -2384,7 +2427,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     }
 
     if (bothBots) {
-      botActions.appendChild(createAction({
+      botActions.appendChild(createHubAction({
         label: "Open watch-bots launcher",
         description: "Return to the launcher with both seats bot-controlled so the match starts in bot-vs-bot watch mode.",
         href: opts.backHref,
@@ -2405,7 +2448,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     }
 
     if (opts.backHref) {
-      botActions.appendChild(createAction({
+      botActions.appendChild(createHubAction({
         label: "Open bot launcher",
         description: "Return to the launcher with these bot seat assignments and difficulty choices already stored for this variant.",
         href: opts.backHref,
@@ -2422,7 +2465,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
         },
       }));
     }
-    if (opts.botAction) botActions.appendChild(createAction(opts.botAction));
+    if (opts.botAction) botActions.appendChild(createHubAction(opts.botAction));
   };
 
   for (const binding of seatBindings) {
@@ -2495,7 +2538,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
 
     coachActions.replaceChildren();
     if (opts.backHref) {
-      coachActions.appendChild(createAction({
+      coachActions.appendChild(createHubAction({
         label: `Open ${selected.label} coach`,
         description: "Return to the launcher with a human-vs-bot training setup tied to the selected coaching level.",
         href: opts.backHref,
@@ -2596,7 +2639,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
   const localActions = document.createElement("div");
   localActions.className = "playHubActions";
   const localStart = resolveCurrentPageLocalBotStartAvailability();
-  localActions.appendChild(createAction({
+  localActions.appendChild(createHubAction({
     label: "Start local 2-player game",
     description: "Local mode is always two humans. Set names above, then start same-device play.",
     href: buildCurrentVariantLocalHref(),
@@ -2612,14 +2655,18 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
         playSubSection: PlaySubSection.Local,
         botPlayState: nextState,
       });
+      const finish = finishExplicitLocalStartOnCurrentPage(nextState);
+      if (finish === "aborted" || finish === "handled") return true;
+      if (!confirmLeavingOnlineForExplicitLocalNavigation()) return true;
       navigateToHref(buildCurrentVariantLocalHref());
+      return true;
     },
   }));
   if (opts.localAction) {
-    localActions.appendChild(createAction(opts.localAction));
+    localActions.appendChild(createHubAction(opts.localAction));
   }
   if (opts.backHref) {
-    localActions.appendChild(createAction({
+    localActions.appendChild(createHubAction({
       label: "Open local launcher",
       description: "Return to the start page with this variant selected for offline setup, local seats, and current launch preferences.",
       onSelect: () => {
@@ -2670,7 +2717,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     const resumeActions = document.createElement("div");
     resumeActions.className = "playHubActions";
     for (const entry of resumeEntries) {
-      resumeActions.appendChild(createAction({
+      resumeActions.appendChild(createHubAction({
         label: entry.label,
         description: entry.description,
         href: entry.href,
@@ -2683,7 +2730,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
             // Apply current bot/player settings (preserve user config)
             writeLauncherValue(LAUNCHER_STORAGE_KEYS.playMode, "local");
             writeBotPlayStateToLauncher(opts.currentVariantId, botPlayState);
-            // Navigate with explicit local mode so shell startup lock is bypassed.
+            // Full navigation: offline resume expects a clean driver/init pass.
             navigateToHref(buildCurrentVariantLocalHref());
           } else {
             updateShellState({

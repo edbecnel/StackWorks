@@ -5,6 +5,10 @@ import type { GameController, HistoryChangeReason } from "../controller/gameCont
 import type { VariantId } from "../variants/variantTypes";
 import { allowConfirmedNavigation } from "./navigationPromptGate";
 
+/** Leaving an in-progress online game (start page, play hub local/bot, etc.). */
+export const ONLINE_SUSPEND_CONTINUE_CONFIRM_MESSAGE =
+  "The current game will be suspended. You may return to this game to continue before the game pause/wait period expires. Continue?";
+
 function isPlainLeftClick(e: MouseEvent): boolean {
   return e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
 }
@@ -63,7 +67,7 @@ export function bindStartPageConfirm(controller: GameController, variantId: Vari
       if (!(e instanceof MouseEvent) || !isPlainLeftClick(e)) return;
       const msg =
         controller.getDriverMode() === "online"
-          ? "The current game will be suspended. You may return to this game to continue before the game pause/wait period expires. Continue to the Start Page?"
+          ? ONLINE_SUSPEND_CONTINUE_CONFIRM_MESSAGE
           : "Leaving this page will lose the current game. Continue to the Start Page?";
       const ok = window.confirm(msg);
       if (ok) {

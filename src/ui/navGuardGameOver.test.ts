@@ -16,12 +16,20 @@ describe("navigation guards", () => {
     const initial = createInitialGameStateForVariant(variantId);
 
     let isOver = false;
+    let simulatesInProgress = false;
     const historyListeners: Array<(reason: HistoryChangeReason) => void> = [];
 
     const controller = {
       getDriverMode: () => "offline",
       getState: () => initial,
-      addHistoryChangeCallback: (cb: (reason: HistoryChangeReason) => void) => historyListeners.push(cb),
+      addHistoryChangeCallback: (cb: (reason: HistoryChangeReason) => void) => {
+        historyListeners.push((reason) => {
+          if (reason === "move") simulatesInProgress = true;
+          cb(reason);
+        });
+      },
+      canUndo: () => simulatesInProgress,
+      canRedo: () => false,
       isOver: () => isOver,
       setStickyToastAction: () => {},
       showStickyToast: () => {},

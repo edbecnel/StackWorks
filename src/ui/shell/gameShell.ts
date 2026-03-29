@@ -10,6 +10,7 @@ import type { VariantId } from "../../variants/variantTypes";
 import { buildSessionAuthFetchInit } from "../../shared/authSessionClient";
 import { hasAnyLocalBotSide, isLocalBotSide, resolveActiveLocalSeatDisplayNames } from "../../shared/localPlayerNames";
 import { readOpenVariantPageOnlinePreview } from "../../shared/openVariantPageIntent";
+import { replaceHistoryWithExplicitLocalMode } from "./explicitLocalModeNavigation";
 
 export interface GameShellNavItem {
   id: string;
@@ -35,6 +36,12 @@ export interface GameShellOptions {
 export interface GameShellController {
   setActiveSection(sectionId: string): void;
   bindController(controller: GameController): void;
+  /**
+   * Same-document unlock after the URL is set to explicit local play (?mode=local) without reloading.
+   * Applies to any local seating (human vs human, human vs bot, bot watch). Online entry still uses a
+   * full navigation unless the play hub’s `tryCompleteSameDocumentOnlineNavigation` is implemented.
+   */
+  commitExplicitLocalPlayMode(): void;
 }
 
 const GAME_SHELL_STYLE_ID = "stackworks-game-shell-style";
@@ -1218,6 +1225,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
   ensureGameShellStyles();
   document.body.classList.add("stackworksGameShellEnabled");
   const initialShellState = readShellState();
+  let forwardCommitExplicitLocalPlayMode: (() => void) | null = null;
 
   const shell = document.createElement("div");
   shell.className = "gameShellRoot";
@@ -1501,15 +1509,15 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     const initialSnapshot = controller.getPlayerShellSnapshot();
     const queryMode = new URLSearchParams(window.location.search).get("mode");
     const hasExplicitPlayMode = queryMode === "local" || queryMode === "online";
-    const startupPlayLockActive = !hasExplicitPlayMode;
-    if (startupPlayLockActive) {
+    let startupPlayLockUiActive = !hasExplicitPlayMode;
+    const nestedBoardWrapEl = opts.appRoot.querySelector("#boardWrap") as HTMLElement | null;
+    if (startupPlayLockUiActive) {
       controller.setShellStartupPlayLockEnabled(true);
       boardAnchor.style.pointerEvents = "none";
       boardAnchor.style.cursor = "not-allowed";
-      const nestedBoardWrap = opts.appRoot.querySelector("#boardWrap") as HTMLElement | null;
-      if (nestedBoardWrap) {
-        nestedBoardWrap.style.pointerEvents = "none";
-        nestedBoardWrap.style.cursor = "not-allowed";
+      if (nestedBoardWrapEl) {
+        nestedBoardWrapEl.style.pointerEvents = "none";
+        nestedBoardWrapEl.style.cursor = "not-allowed";
       }
     }
     const topPanel = createPlayerIdentityPanel({ identity: initialSnapshot.players.B });
@@ -1580,7 +1588,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
 
     const buildSnapshotWithOverrides = (snapshot: PlayerShellSnapshot, bottomColor: Player): PlayerShellSnapshot => {
       const nextPlayers = { ...snapshot.players };
-      if (startupPlayLockActive && snapshot.mode === "local") {
+      if (startupPlayLockUiActive && snapshot.mode === "local") {
         for (const color of ["W", "B"] as const) {
           const identity = nextPlayers[color];
           nextPlayers[color] = {
@@ -1767,6 +1775,24 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     void loadSignedInViewerOverride(initialSnapshot);
     window.setInterval(syncPanels, 1000);
     syncPanels();
+
+    const commitExplicitLocalPlayMode = (): void => {
+      if (!startupPlayLockUiActive) return;
+      replaceHistoryWithExplicitLocalMode();
+      startupPlayLockUiActive = false;
+      boardAnchor.style.pointerEvents = "";
+      boardAnchor.style.cursor = "";
+      if (nestedBoardWrapEl) {
+        nestedBoardWrapEl.style.pointerEvents = "";
+        nestedBoardWrapEl.style.cursor = "";
+      }
+      controller.setShellStartupPlayLockEnabled(false);
+      controller.setInputEnabled(true);
+      syncPanels();
+      scheduleBoardFit();
+    };
+    forwardCommitExplicitLocalPlayMode = commitExplicitLocalPlayMode;
+
     didBindController = true;
   };
 
@@ -1963,6 +1989,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
         currentVariantId: opts.variantId,
         backHref: opts.backHref,
         helpHref: opts.helpHref,
+        commitExplicitLocalPlayMode: () => forwardCommitExplicitLocalPlayMode?.(),
         onlineAction: createNavAction(
           ["online", "status", "play"],
           "Review live game status",
@@ -2138,5 +2165,6 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
   return {
     setActiveSection,
     bindController,
+    commitExplicitLocalPlayMode: () => forwardCommitExplicitLocalPlayMode?.(),
   };
 }

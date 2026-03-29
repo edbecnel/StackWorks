@@ -75,6 +75,8 @@ import {
 } from "./shared/localPlayerNames";
 import { readOpenVariantPageOnlinePreview } from "./shared/openVariantPageIntent";
 import { resolveExportPlayerName } from "./shared/playerExportNames";
+import { isShellNewGameConfirmSuppressed, markShellNewGameConfirmCancelled } from "./ui/shell/shellNewGameBypass";
+import { registerNewGameDiscardConfirmQuery, shouldConfirmDiscardCurrentGame } from "./ui/newGameDiscardConfirm";
 import { bindStartPageConfirm } from "./ui/startPageConfirm";
 import { bindOfflineNavGuard } from "./ui/offlineNavGuard";
 import { initGameShell } from "./ui/shell/gameShell";
@@ -807,6 +809,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
 
   bindStartPageConfirm(controller, ACTIVE_VARIANT_ID);
+  registerNewGameDiscardConfirmQuery(() => shouldConfirmDiscardCurrentGame(controller, ACTIVE_VARIANT_ID));
 
   installPlayerBotSelector({
     storageSelectId: "botWhiteSelect",
@@ -1146,9 +1149,15 @@ window.addEventListener("DOMContentLoaded", async () => {
   const newGameBtn = document.getElementById("newGameBtn") as HTMLButtonElement | null;
   if (newGameBtn) {
     newGameBtn.addEventListener("click", () => {
-      if (!controller.isOver()) {
+      if (
+        !isShellNewGameConfirmSuppressed() &&
+        shouldConfirmDiscardCurrentGame(controller, ACTIVE_VARIANT_ID)
+      ) {
         const ok = confirm("Start a new Chess game? Current game will be lost.");
-        if (!ok) return;
+        if (!ok) {
+          markShellNewGameConfirmCancelled();
+          return;
+        }
       }
       controller.newGame(createInitialGameStateForVariant(ACTIVE_VARIANT_ID));
       controller.setInputEnabled(true); // Unlock input after new game

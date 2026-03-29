@@ -1,8 +1,7 @@
-import { hashGameState } from "../game/hashState";
-import { createInitialGameStateForVariant } from "../game/state";
 import { checkCurrentPlayerLost } from "../game/gameOver";
-import type { GameController, HistoryChangeReason } from "../controller/gameController";
+import type { GameController } from "../controller/gameController";
 import type { VariantId } from "../variants/variantTypes";
+import { shouldConfirmDiscardCurrentGame } from "./newGameDiscardConfirm";
 import { allowConfirmedNavigation, consumeConfirmedNavigationAllowance } from "./navigationPromptGate";
 
 export function bindOfflineNavGuard(controller: GameController, variantId: VariantId): void {
@@ -15,9 +14,6 @@ export function bindOfflineNavGuard(controller: GameController, variantId: Varia
   const anyWin = window as unknown as Record<string, unknown>;
   if (anyWin[BIND_KEY]) return;
   anyWin[BIND_KEY] = true;
-
-  const initialHash = hashGameState(createInitialGameStateForVariant(variantId));
-  let hasBegun = hashGameState(controller.getState()) !== initialHash;
 
   const isTerminalNow = (): boolean => {
     try {
@@ -37,19 +33,11 @@ export function bindOfflineNavGuard(controller: GameController, variantId: Varia
     if (typeof (controller as any).isShellStartupPlayLockEnabled === "function" && (controller as any).isShellStartupPlayLockEnabled()) {
       return false;
     }
-    // Once the game is terminal, losing the page state is no longer a surprise.
-    return hasBegun && !controller.isOver() && !isTerminalNow();
+    if (controller.isOver()) return false;
+    if (isTerminalNow()) return false;
+    // Match "discard current game?" semantics: no warn at initial position with empty history.
+    return shouldConfirmDiscardCurrentGame(controller, variantId);
   };
-
-  controller.addHistoryChangeCallback((reason: HistoryChangeReason) => {
-    if (reason === "newGame") {
-      hasBegun = true;
-      return;
-    }
-    if (reason === "move" || reason === "loadGame" || reason === "undo" || reason === "redo" || reason === "jump" || reason === "gameOver") {
-      hasBegun = true;
-    }
-  });
 
   const TOAST_KEY = "offline_nav_guard";
   const toastText = "Refreshing or going back will lose the current game.";
