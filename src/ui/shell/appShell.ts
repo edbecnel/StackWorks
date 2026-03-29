@@ -527,6 +527,98 @@ function ensureShellStyles(): void {
       margin-top: 12px;
     }
 
+    .appShellChoiceCard {
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      color: rgba(255, 255, 255, 0.92);
+      border-radius: 14px;
+      padding: 10px 12px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      text-align: left;
+    }
+
+    .appShellChoiceCard:hover,
+    .appShellChoiceCard:focus-within {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .appShellChoiceCard.isActive {
+      border-color: rgba(232, 191, 112, 0.34);
+      background: linear-gradient(180deg, rgba(202, 157, 78, 0.18), rgba(202, 157, 78, 0.06));
+    }
+
+    .appShellChoiceTopRow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .appShellChoiceNamePill {
+      appearance: none;
+      flex: 1 1 auto;
+      min-width: 0;
+      margin: 0;
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      color: rgba(255, 255, 255, 0.94);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.25;
+      text-align: left;
+      cursor: pointer;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .appShellChoiceNamePill:hover,
+    .appShellChoiceNamePill:focus-visible {
+      background: rgba(255, 255, 255, 0.1);
+      outline: none;
+    }
+
+    .appShellChoiceNamePill:disabled {
+      cursor: default;
+      opacity: 0.55;
+    }
+
+    .appShellChoiceOpenBtn {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 5px 11px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.92);
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.2;
+      text-decoration: none;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .appShellChoiceOpenBtn:hover,
+    .appShellChoiceOpenBtn:focus-visible {
+      background: rgba(255, 255, 255, 0.14);
+      outline: none;
+    }
+
+    .appShellChoiceOpenBtn.isDisabled {
+      pointer-events: none;
+      cursor: default;
+      opacity: 0.45;
+    }
+
     .appShellChoiceButton {
       appearance: none;
       width: 100%;
@@ -539,6 +631,19 @@ function ensureShellStyles(): void {
       cursor: pointer;
     }
 
+    .appShellChoiceCard .appShellChoiceButton {
+      border: none;
+      background: transparent;
+      padding: 0;
+      border-radius: 0;
+      margin: 0;
+    }
+
+    .appShellChoiceCard .appShellChoiceButton:hover,
+    .appShellChoiceCard .appShellChoiceButton:focus-visible {
+      background: transparent;
+    }
+
     .appShellChoiceButton:hover,
     .appShellChoiceButton:focus-visible {
       background: rgba(255, 255, 255, 0.08);
@@ -548,6 +653,11 @@ function ensureShellStyles(): void {
     .appShellChoiceButton.isActive {
       border-color: rgba(232, 191, 112, 0.34);
       background: linear-gradient(180deg, rgba(202, 157, 78, 0.18), rgba(202, 157, 78, 0.06));
+    }
+
+    .appShellChoiceCard .appShellChoiceButton.isActive {
+      border: none;
+      background: transparent;
     }
 
     .appShellChoiceLabel {
@@ -1193,7 +1303,7 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   }
 
   const navButtons = new Map<AppShellSectionId, HTMLButtonElement>();
-  const variantButtons = new Map<VariantId, HTMLButtonElement>();
+  const variantCards = new Map<VariantId, HTMLElement>();
   const playModeButtons = new Map<StartPagePlayMode, HTMLButtonElement>();
   let selectedGame = getAppShellGame(opts.initialVariantId);
   let currentPlayMode = opts.initialPlayMode;
@@ -1366,27 +1476,66 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
   const launcherGames = APP_SHELL_GAMES.filter((game) => game.entryUrl);
 
   for (const game of launcherGames) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "appShellChoiceButton";
-    button.innerHTML = `
-      <span class="appShellChoiceLabel">${game.displayName}</span>
+    const card = document.createElement("div");
+    card.className = "appShellChoiceCard";
+
+    const topRow = document.createElement("div");
+    topRow.className = "appShellChoiceTopRow";
+
+    const namePill = document.createElement("button");
+    namePill.type = "button";
+    namePill.className = "appShellChoiceNamePill";
+    namePill.textContent = game.displayName;
+
+    const openBtn = document.createElement("a");
+    openBtn.className = "appShellChoiceOpenBtn";
+    openBtn.textContent = "Open";
+    openBtn.target = "_self";
+    const isLaunchable = game.available && Boolean(game.entryUrl);
+    if (isLaunchable) {
+      openBtn.href = game.entryUrl as string;
+    } else {
+      openBtn.classList.add("isDisabled");
+      openBtn.setAttribute("aria-disabled", "true");
+      openBtn.addEventListener("click", (event) => event.preventDefault());
+    }
+
+    const detailsBtn = document.createElement("button");
+    detailsBtn.type = "button";
+    detailsBtn.className = "appShellChoiceButton";
+    detailsBtn.innerHTML = `
       <span class="appShellChoiceDescription">${game.subtitle}</span>
       <span class="appShellChoiceMeta">${game.boardSize}x${game.boardSize} · ${game.rulesetId.replace(/_/g, " ")}</span>
     `;
-    button.disabled = !game.available;
-    button.addEventListener("click", () => {
+
+    const selectGame = (): void => {
       if (!game.available) return;
       opts.onSelectGame?.(game.variantId);
       focusSection(GlobalSection.Games);
-    });
-    button.addEventListener("dblclick", () => {
-      if (!game.available || !game.entryUrl) return;
+    };
+
+    const openVariantPage = (): void => {
+      if (!isLaunchable) return;
       opts.onSelectGame?.(game.variantId);
-      window.location.href = game.entryUrl;
+      window.location.href = game.entryUrl as string;
+    };
+
+    namePill.addEventListener("click", selectGame);
+    detailsBtn.addEventListener("click", selectGame);
+    namePill.addEventListener("dblclick", openVariantPage);
+    detailsBtn.addEventListener("dblclick", openVariantPage);
+    openBtn.addEventListener("click", () => {
+      if (!isLaunchable) return;
+      opts.onSelectGame?.(game.variantId);
     });
-    variantButtons.set(game.variantId, button);
-    variantsGrid.appendChild(button);
+
+    namePill.disabled = !game.available;
+    detailsBtn.disabled = !game.available;
+
+    topRow.append(namePill, openBtn);
+    card.append(topRow, detailsBtn);
+    variantCards.set(game.variantId, card);
+    variantsGrid.appendChild(card);
   }
 
   const playModeChoices: Array<{ id: StartPagePlayMode; label: string; description: string; sectionId: AppShellSectionId }> = [
@@ -1443,10 +1592,13 @@ export function initStartPageAppShell(opts: StartPageAppShellOptions): StartPage
     entryValue.textContent = game.available ? (game.entryUrl ?? "Unavailable") : "Coming soon";
     rulesetValue.textContent = game.rulesetId.replace(/_/g, " ");
 
-    for (const [id, button] of variantButtons) {
+    for (const [id, cardEl] of variantCards) {
       const isActive = id === variantId;
-      button.classList.toggle("isActive", isActive);
-      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+      cardEl.classList.toggle("isActive", isActive);
+      const namePill = cardEl.querySelector(".appShellChoiceNamePill") as HTMLButtonElement | null;
+      const detailsBtn = cardEl.querySelector(".appShellChoiceButton") as HTMLButtonElement | null;
+      namePill?.setAttribute("aria-pressed", isActive ? "true" : "false");
+      detailsBtn?.setAttribute("aria-pressed", isActive ? "true" : "false");
     }
 
     setPlayMode(playMode);

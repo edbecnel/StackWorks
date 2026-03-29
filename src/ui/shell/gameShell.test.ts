@@ -115,6 +115,49 @@ describe("initGameShell desktop shell navigation", () => {
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
   });
 
+  it("shows signed-in display name and avatar at the bottom of the left shell panel", async () => {
+    localStorage.setItem("lasca.online.serverUrl", "http://localhost:8788");
+    localStorage.setItem("stackworks.gameShell.desktopPanelMode", "shell");
+
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        user: {
+          displayName: "EdwardBecnel",
+          avatarUrl: "/api/auth/avatar/me.png",
+        },
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+    initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Left shell user footer test",
+      gameSection: GameSection.Play,
+      navItems: [
+        { id: "play", label: "Play", targetSelector: "#appRoot" },
+        { id: "status", label: "Status", targetSelector: '#leftSidebar .panelSection[data-section="status"]' },
+      ],
+    });
+
+    for (let i = 0; i < 12; i++) {
+      await Promise.resolve();
+    }
+
+    const footer = document.querySelector(".gameShellDesktopUserFooter") as HTMLElement | null;
+    expect(footer).toBeTruthy();
+    expect(footer?.hidden).toBe(false);
+    expect(footer?.querySelector(".gameShellDesktopUserName")?.textContent).toBe("EdwardBecnel");
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:8788/api/auth/me", expect.objectContaining({ credentials: "include" }));
+    const img = footer?.querySelector(".gameShellDesktopUserAvatarImg") as HTMLImageElement | null;
+    expect(img?.getAttribute("src")).toBe("http://localhost:8788/api/auth/avatar/me.png");
+  });
+
   it("reveals legacy target panels from shell action cards and offers a path back to Play Hub", () => {
     localStorage.setItem("stackworks.gameShell.desktopPanelMode", "shell");
     const appRoot = document.getElementById("appRoot") as HTMLElement;

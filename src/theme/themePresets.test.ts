@@ -51,4 +51,9 @@ describe("themePresets", () => {
       }),
     ).toBe("staunton_glyphs");
   });
+
+  it("pairs raster 2D/3D chess shell values with the classic checkerboard", () => {
+    expect(getPairedCheckerboardTheme("raster2d")).toBe("classic");
+    expect(getPairedCheckerboardTheme("raster3d")).toBe("classic");
+  });
 });

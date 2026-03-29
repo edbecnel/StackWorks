@@ -183,7 +183,11 @@ describe("initStartPageAppShell", () => {
     });
 
     const variantGrid = document.querySelector('[data-shell-variants]') as HTMLElement | null;
-    const labels = Array.from(variantGrid?.querySelectorAll('.appShellChoiceLabel') ?? []).map((node) => node.textContent?.trim());
+    const labels = Array.from(variantGrid?.querySelectorAll(".appShellChoiceNamePill") ?? []).map((node) => node.textContent?.trim());
+    const openButtons = Array.from(variantGrid?.querySelectorAll(".appShellChoiceOpenBtn") ?? []);
+
+    expect(openButtons.length).toBe(labels.length);
+    expect(openButtons.every((el) => el.textContent?.trim() === "Open")).toBe(true);
 
     expect(labels).toContain("Lasca 8×8");
     expect(labels).toContain("International Draughts");

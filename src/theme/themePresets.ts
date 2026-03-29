@@ -36,6 +36,10 @@ export function getPairedCheckerboardTheme(themeId: string | null | undefined): 
       return "stone";
     case "candy":
       return "candy";
+    case "raster2d":
+    case "raster3d":
+      // Chess shell “2D / 3D” raster piece sets use the standard classic checkerboard pairing.
+      return "classic";
     default:
       return null;
   }

@@ -116,6 +116,24 @@ function resolveLocalAuthServerBaseUrl(): string | null {
   return window.location.origin.replace(/\/$/, "");
 }
 
+async function fetchSignedInUserProfileForShell(): Promise<{ displayName: string; avatarUrl: string | null } | null> {
+  const authBaseUrl = resolveLocalAuthServerBaseUrl();
+  if (!authBaseUrl || typeof fetch !== "function") return null;
+  try {
+    const res = await fetch(`${authBaseUrl}/api/auth/me`, buildSessionAuthFetchInit(authBaseUrl));
+    if (!res.ok) return null;
+    const body = (await res.json()) as AuthMeResponse;
+    if (!body?.ok || !body.user) return null;
+    const displayName = typeof body.user.displayName === "string" ? body.user.displayName.trim() : "";
+    if (!displayName) return null;
+    const rawAvatar = typeof body.user.avatarUrl === "string" ? body.user.avatarUrl.trim() : "";
+    const avatarUrl = rawAvatar ? resolveServerAssetUrl(authBaseUrl, rawAvatar) : null;
+    return { displayName, avatarUrl };
+  } catch {
+    return null;
+  }
+}
+
 function isLegacyMenuLayoutActive(): boolean {
   if (typeof document === "undefined") return false;
   return document.body.dataset.panelLayout === "menu";
@@ -498,6 +516,79 @@ function ensureGameShellStyles(): void {
       overflow: auto;
       flex-direction: column;
       gap: 10px;
+    }
+
+    .gameShellDesktopShellBody--leftNav {
+      overflow: hidden;
+    }
+
+    .gameShellDesktopShellBody--leftNav .gameShellDesktopShellMainScroll {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .gameShellDesktopUserFooter {
+      flex: 0 0 auto;
+      padding-top: 12px;
+      margin-top: 4px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .gameShellDesktopUserRow {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .gameShellDesktopUserAvatar {
+      flex: 0 0 auto;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.08);
+      display: grid;
+      place-items: center;
+      position: relative;
+    }
+
+    .gameShellDesktopUserAvatarImg {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .gameShellDesktopUserAvatarImg[hidden] {
+      display: none !important;
+    }
+
+    .gameShellDesktopUserAvatarFallback {
+      font-size: 14px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.88);
+      line-height: 1;
+    }
+
+    .gameShellDesktopUserAvatarFallback[hidden] {
+      display: none;
+    }
+
+    .gameShellDesktopUserName {
+      flex: 1 1 auto;
+      min-width: 0;
+      font-size: 13px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.94);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .gameShellBoardStage {
@@ -1911,7 +2002,71 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
       }
 
       navCard.append(navEyebrow, navTitle, navList);
-      shellBody.append(intro, navCard);
+
+      const mainScroll = document.createElement("div");
+      mainScroll.className = "gameShellDesktopShellMainScroll";
+      mainScroll.append(intro, navCard);
+
+      const userFooter = document.createElement("div");
+      userFooter.className = "gameShellDesktopUserFooter";
+      userFooter.hidden = true;
+
+      const userRow = document.createElement("div");
+      userRow.className = "gameShellDesktopUserRow";
+
+      const avatarWrap = document.createElement("div");
+      avatarWrap.className = "gameShellDesktopUserAvatar";
+      const avatarImg = document.createElement("img");
+      avatarImg.className = "gameShellDesktopUserAvatarImg";
+      avatarImg.alt = "";
+      avatarImg.decoding = "async";
+      avatarImg.hidden = true;
+      const avatarFallback = document.createElement("span");
+      avatarFallback.className = "gameShellDesktopUserAvatarFallback";
+      avatarWrap.append(avatarImg, avatarFallback);
+
+      const userName = document.createElement("span");
+      userName.className = "gameShellDesktopUserName";
+
+      userRow.append(avatarWrap, userName);
+      userFooter.appendChild(userRow);
+
+      const applyUserFooter = (profile: { displayName: string; avatarUrl: string | null } | null): void => {
+        if (!profile) {
+          userFooter.hidden = true;
+          return;
+        }
+        userFooter.hidden = false;
+        userName.textContent = profile.displayName;
+        const initial = profile.displayName.trim().charAt(0).toUpperCase() || "?";
+        avatarFallback.textContent = initial;
+
+        const showImg = (): void => {
+          avatarImg.hidden = false;
+          avatarFallback.hidden = true;
+        };
+        const showFallback = (): void => {
+          avatarImg.removeAttribute("src");
+          avatarImg.hidden = true;
+          avatarFallback.hidden = false;
+        };
+
+        if (profile.avatarUrl) {
+          avatarImg.hidden = true;
+          avatarFallback.hidden = false;
+          avatarImg.onload = showImg;
+          avatarImg.onerror = showFallback;
+          avatarImg.src = profile.avatarUrl;
+          if (avatarImg.complete && avatarImg.naturalWidth > 0) showImg();
+        } else {
+          showFallback();
+        }
+      };
+
+      shellBody.classList.add("gameShellDesktopShellBody--leftNav");
+      shellBody.append(mainScroll, userFooter);
+      void fetchSignedInUserProfileForShell().then(applyUserFooter);
+
       return {
         shellBody,
         setActiveSection: (sectionId: string) => {

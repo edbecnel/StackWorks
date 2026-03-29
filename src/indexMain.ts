@@ -2521,7 +2521,8 @@ window.addEventListener("DOMContentLoaded", () => {
     // - Always applicable to built-in checkerboard variants like US Checkers and International Draughts.
     // - For other 8×8 variants, it applies only when the optional checkered 8×8 board is enabled.
     //   Still show the control (disabled) so the option is discoverable.
-    const usesBuiltInCheckerboard = isCheckers || variant.rulesetId === "draughts_international";
+    const usesBuiltInCheckerboard =
+      isCheckers || variant.rulesetId === "draughts_international" || variant.rulesetId === "columns_draughts";
     const shouldShowCheckerboardTheme = isColumnsChess || isClassicChess || usesBuiltInCheckerboard || variant.boardSize === 8;
     const canUseCheckerboardTheme =
       isColumnsChess ||
@@ -2631,13 +2632,15 @@ window.addEventListener("DOMContentLoaded", () => {
     const vId = (isVariantId(elGame.value) ? elGame.value : DEFAULT_VARIANT_ID) as VariantId;
     const variant = getVariantById(vId);
     const isCheckers = variant.rulesetId === "checkers_us";
-    const pairedBoardTheme = getPairedCheckerboardTheme(elTheme.value || (isCheckers ? "checkers" : null));
-    if (!pairedBoardTheme) return;
+    const variantCheckerboardThemeKey = getVariantCheckerboardThemeStorageKey(vId);
+    const pairedBoardTheme =
+      getPairedCheckerboardTheme(elTheme.value || (isCheckers ? "checkers" : null)) ?? "classic";
     if (elColumnsChessBoardTheme && !elColumnsChessBoardTheme.disabled) {
       elColumnsChessBoardTheme.value = pairedBoardTheme;
     }
     try {
       localStorage.setItem(LS_KEYS.optCheckerboardTheme, pairedBoardTheme);
+      localStorage.setItem(variantCheckerboardThemeKey, pairedBoardTheme);
       if (vId === "columns_chess") localStorage.setItem(LS_KEYS.optColumnsChessCheckerboardTheme, pairedBoardTheme);
       if (isCheckers) localStorage.setItem(LS_KEYS.checkersCheckerboardTheme, pairedBoardTheme);
       if (vId === "chess_classic") localStorage.setItem(LS_KEYS.optChessClassicCheckerboardTheme, pairedBoardTheme);
@@ -3462,6 +3465,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   elGame.addEventListener("change", () => {
     syncAvailability({ autoSyncPairedBoardOnThemeChange: true });
+    syncPairedTheme();
     prefetchGamePage(elGame);
   });
 
@@ -3586,6 +3590,7 @@ window.addEventListener("DOMContentLoaded", () => {
     writeBool(LS_KEYS.optBoard8x8Checkered, elBoard8x8Checkered.checked);
     writeBool(getVariantBoard8x8CheckeredStorageKey(vId), elBoard8x8Checkered.checked);
     syncAvailability();
+    syncPairedTheme();
   });
 
   elToasts.addEventListener("change", () => {
@@ -3675,6 +3680,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   syncOnlineVisibility();
   syncAvailability();
+  syncPairedTheme();
 
   elLobbyRefresh?.addEventListener("click", () => {
     void fetchLobby();
