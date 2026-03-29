@@ -259,6 +259,7 @@ function parseV3PlayerNames(v3: { playerNames?: unknown }): SaveFilePlayerNames 
   const rec = pn as Record<string, unknown>;
   const W = typeof rec.W === "string" ? rec.W.trim() : "";
   const B = typeof rec.B === "string" ? rec.B.trim() : "";
+  if (!W && !B) return undefined;
   return { W, B };
 }
 

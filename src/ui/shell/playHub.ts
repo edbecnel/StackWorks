@@ -499,8 +499,8 @@ function getBotOptionsForVariant(variantId: VariantId): readonly BotOption[] {
   }
   if (variantId === "chess_classic") {
     return [
-      { value: "easy", label: "Beginner" },
-      { value: "medium", label: "Intermediate" },
+      { value: "beginner", label: "Beginner" },
+      { value: "intermediate", label: "Intermediate" },
       { value: "advanced", label: "Advanced" },
       { value: "master", label: "Master" },
     ];
@@ -540,8 +540,15 @@ function readLegacyBotPlayState(variantId: VariantId): BotPlayState {
   }
 
   if (variantId === "chess_classic") {
-    const white = readBotStorageValue(LAUNCHER_STORAGE_KEYS.chessBotWhite);
-    const black = readBotStorageValue(LAUNCHER_STORAGE_KEYS.chessBotBlack);
+    const normalizeChessLauncherTier = (raw: string | null): string | null => {
+      if (!raw || raw === "human") return raw;
+      if (raw === "easy") return "beginner";
+      if (raw === "medium") return "intermediate";
+      if (raw === "beginner" || raw === "intermediate" || raw === "advanced" || raw === "master") return raw;
+      return "beginner";
+    };
+    const white = normalizeChessLauncherTier(readBotStorageValue(LAUNCHER_STORAGE_KEYS.chessBotWhite));
+    const black = normalizeChessLauncherTier(readBotStorageValue(LAUNCHER_STORAGE_KEYS.chessBotBlack));
     return {
       white: {
         controller: white && white !== "human" ? BotControllerMode.Bot : BotControllerMode.Human,
@@ -700,10 +707,11 @@ export function applyBotPlayStateToCurrentPage(state: BotPlayState): boolean {
 
   // Set bot level (difficulty) selectors
   const applySeat = (select: HTMLSelectElement, seatState: BotPlayState["white"], personaId: string): void => {
-    const desiredValue = seatState.controller === BotControllerMode.Bot ? seatState.level ?? "advanced" : "human";
     const fallbackBotValue = Array.from(select.options)
       .map((option) => String(option.value ?? "").trim())
-      .find((value) => value && value !== "human") ?? "human";
+      .find((value) => value && value !== "human") ?? "beginner";
+    const desiredValue =
+      seatState.controller === BotControllerMode.Bot ? seatState.level ?? fallbackBotValue : "human";
     const nextValue = Array.from(select.options).some((option) => option.value === desiredValue)
       ? desiredValue
       : (desiredValue === "human" ? "human" : fallbackBotValue);

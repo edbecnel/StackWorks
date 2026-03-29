@@ -362,7 +362,7 @@ describe("createPlayHub", () => {
     expect(controllerSelects).toHaveLength(2);
     expect(controllerSelects[0]?.value).toBe("human");
     expect(controllerSelects[1]?.value).toBe("bot");
-    expect(levelSelects[1]?.value).toBe("easy");
+    expect(levelSelects[1]?.value).toBe("beginner");
     expect(document.querySelector(".playHubBotStateTitle")?.textContent).toContain("Two-seat bot setup");
   });
 
@@ -383,7 +383,7 @@ describe("createPlayHub", () => {
 
     expect(controllerSelects[0]?.value).toBe("bot");
     expect(controllerSelects[1]?.value).toBe("human");
-    expect(levelSelects[0]?.value).toBe("easy");
+    expect(levelSelects[0]?.value).toBe("beginner");
   });
 
   it("persists independent bot personalities per seat", () => {

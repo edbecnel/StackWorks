@@ -57,6 +57,9 @@ function isRecoverableStockfishFailureMessage(msg: string): boolean {
 
 function parseSideSetting(v: string | null): BotSideSetting {
   if (v === "strong") return "advanced";
+  // Launcher / shell historically used easy/medium; chess.html selects use beginner/intermediate.
+  if (v === "easy") return "beginner";
+  if (v === "medium") return "intermediate";
   if (v === "beginner" || v === "intermediate" || v === "advanced" || v === "master" || v === "human") return v;
   return "human";
 }

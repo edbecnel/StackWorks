@@ -306,8 +306,9 @@ function difficultyToChessBotSide(raw: string): ChessBotSideSetting {
 }
 
 function chessBotSideToDifficulty(raw: string | null): Difficulty {
-  if (raw === "beginner") return "easy";
-  if (raw === "intermediate") return "medium";
+  if (!raw || raw === "human") return "human";
+  if (raw === "easy" || raw === "beginner") return "easy";
+  if (raw === "medium" || raw === "intermediate") return "medium";
   if (raw === "strong" || raw === "advanced") return "advanced";
   if (raw === "master") return "master";
   return "human";

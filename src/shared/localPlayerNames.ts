@@ -194,9 +194,10 @@ export function isLocalBotSide(side: Player, root: ParentNode = document): boole
 }
 
 export function resolveConfiguredLocalPlayerName(side: Player, root: ParentNode = document): string {
+  // Bot seats use persona / shell display names, not stored "human" names (which may be stale after load-game).
+  if (isLocalBotSide(side, root)) return "";
   const rawName = readStoredName(side);
-  if (!rawName) return "";
-  return isLocalBotSide(side, root) ? `${rawName}-bot` : rawName;
+  return rawName.trim();
 }
 
 export function resolveConfiguredLocalPlayerNames(root: ParentNode = document): Record<Player, string> {

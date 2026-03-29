@@ -153,6 +153,24 @@ describe("saveLoad", () => {
     expect(loaded.playerNames).toEqual({ W: "Alice", B: "Bob" });
   });
 
+  it("treats v3 playerNames with both sides empty as absent", () => {
+    const s0: GameState = {
+      board: new Map([["r6c0", [{ owner: "W", rank: "S" }]]]),
+      toMove: "W",
+      phase: "idle",
+    };
+    const save = {
+      saveVersion: 3,
+      variantId: "lasca_7_classic",
+      rulesetId: "lasca",
+      boardSize: 7,
+      current: serializeGameState({ ...s0, meta: { variantId: "lasca_7_classic", rulesetId: "lasca", boardSize: 7 } }),
+      playerNames: { W: "", B: "  " },
+    };
+    const loaded = deserializeSaveData(save as any);
+    expect(loaded.playerNames).toBeUndefined();
+  });
+
   it("omits recorded move times when includeTiming is false", () => {
     const s0: GameState = {
       board: new Map([["r6c0", [{ owner: "W", rank: "S" }]]]),

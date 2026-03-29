@@ -15,7 +15,11 @@ import { GameController } from "./controller/gameController.ts";
 import { ensureOverlayLayer } from "./render/overlays.ts";
 import { ALL_NODES } from "./game/board.ts";
 import { buildPlayerNamedSaveFilename, saveGameToFile, loadGameFromFile } from "./game/saveLoad.ts";
-import { commitShellThenApplySavePlayerNames } from "./ui/applySaveFilePlayerSession";
+import {
+  applySaveFilePlayerNamesToSession,
+  commitShellThenApplySavePlayerNames,
+  hasSaveFilePlayerNames,
+} from "./ui/applySaveFilePlayerSession";
 import { HistoryManager } from "./game/historyManager.ts";
 import { RULES } from "./game/ruleset.ts";
 import { renderBoardCoords } from "./render/boardCoords";
@@ -1026,6 +1030,9 @@ window.addEventListener("DOMContentLoaded", async () => {
         });
         commitShellThenApplySavePlayerNames(shell, controller, loaded.playerNames);
         controller.loadGame(loaded.state, loaded.history);
+        if (hasSaveFilePlayerNames(loaded.playerNames)) {
+          applySaveFilePlayerNamesToSession(controller, loaded.playerNames);
+        }
         boardPlayerNames?.sync();
       } catch (error) {
         console.error("Failed to load game:", error);

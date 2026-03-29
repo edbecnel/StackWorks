@@ -32,7 +32,11 @@ import {
   normalizeSelectionStyle,
 } from "./render/highlightStyles";
 import { buildPlayerNamedSaveFilename, saveGameToFile, loadGameFromFile } from "./game/saveLoad";
-import { commitShellThenApplySavePlayerNames } from "./ui/applySaveFilePlayerSession";
+import {
+  applySaveFilePlayerNamesToSession,
+  commitShellThenApplySavePlayerNames,
+  hasSaveFilePlayerNames,
+} from "./ui/applySaveFilePlayerSession";
 import { writeStoredLocalPlayerNames } from "./shared/localPlayerNames";
 import { createSfxManager } from "./ui/sfx";
 import type { Stack } from "./types";
@@ -73,7 +77,6 @@ import {
   fetchSignedInLocalDisplayName,
   hasAnyLocalBotSide,
   resolveActiveLocalSeatDisplayNames,
-  resolveConfiguredLocalPlayerName,
 } from "./shared/localPlayerNames";
 import { readOpenVariantPageOnlinePreview } from "./shared/openVariantPageIntent";
 import { resolveExportPlayerName } from "./shared/playerExportNames";
@@ -664,8 +667,18 @@ window.addEventListener("DOMContentLoaded", async () => {
   };
 
   const resolvedPlayerNameForSave = (side: "W" | "B"): string => {
-    const configuredName = resolveConfiguredLocalPlayerName(side);
-    return configuredName || resolvedPlayerNameForExport(side);
+    const names = resolveActiveLocalSeatDisplayNames({
+      root: document,
+      signedInDisplayName: signedInHumanDisplayName,
+      sideLabels: { W: "White", B: "Black" },
+      savePinnedSeatNames: {
+        W: controller.getSavePinnedSeatDisplayName("W"),
+        B: controller.getSavePinnedSeatDisplayName("B"),
+      },
+    });
+    const fromSession = names[side].trim();
+    if (fromSession) return fromSession;
+    return resolvedPlayerNameForExport(side);
   };
 
   /** Build the "White vs. Black (result)" portion of a filename. */
@@ -1230,12 +1243,14 @@ window.addEventListener("DOMContentLoaded", async () => {
           boardSize: 8,
         });
         commitShellThenApplySavePlayerNames(shell, controller, loaded.playerNames);
-        if (loaded.playerNames) {
-          setPlayerNames(loaded.playerNames.W.trim(), loaded.playerNames.B.trim());
+        controller.loadGame(loaded.state, loaded.history);
+        // Match PGN import: apply names after loadGame so history/shell listeners see the final labels.
+        if (hasSaveFilePlayerNames(loaded.playerNames)) {
+          applySaveFilePlayerNamesToSession(controller, loaded.playerNames!);
+          setPlayerNames(loaded.playerNames!.W.trim(), loaded.playerNames!.B.trim());
         } else {
           syncConfiguredPlayerNames();
         }
-        controller.loadGame(loaded.state, loaded.history);
       } catch (error) {
         // eslint-disable-next-line no-console
         console.error("Failed to load game:", error);

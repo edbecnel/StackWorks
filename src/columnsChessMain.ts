@@ -32,7 +32,11 @@ import {
   normalizeSelectionStyle,
 } from "./render/highlightStyles";
 import { buildPlayerNamedSaveFilename, saveGameToFile, loadGameFromFile } from "./game/saveLoad";
-import { commitShellThenApplySavePlayerNames } from "./ui/applySaveFilePlayerSession";
+import {
+  applySaveFilePlayerNamesToSession,
+  commitShellThenApplySavePlayerNames,
+  hasSaveFilePlayerNames,
+} from "./ui/applySaveFilePlayerSession";
 import { createSfxManager } from "./ui/sfx";
 import type { Stack } from "./types";
 import { bindPlaybackControls } from "./ui/playbackControls.ts";
@@ -866,6 +870,9 @@ window.addEventListener("DOMContentLoaded", async () => {
         });
         commitShellThenApplySavePlayerNames(shell, controller, loaded.playerNames);
         controller.loadGame(loaded.state, loaded.history);
+        if (hasSaveFilePlayerNames(loaded.playerNames)) {
+          applySaveFilePlayerNamesToSession(controller, loaded.playerNames);
+        }
         boardPlayerNames?.sync();
       } catch (error) {
         // eslint-disable-next-line no-console

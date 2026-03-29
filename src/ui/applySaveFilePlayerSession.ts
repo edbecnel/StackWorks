@@ -6,6 +6,11 @@ export type GameShellCommit = {
   commitExplicitLocalPlayMode?: () => void;
 };
 
+export function hasSaveFilePlayerNames(names: SaveFilePlayerNames | undefined): boolean {
+  if (!names) return false;
+  return Boolean(String(names.W ?? "").trim() || String(names.B ?? "").trim());
+}
+
 /**
  * Unlocks the game shell (URL + pointer + startup lock) like the Play Hub, then applies saved names.
  * Call this before `controller.loadGame` when loading from a file so shell and board show real names.
@@ -16,8 +21,8 @@ export function commitShellThenApplySavePlayerNames(
   names: SaveFilePlayerNames | undefined,
 ): void {
   shell?.commitExplicitLocalPlayMode?.();
-  if (names) {
-    applySaveFilePlayerNamesToSession(controller, names);
+  if (hasSaveFilePlayerNames(names)) {
+    applySaveFilePlayerNamesToSession(controller, names!);
   } else {
     controller.clearSeatDisplayNamesSavePin();
   }

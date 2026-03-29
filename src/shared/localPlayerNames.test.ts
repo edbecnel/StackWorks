@@ -12,12 +12,12 @@ describe("localPlayerNames", () => {
     localStorage.clear();
   });
 
-  it("adds -bot when a stored name belongs to a bot side", () => {
+  it("does not use stored local names for bot-controlled seats (persona/shell names apply instead)", () => {
     document.body.innerHTML = '<select id="aiWhiteSelect"><option value="human">Human</option><option value="random" selected>Bot</option></select>';
     localStorage.setItem("lasca.local.nameLight", "Ada");
 
     expect(isLocalBotSide("W")).toBe(true);
-    expect(resolveConfiguredLocalPlayerName("W")).toBe("Ada-bot");
+    expect(resolveConfiguredLocalPlayerName("W")).toBe("");
   });
 
   it("keeps the stored name unchanged for human sides", () => {
@@ -36,7 +36,7 @@ describe("localPlayerNames", () => {
     localStorage.setItem("lasca.local.nameLight", "Ada");
     localStorage.setItem("lasca.local.nameDark", "Byron");
 
-    expect(resolveConfiguredLocalPlayerNames()).toEqual({ W: "Ada-bot", B: "Byron" });
+    expect(resolveConfiguredLocalPlayerNames()).toEqual({ W: "", B: "Byron" });
   });
 
   it("uses the active bot persona title for a bot-controlled side", () => {
