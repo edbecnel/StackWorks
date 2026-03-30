@@ -2274,6 +2274,13 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
       controller.setShellStartupPlayLockEnabled(false);
       controller.setInputEnabled(true);
       syncPanels();
+      // `syncConfiguredPlayerNames` may have run before ?mode=local (startup lock → generic labels).
+      try {
+        const w = window as Window & { syncConfiguredPlayerNames?: () => void };
+        if (typeof w.syncConfiguredPlayerNames === "function") w.syncConfiguredPlayerNames();
+      } catch {
+        // ignore
+      }
       scheduleBoardFit();
     };
     forwardCommitExplicitLocalPlayMode = commitExplicitLocalPlayMode;
