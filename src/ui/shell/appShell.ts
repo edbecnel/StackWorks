@@ -915,6 +915,16 @@ function ensureShellStyles(): void {
       }
     }
 
+    @media (max-width: 1039px) {
+      .appShellRail,
+      .appShellRightRail,
+      .appShellContentSlot {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+        touch-action: pan-y;
+      }
+    }
+
     @media (max-width: 699px) {
       .appShellBreadcrumb {
         display: none;

@@ -749,6 +749,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       applyBoardCoords();
       controller.refreshView();
       boardPlayerNames?.sync();
+      boardVizTools.redrawAnnotations();
     });
   }
 

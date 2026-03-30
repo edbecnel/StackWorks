@@ -32,6 +32,10 @@ export function writePanelLayoutMode(mode: PanelLayoutMode): void {
     // ignore
   }
 
+  // Apply to the document *before* dispatching so same-tab listeners (e.g. game shell
+  // `syncGameShellBodiesHost`) read the new `data-panel-layout`, not the previous mode.
+  applyPanelLayoutMode(mode);
+
   // Same-tab updates: the `storage` event doesn't fire in the same document.
   try {
     window.dispatchEvent(new Event("panelLayoutModeChanged"));
@@ -43,7 +47,6 @@ export function writePanelLayoutMode(mode: PanelLayoutMode): void {
 export function togglePanelLayoutMode(): PanelLayoutMode {
   const next: PanelLayoutMode = readPanelLayoutMode() === "menu" ? "panels" : "menu";
   writePanelLayoutMode(next);
-  applyPanelLayoutMode(next);
   return next;
 }
 
@@ -669,7 +672,6 @@ export function installPanelLayoutOptionUI(opts?: { label?: string }): void {
   select.addEventListener("change", () => {
     const next = (String(select.value) === "menu" ? "menu" : "panels") as PanelLayoutMode;
     writePanelLayoutMode(next);
-    applyPanelLayoutMode(next);
   });
 
   row.appendChild(lab);
@@ -725,7 +727,6 @@ export function installPanelLayoutStartPageOptionUI(opts?: {
   select.addEventListener("change", () => {
     const next = (String(select.value) === "menu" ? "menu" : "panels") as PanelLayoutMode;
     writePanelLayoutMode(next);
-    applyPanelLayoutMode(next);
   });
 
   row.appendChild(lab);

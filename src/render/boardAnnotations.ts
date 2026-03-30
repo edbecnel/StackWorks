@@ -1,4 +1,5 @@
 import { ensureOverlayLayer } from "./overlays";
+import { isBoardFlipped } from "./boardFlip";
 import {
   DEFAULT_ANALYSIS_SQUARE_HIGHLIGHT_STYLE,
   type AnalysisSquareHighlightStyle,
@@ -277,6 +278,12 @@ function drawCircleMark(svg: SVGSVGElement, layer: SVGGElement, mark: BoardCircl
   layer.appendChild(el);
 }
 
+/** Counter-rotate labels/icons so they stay upright when #boardView is rotated 180°. */
+function applyUprightInFlippedBoard(svg: SVGSVGElement, el: SVGElement, cx: number, cy: number): void {
+  if (!isBoardFlipped(svg)) return;
+  el.setAttribute("transform", `rotate(180 ${cx} ${cy})`);
+}
+
 function drawPinMark(svg: SVGSVGElement, layer: SVGGElement, mark: BoardPinMark): void {
   const rect = computeSquareRect(svg, mark.at);
   if (!rect) return;
@@ -318,6 +325,7 @@ function drawPinMark(svg: SVGSVGElement, layer: SVGGElement, mark: BoardPinMark)
   const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
   g.setAttribute("class", `board-annotation-pin board-annotation-pin--${mark.color}`);
   g.setAttribute("opacity", "0.93");
+  applyUprightInFlippedBoard(svg, g, cx, cy);
 
   const pinPath = document.createElementNS(SVG_NS, "path") as SVGPathElement;
   pinPath.setAttribute("d", pinD);
@@ -360,6 +368,7 @@ function drawProtectMark(svg: SVGSVGElement, layer: SVGGElement, mark: BoardProt
   const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
   g.setAttribute("class", `board-annotation-protect board-annotation-protect--${mark.color}`);
   g.setAttribute("opacity", "0.93");
+  applyUprightInFlippedBoard(svg, g, cx, cy);
 
   const shield = document.createElementNS(SVG_NS, "path") as SVGPathElement;
   shield.setAttribute("d", shieldD);
@@ -415,6 +424,7 @@ function drawNumberMark(svg: SVGSVGElement, layer: SVGGElement, mark: BoardNumbe
   el.setAttribute("stroke-linejoin", "round");
   el.setAttribute("opacity", "0.96");
   el.textContent = mark.value;
+  applyUprightInFlippedBoard(svg, el, cx, cy);
   layer.appendChild(el);
 }
 

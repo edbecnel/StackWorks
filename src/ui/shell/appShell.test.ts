@@ -112,7 +112,7 @@ describe("initStartPageAppShell", () => {
     expect(headerBrand?.getAttribute("href")).toBe("./");
     expect(headerBrand?.getAttribute("aria-label")).toBe("Start Page");
     expect(headerBrand?.querySelector('.appShellHeaderBrandMark img')?.getAttribute("src")).toContain("stackworks-logo-icon.svg");
-    expect(headerBrand?.querySelector('.appShellHeaderBrandWordmark img')?.getAttribute("src")).toContain("stackworks-wordmark.svg");
+    expect(headerBrand?.querySelector('.appShellHeaderBrandWordmark img')?.getAttribute("src")).toContain("stackworks-logo-horizontal");
 
     sectionsToggle?.click();
     expect(sectionsToggle?.getAttribute("aria-expanded")).toBe("true");
@@ -252,8 +252,9 @@ describe("initStartPageAppShell", () => {
 
     const shellStyle = document.getElementById("stackworks-app-shell-style");
     expect(shellStyle?.textContent).toContain("grid-template-columns: 260px minmax(0, 1fr) 320px;");
-    expect(shellStyle?.textContent).toContain('"sections title title"');
-    expect(shellStyle?.textContent).toContain('"games help ."');
+    expect(shellStyle?.textContent).toContain('"brand title"');
+    expect(shellStyle?.textContent).toContain('"sections sections"');
+    expect(shellStyle?.textContent).toContain('"games games"');
     expect(shellStyle?.textContent).toContain("align-items: center;");
     expect(shellStyle?.textContent).toContain("min-height: 36px;");
     expect(shellStyle?.textContent).toContain("-webkit-line-clamp: 2;");

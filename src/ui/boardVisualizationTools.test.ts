@@ -1,7 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { installBoardVisualizationTools } from "./boardVisualizationTools";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
+
+if (typeof globalThis.PointerEvent === "undefined") {
+  globalThis.PointerEvent = class PointerEventPolyfill extends MouseEvent {
+    pointerId: number;
+    pointerType: string;
+    constructor(type: string, init?: PointerEventInit) {
+      super(type, init);
+      this.pointerId = init?.pointerId ?? 0;
+      this.pointerType = init?.pointerType ?? "";
+    }
+  } as typeof PointerEvent;
+}
 
 function makeSvg8x8(): { svg: SVGSVGElement; node: SVGCircleElement } {
   document.body.innerHTML = "";
@@ -108,5 +120,43 @@ describe("installBoardVisualizationTools", () => {
     leftClick(node);
 
     expect(svg.querySelector(".board-annotation-square")).not.toBeNull();
+  });
+
+  it("places pin when touch drag crosses threshold but pointerup is on the same square", () => {
+    const { svg, node } = makeSvg8x8();
+    (svg as unknown as { setPointerCapture: (id: number) => void }).setPointerCapture = vi.fn();
+    (svg as unknown as { releasePointerCapture: (id: number) => void }).releasePointerCapture = vi.fn();
+
+    // JSDOM may omit elementFromPoint; a null hit still exercises the same-square / off-board fallback.
+    Object.defineProperty(document, "elementFromPoint", {
+      configurable: true,
+      writable: true,
+      value: vi.fn().mockReturnValue(null),
+    });
+
+    installBoardVisualizationTools(svg, { isTouchInputEnabled: () => true });
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "n", bubbles: true }));
+
+    const ptr = (type: string, x: number, y: number) =>
+      new PointerEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        clientX: x,
+        clientY: y,
+        button: 0,
+        pointerId: 42,
+        pointerType: "touch",
+      });
+
+    try {
+      node.dispatchEvent(ptr("pointerdown", 150, 150));
+      node.dispatchEvent(ptr("pointermove", 165, 150));
+      node.dispatchEvent(ptr("pointerup", 150, 150));
+
+      expect(svg.querySelector("g.board-annotation-pin")).not.toBeNull();
+    } finally {
+      Reflect.deleteProperty(document, "elementFromPoint");
+    }
   });
 });

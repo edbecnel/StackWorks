@@ -1124,6 +1124,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       setBoardFlipped(svg, flipBoardToggle.checked);
       updatePlayerNameDisplay();
       controller.refreshView();
+      boardVizTools.redrawAnnotations();
     });
   }
 

@@ -518,6 +518,60 @@ function ensureGameShellStyles(): void {
       gap: 10px;
     }
 
+    .gameShellSidebarShellSlot {
+      min-height: 0;
+      min-width: 0;
+    }
+
+    .gameShellDesktopShellBrand {
+      flex: 0 0 auto;
+      margin-bottom: 4px;
+    }
+
+    .gameShellDesktopShellBrandLink {
+      display: inline-block;
+      max-width: 100%;
+      line-height: 0;
+      text-decoration: none;
+    }
+
+    .gameShellDesktopShellBrand img,
+    .gameShellDesktopShellBrandLink img {
+      display: block;
+      max-width: 100%;
+      width: auto;
+      height: auto;
+      max-height: 46px;
+    }
+
+    .gameShellMobileShellPanels {
+      display: none;
+      flex-direction: column;
+      gap: 14px;
+      margin-top: 10px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      max-height: min(72dvh, 580px);
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
+      touch-action: pan-y;
+    }
+
+    .gameShellRoot.gameShellRoot--compactShellMenu .gameShellMobileShellPanels {
+      display: flex;
+    }
+
+    /* Bodies here are not under .sidebar, so they still need to beat the global display:none
+       on .gameShellDesktopShellBody (see block with .gameShellDesktopPairTabs). */
+    .gameShellRoot.gameShellRoot--compactShellMenu .gameShellMobileShellPanels .gameShellDesktopShellBody {
+      display: flex !important;
+    }
+
+    .gameShellRoot.gameShellRoot--compactShellMenu .gameShellDesktopPairTabs {
+      display: none !important;
+    }
+
     .gameShellDesktopShellBody--leftNav {
       overflow: hidden;
     }
@@ -968,6 +1022,9 @@ function ensureGameShellStyles(): void {
         max-width: min(720px, calc(100vw - 20px));
         max-height: calc(var(--app-height, 100dvh) - 78px);
         overflow: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+        touch-action: pan-y;
         z-index: 72;
         opacity: 0;
         pointer-events: none;
@@ -1083,7 +1140,13 @@ function ensureGameShellStyles(): void {
         display: flex;
       }
 
-      .sidebar.gameShellSidebarEnhanced[data-game-shell-panel-mode="legacy"] > .gameShellDesktopShellBody {
+      /* Shell bodies may live in .gameShellSidebarShellSlot (Menu reparenting) — use descendant
+         selectors, not direct child, so shell mode still overrides the default display:none above. */
+      .sidebar.gameShellSidebarEnhanced[data-game-shell-panel-mode="legacy"] > .gameShellSidebarShellSlot {
+        display: none !important;
+      }
+
+      .sidebar.gameShellSidebarEnhanced[data-game-shell-panel-mode="legacy"] .gameShellDesktopShellBody {
         display: none !important;
       }
 
@@ -1091,7 +1154,14 @@ function ensureGameShellStyles(): void {
         display: flex !important;
       }
 
-      .sidebar.gameShellSidebarEnhanced[data-game-shell-panel-mode="shell"] > .gameShellDesktopShellBody {
+      .sidebar.gameShellSidebarEnhanced[data-game-shell-panel-mode="shell"] > .gameShellSidebarShellSlot {
+        display: flex !important;
+        flex: 1 1 auto;
+        min-height: 0;
+        flex-direction: column;
+      }
+
+      .sidebar.gameShellSidebarEnhanced[data-game-shell-panel-mode="shell"] .gameShellDesktopShellBody {
         display: flex !important;
       }
 
@@ -1164,6 +1234,9 @@ function ensureGameShellStyles(): void {
         right: max(10px, env(safe-area-inset-right));
         max-height: calc(var(--app-height, 100dvh) - max(20px, env(safe-area-inset-top)) - max(20px, env(safe-area-inset-bottom)) - 58px);
         overflow: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+        touch-action: pan-y;
         z-index: 72;
         opacity: 0;
         pointer-events: none;
@@ -1467,6 +1540,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
       syncCompactState();
     }
     scheduleLegacyHamburgerOffsetSync();
+    syncGameShellBodiesHost?.();
   };
 
   let legacyHamburgerOffsetFrame: number | null = null;
@@ -1508,7 +1582,14 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
   compactMedia?.addEventListener?.("change", handleCompactViewportChange);
   window.addEventListener("resize", scheduleLegacyHamburgerOffsetSync);
   window.visualViewport?.addEventListener("resize", scheduleLegacyHamburgerOffsetSync);
-  window.addEventListener("panelLayoutModeChanged", scheduleLegacyHamburgerOffsetSync);
+  window.addEventListener("panelLayoutModeChanged", () => {
+    scheduleLegacyHamburgerOffsetSync();
+    syncGameShellBodiesHost?.();
+  });
+  document.addEventListener("fullscreenchange", () => {
+    preferShellBodiesInSidebarForFullscreen = Boolean(document.fullscreenElement);
+    syncGameShellBodiesHost?.();
+  });
   document.addEventListener("click", () => scheduleLegacyHamburgerOffsetSync());
 
   document.addEventListener("keydown", (event) => {
@@ -1554,6 +1635,12 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
   nav.className = "gameShellNav";
 
   let syncDesktopShellSection: ((sectionId: string) => void) | null = null;
+  let syncGameShellBodiesHost: (() => void) | null = null;
+  let preferShellBodiesInSidebarForFullscreen = false;
+
+  const mobileShellPanels = document.createElement("div");
+  mobileShellPanels.className = "gameShellMobileShellPanels";
+  mobileShellPanels.setAttribute("aria-label", "Shell navigation and play hub");
 
   const tabs = createTabs({
     className: "gameShellNavTabs",
@@ -1572,7 +1659,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     })),
   });
   nav.appendChild(tabs.element);
-  header.appendChild(nav);
+  header.append(nav, mobileShellPanels);
 
   const setActiveSection = (sectionId: string): void => {
     tabs.setActiveTab(sectionId);
@@ -1958,6 +2045,20 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
       const shellBody = document.createElement("div");
       shellBody.className = "sidebarBody gameShellDesktopShellBody";
 
+      const brandRow = document.createElement("div");
+      brandRow.className = "gameShellDesktopShellBrand";
+      if (opts.backHref) {
+        const brandLink = document.createElement("a");
+        brandLink.className = "gameShellDesktopShellBrandLink";
+        brandLink.href = opts.backHref;
+        brandLink.title = "Start Page";
+        brandLink.setAttribute("aria-label", "StackWorks · Start Page");
+        renderLogo(brandLink, { placement: "desktop-header", alt: "StackWorks" });
+        brandRow.appendChild(brandLink);
+      } else {
+        renderLogo(brandRow, { placement: "desktop-header", alt: "StackWorks" });
+      }
+
       const intro = document.createElement("section");
       intro.className = "gameShellDesktopShellCard";
       intro.innerHTML = `
@@ -2005,7 +2106,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
 
       const mainScroll = document.createElement("div");
       mainScroll.className = "gameShellDesktopShellMainScroll";
-      mainScroll.append(intro, navCard);
+      mainScroll.append(brandRow, intro, navCard);
 
       const userFooter = document.createElement("div");
       userFooter.className = "gameShellDesktopUserFooter";
@@ -2278,10 +2379,38 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
     leftSidebar.dataset.gameShellEnhanced = "1";
     rightSidebar.dataset.gameShellEnhanced = "1";
 
+    const leftShellSlot = document.createElement("div");
+    leftShellSlot.className = "gameShellSidebarShellSlot";
+    const rightShellSlot = document.createElement("div");
+    rightShellSlot.className = "gameShellSidebarShellSlot";
+
     leftLegacyBody.insertAdjacentElement("beforebegin", leftTabs.root);
     rightLegacyBody.insertAdjacentElement("beforebegin", rightTabs.root);
-    leftLegacyBody.insertAdjacentElement("afterend", leftShellBody.shellBody);
-    rightLegacyBody.insertAdjacentElement("afterend", rightShellBody.shellBody);
+    leftLegacyBody.insertAdjacentElement("afterend", leftShellSlot);
+    rightLegacyBody.insertAdjacentElement("afterend", rightShellSlot);
+    leftShellSlot.appendChild(leftShellBody.shellBody);
+    rightShellSlot.appendChild(rightShellBody.shellBody);
+
+    syncGameShellBodiesHost = (): void => {
+      if (!leftShellSlot.isConnected || !rightShellSlot.isConnected) return;
+      const inMenu = mobileShellPanels.contains(leftShellBody.shellBody);
+      // Only hoist shell bodies into the Menu overlay when the page uses **menu** panel layout,
+      // where `.sidebar { display: none }` would hide them. In **panels** layout, portrait sidebars
+      // stay visible (stacked strips); keep bodies in the sidebar slots so Shell panels remain on-screen.
+      const wantBodiesInMenu = isLegacyMenuLayoutActive() && !preferShellBodiesInSidebarForFullscreen;
+      if (wantBodiesInMenu) {
+        if (!inMenu) {
+          mobileShellPanels.append(leftShellBody.shellBody, rightShellBody.shellBody);
+        }
+        shell.classList.add("gameShellRoot--compactShellMenu");
+      } else {
+        if (inMenu) {
+          leftShellSlot.appendChild(leftShellBody.shellBody);
+          rightShellSlot.appendChild(rightShellBody.shellBody);
+        }
+        shell.classList.remove("gameShellRoot--compactShellMenu");
+      }
+    };
 
     syncDesktopShellSection = (sectionId: string) => {
       leftShellBody.setActiveSection(sectionId);
@@ -2328,6 +2457,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
         leftSidebar.dataset.gameShellPanelMode = "legacy";
         rightSidebar.dataset.gameShellPanelMode = "legacy";
       }
+      syncGameShellBodiesHost?.();
     };
 
     desktopMedia?.addEventListener?.("change", syncDesktopMode);

@@ -10,6 +10,8 @@ export type AnnotationType = "play" | "square" | "circle" | "pin" | "protect" | 
 
 export type BoardVisualizationToolsController = {
   clear: () => void;
+  /** Re-render annotations (e.g. after board flip changes upright correction). */
+  redrawAnnotations: () => void;
   setSquareStyle: (style: AnalysisSquareHighlightStyle) => void;
   getSquareStyle: () => AnalysisSquareHighlightStyle;
   /** Active color used for touch annotations (drag arrows / double-tap highlights). */
@@ -532,8 +534,38 @@ export function installBoardVisualizationTools(
     }
 
     const to = resolveNodeIdAtClientPoint(svg, ev.clientX, ev.clientY);
-    if (!to) return;
-    if (to === from) return;
+    if (!to || to === from) {
+      // Drag crossed the movement threshold but release is not on another square (touch jitter,
+      // or lift-off outside the board). Treat as a click on the start square so pin/digit/etc.
+      // still apply in analysis — otherwise we would silently drop the gesture.
+      if (kind === "right") {
+        if (activeAnnotationType === "play") return;
+        applyNodeAnnotation(state, from, activeAnnotationType, color);
+        lastRcNode = from;
+        lastRcColor = color;
+        lastRcAtMs = Date.now();
+        rerender();
+        suppressClickUntilMs = Date.now() + 600;
+        return;
+      }
+      if (activeAnnotationType === "play") return;
+      if (activeAnnotationType === "remove") {
+        eraseAtNodePriority(state, from);
+      } else if (eraseMode) {
+        eraseAtNode(state, from);
+      } else {
+        applyNodeAnnotation(state, from, activeAnnotationType, color);
+      }
+      rerender();
+      suppressClickUntilMs = Date.now() + 600;
+      try {
+        ev.preventDefault();
+        ev.stopPropagation();
+      } catch {
+        // ignore
+      }
+      return;
+    }
 
     if (kind === "touch" && eraseMode) {
       eraseArrow(state, from, to);
@@ -623,6 +655,7 @@ export function installBoardVisualizationTools(
 
   return {
     clear,
+    redrawAnnotations: rerender,
     setSquareStyle: (style: AnalysisSquareHighlightStyle) => {
       squareStyle = style;
       rerender();

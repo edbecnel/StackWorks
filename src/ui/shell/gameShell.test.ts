@@ -32,6 +32,30 @@ function installDesktopMatchMedia(): void {
   });
 }
 
+function installCompactPortraitMatchMedia(): void {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn((query: string) => {
+      const base = {
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      };
+      if (query.includes("min-width: 821px")) {
+        return { ...base, matches: false };
+      }
+      if (query.includes("max-width: 820px") && query.includes("orientation: portrait")) {
+        return { ...base, matches: true };
+      }
+      return { ...base, matches: false };
+    }),
+  });
+}
+
 describe("initGameShell desktop shell navigation", () => {
   const scrollIntoView = vi.fn();
 
@@ -69,6 +93,7 @@ describe("initGameShell desktop shell navigation", () => {
     HTMLElement.prototype.scrollIntoView = scrollIntoView;
     localStorage.clear();
     scrollIntoView.mockReset();
+    document.body.removeAttribute("data-panel-layout");
   });
 
   afterEach(() => {
@@ -218,11 +243,88 @@ describe("initGameShell desktop shell navigation", () => {
     expect(compactBrand?.getAttribute("href")).toBe("./");
     expect(compactBrand?.getAttribute("aria-label")).toBe("Start Page");
     expect(compactBrand?.querySelector('.gameShellCompactBarBrandMark img')?.getAttribute("src")).toContain("stackworks-logo-icon.svg");
-    expect(compactBrand?.querySelector('.gameShellCompactBarWordmark img')?.getAttribute("src")).toContain("stackworks-wordmark.svg");
+    expect(compactBrand?.querySelector('.gameShellCompactBarWordmark img')?.getAttribute("src")).toContain("stackworks-logo-horizontal");
 
     expect(headerBrand?.getAttribute("href")).toBe("./");
     expect(headerBrand?.getAttribute("aria-label")).toBe("Start Page");
     expect(headerBrand?.querySelector("img")?.getAttribute("src")).toContain("stackworks-logo-icon.svg");
+
+    const desktopShellBrandImg = document.querySelector(".gameShellDesktopShellBrandLink img") as HTMLImageElement | null;
+    expect(desktopShellBrandImg?.getAttribute("src")).toContain("stackworks-logo-horizontal");
+  });
+
+  it("keeps shell bodies in sidebar slots on compact portrait when panel layout is panels (not menu)", () => {
+    installCompactPortraitMatchMedia();
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+
+    initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Panels layout compact portrait",
+      backHref: "./",
+      gameSection: GameSection.Play,
+      navItems: [
+        { id: "play", label: "Play", targetSelector: "#appRoot" },
+        { id: "status", label: "Status", targetSelector: '#leftSidebar .panelSection[data-section="status"]' },
+      ],
+    });
+
+    const menuMount = document.querySelector(".gameShellMobileShellPanels") as HTMLElement | null;
+    expect(menuMount?.querySelectorAll(".gameShellDesktopShellBody").length).toBe(0);
+    expect(document.querySelectorAll(".gameShellSidebarShellSlot .gameShellDesktopShellBody").length).toBe(2);
+    expect(document.querySelector(".gameShellRoot.gameShellRoot--compactShellMenu")).toBeNull();
+  });
+
+  it("mounts shell bodies into the Menu panel region on compact portrait when panel layout is menu", () => {
+    installCompactPortraitMatchMedia();
+    document.body.dataset.panelLayout = "menu";
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+
+    initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Compact shell test",
+      backHref: "./",
+      gameSection: GameSection.Play,
+      navItems: [
+        { id: "play", label: "Play", targetSelector: "#appRoot" },
+        { id: "status", label: "Status", targetSelector: '#leftSidebar .panelSection[data-section="status"]' },
+      ],
+    });
+
+    const menuMount = document.querySelector(".gameShellMobileShellPanels") as HTMLElement | null;
+    const shellBodies = menuMount?.querySelectorAll(".gameShellDesktopShellBody") ?? [];
+    expect(shellBodies.length).toBe(2);
+    expect(document.querySelector(".gameShellRoot.gameShellRoot--compactShellMenu")).not.toBeNull();
+  });
+
+  it("mounts shell bodies into the Menu region when panel layout is menu on desktop widths", () => {
+    installDesktopMatchMedia();
+    document.body.dataset.panelLayout = "menu";
+
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+
+    initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Menu layout shell test",
+      backHref: "./",
+      gameSection: GameSection.Play,
+      navItems: [
+        { id: "play", label: "Play", targetSelector: "#appRoot" },
+        { id: "status", label: "Status", targetSelector: '#leftSidebar .panelSection[data-section="status"]' },
+      ],
+    });
+
+    const menuMount = document.querySelector(".gameShellMobileShellPanels") as HTMLElement | null;
+    expect(menuMount?.querySelectorAll(".gameShellDesktopShellBody").length).toBe(2);
+    expect(document.querySelector(".gameShellRoot.gameShellRoot--compactShellMenu")).not.toBeNull();
   });
 
   it("mounts the richer play hub content into the right shell panel", () => {

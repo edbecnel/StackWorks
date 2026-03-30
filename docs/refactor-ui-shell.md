@@ -68,6 +68,7 @@ The shipped product should feel like a simpler, more focused StackWorks, not lik
 
 - [ ] Board occupies the largest share of the viewport and stays visible without a tall persistent header
 - [ ] A shallow top strip contains only essential context: back/start-page access, active game name or mode, and one compact menu trigger
+- [ ] That menu trigger (and any narrow-layout `menu` mode equivalent) must expose the same **shell** capabilities as wide-layout left/right shell panels—see **Narrow layout: game Menu vs shell panel parity** below
 - [ ] Opponent identity attaches to the top edge of the board; local player identity attaches to the bottom edge of the board
 - [x] Piece movement supports direct touch interaction: touching a movable piece reveals its valid destination squares immediately when move highlighting is enabled
 - [x] Piece movement supports touch drag to a valid destination square so the user can press, drag, and release on the intended target square in one gesture
@@ -75,6 +76,14 @@ The shipped product should feel like a simpler, more focused StackWorks, not lik
 - [ ] Clocks, turn state, reconnect state, and critical room/game status stay visible without opening extra panels
 - [ ] Move history, rules/help, replay controls, export/share, and advanced settings are secondary surfaces opened on demand
 - [ ] Touch targets are thumb-friendly and the layout works one-handed without requiring precise taps on crowded controls
+
+### Narrow layout: game Menu vs shell panel parity
+
+On viewports or layout modes where the game surface uses a compact **Menu** control (for example mobile portrait, or `menu`-style panel layout) instead of persistent left/right **shell** columns:
+
+- [ ] The Menu affordance must provide **feature parity** with the **shell** left and right panels shown on wide/desktop game layouts: the same global nav, game sections, and contextual actions must be reachable (organization may differ—e.g. sheets, segments, or nested lists—but capabilities must not disappear).
+- [ ] Parity is measured against the **shell** panel pair, not only legacy sidebars; the narrow Menu must not be a reduced subset of desktop shell options unless that demotion is an explicit product decision applied everywhere.
+- [ ] Verify parity across all game HTML entry points, and when resizing or changing orientation / panel layout mode without a full reload where the app supports it.
 
 **Game screen — tablet / desktop**
 
@@ -534,12 +543,12 @@ When using chess.com play screens as visual references, translate them into Stac
   - [x] Verify nav affordances remain usable in collapsed and expanded states
 
 - [ ] **Ticket 3: Finalize shell brand + global nav wiring**
-  - [ ] Confirm top-left brand/logo slot is rendered in all shell pages
+  - [x] Confirm top-left brand/logo slot is rendered in all shell pages (start shell header + rail; game pages: compact bar, floating header icon, **desktop shell left panel horizontal logo** linking to Start Page)
   - [x] Confirm global nav includes `Home`, `Games`, `Community`, `Account`, `Settings`
   - [x] Confirm active-state highlighting and navigation links are correct per page
 
 - [ ] **Ticket 4: Mobile scroll + compact header hardening**
-  - [ ] Verify center/right panel areas use natural touch scrolling on mobile
+  - [x] Verify center/right panel areas use natural touch scrolling on mobile (`-webkit-overflow-scrolling: touch`, `overscroll-behavior-y: contain`, `touch-action: pan-y` on start-page drawers + content slot; game shell Menu overlay + mobile shell panel stack)
   - [ ] Ensure narrow portrait layouts keep only a shallow header strip
   - [ ] Remove any residual tall desktop-style header behavior from portrait gameplay surfaces
 
@@ -565,11 +574,17 @@ When using chess.com play screens as visual references, translate them into Stac
   - [ ] Remove user-facing `Legacy panels` fallback toggle from production UI
   - [ ] Keep any temporary migration internals hidden from end users
 
+- [ ] **Ticket 9: Narrow / mobile game Menu reaches shell panel parity**
+  - [x] Inventory content and actions exposed in the wide-layout **shell** left/right panels (`gameShell` / related shell UI) and compare to the narrow-layout Menu / drawer / sheet
+  - [x] Close gaps so every shell-panel capability is reachable from the narrow Menu (presentation may differ; missing entries are not acceptable unless intentionally removed product-wide) — **implemented:** when **`data-panel-layout="menu"`** (sidebars hidden), both `.gameShellDesktopShellBody` roots are **reparented** into the Menu overlay (`.gameShellMobileShellPanels`). In **`panels`** layout, bodies stay in the sidebars so Shell panels remain visible in stacked portrait strips; desktop wide layout keeps them in the sidebars. Legacy/shell pair tabs are hidden while bodies live in the Menu.
+  - [ ] Regression pass: breakpoints, orientation, and `panels` vs `menu` layout settings do not leave capabilities only on wide layouts
+
 ### Sprint Exit Criteria
 
-- [ ] All 8 sprint tickets above are either completed or explicitly deferred with owner + rationale
+- [ ] All 9 sprint tickets above are either completed or explicitly deferred with owner + rationale
 - [ ] No regressions in offline launch, online lobby/room, friend flow, bot flow, spectate, or replay entry points
 - [ ] Mobile portrait still preserves board-first layout with shallow header and natural touch scrolling
+- [ ] Narrow-layout game Menu reaches shell left/right panel capability parity (Ticket 9), or that ticket is explicitly deferred with owner + rationale
 - [ ] Desktop still uses left/right panel strategy without reintroducing a persistent tall top game header
 - [ ] Player identity bars render correctly (name/avatar/country/status) across online, bot, friend, spectate, and replay contexts
 - [ ] Any temporary migration controls are non-user-facing or removed for production builds
@@ -743,6 +758,7 @@ When using chess.com play screens as visual references, translate them into Stac
   - [ ] Desktop: hover flyouts, persistent left rail
   - [ ] Desktop game pages: paired left/right panel switching instead of top header chrome
   - [ ] Mobile: drawer overlay, compact nav, hamburger trigger
+  - [ ] Game pages: narrow-layout Menu / drawer exposes the same **shell** options as wide-layout left/right shell panels (see **Narrow layout: game Menu vs shell panel parity** under Primary UX; tracked as Ticket 9)
 - [ ] Verify portrait mobile layouts do not lose excessive board height to shell chrome
 - [ ] Verify portrait mobile layouts expose only one primary action cluster at a time rather than multiple competing control groups
 - [ ] Verify board interaction on touch devices is practical: touch a piece, see legal targets immediately when enabled, drag to a legal square, release to move
@@ -803,6 +819,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] The shell left rail shows the signed-in user's avatar + display name when authenticated, and `Sign Up` / `Log In` actions when signed out
 - [x] Clicking the StackWorks logo from in-game shell/board contexts behaves the same as clicking `Start Page`
 - [ ] Shell is responsive on both desktop and mobile without covering board content
+- [ ] On narrow game layouts, the Menu (or equivalent compact control) provides parity with the shell left/right panels on wide layouts—same reachable navigational and contextual actions, allowing for different presentation (sheets, segments, etc.)
 - [ ] In portrait mobile layouts, shell navigation does not sit as a persistent tall header above the board
 - [ ] In portrait mobile layouts, the first view is understandable at a glance: one primary action cluster, one visible game context, and no duplicate navigation or settings clutter
 - [x] On supported game boards, clicking or touching a movable piece reveals valid candidate target squares when move highlighting is enabled

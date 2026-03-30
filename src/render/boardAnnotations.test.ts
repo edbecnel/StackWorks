@@ -4,6 +4,8 @@ import { renderBoardAnnotations, clearBoardAnnotations, type BoardAnnotationsSta
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 function makeSvg8x8(): SVGSVGElement {
+  document.body.innerHTML = "";
+
   const svg = document.createElementNS(SVG_NS, "svg") as SVGSVGElement;
   svg.setAttribute("viewBox", "0 0 1000 1000");
 
@@ -64,7 +66,9 @@ describe("renderBoardAnnotations", () => {
       arrows: [{ kind: "arrow", from: "r0c0", to: "r0c1", color: "green" }],
     };
 
-    renderBoardAnnotations(svg, state);
+    // Classic style keeps square highlights in #overlaysAnnotations; default product style is
+    // chess.com (squares render under pieces in #underPieceAnnotations).
+    renderBoardAnnotations(svg, state, { squareStyle: "classic" });
 
     const overlays = svg.querySelector("#overlays") as SVGGElement | null;
     expect(overlays).not.toBeNull();
@@ -150,6 +154,31 @@ describe("renderBoardAnnotations", () => {
     expect(number).not.toBeNull();
     expect(number?.textContent).toBe("7");
     expect(number?.getAttribute("fill")).toContain("102, 204, 255");
+    expect(number?.getAttribute("transform")).toBeNull();
+  });
+
+  it("counter-rotates number and pin marks when #boardView is flipped", () => {
+    const svg = makeSvg8x8();
+    const view = document.createElementNS(SVG_NS, "g") as SVGGElement;
+    view.id = "boardView";
+    view.setAttribute("data-flipped", "1");
+    while (svg.firstChild) view.appendChild(svg.firstChild);
+    svg.appendChild(view);
+
+    const state: BoardAnnotationsState = {
+      squares: [],
+      arrows: [],
+      pins: [{ kind: "pin", at: "r0c0", color: "orange" }],
+      numbers: [{ kind: "number", at: "r0c0", color: "blue", value: "3" }],
+    };
+
+    renderBoardAnnotations(svg, state);
+
+    const number = svg.querySelector("text.board-annotation-number") as SVGTextElement | null;
+    expect(number?.getAttribute("transform")).toMatch(/rotate\s*\(\s*180\s+150\s+150\s*\)/);
+
+    const pin = svg.querySelector("g.board-annotation-pin") as SVGGElement | null;
+    expect(pin?.getAttribute("transform")).toMatch(/rotate\s*\(\s*180\s+150\s+150\s*\)/);
   });
 
   it("renders chess.com-style analysis square highlights across the full tile", () => {
