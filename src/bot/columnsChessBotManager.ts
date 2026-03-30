@@ -4,6 +4,7 @@ import type { Player } from "../types.ts";
 import { createPrng } from "../shared/prng.ts";
 import { BOT_PRESETS, type BotTier } from "./presets.ts";
 import { pickFallbackMoveColumnsChess } from "./columnsChessFallback.ts";
+import { applyChessBotPersonaToMoveSearch, readChessBotPersonaForSide } from "./chessBotPersonaGameplay.ts";
 import { gameStateToFen } from "./fen.ts";
 import { uciToLegalMove } from "./chessMoveMap.ts";
 import type { EvalScore, UciEngine } from "./uciEngine.ts";
@@ -793,12 +794,20 @@ export class ColumnsChessBotManager {
     if (this.engineReady) {
       try {
         const fen = gameStateToFen(state);
+        const persona = readChessBotPersonaForSide(state.toMove);
+        const { skill: searchSkill, movetimeMs: searchMovetimeMs } = applyChessBotPersonaToMoveSearch({
+          persona,
+          baseSkill: preset.skill,
+          baseMovetimeMs: preset.movetimeMs,
+          fen,
+        });
         const engine = this.ensureEngine();
+        const engineTimeoutMs = Math.min(8000, Math.max(2500, Math.round(searchMovetimeMs) + 2000));
         const uci = await engine.bestMove({
           fen,
-          movetimeMs: preset.movetimeMs,
-          skill: preset.skill,
-          timeoutMs: Math.min(8000, Math.max(2500, Math.round(preset.movetimeMs) + 2000)),
+          movetimeMs: searchMovetimeMs,
+          skill: searchSkill,
+          timeoutMs: engineTimeoutMs,
         });
         if (requestId !== this.requestId) return;
         stockfishMove = uciToLegalMove(state, uci);

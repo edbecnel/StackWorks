@@ -12,6 +12,7 @@ import type { UciEngine, EvalScore } from "./uciEngine.ts";
 import { StockfishUciEngine } from "./stockfishEngine.ts";
 import { HttpUciEngine } from "./httpEngine.ts";
 import { pickFallbackMoveChess } from "./chessFallback.ts";
+import { applyChessBotPersonaToMoveSearch, readChessBotPersonaForSide } from "./chessBotPersonaGameplay.ts";
 import { applySignedInNameToLocalBotSelects } from "../ui/bot/localBotSelectIdentity.ts";
 import { syncPlayerBotSelector } from "../ui/bot/playerBotSelector";
 
@@ -1514,6 +1515,13 @@ export class ChessBotManager {
       const preset = presets[subIdx];
 
       const fen = gameStateToFen(state);
+      const persona = readChessBotPersonaForSide(toMove);
+      const { skill: searchSkill, movetimeMs: searchMovetimeMs } = applyChessBotPersonaToMoveSearch({
+        persona,
+        baseSkill: preset.skill,
+        baseMovetimeMs: preset.movetimeMs,
+        fen,
+      });
 
       // If Stockfish is struggling to boot (common on slow/mobile), don't freeze the game.
       // Use a fallback move immediately, and keep warming the engine in the background.
@@ -1522,14 +1530,14 @@ export class ChessBotManager {
 
       if (!shouldSkipEngine) {
         const engine = this.ensureEngine();
-        const engineTimeoutMs = Math.min(8000, Math.max(2500, Math.round(preset.movetimeMs) + 2000));
+        const engineTimeoutMs = Math.min(8000, Math.max(2500, Math.round(searchMovetimeMs) + 2000));
 
         this.setStatus(`Bot thinking… (${this.engineLabel()})`);
 
         const uci = await engine.bestMove({
           fen,
-          movetimeMs: preset.movetimeMs,
-          skill: preset.skill,
+          movetimeMs: searchMovetimeMs,
+          skill: searchSkill,
           // Keep per-move attempts short; background prewarm uses a longer timeout.
           timeoutMs: engineTimeoutMs,
         });
