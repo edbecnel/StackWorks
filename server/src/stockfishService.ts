@@ -121,6 +121,23 @@ export class StockfishService {
     skill?: number;
     timeoutMs?: number;
   }): Promise<string> {
+    const run = () => this.bestMoveQueued(args);
+    try {
+      return await run();
+    } catch (e) {
+      if (!this.shouldRetryAfterEngineFailure(e)) throw e;
+      console.warn("[lasca-server] stockfish bestMove failed; restarting engine and retrying once");
+      await this.restart();
+      return await run();
+    }
+  }
+
+  private async bestMoveQueued(args: {
+    fen: string;
+    movetimeMs: number;
+    skill?: number;
+    timeoutMs?: number;
+  }): Promise<string> {
     const movetimeMs = Math.max(10, Math.round(Number(args.movetimeMs)));
     const timeoutMs = Math.max(2_000, Math.round(Number(args.timeoutMs ?? movetimeMs * 20)));
     await this.getOrStartInit(60_000);
@@ -144,6 +161,22 @@ export class StockfishService {
   }
 
   async evaluate(args: {
+    fen: string;
+    movetimeMs?: number;
+    timeoutMs?: number;
+  }): Promise<StockfishEvalScore | null> {
+    const run = () => this.evaluateQueued(args);
+    try {
+      return await run();
+    } catch (e) {
+      if (!this.shouldRetryAfterEngineFailure(e)) throw e;
+      console.warn("[lasca-server] stockfish evaluate failed; restarting engine and retrying once");
+      await this.restart();
+      return await run();
+    }
+  }
+
+  private async evaluateQueued(args: {
     fen: string;
     movetimeMs?: number;
     timeoutMs?: number;
@@ -182,6 +215,7 @@ export class StockfishService {
     this.ready = false;
     this.currentSkill = null;
     this.lines = [];
+    this.queue = Promise.resolve();
     for (const waiter of this.waiters.splice(0)) {
       waiter.reject(new Error("engine stopped"));
     }
@@ -199,6 +233,21 @@ export class StockfishService {
       }
       setTimeout(resolve, 200).unref?.();
     });
+  }
+
+  /** Kill the engine process and clear queues; next call starts fresh. */
+  async restart(): Promise<void> {
+    await this.shutdown();
+  }
+
+  private shouldRetryAfterEngineFailure(err: unknown): boolean {
+    const msg = err instanceof Error ? err.message : String(err);
+    return (
+      msg.includes("timeout") ||
+      msg.includes("engine exited") ||
+      msg.includes("engine stopped") ||
+      msg.includes("no bestmove")
+    );
   }
 
   private getEngineJsPath(): string {

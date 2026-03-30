@@ -301,7 +301,10 @@ describe("ChessBotManager loadGame paused toast", () => {
     expect(controller.sticky.text).toContain("White to Play");
   });
 
-  it("falls back to a legal move after a Stockfish bestmove timeout", async () => {
+  it.each([
+    ["Stockfish timeout: bestmove (in-browser worker)", "Stockfish timeout: bestmove"],
+    ["Timeout: bestmove (HTTP server engine)", "Timeout: bestmove"],
+  ] as const)("falls back to a legal move after a bestmove timeout: %s", async (_label, timeoutMessage) => {
     document.body.innerHTML = `
       <select id="botWhiteSelect"><option value="human">human</option><option value="beginner">beginner</option></select>
       <select id="botBlackSelect"><option value="human">human</option><option value="beginner">beginner</option></select>
@@ -324,7 +327,7 @@ describe("ChessBotManager loadGame paused toast", () => {
           init: async () => {},
           terminate,
           bestMove: async () => {
-            throw new Error("Stockfish timeout: bestmove");
+            throw new Error(timeoutMessage);
           },
           evaluate: async () => null,
         } as any;

@@ -52,7 +52,19 @@ function isRecoverableStockfishFailureMessage(msg: string): boolean {
     msg.includes("Stockfish timeout: uciok") ||
     msg.includes("Stockfish timeout: readyok") ||
     msg.includes("Stockfish timeout: bestmove") ||
-    msg.includes("Stockfish worker failed:")
+    msg.includes("Stockfish worker failed:") ||
+    // HttpUciEngine (server-backed Stockfish) uses short timeout labels:
+    msg.includes("Timeout: bestmove") ||
+    msg.includes("Timeout: evaluate") ||
+    msg.includes("Timeout: health") ||
+    msg.includes("bad response") ||
+    msg.includes("Failed to fetch") ||
+    msg.includes("Load failed") ||
+    msg.includes("network error") ||
+    msg.toLowerCase() === "timeout" ||
+    msg.includes("no bestmove") ||
+    msg.includes("engine exited") ||
+    msg.includes("engine stopped")
   );
 }
 

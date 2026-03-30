@@ -57,6 +57,23 @@ describe("server stockfish endpoint", () => {
       expect(evalRes.ok).toBe(true);
       const evalJson = await evalRes.json() as any;
       expect(evalJson).toEqual({ ok: true, cp: 83 });
+
+      const restartRes = await fetch(`${s.url}/api/stockfish/restart`, { method: "POST" });
+      expect(restartRes.ok).toBe(true);
+      const restartJson = (await restartRes.json()) as any;
+      expect(restartJson).toEqual({ ok: true });
+
+      const healthAfter = await fetch(`${s.url}/api/stockfish/health`);
+      expect(healthAfter.ok).toBe(true);
+      const bestAfter = await fetch(`${s.url}/api/stockfish/bestmove`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          movetimeMs: 25,
+        }),
+      });
+      expect(bestAfter.ok).toBe(true);
     } finally {
       await new Promise<void>((resolve) => s.server.close(() => resolve()));
       await rmWithRetries(tmpRoot);

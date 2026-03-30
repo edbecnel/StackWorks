@@ -35,12 +35,61 @@ function normalizeBaseUrl(raw: string): string {
   return s.endsWith("/") ? s.slice(0, -1) : s;
 }
 
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function isLikelyStockfishTransportFailure(err: unknown): boolean {
+  if (!err) return false;
+  const msg = err instanceof Error ? err.message : String(err);
+  const m = msg.toLowerCase();
+  return (
+    msg.includes("Timeout: bestmove") ||
+    msg.includes("Timeout: evaluate") ||
+    msg.includes("bad response") ||
+    msg.includes("Failed to fetch") ||
+    msg.includes("Load failed") ||
+    msg.includes("network error") ||
+    msg.includes("HTTP 5") ||
+    m === "timeout" ||
+    m.includes("no bestmove") ||
+    m.includes("engine exited") ||
+    m.includes("engine stopped")
+  );
+}
+
 export class HttpUciEngine implements UciEngine {
   private baseUrl: string;
   private skill: number | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = normalizeBaseUrl(baseUrl);
+  }
+
+  /** Ask the game server to kill and restart the Stockfish child process. */
+  private async requestServerRestart(timeoutMs = 8000): Promise<void> {
+    const ctrl = new AbortController();
+    const p = fetch(`${this.baseUrl}/restart`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+      signal: ctrl.signal,
+    })
+      .then(async (r) => {
+        if (!r.ok) {
+          const json = (await r.json().catch(() => null)) as any;
+          const errMsg = json?.error ? String(json.error) : `HTTP ${r.status}`;
+          throw new Error(errMsg);
+        }
+      })
+      .finally(() => {
+        try {
+          ctrl.abort();
+        } catch {
+          // ignore
+        }
+      });
+    await withAbortTimeout({ p, ms: timeoutMs, label: "restart", ctrl });
   }
 
   async init(opts?: { timeoutMs?: number }): Promise<void> {
@@ -72,49 +121,65 @@ export class HttpUciEngine implements UciEngine {
   async bestMove(args: UciBestMoveArgs): Promise<string> {
     const timeoutMs = args.timeoutMs ?? Math.max(2500, Math.round(args.movetimeMs) * 20);
 
-    const ctrl = new AbortController();
-    const p = fetch(`${this.baseUrl}/bestmove`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        fen: args.fen,
-        movetimeMs: args.movetimeMs,
-        skill: args.skill ?? this.skill ?? undefined,
-        timeoutMs,
-      }),
-      signal: ctrl.signal,
-    })
-      .then(async (r) => {
-        const json = (await r.json().catch(() => null)) as any;
-        if (!r.ok) {
-          const msg = json?.error ? String(json.error) : `HTTP ${r.status}`;
-          throw new Error(msg);
-        }
-        if (!json || json.ok !== true || typeof json.uci !== "string") {
-          throw new Error("bad response");
-        }
-        return json.uci as string;
+    const doFetch = async (): Promise<string> => {
+      const ctrl = new AbortController();
+      const p = fetch(`${this.baseUrl}/bestmove`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          fen: args.fen,
+          movetimeMs: args.movetimeMs,
+          skill: args.skill ?? this.skill ?? undefined,
+          timeoutMs,
+        }),
+        signal: ctrl.signal,
       })
-      .finally(() => {
-        try {
-          ctrl.abort();
-        } catch {
-          // ignore
-        }
-      });
+        .then(async (r) => {
+          const json = (await r.json().catch(() => null)) as any;
+          if (!r.ok) {
+            const msg = json?.error ? String(json.error) : `HTTP ${r.status}`;
+            throw new Error(msg);
+          }
+          if (!json || json.ok !== true || typeof json.uci !== "string") {
+            throw new Error("bad response");
+          }
+          return json.uci as string;
+        })
+        .finally(() => {
+          try {
+            ctrl.abort();
+          } catch {
+            // ignore
+          }
+        });
 
-    return withAbortTimeout({ p, ms: timeoutMs + 500, label: "bestmove", ctrl });
+      return withAbortTimeout({ p, ms: timeoutMs + 500, label: "bestmove", ctrl });
+    };
+
+    try {
+      return await doFetch();
+    } catch (e) {
+      if (!isLikelyStockfishTransportFailure(e)) throw e;
+      try {
+        await this.requestServerRestart();
+        await sleepMs(400);
+      } catch {
+        // Still try one more bestmove; server may have recovered anyway.
+      }
+      return await doFetch();
+    }
   }
 
   async evaluate(fen: string, opts?: { movetimeMs?: number; timeoutMs?: number }): Promise<EvalScore | null> {
     const movetimeMs = opts?.movetimeMs ?? 200;
     const timeoutMs = opts?.timeoutMs ?? Math.max(3000, movetimeMs * 15);
-    try {
+
+    const doFetch = async (): Promise<EvalScore | null> => {
       const ctrl = new AbortController();
       const p = fetch(`${this.baseUrl}/evaluate`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ fen, movetimeMs }),
+        body: JSON.stringify({ fen, movetimeMs, timeoutMs }),
         signal: ctrl.signal,
       })
         .then(async (r) => {
@@ -125,11 +190,26 @@ export class HttpUciEngine implements UciEngine {
           return null;
         })
         .finally(() => {
-          try { ctrl.abort(); } catch { /* ignore */ }
+          try {
+            ctrl.abort();
+          } catch {
+            /* ignore */
+          }
         });
-      return await withAbortTimeout({ p, ms: timeoutMs, label: "evaluate", ctrl });
-    } catch {
-      return null;
+      return withAbortTimeout({ p, ms: timeoutMs + 400, label: "evaluate", ctrl });
+    };
+
+    try {
+      return await doFetch();
+    } catch (e) {
+      if (!isLikelyStockfishTransportFailure(e)) return null;
+      try {
+        await this.requestServerRestart();
+        await sleepMs(400);
+        return await doFetch();
+      } catch {
+        return null;
+      }
     }
   }
 }

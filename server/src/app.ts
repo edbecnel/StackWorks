@@ -1734,6 +1734,16 @@ export function createLascaApp(opts: ServerOpts = {}): {
     }
   });
 
+  app.post("/api/stockfish/restart", async (_req, res) => {
+    try {
+      await stockfish.restart();
+      res.json({ ok: true });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Stockfish restart failed";
+      res.status(500).json({ ok: false, error: msg });
+    }
+  });
+
   // MP4C: accounts + cookie sessions (authn/authz).
   // Minimal endpoints: register/login/logout/me + profile update.
   const authLimiter = makeIpRateLimiter({ windowMs: 10 * 60 * 1000, max: 30, keyPrefix: "auth" });
