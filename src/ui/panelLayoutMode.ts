@@ -835,16 +835,7 @@ export function bindPanelLayoutMenuMode(): void {
     startLink.href = "./";
     startLink.textContent = "Start Page";
 
-    const helpLink = document.createElement("a");
-    helpLink.className = "panelLayoutFlyoutItem";
-    helpLink.id = "panelLayoutHeaderHelp";
-    helpLink.href = "./help.html";
-    helpLink.target = "_blank";
-    helpLink.rel = "noopener noreferrer";
-    helpLink.textContent = "?";
-
     flyout.appendChild(startLink);
-    flyout.appendChild(helpLink);
 
     right.appendChild(flyBtn);
     right.appendChild(flyout);
@@ -873,7 +864,6 @@ export function bindPanelLayoutMenuMode(): void {
     });
 
     startLink.addEventListener("click", () => closeFlyout());
-    helpLink.addEventListener("click", () => closeFlyout());
   }
 
   let hamburger = document.getElementById("panelLayoutHamburger") as HTMLButtonElement | null;
@@ -1063,18 +1053,6 @@ export function bindPanelLayoutMenuMode(): void {
       .trim();
 
     return stripped || "Game";
-  };
-
-  const resolveHelpHref = (): string => {
-    const hl = document.getElementById("helpLink") as HTMLAnchorElement | null;
-    const href = (hl?.getAttribute("href") ?? "").trim();
-    if (href) return href;
-
-    const any = document.querySelector('a[href*="help" i]') as HTMLAnchorElement | null;
-    const anyHref = (any?.getAttribute("href") ?? "").trim();
-    if (anyHref) return anyHref;
-
-    return "./help.html";
   };
 
   const records = new Map<string, SectionRecord>();
@@ -1307,9 +1285,6 @@ export function bindPanelLayoutMenuMode(): void {
 
     const titleEl = document.getElementById("panelLayoutHeaderTitle") as HTMLElement | null;
     if (titleEl) titleEl.textContent = `StackWorks - ${resolveGameName()}`;
-
-    const headerHelp = document.getElementById("panelLayoutHeaderHelp") as HTMLAnchorElement | null;
-    if (headerHelp) headerHelp.href = resolveHelpHref();
 
     // Hamburger only relevant in menu mode.
     hamburger!.style.display = mode === "menu" ? "inline-flex" : "none";

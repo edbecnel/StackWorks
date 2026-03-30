@@ -301,7 +301,7 @@ describe("createPlayHub", () => {
     expect(Array.from(document.querySelectorAll(".playHubHostedRoomActions .playHubAction")).some((element) => element.textContent?.includes("Join room"))).toBe(true);
   });
 
-  it("persists two-seat bot setup and routes human-human back to Local", () => {
+  it("allows both bots when switching human to bot but prevents two humans when switching bot to human", () => {
     const hub = createPlayHub({
       currentVariantId: "chess_classic",
       backHref: "/start",
@@ -312,6 +312,8 @@ describe("createPlayHub", () => {
 
     const controllerSelects = Array.from(document.querySelectorAll('[data-bot-field="controller"]')) as HTMLSelectElement[];
     expect(controllerSelects).toHaveLength(2);
+    expect(controllerSelects[0]?.value).toBe("human");
+    expect(controllerSelects[1]?.value).toBe("bot");
 
     controllerSelects[0].value = "bot";
     controllerSelects[0].dispatchEvent(new Event("change", { bubbles: true }));
@@ -319,21 +321,23 @@ describe("createPlayHub", () => {
     let persistedState = JSON.parse(localStorage.getItem("stackworks.shell.state") ?? "{}") as Record<string, unknown>;
     let botPlayState = normalizeBotPlayState(persistedState.botPlayState);
     expect(botPlayState?.white.controller).toBe(BotControllerMode.Bot);
+    expect(botPlayState?.black.controller).toBe(BotControllerMode.Bot);
 
-    controllerSelects[0].value = "human";
-    controllerSelects[0].dispatchEvent(new Event("change", { bubbles: true }));
     controllerSelects[1].value = "human";
     controllerSelects[1].dispatchEvent(new Event("change", { bubbles: true }));
 
-    const switchToLocal = Array.from(document.querySelectorAll(".playHubAction")).find((element) =>
-      element.textContent?.includes("Switch to Local setup"),
-    ) as HTMLButtonElement | undefined;
-    expect(switchToLocal).toBeTruthy();
+    persistedState = JSON.parse(localStorage.getItem("stackworks.shell.state") ?? "{}") as Record<string, unknown>;
+    botPlayState = normalizeBotPlayState(persistedState.botPlayState);
+    expect(botPlayState?.white.controller).toBe(BotControllerMode.Bot);
+    expect(botPlayState?.black.controller).toBe(BotControllerMode.Human);
 
-    switchToLocal?.click();
+    controllerSelects[0].value = "human";
+    controllerSelects[0].dispatchEvent(new Event("change", { bubbles: true }));
 
     persistedState = JSON.parse(localStorage.getItem("stackworks.shell.state") ?? "{}") as Record<string, unknown>;
-    expect(persistedState.playSubSection).toBe("local");
+    botPlayState = normalizeBotPlayState(persistedState.botPlayState);
+    expect(botPlayState?.white.controller).toBe(BotControllerMode.Human);
+    expect(botPlayState?.black.controller).toBe(BotControllerMode.Bot);
   });
 
   it("persists chess bot launcher keys when starting offline bot game (full load: reload or navigate)", () => {
@@ -421,7 +425,7 @@ describe("createPlayHub", () => {
     expect(controllerSelects[0]?.value).toBe("human");
     expect(controllerSelects[1]?.value).toBe("bot");
     expect(levelSelects[1]?.value).toBe("beginner");
-    expect(document.querySelector(".playHubBotStateTitle")?.textContent).toContain("Two-seat bot setup");
+    expect(document.querySelector(".playHubBotStateTitle")?.textContent).toContain("Human vs bot");
   });
 
   it("preserves an existing bot-controlled setup instead of forcing the default", () => {
@@ -590,7 +594,7 @@ describe("createPlayHub", () => {
     expect(titles).toContain("Teacher bot");
   });
 
-  it("surfaces watch-bots mode when both seats are bot-controlled", () => {
+  it("preserves persisted bot-vs-bot setups and surfaces watch-bots actions", () => {
     localStorage.setItem("stackworks.shell.state", JSON.stringify({
       activeSection: "games",
       activeGame: "chess_classic",
@@ -610,6 +614,9 @@ describe("createPlayHub", () => {
     document.body.appendChild(hub.element);
     hub.setActiveTab(PlaySubSection.Bots);
 
+    const controllerSelects = Array.from(document.querySelectorAll('[data-bot-field="controller"]')) as HTMLSelectElement[];
+    expect(controllerSelects[0]?.value).toBe("bot");
+    expect(controllerSelects[1]?.value).toBe("bot");
     expect(document.querySelector(".playHubBotStateTitle")?.textContent).toContain("Watch Bots mode ready");
     expect(Array.from(document.querySelectorAll(".playHubAction")).some((element) => element.textContent?.includes("Open watch-bots launcher"))).toBe(true);
   });

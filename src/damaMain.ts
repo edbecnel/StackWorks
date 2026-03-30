@@ -321,16 +321,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Ensure the browser tab title matches the actual game.
   document.title = activeVariant.displayName;
 
-  const elHelpLink = (document.getElementById("helpLink") as HTMLAnchorElement | null) ?? null;
-  if (elHelpLink) {
-    if (shellHelpHref) {
-      elHelpLink.href = shellHelpHref;
-      elHelpLink.style.display = "";
-    } else {
-      elHelpLink.style.display = "none";
-    }
-  }
-
   if (isCheckers) {
     setSvgFavicon(
       "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'>" +

@@ -4,6 +4,7 @@ import {
   type BotDifficulty,
   type BotPersona,
   type BotPlayState,
+  type BotSeatState,
   type CoachLevel,
   GlobalSection,
   type HostedRoomState,
@@ -567,6 +568,24 @@ function normalizeBotPlayStateLevels(state: BotPlayState, variantId: VariantId):
   };
 }
 
+/** Play Bots tab allows bot-vs-bot but not two humans (second human forces the other seat to bot on load/save). */
+function enforceShellBotsTabNoDoubleHuman(state: BotPlayState, variantId: VariantId): BotPlayState {
+  const wH = state.white.controller === BotControllerMode.Human;
+  const bH = state.black.controller === BotControllerMode.Human;
+  if (!(wH && bH)) return state;
+
+  const options = getBotOptionsForVariant(variantId);
+  const botLevel = resolveBotLevelForVariantSelect(state.black.level, options);
+  return {
+    ...state,
+    black: {
+      controller: BotControllerMode.Bot,
+      level: botLevel,
+      persona: state.black.persona ?? defaultBotPersonaForLevel(botLevel),
+    },
+  };
+}
+
 function readBotStorageValue(key: string): string | null {
   try {
     return localStorage.getItem(key);
@@ -666,7 +685,7 @@ function resolveInitialBotPlayState(persistedState: BotPlayState | null, variant
       resolved = createDefaultBotPlayState(variantId);
     }
   }
-  return normalizeBotPlayStateLevels(resolved, variantId);
+  return enforceShellBotsTabNoDoubleHuman(normalizeBotPlayStateLevels(resolved, variantId), variantId);
 }
 
 function writeBotPlayStateToLauncher(variantId: VariantId, state: BotPlayState): void {
@@ -1368,13 +1387,17 @@ function ensurePlayHubStyles(): void {
 
     .playHubBotSeatControls {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: minmax(0, 1fr);
       gap: 8px;
     }
 
     .playHubBotField {
       display: grid;
       gap: 6px;
+    }
+
+    .playHubBotField[hidden] {
+      display: none !important;
     }
 
     .playHubBotControllerRow {
@@ -1457,8 +1480,7 @@ function ensurePlayHubStyles(): void {
     }
 
     @media (max-width: 560px) {
-      .playHubHostedFields,
-      .playHubBotSeatControls {
+      .playHubHostedFields {
         grid-template-columns: minmax(0, 1fr);
       }
     }
@@ -1767,12 +1789,16 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
   let refreshHostedRoomDiscovery: ((force?: boolean) => Promise<void>) | null = null;
 
   const persistBotPlayState = (nextState: BotPlayState): void => {
-    botPlayState = nextState;
+    const enforced = enforceShellBotsTabNoDoubleHuman(
+      normalizeBotPlayStateLevels(nextState, opts.currentVariantId),
+      opts.currentVariantId,
+    );
+    botPlayState = enforced;
     updateShellState({
       activeGame: opts.currentVariantId,
       activeSection: GlobalSection.Games,
       playSubSection: PlaySubSection.Bots,
-      botPlayState: nextState,
+      botPlayState: enforced,
     });
   };
 
@@ -2543,27 +2569,15 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
       binding.controllerIdentity.textContent = controllerIdentityText ?? "";
       binding.controllerIdentity.hidden = !controllerIdentityText;
       const isBotSeat = state.controller === BotControllerMode.Bot;
-      // Use visibility:hidden instead of display:none so the 3-column grid keeps
-      // its full width — if the fields were removed from layout the card would
-      // shrink and make the controller select narrower when Human is selected.
-      binding.levelField.style.visibility = isBotSeat ? "" : "hidden";
-      binding.levelField.style.pointerEvents = isBotSeat ? "" : "none";
-      binding.levelField.removeAttribute("hidden");
-      binding.personaField.style.visibility = isBotSeat ? "" : "hidden";
-      binding.personaField.style.pointerEvents = isBotSeat ? "" : "none";
-      binding.personaField.removeAttribute("hidden");
-      binding.levelSelect.disabled = !isBotSeat;
-      binding.personaSelect.disabled = !isBotSeat;
+      binding.levelField.hidden = !isBotSeat;
+      binding.personaField.hidden = !isBotSeat;
     }
 
-    const bothHuman = botPlayState.white.controller === BotControllerMode.Human && botPlayState.black.controller === BotControllerMode.Human;
     const bothBots = botPlayState.white.controller === BotControllerMode.Bot && botPlayState.black.controller === BotControllerMode.Bot;
     botStateNote.classList.toggle("playHubBotWatchState", bothBots);
-    botStateNote.innerHTML = bothHuman
-      ? '<p class="playHubBotStateTitle">Route this setup to Local</p><p class="playHubBotStateText">Play Bots cannot resolve to Human vs Human. If both seats stay human, the shell should move the user to Local setup instead of pretending this is a bot match.</p>'
-      : bothBots
-        ? '<p class="playHubBotStateTitle">Watch Bots mode ready</p><p class="playHubBotStateText">Both seats are bot-controlled, so this setup can run as a local watch mode while preserving move history and playback.</p>'
-        : '<p class="playHubBotStateTitle">Two-seat bot setup</p><p class="playHubBotStateText">Keep Human vs Bot as the default, allow Bot vs Bot for watch mode, and persist the exact seat roles before returning to the launcher.</p>';
+    botStateNote.innerHTML = bothBots
+      ? '<p class="playHubBotStateTitle">Watch Bots mode ready</p><p class="playHubBotStateText">Both seats are bot-controlled, so this setup can run as a local watch mode while preserving move history and playback.</p>'
+      : '<p class="playHubBotStateTitle">Human vs bot</p><p class="playHubBotStateText">Play as human against a bot, or set both seats to bot for watch mode. Two humans are not allowed here—use Local for human versus human.</p>';
 
     botProfiles.replaceChildren();
     for (const seatKey of ["white", "black"] as const) {
@@ -2590,15 +2604,6 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     }
 
     botActions.replaceChildren();
-    if (bothHuman) {
-      botActions.appendChild(createHubAction({
-        label: "Switch to Local setup",
-        description: "Both seats are human, so this configuration belongs under Local instead of Play Bots.",
-        onSelect: () => setActiveTab(PlaySubSection.Local),
-      }));
-      if (opts.localAction) botActions.appendChild(createHubAction(opts.localAction));
-      return;
-    }
 
     const localStart = resolveCurrentPageLocalBotStartAvailability();
     botActions.appendChild(createHubAction({
@@ -2715,18 +2720,39 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
 
   for (const binding of seatBindings) {
     binding.controllerSelect.addEventListener("change", () => {
-      const nextController = binding.controllerSelect.value === BotControllerMode.Bot ? BotControllerMode.Bot : BotControllerMode.Human;
-      const nextState: BotPlayState = {
-        ...botPlayState,
-        [binding.seat.key]: {
-          controller: nextController,
-          level:
-            nextController === BotControllerMode.Bot
-              ? resolveBotLevelForVariantSelect(binding.levelSelect.value as BotDifficulty, botOptions)
-              : null,
-          persona: nextController === BotControllerMode.Bot ? (binding.personaSelect.value as BotPersona) : null,
-        },
+      const key = binding.seat.key;
+      const otherKey = key === "white" ? "black" : "white";
+      const selfIsBot = binding.controllerSelect.value === BotControllerMode.Bot;
+      const selfController = selfIsBot ? BotControllerMode.Bot : BotControllerMode.Human;
+
+      const selfSeat: BotSeatState = {
+        controller: selfController,
+        level: selfIsBot ? resolveBotLevelForVariantSelect(binding.levelSelect.value as BotDifficulty, botOptions) : null,
+        persona: selfIsBot ? (binding.personaSelect.value as BotPersona) : null,
       };
+
+      const priorOther = botPlayState[otherKey];
+      let otherSeat: BotSeatState;
+      if (selfController === BotControllerMode.Human) {
+        // Bot → Human: if the other seat is already human, it must become a bot (no H+H).
+        if (priorOther.controller === BotControllerMode.Human) {
+          const fallbackLevel = getDefaultBeginnerBotLevelValue(botOptions);
+          otherSeat = {
+            controller: BotControllerMode.Bot,
+            level: fallbackLevel,
+            persona: defaultBotPersonaForLevel(fallbackLevel),
+          };
+        } else {
+          otherSeat = { ...priorOther };
+        }
+      } else {
+        // Human → Bot: leave the other seat as human or bot.
+        otherSeat = { ...priorOther };
+      }
+
+      const nextState: BotPlayState =
+        key === "white" ? { white: selfSeat, black: otherSeat } : { white: otherSeat, black: selfSeat };
+
       persistBotPlayState(nextState);
       syncBotPanel();
     });

@@ -355,7 +355,7 @@ function ensureGameShellStyles(): void {
 
     .gameShellCompactBar {
       align-items: center;
-      grid-template-columns: auto auto minmax(0, 1fr);
+      grid-template-columns: auto auto auto minmax(0, 1fr);
       gap: 10px;
       --game-shell-compact-left-offset: 0px;
       padding: 10px 12px;
@@ -418,6 +418,49 @@ function ensureGameShellStyles(): void {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .gameShellCompactBarTrail {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .gameShellCompactBarTrail .gameShellCompactBarTitle {
+      flex: 1 1 auto;
+    }
+
+    /* Panels: icon-only start link in the compact bar; wordmark stays menu-layout only. */
+    body[data-panel-layout="panels"] .gameShellCompactBarBrand .gameShellCompactBarWordmark {
+      display: none !important;
+    }
+
+    .gameShellCompactBarHelp {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      margin-left: auto;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(255, 255, 255, 0.92);
+      text-decoration: none;
+    }
+
+    .gameShellCompactBarHelp:hover,
+    .gameShellCompactBarHelp:focus-visible {
+      background: rgba(255, 255, 255, 0.12);
+      outline: none;
+    }
+
+    .gameShellCompactBarHelp svg {
+      width: 18px;
+      height: 18px;
+      display: block;
     }
 
     .gameShellCompactTrigger:hover,
@@ -1343,15 +1386,6 @@ function ensureGameShellStyles(): void {
         max-width: 128px;
       }
 
-      /* Panels: sidebars stay visible — avoid icon + horizontal wordmark in the compact bar (521–820px). */
-      body[data-panel-layout="panels"] .gameShellCompactBarWordmark {
-        display: none !important;
-      }
-
-      body[data-panel-layout="panels"] .gameShellCompactBarBrand {
-        gap: 0;
-      }
-
       .gameShellCompactBarTitle {
         font-size: 14px;
       }
@@ -1549,14 +1583,6 @@ function ensureGameShellStyles(): void {
           gap: 6px;
         }
 
-        body[data-panel-layout="panels"] .gameShellCompactBarWordmark {
-          display: none !important;
-        }
-
-        body[data-panel-layout="panels"] .gameShellCompactBarBrand {
-          gap: 0;
-        }
-
         body[data-panel-layout="panels"] .gameShellCompactOverlay {
           display: none !important;
         }
@@ -1703,9 +1729,26 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
   });
   compactBarBrand.append(compactBarBrandMark, compactBarWordmark);
 
+  const compactBarTrail = document.createElement("div");
+  compactBarTrail.className = "gameShellCompactBarTrail";
+
   const compactBarTitle = document.createElement("div");
   compactBarTitle.className = "gameShellCompactBarTitle";
   compactBarTitle.textContent = opts.title;
+
+  compactBarTrail.appendChild(compactBarTitle);
+
+  if (opts.helpHref) {
+    const compactBarHelp = document.createElement("a");
+    compactBarHelp.className = "gameShellCompactBarHelp";
+    compactBarHelp.href = opts.helpHref;
+    compactBarHelp.target = "_blank";
+    compactBarHelp.rel = "noopener noreferrer";
+    compactBarHelp.setAttribute("aria-label", "Help and rules");
+    compactBarHelp.title = "Help and rules";
+    compactBarHelp.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>`;
+    compactBarTrail.appendChild(compactBarHelp);
+  }
 
   const desktopMedia = typeof window !== "undefined" && typeof window.matchMedia === "function"
     ? window.matchMedia(DESKTOP_GAME_SHELL_MEDIA)
@@ -2800,7 +2843,7 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
   }
 
   parent.insertBefore(shell, opts.appRoot);
-  compactBar.append(compactPanelModeSelect, compactTrigger, compactBarBrand, compactBarTitle);
+  compactBar.append(compactPanelModeSelect, compactTrigger, compactBarBrand, compactBarTrail);
   shell.append(compactOverlay, compactBar, header, appSlot);
   appSlot.appendChild(opts.appRoot);
   enhanceDesktopSidebars();

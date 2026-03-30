@@ -253,6 +253,55 @@ describe("initGameShell desktop shell navigation", () => {
     expect(columnBrandImg?.getAttribute("src")).toContain("stackworks-logo-horizontal");
   });
 
+  it("renders a compact-bar help control with an icon when helpHref is set", () => {
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+
+    initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Help control test",
+      backHref: "./",
+      helpHref: "./chess-help.html",
+      gameSection: GameSection.Play,
+      navItems: [],
+    });
+
+    const help = document.querySelector(".gameShellCompactBarHelp") as HTMLAnchorElement | null;
+    expect(help?.getAttribute("href")).toBe("./chess-help.html");
+    expect(help?.querySelector("svg")).not.toBeNull();
+    expect(help?.getAttribute("aria-label")).toBe("Help and rules");
+  });
+
+  it("shows icon-only Start Page link in Panels compact bar with wordmark hidden", () => {
+    document.body.dataset.panelLayout = "panels";
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+
+    initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Panels compact brand test",
+      backHref: "./",
+      gameSection: GameSection.Play,
+      navItems: [],
+    });
+
+    const compactBrand = document.querySelector(".gameShellCompactBarBrand") as HTMLAnchorElement | null;
+    const mark = document.querySelector(".gameShellCompactBarBrandMark") as HTMLElement | null;
+    const wordmark = document.querySelector(".gameShellCompactBarWordmark") as HTMLElement | null;
+    expect(mark).not.toBeNull();
+    expect(wordmark).not.toBeNull();
+    expect(getComputedStyle(mark!).display).not.toBe("none");
+    expect(getComputedStyle(wordmark!).display).toBe("none");
+    expect(mark?.querySelector("img")?.getAttribute("src")).toContain("stackworks-logo-icon.svg");
+    expect(document.querySelector(".gameShellCompactBarStartLabel")).toBeNull();
+    expect(compactBrand?.title).toBe("Start Page");
+    expect(compactBrand?.getAttribute("aria-label")).toBe("Start Page");
+  });
+
   it("hides duplicate horizontal logo in sidebar title when column brand is present (panels layout)", () => {
     const left = document.getElementById("leftSidebar") as HTMLElement;
     const header = document.createElement("div");
