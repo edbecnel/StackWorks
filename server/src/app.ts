@@ -751,6 +751,20 @@ export function createLascaApp(opts: ServerOpts = {}): {
   const snapshotEvery = Math.max(1, Number(opts.snapshotEvery ?? 20));
   const disconnectGraceMs = Math.max(0, Number(opts.disconnectGraceMs ?? 120_000));
   const stockfish = new StockfishService({ engineJsPath: opts.stockfishEngineJs });
+  let devStockfishHiccupRemaining = 0;
+  // Local machines often run with NODE_ENV=production (IDE, shell profile, Docker). Allow an explicit opt-in
+  // so the Stockfish dev hiccup route still works; never set LASCA_STOCKFISH_DEV_HICCUP on real production.
+  const stockfishDevToolsEnabled =
+    process.env.NODE_ENV !== "production" || process.env.LASCA_STOCKFISH_DEV_HICCUP === "1";
+
+  function tryConsumeDevStockfishHiccup(res: express.Response): boolean {
+    if (!stockfishDevToolsEnabled) return false;
+    if (devStockfishHiccupRemaining <= 0) return false;
+    devStockfishHiccupRemaining -= 1;
+    void stockfish.restart().catch(() => {});
+    res.status(500).json({ ok: false, error: "timeout" });
+    return true;
+  }
 
   const rooms = new Map<RoomId, Room>();
   const streamClients = new Map<RoomId, Set<express.Response>>();
@@ -1704,6 +1718,8 @@ export function createLascaApp(opts: ServerOpts = {}): {
         throw new Error("missing fen or movetimeMs");
       }
 
+      if (tryConsumeDevStockfishHiccup(res)) return;
+
       const uci = await stockfish.bestMove({ fen, movetimeMs, skill, timeoutMs });
       res.json({ ok: true, uci });
     } catch (err) {
@@ -1721,6 +1737,8 @@ export function createLascaApp(opts: ServerOpts = {}): {
       if (!fen.trim()) {
         throw new Error("missing fen");
       }
+
+      if (tryConsumeDevStockfishHiccup(res)) return;
 
       const score = await stockfish.evaluate({ fen, movetimeMs, timeoutMs });
       if (!score) {
@@ -1743,6 +1761,13 @@ export function createLascaApp(opts: ServerOpts = {}): {
       res.status(500).json({ ok: false, error: msg });
     }
   });
+
+  if (stockfishDevToolsEnabled) {
+    app.post("/api/stockfish/dev/hiccup", (_req, res) => {
+      devStockfishHiccupRemaining += 1;
+      res.json({ ok: true, armed: devStockfishHiccupRemaining });
+    });
+  }
 
   // MP4C: accounts + cookie sessions (authn/authz).
   // Minimal endpoints: register/login/logout/me + profile update.

@@ -13,7 +13,7 @@
     "stockfish:server": "npm --prefix stockfish-server start",
     "bot:client": "cross-env VITE_STOCKFISH_SERVER_URL=http://127.0.0.1:8799 vite",
     "bot:dev": "concurrently -k -n stockfish,client \"npm run stockfish:server\" \"npm run bot:client\"",
-    "online:server": "cross-env PORT=8788 npm --prefix server run start",
+    "online:server": "cross-env NODE_ENV=development PORT=8788 npm --prefix server run start",
     "online:client": "cross-env VITE_SERVER_URL=http://localhost:8788 VITE_NO_OPEN=1 vite",
     "online:client:lan": "cross-env VITE_NO_OPEN=1 vite --host 0.0.0.0 --port 8080 --strictPort",
     "online:client:lan:bot": "cross-env VITE_NO_OPEN=1 vite --host 0.0.0.0 --port 8080 --strictPort",

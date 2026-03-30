@@ -95,6 +95,9 @@ export default defineConfig(({ mode }) => ({
         )
       : "/",
   root: "src",
+  // Default envDir follows `root`, which would only load `.env*` from `src/`.
+  // Load `.env.local` from the repo root (next to this config).
+  envDir: __dirname,
   // Static assets live at repo-root /public, but Vite's `root` is `src`,
   // so we must point `publicDir` at the correct folder.
   publicDir: "../public",

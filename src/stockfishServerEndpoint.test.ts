@@ -58,6 +58,34 @@ describe("server stockfish endpoint", () => {
       const evalJson = await evalRes.json() as any;
       expect(evalJson).toEqual({ ok: true, cp: 83 });
 
+      const hiccupRes = await fetch(`${s.url}/api/stockfish/dev/hiccup`, { method: "POST" });
+      expect(hiccupRes.ok).toBe(true);
+      const hiccupJson = (await hiccupRes.json()) as any;
+      expect(hiccupJson).toEqual({ ok: true, armed: 1 });
+
+      const failOnce = await fetch(`${s.url}/api/stockfish/bestmove`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          movetimeMs: 25,
+        }),
+      });
+      expect(failOnce.ok).toBe(false);
+      const failJson = (await failOnce.json()) as any;
+      expect(failJson.ok).toBe(false);
+      expect(String(failJson.error)).toContain("timeout");
+
+      const okAfter = await fetch(`${s.url}/api/stockfish/bestmove`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          movetimeMs: 25,
+        }),
+      });
+      expect(okAfter.ok).toBe(true);
+
       const restartRes = await fetch(`${s.url}/api/stockfish/restart`, { method: "POST" });
       expect(restartRes.ok).toBe(true);
       const restartJson = (await restartRes.json()) as any;

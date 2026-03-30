@@ -1,6 +1,9 @@
 node_modules/
 dist/
 
+# Local env overrides (secrets, personal toggles)
+.env.local
+
 # Server persistence data (local-only)
 server/data/
 

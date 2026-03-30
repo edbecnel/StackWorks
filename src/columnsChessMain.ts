@@ -1165,6 +1165,10 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   bindPlaybackControls(controller);
 
+  if (import.meta.env.DEV && import.meta.env.VITE_STOCKFISH_HICCUP_UI === "1") {
+    void import("./dev/stockfishHiccupDevUi.ts").then((m) => m.installStockfishHiccupDevUi());
+  }
+
   if (import.meta.hot) {
     import.meta.hot.accept(() => {
       applyBoardCoords();
