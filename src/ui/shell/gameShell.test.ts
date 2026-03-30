@@ -392,6 +392,54 @@ describe("initGameShell desktop shell navigation", () => {
     expect(document.querySelector(".gameShellRoot")?.getAttribute("data-game-shell-compact-leading")).toBe("menu");
   });
 
+  it("treats menu layout from localStorage when data-panel-layout is not applied yet (chessMain init order)", () => {
+    installDesktopMatchMedia();
+    localStorage.setItem("lasca.ui.panelLayout", "menu");
+    document.body.removeAttribute("data-panel-layout");
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+
+    initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Before installPanelLayoutOptionUI",
+      backHref: "./",
+      gameSection: GameSection.Play,
+      navItems: [{ id: "play", label: "Play", targetSelector: "#appRoot" }],
+    });
+
+    const sel = document.querySelector(".gameShellCompactPanelMode") as HTMLSelectElement | null;
+    const menuBtn = document.querySelector(".gameShellCompactTrigger") as HTMLButtonElement | null;
+    expect(sel!.hidden).toBe(true);
+    expect(menuBtn!.hidden).toBe(false);
+    expect(document.querySelector(".gameShellRoot")?.getAttribute("data-game-shell-compact-leading")).toBe("menu");
+  });
+
+  it("treats panels layout from localStorage when data-panel-layout is not applied yet", () => {
+    installDesktopMatchMedia();
+    localStorage.setItem("lasca.ui.panelLayout", "panels");
+    document.body.removeAttribute("data-panel-layout");
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+
+    initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Before body dataset",
+      backHref: "./",
+      gameSection: GameSection.Play,
+      navItems: [{ id: "play", label: "Play", targetSelector: "#appRoot" }],
+    });
+
+    const sel = document.querySelector(".gameShellCompactPanelMode") as HTMLSelectElement | null;
+    const menuBtn = document.querySelector(".gameShellCompactTrigger") as HTMLButtonElement | null;
+    expect(sel!.hidden).toBe(false);
+    expect(menuBtn!.hidden).toBe(true);
+    expect(document.querySelector(".gameShellRoot")?.getAttribute("data-game-shell-compact-leading")).toBe("panelSelect");
+  });
+
   it("keeps shell bodies in sidebar slots on compact portrait when panel layout is panels (not menu)", () => {
     installCompactNarrowMatchMedia();
     const appRoot = document.getElementById("appRoot") as HTMLElement;

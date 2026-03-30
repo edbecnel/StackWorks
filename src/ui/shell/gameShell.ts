@@ -16,6 +16,7 @@ import { buildSessionAuthFetchInit } from "../../shared/authSessionClient";
 import { hasAnyLocalBotSide, isLocalBotSide, resolveActiveLocalSeatDisplayNames } from "../../shared/localPlayerNames";
 import { readOpenVariantPageOnlinePreview } from "../../shared/openVariantPageIntent";
 import { replaceHistoryWithExplicitLocalMode, urlHasExplicitPlayMode } from "./explicitLocalModeNavigation";
+import { readPanelLayoutMode } from "../panelLayoutMode";
 
 export interface GameShellNavItem {
   id: string;
@@ -146,9 +147,17 @@ async function fetchSignedInUserProfileForShell(): Promise<{ displayName: string
   }
 }
 
+/**
+ * Panel layout is applied to `body[data-panel-layout]` after `installPanelLayoutOptionUI()` runs,
+ * but `initGameShell()` runs first on game pages — fall back to persisted mode so Menu vs Panels
+ * compact chrome matches before the attribute exists.
+ */
 function isLegacyMenuLayoutActive(): boolean {
   if (typeof document === "undefined") return false;
-  return document.body.dataset.panelLayout === "menu";
+  const fromDom = document.body.dataset.panelLayout;
+  if (fromDom === "menu") return true;
+  if (fromDom === "panels") return false;
+  return readPanelLayoutMode() === "menu";
 }
 
 function buildDesktopNavDescription(item: GameShellNavItem): string {
