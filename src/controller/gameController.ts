@@ -69,6 +69,7 @@ import { getVariantById } from "../variants/variantRegistry.ts";
 import { getSideLabelsForRuleset } from "../shared/sideTerminology.ts";
 import { ensureCheckersUsDraw, getCheckersUsDrawStatus } from "../game/checkersUsDraw.ts";
 import { getInternationalDraughtsDrawStatus } from "../game/internationalDraughtsDraw.ts";
+import { clearStoredOnlineResumeRecords } from "../shared/onlineResumeStorage.ts";
 
 export type HistoryChangeReason = "move" | "undo" | "redo" | "jump" | "newGame" | "loadGame" | "gameOver";
 
@@ -77,54 +78,6 @@ const PLAYBACK_MOVE_ANIMATION_EXTRA_HOP_MS = 0;
 const MAX_PLAYBACK_MOVE_ANIMATION_MS = 350;
 const BOARD_DRAG_THRESHOLD_PX = 6;
 const BOARD_DRAG_CLICK_SUPPRESS_MS = 300;
-
-function normalizeOnlineResumeServerUrl(raw: string): string {
-  return (raw || "").trim().replace(/\/+$/, "");
-}
-
-function normalizeOnlineResumeRoomId(raw: string): string {
-  return (raw || "").trim();
-}
-
-function clearStoredOnlineResumeRecords(serverUrl: string, roomId: string): void {
-  if (typeof window === "undefined") return;
-
-  const normalizedServerUrl = normalizeOnlineResumeServerUrl(serverUrl);
-  const normalizedRoomId = normalizeOnlineResumeRoomId(roomId);
-  if (!normalizedServerUrl || !normalizedRoomId) return;
-
-  const keysToRemove = new Set<string>([
-    `lasca.online.resume.${encodeURIComponent(normalizedServerUrl)}.${encodeURIComponent(normalizedRoomId)}`,
-    `lasca.online.resume.${encodeURIComponent(serverUrl)}.${encodeURIComponent(roomId)}`,
-    `lasca.online.resume.${encodeURIComponent(`${normalizedServerUrl}/`)}.${encodeURIComponent(normalizedRoomId)}`,
-  ]);
-
-  try {
-    for (let index = 0; index < window.localStorage.length; index += 1) {
-      const key = window.localStorage.key(index);
-      if (!key || !key.startsWith("lasca.online.resume.")) continue;
-      const raw = window.localStorage.getItem(key);
-      if (!raw) continue;
-      const parsed = JSON.parse(raw) as Record<string, unknown> | null;
-      if (!parsed || typeof parsed !== "object") continue;
-      const recordServerUrl = normalizeOnlineResumeServerUrl(typeof parsed.serverUrl === "string" ? parsed.serverUrl : "");
-      const recordRoomId = normalizeOnlineResumeRoomId(typeof parsed.roomId === "string" ? parsed.roomId : "");
-      if (recordServerUrl === normalizedServerUrl && recordRoomId === normalizedRoomId) {
-        keysToRemove.add(key);
-      }
-    }
-  } catch {
-    // ignore
-  }
-
-  for (const key of keysToRemove) {
-    try {
-      window.localStorage.removeItem(key);
-    } catch {
-      // ignore
-    }
-  }
-}
 
 type ApplyChosenMoveOptions = {
   animateLocalTravel?: boolean;

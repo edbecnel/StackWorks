@@ -2,6 +2,10 @@ export interface TabItem {
   id: string;
   label: string;
   onSelect?: () => void;
+  /** When true, the tab is visible but not selectable (no navigation). */
+  disabled?: boolean;
+  /** When true, the tab is removed from layout and cannot be focused (see `setTabHidden`). */
+  hidden?: boolean;
 }
 
 export interface TabsOptions {
@@ -13,6 +17,9 @@ export interface TabsOptions {
 export interface TabsController {
   element: HTMLElement;
   setActiveTab(tabId: string): void;
+  setTabDisabled(tabId: string, disabled: boolean): void;
+  /** Toggle tab visibility. Hiding also blocks selection; call `setTabDisabled` after unhiding to set enabled state. */
+  setTabHidden(tabId: string, hidden: boolean): void;
 }
 
 const TABS_STYLE_ID = "stackworks-tabs-style";
@@ -52,6 +59,17 @@ function ensureTabsStyles(): void {
       color: rgba(255, 255, 255, 0.98);
     }
 
+    .stackworksTabButton:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+    }
+
+    .stackworksTabButton:disabled.isActive {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.45);
+    }
+
     @media (max-width: 560px) {
       .stackworksTabs {
         overflow-x: auto;
@@ -72,8 +90,10 @@ export function createTabs(opts: TabsOptions): TabsController {
   root.setAttribute("role", "tablist");
 
   const buttons = new Map<string, HTMLButtonElement>();
+  const disabledIds = new Set<string>();
 
   const setActiveTab = (tabId: string): void => {
+    if (disabledIds.has(tabId)) return;
     for (const [id, button] of buttons) {
       const isActive = id === tabId;
       button.classList.toggle("isActive", isActive);
@@ -88,7 +108,19 @@ export function createTabs(opts: TabsOptions): TabsController {
     button.className = "stackworksTabButton";
     button.textContent = item.label;
     button.setAttribute("role", "tab");
+    if (item.disabled) {
+      disabledIds.add(item.id);
+      button.disabled = true;
+      button.setAttribute("aria-disabled", "true");
+    }
+    if (item.hidden) {
+      button.hidden = true;
+      disabledIds.add(item.id);
+      button.disabled = true;
+      button.setAttribute("aria-disabled", "true");
+    }
     button.addEventListener("click", () => {
+      if (disabledIds.has(item.id)) return;
       setActiveTab(item.id);
       item.onSelect?.();
     });
@@ -98,8 +130,35 @@ export function createTabs(opts: TabsOptions): TabsController {
 
   setActiveTab(opts.activeId ?? (opts.items[0]?.id ?? ""));
 
+  const setTabDisabled = (tabId: string, disabled: boolean): void => {
+    const button = buttons.get(tabId);
+    if (!button) return;
+    if (disabled) {
+      disabledIds.add(tabId);
+      button.disabled = true;
+      button.setAttribute("aria-disabled", "true");
+    } else {
+      disabledIds.delete(tabId);
+      button.disabled = false;
+      button.removeAttribute("aria-disabled");
+    }
+  };
+
+  const setTabHidden = (tabId: string, hidden: boolean): void => {
+    const button = buttons.get(tabId);
+    if (!button) return;
+    button.hidden = hidden;
+    if (hidden) {
+      disabledIds.add(tabId);
+      button.disabled = true;
+      button.setAttribute("aria-disabled", "true");
+    }
+  };
+
   return {
     element: root,
     setActiveTab,
+    setTabDisabled,
+    setTabHidden,
   };
 }

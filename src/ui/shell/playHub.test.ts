@@ -13,6 +13,10 @@ import {
   OnlineSubSection,
   PlaySubSection,
 } from "../../config/shellState";
+import { createInitialGameStateForVariant } from "../../game/state";
+import { writeAuthSessionUserId } from "../../shared/authSessionClient";
+import { serializeWireGameState } from "../../shared/wireState";
+import type { VariantId } from "../../variants/variantTypes";
 import { createPlayHub } from "./playHub";
 
 describe("createPlayHub", () => {
@@ -27,8 +31,56 @@ describe("createPlayHub", () => {
     vi.unstubAllGlobals();
   });
 
+  /** Stub `/api/room/:id/meta` + snapshot fetches so async resume validation can confirm an active seat. */
+  function stubFetchForValidResumeSeat(args: { roomId: string; playerId: string; variantId: VariantId }): void {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        if (url.includes(`/api/room/${encodeURIComponent(args.roomId)}/meta`)) {
+          return new Response(
+            JSON.stringify({
+              roomId: args.roomId,
+              variantId: args.variantId,
+              visibility: "public",
+              isOver: false,
+              seatsTaken: ["W", "B"],
+              seatsOpen: [],
+              timeControl: { mode: "none" },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (url.includes(`/api/room/${encodeURIComponent(args.roomId)}`) && url.includes(`playerId=${encodeURIComponent(args.playerId)}`)) {
+          const gs = createInitialGameStateForVariant(args.variantId);
+          const wire = serializeWireGameState(gs);
+          return new Response(
+            JSON.stringify({
+              snapshot: {
+                state: wire,
+                history: { states: [wire], notation: [], currentIndex: 0 },
+                stateVersion: 1,
+              },
+              presence: {
+                [args.playerId]: { connected: true, lastSeenAt: new Date().toISOString() },
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+      }) as typeof fetch,
+    );
+  }
+
   function readTopLevelTabLabels(): string[] {
     return Array.from(document.querySelectorAll('.playHub > .stackworksTabs[role="tablist"] [role="tab"]')).map((tab) => tab.textContent?.trim() ?? "");
+  }
+
+  function readVisiblePlayHubTopTabLabels(): string[] {
+    return Array.from(document.querySelectorAll('.playHub > .stackworksTabs[role="tablist"] [role="tab"]'))
+      .filter((tab) => !(tab as HTMLButtonElement).hidden)
+      .map((tab) => tab.textContent?.trim() ?? "");
   }
 
   it("offers a direct host action on the current variant page", () => {
@@ -52,7 +104,7 @@ describe("createPlayHub", () => {
     expect(hostAction?.getAttribute("href")).toContain("botSeats=off");
   });
 
-  it("uses Online, Bots, Coach, and Local as the default top-level tabs", () => {
+  it("uses Online, Bots, Coach, and Local as visible top-level tabs while Resume stays hidden until a server-validated seat exists", () => {
     const hub = createPlayHub({
       currentVariantId: "chess_classic",
       backHref: "/",
@@ -60,11 +112,16 @@ describe("createPlayHub", () => {
 
     document.body.appendChild(hub.element);
 
+    expect(readVisiblePlayHubTopTabLabels()).toEqual(["Online", "Bots", "Coach", "Local"]);
     const tabLabels = readTopLevelTabLabels();
-    expect(tabLabels).toEqual(["Online", "Bots", "Coach", "Local"]);
+    expect(tabLabels).toEqual(["Online", "Bots", "Coach", "Local", "Resume"]);
     expect(tabLabels).not.toContain("Friend");
     expect(tabLabels).not.toContain("Tournaments");
     expect(tabLabels).not.toContain("Variants");
+    const resumeTabDefault = Array.from(document.querySelectorAll('.playHub > .stackworksTabs[role="tablist"] [role="tab"]')).find(
+      (b) => b.textContent?.trim() === "Resume",
+    ) as HTMLButtonElement | undefined;
+    expect(resumeTabDefault?.hidden).toBe(true);
     const onlineModeLabels = Array.from(document.querySelectorAll('.playHubOnlineModeTabs [role="tab"]')).map((tab) => tab.textContent?.trim());
     expect(onlineModeLabels).toEqual(["Quick Match", "Custom Challenge", "Play a Friend", "Hosted Rooms", "Tournaments"]);
     expect(document.querySelector(".playHubSectionTitle")?.textContent).toBe("Switch variant");
@@ -597,13 +654,17 @@ describe("createPlayHub", () => {
     expect(localStorage.getItem("stackworks.play.coachLevel")).toBe("expert");
   });
 
-  it("shows Resume only when saved online seats exist", () => {
+  it("enables Resume tab and actions when saved online seats exist", async () => {
+    stubFetchForValidResumeSeat({ roomId: "room-42", playerId: "player-7", variantId: "chess_classic" });
     window.history.replaceState({}, "", "/chess.html");
+    const resumeUserId = "0123456789abcdef0123456789abcdef";
+    writeAuthSessionUserId("ws://server.example", resumeUserId);
     localStorage.setItem("lasca.online.resume.ws://server.example/room-42", JSON.stringify({
       serverUrl: "ws://server.example",
       roomId: "room-42",
       playerId: "player-7",
       displayName: "Pat",
+      userId: resumeUserId,
       color: "W",
       variantId: "chess_classic",
       savedAtMs: 100,
@@ -622,8 +683,16 @@ describe("createPlayHub", () => {
 
     document.body.appendChild(hub.element);
 
-    const tabLabels = readTopLevelTabLabels();
-    expect(tabLabels).toEqual(["Online", "Bots", "Coach", "Local", "Resume"]);
+    const resumeTab = await vi.waitUntil(() => {
+      const b = Array.from(document.querySelectorAll('.playHub > .stackworksTabs[role="tablist"] [role="tab"]')).find(
+        (el) => el.textContent?.trim() === "Resume",
+      ) as HTMLButtonElement | undefined;
+      if (!b || b.hidden || b.disabled) return undefined;
+      return b;
+    });
+    expect(resumeTab.hidden).toBe(false);
+    expect(resumeTab.disabled).toBe(false);
+    expect(readVisiblePlayHubTopTabLabels()).toEqual(["Online", "Bots", "Coach", "Local", "Resume"]);
 
     const activeTab = document.querySelector('.playHub > .stackworksTabs[role="tablist"] [role="tab"][aria-selected="true"]');
     expect(activeTab?.textContent?.trim()).toBe("Online");
@@ -638,6 +707,107 @@ describe("createPlayHub", () => {
     expect(resumeAction?.getAttribute("href")).toContain("roomId=room-42");
     expect(resumeAction?.getAttribute("href")).toContain("playerId=player-7");
     expect(resumeAction?.getAttribute("href")).toContain("color=W");
+  });
+
+  it("hides the Resume tab when there is no saved online seat", () => {
+    window.history.replaceState({}, "", "/chess.html");
+    const hub = createPlayHub({
+      currentVariantId: "chess_classic",
+      backHref: "/?mode=local",
+    });
+    document.body.appendChild(hub.element);
+
+    expect(readVisiblePlayHubTopTabLabels()).toEqual(["Online", "Bots", "Coach", "Local"]);
+    expect(readTopLevelTabLabels()).toEqual(["Online", "Bots", "Coach", "Local", "Resume"]);
+
+    const resumeTab = Array.from(document.querySelectorAll('.playHub > .stackworksTabs[role="tablist"] [role="tab"]')).find(
+      (b) => b.textContent?.trim() === "Resume",
+    ) as HTMLButtonElement | undefined;
+    expect(resumeTab).toBeTruthy();
+    expect(resumeTab.hidden).toBe(true);
+
+    expect(hub.element.textContent).toContain("No unfinished online games");
+    expect(hub.element.textContent).toContain("Sign in on the game server");
+  });
+
+  it("hides resume actions when not signed in even if localStorage has a resume record", () => {
+    window.history.replaceState({}, "", "/chess.html");
+    localStorage.setItem("lasca.online.resume.http%3A%2F%2Flocalhost%3A8788.room-9", JSON.stringify({
+      serverUrl: "http://localhost:8788",
+      roomId: "room-9",
+      playerId: "abcd1234efgh",
+      displayName: "StalePat",
+      userId: "0123456789abcdef0123456789abcdef",
+      variantId: "chess_classic",
+      savedAtMs: 100,
+    }));
+
+    const hub = createPlayHub({
+      currentVariantId: "chess_classic",
+      backHref: "/?mode=local",
+    });
+    document.body.appendChild(hub.element);
+
+    const resumeTab = Array.from(document.querySelectorAll('.playHub > .stackworksTabs[role="tablist"] [role="tab"]')).find(
+      (b) => b.textContent?.trim() === "Resume",
+    ) as HTMLButtonElement | undefined;
+    expect(resumeTab?.hidden).toBe(true);
+    expect(
+      Array.from(document.querySelectorAll(".playHubAction")).some((el) => el.textContent?.includes("StalePat")),
+    ).toBe(false);
+  });
+
+  it("drops resume entries when stored userId does not match the signed-in account", () => {
+    window.history.replaceState({}, "", "/chess.html");
+    writeAuthSessionUserId("http://localhost:8788", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    localStorage.setItem("lasca.online.resume.http%3A%2F%2Flocalhost%3A8788.room-z", JSON.stringify({
+      serverUrl: "http://localhost:8788",
+      roomId: "room-z",
+      playerId: "abcd1234efgh",
+      displayName: "Other",
+      userId: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      variantId: "chess_classic",
+      savedAtMs: 100,
+    }));
+
+    const hub = createPlayHub({
+      currentVariantId: "chess_classic",
+      backHref: "/?mode=local",
+    });
+    document.body.appendChild(hub.element);
+
+    const resumeTab = Array.from(document.querySelectorAll('.playHub > .stackworksTabs[role="tablist"] [role="tab"]')).find(
+      (b) => b.textContent?.trim() === "Resume",
+    ) as HTMLButtonElement | undefined;
+    expect(resumeTab?.hidden).toBe(true);
+  });
+
+  it("uses generic room label for legacy resume records without userId even when signed in", async () => {
+    stubFetchForValidResumeSeat({ roomId: "room-legacy", playerId: "abcd1234efgh", variantId: "chess_classic" });
+    window.history.replaceState({}, "", "/chess.html");
+    writeAuthSessionUserId("http://localhost:8788", "0123456789abcdef0123456789abcdef");
+    localStorage.setItem("lasca.online.resume.http%3A%2F%2Flocalhost%3A8788.room-legacy", JSON.stringify({
+      serverUrl: "http://localhost:8788",
+      roomId: "room-legacy",
+      playerId: "abcd1234efgh",
+      displayName: "OldGuestName",
+      variantId: "chess_classic",
+      savedAtMs: 100,
+    }));
+
+    const hub = createPlayHub({
+      currentVariantId: "chess_classic",
+      backHref: "/?mode=local",
+    });
+    document.body.appendChild(hub.element);
+
+    const resumeAction = await vi.waitUntil(() =>
+      Array.from(document.querySelectorAll(".playHubAction")).find((element) =>
+        element.textContent?.includes("Resume room room-legacy"),
+      ) as HTMLAnchorElement | undefined,
+    );
+    expect(resumeAction).toBeTruthy();
+    expect(hub.element.textContent).not.toContain("OldGuestName");
   });
 });
 

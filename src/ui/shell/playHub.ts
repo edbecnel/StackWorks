@@ -14,7 +14,8 @@ import {
   readShellState,
   updateShellState,
 } from "../../config/shellState";
-import { buildSessionAuthFetchInit } from "../../shared/authSessionClient";
+import { buildSessionAuthFetchInit, readAuthSessionUserId } from "../../shared/authSessionClient";
+import { validateOnlineResumeSeatActive } from "../../shared/onlineResumeServerValidation";
 import type { LobbyRoomSummary } from "../../shared/onlineProtocol";
 import { getSideLabelsForRuleset } from "../../shared/sideTerminology";
 import { createTabs } from "../navigation/tabs";
@@ -1536,7 +1537,17 @@ function buildLauncherHref(baseHref: string, params?: Record<string, string | un
 
 function readResumeEntries(currentVariantId: VariantId, limit = 2): ResumeEntry[] {
   const prefix = "lasca.online.resume.";
-  const records: Array<{ serverUrl: string; roomId: string; playerId: string; color?: "W" | "B"; displayName?: string; variantId?: VariantId; savedAtMs: number }> = [];
+  type RawResume = {
+    serverUrl: string;
+    roomId: string;
+    playerId: string;
+    color?: "W" | "B";
+    displayName?: string;
+    userId?: string;
+    variantId?: VariantId;
+    savedAtMs: number;
+  };
+  const records: RawResume[] = [];
 
   try {
     for (let index = 0; index < localStorage.length; index += 1) {
@@ -1558,6 +1569,7 @@ function readResumeEntries(currentVariantId: VariantId, limit = 2): ResumeEntry[
         playerId,
         ...(parsed.color === "W" || parsed.color === "B" ? { color: parsed.color } : {}),
         ...(typeof parsed.displayName === "string" && parsed.displayName.trim() ? { displayName: parsed.displayName.trim() } : {}),
+        ...(typeof parsed.userId === "string" && parsed.userId.trim() ? { userId: parsed.userId.trim() } : {}),
         ...(typeof parsed.variantId === "string" ? { variantId: parsed.variantId as VariantId } : {}),
         savedAtMs: Number.isFinite(parsed.savedAtMs) ? Number(parsed.savedAtMs) : 0,
       });
@@ -1567,7 +1579,7 @@ function readResumeEntries(currentVariantId: VariantId, limit = 2): ResumeEntry[
   }
 
   const seen = new Set<string>();
-  return records
+  const sorted = records
     .filter((record) => !record.variantId || record.variantId === currentVariantId)
     .sort((left, right) => right.savedAtMs - left.savedAtMs)
     .filter((record) => {
@@ -1575,9 +1587,21 @@ function readResumeEntries(currentVariantId: VariantId, limit = 2): ResumeEntry[
       if (seen.has(id)) return false;
       seen.add(id);
       return true;
-    })
-    .slice(0, limit)
-    .map((record) => ({
+    });
+
+  const out: ResumeEntry[] = [];
+  for (const record of sorted) {
+    if (out.length >= limit) break;
+
+    const sessionUserId = readAuthSessionUserId(record.serverUrl);
+    if (!sessionUserId) continue;
+
+    if (record.userId && record.userId !== sessionUserId) continue;
+
+    const usePersonalName = Boolean(record.userId && record.displayName?.trim());
+    const label = usePersonalName ? `Resume ${record.displayName!.trim()}` : `Resume room ${record.roomId}`;
+
+    out.push({
       href: buildCurrentVariantOnlineHref({
         action: "rejoin",
         serverUrl: record.serverUrl,
@@ -1585,13 +1609,16 @@ function readResumeEntries(currentVariantId: VariantId, limit = 2): ResumeEntry[
         playerId: record.playerId,
         ...(record.color ? { color: record.color } : {}),
       }),
-      label: record.displayName ? `Resume ${record.displayName}` : `Resume room ${record.roomId}`,
+      label,
       description: `${record.serverUrl} · room ${record.roomId}`,
       roomId: record.roomId,
       serverUrl: record.serverUrl,
       playerId: record.playerId,
       ...(record.color ? { color: record.color } : {}),
-    }));
+    });
+  }
+
+  return out;
 }
 
 function createPlaceholder(title: string, description: string): HTMLElement {
@@ -1603,7 +1630,7 @@ function createPlaceholder(title: string, description: string): HTMLElement {
 
 export function createPlayHub(opts: PlayHubOptions): PlayHubController {
   ensurePlayHubStyles();
-  const resumeEntries = readResumeEntries(opts.currentVariantId);
+  const resumeServerCandidates = readResumeEntries(opts.currentVariantId);
   const persistedShellState = readShellState();
   const variant = getVariantById(opts.currentVariantId);
 
@@ -1693,12 +1720,14 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
   const sideLabels = getSideLabelsForRuleset(variant.rulesetId, { boardSize: variant.boardSize });
   const botOptions = getBotOptionsForVariant(opts.currentVariantId);
   const configuredServerUrl = resolveConfiguredServerUrl();
+  let validatedResumeEntries: ResumeEntry[] = [];
+  let resumeServerValidationDone = false;
   const availableTabs: PlaySubSection[] = [
     PlaySubSection.Online,
     PlaySubSection.Bots,
     PlaySubSection.Coach,
     PlaySubSection.Local,
-    ...(resumeEntries.length ? [PlaySubSection.Resume] : []),
+    PlaySubSection.Resume,
   ];
   const savedTab = persistedShellState.playSubSection === PlaySubSection.Resume
     ? PlaySubSection.Online
@@ -1792,13 +1821,19 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
         label: "Local",
         onSelect: () => setActiveTab(PlaySubSection.Local),
       },
-      ...(resumeEntries.length
-        ? [{ id: PlaySubSection.Resume, label: "Resume", onSelect: () => setActiveTab(PlaySubSection.Resume) }]
-        : []),
+      {
+        id: PlaySubSection.Resume,
+        label: "Resume",
+        hidden: true,
+        onSelect: () => setActiveTab(PlaySubSection.Resume),
+      },
     ],
   });
 
   const setActiveTab = (tabId: PlaySubSection): void => {
+    if (tabId === PlaySubSection.Resume && validatedResumeEntries.length === 0) {
+      tabId = PlaySubSection.Online;
+    }
     tabs.setActiveTab(tabId);
     updatePlayHubState(opts.currentVariantId, tabId);
     for (const [id, panel] of panels) {
@@ -1865,6 +1900,103 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     }
   };
 
+  const latestResumeQuickSlot = document.createElement("span");
+  latestResumeQuickSlot.className = "playHubLatestResumeSlot";
+
+  const renderResumePanelFromState = (): void => {
+    const resumePanel = panels.get(PlaySubSection.Resume);
+    if (!resumePanel) return;
+    resumePanel.replaceChildren();
+    if (resumeServerCandidates.length === 0) {
+      resumePanel.appendChild(
+        createPlaceholder(
+          "No unfinished online games",
+          "Sign in on the game server so saved seats can be matched to your account. Resume links stay hidden when you are signed out or the saved seat belongs to another login, so stale player names are not shown.",
+        ),
+      );
+      return;
+    }
+    if (!resumeServerValidationDone) {
+      resumePanel.appendChild(
+        createPlaceholder(
+          "Checking saved games…",
+          "Verifying with the game server that your saved seat is still in an active match for this variant.",
+        ),
+      );
+      return;
+    }
+    if (validatedResumeEntries.length === 0) {
+      resumePanel.appendChild(
+        createPlaceholder(
+          "No active online games to resume",
+          "Your saved room has finished, the match is no longer on the server, or your seat is no longer in that game. Finished rooms are removed from resume automatically.",
+        ),
+      );
+      return;
+    }
+    const resumeActions = document.createElement("div");
+    resumeActions.className = "playHubActions";
+    for (const entry of validatedResumeEntries) {
+      resumeActions.appendChild(
+        createHubAction({
+          label: entry.label,
+          description: entry.description,
+          href: entry.href,
+          onSelect: () => {
+            const isOffline = !entry.serverUrl || entry.serverUrl === "local" || entry.serverUrl === "";
+            if (isOffline) {
+              writeLauncherValue(LAUNCHER_STORAGE_KEYS.playMode, "local");
+              writeBotPlayStateToLauncher(opts.currentVariantId, botPlayState);
+              navigateToHref(buildCurrentVariantLocalHref());
+            } else {
+              updateShellState({
+                activeGame: opts.currentVariantId,
+                activeSection: GlobalSection.Community,
+                playSubSection: PlaySubSection.Online,
+              });
+            }
+          },
+        }),
+      );
+    }
+    resumePanel.append(
+      resumeActions,
+      createPlaceholder(
+        "Resume and rejoin",
+        "These links are checked against the live server so only active matches for this variant appear.",
+      ),
+    );
+  };
+
+  const syncLatestResumeQuickAction = (): void => {
+    latestResumeQuickSlot.replaceChildren();
+    if (!resumeServerValidationDone || validatedResumeEntries.length === 0) return;
+    const latestResume = validatedResumeEntries[0];
+    latestResumeQuickSlot.appendChild(
+      createHubAction({
+        label: latestResume.label,
+        description: "Reload this variant page directly into your unfinished online game once the server confirms it is still active.",
+        href: latestResume.href,
+        onSelect: () => {
+          updateShellState({
+            activeGame: opts.currentVariantId,
+            activeSection: GlobalSection.Community,
+            playSubSection: PlaySubSection.Online,
+          });
+        },
+      }),
+    );
+  };
+
+  const applyServerValidatedResumeEntries = (next: ResumeEntry[]): void => {
+    validatedResumeEntries = next;
+    resumeServerValidationDone = true;
+    tabs.setTabHidden(PlaySubSection.Resume, next.length === 0);
+    tabs.setTabDisabled(PlaySubSection.Resume, next.length === 0);
+    renderResumePanelFromState();
+    syncLatestResumeQuickAction();
+  };
+
   for (const definition of ONLINE_MODE_DEFINITIONS) {
     const modePanel = document.createElement("div");
     modePanel.className = "playHubOnlineModePanel";
@@ -1909,21 +2041,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
         });
       }
       modeActions.appendChild(quickMatchAction);
-      if (resumeEntries.length > 0) {
-        const latestResume = resumeEntries[0];
-        modeActions.appendChild(createHubAction({
-          label: latestResume.label,
-          description: "Reload this variant page directly into your most recent unfinished online game for this variant.",
-          href: latestResume.href,
-          onSelect: () => {
-            updateShellState({
-              activeGame: opts.currentVariantId,
-              activeSection: GlobalSection.Community,
-              playSubSection: PlaySubSection.Online,
-            });
-          },
-        }));
-      }
+      modeActions.appendChild(latestResumeQuickSlot);
       modeActions.appendChild(createHubAction({
         label: "Browse joinable rooms",
         description: "Stay on this variant page and switch to Hosted Rooms to join or spectate active public rooms.",
@@ -2841,46 +2959,10 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
   localPanel.append(localPlayersCard, localActions, variantsSection);
   panels.set(PlaySubSection.Local, localPanel);
 
-  if (resumeEntries.length) {
-    const resumePanel = document.createElement("div");
-    resumePanel.className = "playHubPanel";
-    const resumeActions = document.createElement("div");
-    resumeActions.className = "playHubActions";
-    for (const entry of resumeEntries) {
-      resumeActions.appendChild(createHubAction({
-        label: entry.label,
-        description: entry.description,
-        href: entry.href,
-        onSelect: () => {
-          // If this is a local/offline game, trigger a true new game initialization
-          // by applying the current bot/player settings and starting a new game.
-          // Otherwise, fall back to the default resume logic for online games.
-          const isOffline = !entry.serverUrl || entry.serverUrl === "local" || entry.serverUrl === "";
-          if (isOffline) {
-            // Apply current bot/player settings (preserve user config)
-            writeLauncherValue(LAUNCHER_STORAGE_KEYS.playMode, "local");
-            writeBotPlayStateToLauncher(opts.currentVariantId, botPlayState);
-            // Full navigation: offline resume expects a clean driver/init pass.
-            navigateToHref(buildCurrentVariantLocalHref());
-          } else {
-            updateShellState({
-              activeGame: opts.currentVariantId,
-              activeSection: GlobalSection.Community,
-              playSubSection: PlaySubSection.Online,
-            });
-          }
-        },
-      }));
-    }
-    resumePanel.append(
-      resumeActions,
-      createPlaceholder(
-        "Resume and rejoin",
-        "Saved online seats appear here when the browser has a stored resume record, so interrupted games can be resumed without keeping Rejoin as a permanent top-level launcher mode.",
-      ),
-    );
-    panels.set(PlaySubSection.Resume, resumePanel);
-  }
+  const resumePanel = document.createElement("div");
+  resumePanel.className = "playHubPanel";
+  panels.set(PlaySubSection.Resume, resumePanel);
+  renderResumePanelFromState();
 
   for (const panel of panels.values()) {
     body.appendChild(panel);
@@ -2892,6 +2974,22 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
   if (initialOnlineMode === OnlineSubSection.HostedRooms) {
     void refreshHostedRoomDiscovery?.();
   }
+
+  void (async () => {
+    if (!resumeServerCandidates.length) {
+      resumeServerValidationDone = true;
+      return;
+    }
+    const validated: ResumeEntry[] = [];
+    for (const entry of resumeServerCandidates) {
+      const { active } = await validateOnlineResumeSeatActive(
+        { serverUrl: entry.serverUrl, roomId: entry.roomId, playerId: entry.playerId },
+        opts.currentVariantId,
+      );
+      if (active) validated.push(entry);
+    }
+    applyServerValidatedResumeEntries(validated);
+  })();
 
   return {
     element: root,
