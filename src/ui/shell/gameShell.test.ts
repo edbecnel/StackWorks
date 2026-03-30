@@ -32,7 +32,7 @@ function installDesktopMatchMedia(): void {
   });
 }
 
-function installCompactPortraitMatchMedia(): void {
+function installCompactNarrowMatchMedia(): void {
   Object.defineProperty(window, "matchMedia", {
     writable: true,
     value: vi.fn((query: string) => {
@@ -48,7 +48,7 @@ function installCompactPortraitMatchMedia(): void {
       if (query.includes("min-width: 821px")) {
         return { ...base, matches: false };
       }
-      if (query.includes("max-width: 820px") && query.includes("orientation: portrait")) {
+      if (query.includes("max-width: 820px")) {
         return { ...base, matches: true };
       }
       return { ...base, matches: false };
@@ -249,12 +249,151 @@ describe("initGameShell desktop shell navigation", () => {
     expect(headerBrand?.getAttribute("aria-label")).toBe("Start Page");
     expect(headerBrand?.querySelector("img")?.getAttribute("src")).toContain("stackworks-logo-icon.svg");
 
-    const desktopShellBrandImg = document.querySelector(".gameShellDesktopShellBrandLink img") as HTMLImageElement | null;
-    expect(desktopShellBrandImg?.getAttribute("src")).toContain("stackworks-logo-horizontal");
+    const columnBrandImg = document.querySelector(".gameShellSidebarColumnBrandLink img") as HTMLImageElement | null;
+    expect(columnBrandImg?.getAttribute("src")).toContain("stackworks-logo-horizontal");
+  });
+
+  it("hides duplicate horizontal logo in sidebar title when column brand is present (panels layout)", () => {
+    const left = document.getElementById("leftSidebar") as HTMLElement;
+    const header = document.createElement("div");
+    header.className = "sidebarHeader";
+    const titleRoot = document.createElement("div");
+    titleRoot.id = "gameTitle";
+    titleRoot.className = "stackworksGameTitleRoot";
+    const brandLink = document.createElement("a");
+    brandLink.className = "stackworksGameTitleBrandLink";
+    brandLink.appendChild(document.createElement("img"));
+    const textBrand = document.createElement("div");
+    textBrand.className = "stackworksGameTitleTextBrand";
+    textBrand.textContent = "StackWorks";
+    titleRoot.append(brandLink, textBrand);
+    header.appendChild(titleRoot);
+    left.insertBefore(header, left.firstChild);
+
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+    initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Duplicate logo guard",
+      backHref: "./",
+      gameSection: GameSection.Play,
+      navItems: [],
+    });
+
+    expect(getComputedStyle(brandLink).display).toBe("none");
+    expect(getComputedStyle(textBrand).display).toBe("block");
+  });
+
+  it("applies persisted shell panel mode on compact viewports (not forced to legacy)", () => {
+    installCompactNarrowMatchMedia();
+    document.body.dataset.panelLayout = "panels";
+    localStorage.setItem("stackworks.gameShell.desktopPanelMode", "shell");
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+
+    initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Narrow panels shell mode",
+      backHref: "./",
+      gameSection: GameSection.Play,
+      navItems: [{ id: "play", label: "Play", targetSelector: "#appRoot" }],
+    });
+
+    const left = document.getElementById("leftSidebar") as HTMLElement;
+    expect(left.dataset.gameShellPanelMode).toBe("shell");
+  });
+
+  it("shows Game/Shell <select> in compact bar for panels layout (narrow width)", () => {
+    installCompactNarrowMatchMedia();
+    document.body.dataset.panelLayout = "panels";
+    localStorage.setItem("stackworks.gameShell.desktopPanelMode", "shell");
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+
+    initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Narrow panels compact switcher",
+      backHref: "./",
+      gameSection: GameSection.Play,
+      navItems: [{ id: "play", label: "Play", targetSelector: "#appRoot" }],
+    });
+
+    const left = document.getElementById("leftSidebar") as HTMLElement;
+    const sel = document.querySelector(".gameShellCompactPanelMode") as HTMLSelectElement | null;
+    const menuBtn = document.querySelector(".gameShellCompactTrigger") as HTMLButtonElement | null;
+    expect(sel).not.toBeNull();
+    expect(menuBtn).not.toBeNull();
+    expect(sel!.hidden).toBe(false);
+    expect(menuBtn!.hidden).toBe(true);
+    expect(document.querySelector(".gameShellRoot")?.getAttribute("data-game-shell-compact-leading")).toBe("panelSelect");
+    expect(left.querySelector(":scope > .gameShellDesktopPairTabs")).not.toBeNull();
+    expect(getComputedStyle(left.querySelector(".gameShellDesktopPairTabs") as HTMLElement).display).toBe("none");
+
+    expect(left.dataset.gameShellPanelMode).toBe("shell");
+    sel!.value = "legacy";
+    sel!.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(left.dataset.gameShellPanelMode).toBe("legacy");
+    sel!.value = "shell";
+    sel!.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(left.dataset.gameShellPanelMode).toBe("shell");
+  });
+
+  it("shows Game/Shell <select> in compact bar for panels layout at desktop width", () => {
+    installDesktopMatchMedia();
+    document.body.dataset.panelLayout = "panels";
+    localStorage.setItem("stackworks.gameShell.desktopPanelMode", "legacy");
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+
+    initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Desktop panels compact switcher",
+      backHref: "./",
+      gameSection: GameSection.Play,
+      navItems: [{ id: "play", label: "Play", targetSelector: "#appRoot" }],
+    });
+
+    const sel = document.querySelector(".gameShellCompactPanelMode") as HTMLSelectElement | null;
+    const menuBtn = document.querySelector(".gameShellCompactTrigger") as HTMLButtonElement | null;
+    expect(sel!.hidden).toBe(false);
+    expect(menuBtn!.hidden).toBe(true);
+    expect(sel!.value).toBe("legacy");
+    expect(document.querySelector(".gameShellRoot")?.getAttribute("data-game-shell-compact-leading")).toBe("panelSelect");
+  });
+
+  it("shows Menu button (not panel select) for menu layout at desktop width", () => {
+    installDesktopMatchMedia();
+    document.body.dataset.panelLayout = "menu";
+    const appRoot = document.getElementById("appRoot") as HTMLElement;
+
+    initGameShell({
+      appRoot,
+      variantId: "chess_classic",
+      breadcrumb: "Play / Chess",
+      title: "Classic Chess",
+      subtitle: "Desktop menu layout",
+      backHref: "./",
+      gameSection: GameSection.Play,
+      navItems: [{ id: "play", label: "Play", targetSelector: "#appRoot" }],
+    });
+
+    const sel = document.querySelector(".gameShellCompactPanelMode") as HTMLSelectElement | null;
+    const menuBtn = document.querySelector(".gameShellCompactTrigger") as HTMLButtonElement | null;
+    expect(sel!.hidden).toBe(true);
+    expect(menuBtn!.hidden).toBe(false);
+    expect(document.querySelector(".gameShellRoot")?.getAttribute("data-game-shell-compact-leading")).toBe("menu");
   });
 
   it("keeps shell bodies in sidebar slots on compact portrait when panel layout is panels (not menu)", () => {
-    installCompactPortraitMatchMedia();
+    installCompactNarrowMatchMedia();
     const appRoot = document.getElementById("appRoot") as HTMLElement;
 
     initGameShell({
@@ -278,7 +417,7 @@ describe("initGameShell desktop shell navigation", () => {
   });
 
   it("mounts shell bodies into the Menu panel region on compact portrait when panel layout is menu", () => {
-    installCompactPortraitMatchMedia();
+    installCompactNarrowMatchMedia();
     document.body.dataset.panelLayout = "menu";
     const appRoot = document.getElementById("appRoot") as HTMLElement;
 
