@@ -245,6 +245,7 @@ Use chess.com settings as a structural reference: group options into a small num
 - [ ] Panel splitter persistence
 - [ ] Debug diagnostics / debug JSON controls
 - [ ] Any state restored purely to preserve session continuity rather than to express user preference
+- [ ] **Puzzle authoring (build-gated, not user settings):** menu entry to enter puzzle setup mode, record positions and solution lines, and save curated puzzle data for distribution; **enabled only** when **`import.meta.env.PROD`** and a **build-time `VITE_*` flag** are both set (same shipping pattern as `VITE_EMIT_ADMIN`, `VITE_HIDE_LEGACY_PANEL_TOGGLE`) — see **Puzzles (Chess & Columns Chess) — planned**
 
 **Settings UX rules**
 
@@ -336,12 +337,14 @@ Chess.com's play area suggests a useful pattern: make a small number of play int
 - [ ] `Play a Friend` is promoted strongly enough to be discoverable both from the main play hub and from the online area
 - [ ] `Tournaments` are presented as their own destination because they involve discovery/joining rather than instant match setup
 - [ ] `Play Bots` is a separate first-class mode with its own personality/strength selection surface
+- [ ] `Puzzles` (StackWorks-scoped: curated practice, not a chess.com-scale puzzle hub) sits between bots and coach in the play surface when shipped for a variant
 - [ ] `Play Coach` is a separate first-class mode with a level picker before starting the game
 
 **StackWorks top-level play destinations**
 
 - [ ] `Play Online`
 - [ ] `Play Bots`
+- [ ] `Puzzles` — curated, level-based tactical practice for supported variants (initially Chess and Columns Chess); see **Puzzles (Chess & Columns Chess) — planned** below
 - [ ] `Play Coach`
 - [ ] `Local Game`
 - [ ] `Resume / Rejoin` when relevant
@@ -425,7 +428,7 @@ When using chess.com play screens as visual references, translate them into Stac
 
 **StackWorks equivalent, not literal copy**
 
-- [ ] Do not copy chess.com's product taxonomy (`Play`, `Puzzles`, `Learn`, etc.); keep StackWorks-specific navigation and variant structure
+- [ ] Do not copy chess.com's product taxonomy wholesale (`Play`, `Learn`, etc.); **in-product `Puzzles` is allowed** when scoped as a small curated StackWorks feature (levels, rotation, learning feedback)—not a feature-for-feature clone of a large external puzzle library or daily-puzzle machine
 - [ ] Replace chess.com's exact mode labels with StackWorks equivalents such as `Play <Variant>`, `Bot Match`, `Online Room`, `Local Game`, `Spectating`, or `Replay`
 - [ ] Populate side panels with StackWorks-specific content: rules/help, bot level, online room state, variant actions, history/replay, and account/community shortcuts where relevant
 - [ ] Follow chess.com's product-shape lesson for play modes: a few obvious play intents at the top level, with setup complexity moved into the selected mode
@@ -443,7 +446,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [x] `src/config/appShellConfig.ts` — global shell configuration (nav items, game registry, feature flags)
 - [x] `src/ui/shell/appShell.ts` — top-level shell layout mount: logo, left rail, right panel, main content slot
 - [x] `src/ui/shell/gameShell.ts` — per-game sub-shell: breadcrumb/title, game nav, game action area
-- [x] `src/ui/shell/playHub.ts` — Play hub layout: tab bar + panel switcher for Online/Bots/Coach/Local with contextual Resume/Rejoin
+- [x] `src/ui/shell/playHub.ts` — Play hub layout: tab bar + panel switcher for Online/Bots/**Puzzles (planned)**/Coach/Local with contextual Resume/Rejoin
 - [x] `src/ui/navigation/flyoutMenu.ts` — desktop hover flyout menu component
 - [x] `src/ui/navigation/tabs.ts` — reusable tab bar component
 - [x] `src/ui/branding/logo.ts` — logo component referencing `public/icons/` SVG assets by placement context
@@ -494,6 +497,7 @@ When using chess.com play screens as visual references, translate them into Stac
 - [x] Define `GlobalSection` enum: `Home | Games | Community | Account | Settings`
 - [x] Define `GameSection` enum: `Play | Learn | Watch | History | Rules | Customize | Online`
 - [x] Define `PlaySubSection` enum: `Online | Bots | Coach | Local | Resume`
+- [ ] Extend `PlaySubSection` (and shell/play-hub wiring) with `Puzzles` between `Bots` and `Coach` for supported variants
 - [x] Refine play-mode information architecture so `Friend` is a prominent shortcut but remains conceptually nested under online play in the final UX
 - [x] Add online sub-mode state for `QuickMatch | CustomChallenge | Friend | HostedRooms | Tournaments`
 - [x] Add bot-play state for per-side controller assignment and bot configuration so each seat can be `human` or `bot` with the restriction that `Play Bots` cannot resolve to `human` + `human`
@@ -714,7 +718,8 @@ When using chess.com play screens as visual references, translate them into Stac
 ### Phase 3 — Play Hub with Tabs
 
 - [x] Create `src/ui/shell/playHub.ts` — Play hub layout with tab bar + panel switcher
-- [x] Final top-level play destinations should be: Online, Bots, Coach, Local, Resume/Rejoin when applicable
+- [x] Shipped play tabs to date: Online, Bots, Coach, Local, Resume/Rejoin when applicable
+- [ ] Target play tab order once puzzles ship: Online, Bots, **Puzzles**, Coach, Local, Resume/Rejoin (Puzzles only for variants that support it—initially **Chess** and **Columns Chess**); detailed tasks in **Puzzles (Chess & Columns Chess) — planned** below
   - [x] **Online** — contains `Quick Match`, `Custom Challenge`, `Play a Friend`, `Hosted Rooms`, and `Tournaments` when supported
   - [x] **Bots** — graphical bot list with personality, rating/strength, and style summary
     - [x] Support two seat cards or selectors so the user can configure Side A and Side B independently as `Human` or `Bot`
@@ -724,6 +729,7 @@ When using chess.com play screens as visual references, translate them into Stac
     - [x] Disallow `Human vs Human` inside `Play Bots`; that belongs to `Local`
     - [ ] Keep setup compact on mobile: surface only side controller, bot selection, strength/style, and primary start action first
     - [ ] Advanced bot options belong behind a secondary settings sheet
+  - [ ] **Puzzles** — placeholder until implementation; full scope in **Puzzles (Chess & Columns Chess) — planned** below
   - [ ] **Coach** — level-first learning flow with hints/takebacks/teaching affordances
   - [x] **Local** — streamlined local/offline setup
   - [x] **Resume/Rejoin** — shown contextually when an interrupted or active game can be continued
@@ -798,6 +804,56 @@ When using chess.com play screens as visual references, translate them into Stac
 
 ---
 
+## Puzzles (Chess & Columns Chess) — planned
+
+> **Intent:** Add tactical puzzle practice that fits StackWorks’ stage and strengths—**curated, teachable, and bounded**—not a chess.com-scale puzzle library or daily-puzzle product. Ship first for **Chess** and **Columns Chess**; design data model and shell hooks so other variants can follow later.
+
+### Shell & play hub
+
+- [ ] Add a **Puzzles** tab or primary section **between Bots and Coach** in the new shell **right** play panel for **both** `chess` and `columnsChess` entry flows (including narrow **Menu** parity where that surface mirrors shell panels)
+- [ ] Wire **Puzzles** into `PlaySubSection` / `playHub.ts` (and any `ShellState` persistence) with tab order **Online → Bots → Puzzles → Coach → Local** (Resume remains contextual)
+- [ ] Reuse existing shell styling (tabs, cards, typography) so Puzzles feels native, not bolted-on
+
+### Product scope (player-facing)
+
+- [ ] Expose **four puzzle difficulty tiers** for v1: **Beginner**, **Intermediate**, **Advanced**, **Master** (labels can be tuned; levels map to curated sets, not live matchmaking ratings)
+- [ ] Use **small curated sets per level** (order-of-magnitude **10–20** puzzles per level per rotation), **rotated or refreshed periodically**—avoid promising a huge static library at launch
+- [ ] After a successful solve (or on demand), show **solution line**, **short key ideas / teaching notes**, and **retry** so the mode reads as learning-first
+- [ ] Optionally surface **one** of: **Random puzzle** (from current pool), **Daily puzzle** (pinned id per day), or both—keep implementation minimal until the content pipeline is stable
+- [ ] Show **per-level progress** (e.g. “You’ve solved **3 / 10** Intermediate puzzles” for the current rotation), persisted locally and/or server-side when account sync exists
+- [ ] Structure puzzle **content schema** and UI so later additions are easy: more puzzles per level, **hints**, **streaks**, **ratings**, leaderboards—without rewriting the shell tab
+
+### Puzzle data & extensibility
+
+- [ ] Define a **versioned puzzle record** (variant id, starting FEN/board state, side to move, full **solution move list** for the solver’s color, optional opponent “reply” moves where needed, metadata: level, title, tags, key ideas, attribution/source if any)
+- [ ] Store curated sets in a maintainable way (e.g. JSON under `src/` or `public/`, or server-backed later); document how editors add/rotate content
+- [ ] Keep engine integration read-only for puzzles where possible: **reuse existing move validation and rendering**; do not fork variant rules in the puzzle layer
+
+### Solver UX (core interaction — v1 contract)
+
+- [ ] **Solver color** is the color that **moves first** in the puzzle line; UI must state which side the user is playing
+- [ ] For each solver turn, the player’s move must **match the next recorded solution move** (same semantics as normal legal moves for the variant)
+- [ ] On a **wrong attempt**: show an **error toast** (or equivalent shell feedback) that the move is incorrect and they should try again; **revert the moved piece to its pre-attempt square** (and restore any captured state if the wrong move was a capture—spec capture edge cases per variant)
+- [ ] Opponent / “other side” moves in the line should play out automatically (or as clearly labeled script steps) per puzzle design; details of pacing and animation can follow the main puzzle page spec
+- [ ] **Full puzzle page flow** (navigation from tab, end states, abandon, next puzzle) — *tasks to be expanded when the page UX is specified*
+
+### Puzzle authoring (“setup mode”) — `PROD` + `VITE_*` gate
+
+- [ ] Expose the **puzzle setup** menu entry **only** when **`import.meta.env.PROD === true`** **and** a dedicated build-time flag is set — e.g. **`import.meta.env.VITE_PUZZLE_AUTHORING === '1'`** (exact name/string to match project convention for other `VITE_*` toggles). **Do not** rely on `DEV` or ad hoc runtime checks alone; match how **`VITE_EMIT_ADMIN`**, **`VITE_HIDE_LEGACY_PANEL_TOGGLE`**, etc. are wired in `vite.config.ts` / env.
+- [ ] **Public production builds** ship with **`VITE_PUZZLE_AUTHORING` unset** (or not `1`) so the authoring UI is absent for normal players; **internal or authoring builds** set **`VITE_PUZZLE_AUTHORING=1`** at **`vite build`** time (e.g. `cross-env VITE_PUZZLE_AUTHORING=1 vite build`) the same way you opt into other emitted/admin surfaces.
+- [ ] Because the gate is **`PROD` + `VITE_*`**, local **`vite dev`** does not show authoring unless you change that policy; test authoring with a **production build + preview** (or a one-off build with the flag), not by expecting dev server parity.
+- [ ] In setup mode, author **starts from either White or Black** as the side that will **solve** the puzzle (first move in the recorded line defines solver color)
+- [ ] Author plays through the position **as in a real game** (legal moves only): place or reach the start position, then record the **solution sequence**; support saving **title, level, key ideas**, and any required metadata
+- [ ] **Save** produces puzzle data compatible with the curated-set pipeline (validate on save: line complete, variant-legal, solver moves contiguous)
+- [ ] **Security / abuse:** with the flag off, bundlers should elide or never hit the authoring branch; with the flag on, treat the menu as privileged—still avoid obvious discoverability (no SEO, no deep link); consider server-side validation if puzzles ever become user-submitted
+
+### QA & parity
+
+- [ ] Smoke both variants: shell tab, level picker, solve/wrong-move revert, rotation/progress display, and authoring save path under a **`PROD` + `VITE_PUZZLE_AUTHORING=1`** build
+- [ ] Confirm puzzle mode does not regress normal **offline/online/bot/coach** entry from the same game pages
+
+---
+
 ## Non-Goals
 
 - [ ] ~~Engine rewrite~~
@@ -810,6 +866,7 @@ When using chess.com play screens as visual references, translate them into Stac
 ## Definition of Done
 
 - [ ] All Phase 1–5 tasks above are checked off
+- [ ] When **Puzzles** ships for Chess/Columns Chess, **Puzzles (Chess & Columns Chess) — planned** tasks for shell placement, player scope, authoring gate, and solver wrong-move behavior are checked off or explicitly deferred with rationale
 - [ ] Existing offline smoke tests pass (see `docs/regression/offline-smoke.md`)
 - [ ] Existing online multiplayer checklist passes (see `docs/multiplayer-checklist.md`)
 - [ ] No game engine, renderer, or server code has been modified
