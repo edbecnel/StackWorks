@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Persona Comparisons</title>
+  <style>
+    :root{
+      --bg:#f6f7fb;
+      --paper:#ffffff;
+      --ink:#1f2937;
+      --muted:#4b5563;
+      --line:#d7dce5;
+      --head:#eaf1fb;
+      --stripe:#f9fbfe;
+      --accent:#2f5ea8;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--ink);
+      font:16px/1.5 "Segoe UI", Arial, Helvetica, sans-serif;
+    }
+    .page{
+      max-width:1400px;
+      margin:32px auto;
+      padding:0 24px 40px;
+    }
+    .card{
+      background:var(--paper);
+      border:1px solid var(--line);
+      border-radius:14px;
+      box-shadow:0 10px 28px rgba(0,0,0,.05);
+      overflow:hidden;
+      margin-bottom:28px;
+    }
+    .hero{
+      padding:28px 32px 18px;
+      border-bottom:1px solid var(--line);
+      background:linear-gradient(180deg,#ffffff 0%, #f8fbff 100%);
+    }
+    h1{
+      margin:0 0 8px;
+      font-size:34px;
+      line-height:1.15;
+      color:#173b74;
+    }
+    h2{
+      margin:0 0 10px;
+      font-size:28px;
+      line-height:1.2;
+      color:#183b71;
+    }
+    p.lead{
+      margin:0;
+      color:var(--muted);
+      font-size:17px;
+    }
+    .section{
+      padding:28px 32px 32px;
+    }
+    .intro{
+      margin:0 0 18px;
+      color:var(--muted);
+    }
+    .table-wrap{
+      overflow-x:auto;
+      border:1px solid var(--line);
+      border-radius:12px;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+      min-width:1120px;
+      background:#fff;
+    }
+    col.feature{width:15%}
+    col.persona{width:21.25%}
+    th, td{
+      border:1px solid var(--line);
+      padding:14px 14px;
+      vertical-align:top;
+      text-align:left;
+    }
+    thead th{
+      background:var(--head);
+      color:#102f5f;
+      font-size:16px;
+      font-weight:700;
+    }
+    tbody tr:nth-child(even) td{
+      background:var(--stripe);
+    }
+    tbody td:first-child{
+      font-weight:700;
+      color:#163867;
+      background:#f1f6fd;
+    }
+    h3{
+      margin:24px 0 10px;
+      font-size:21px;
+      color:#22467e;
+    }
+    ul.snapshots{
+      margin:10px 0 0 0;
+      padding-left:22px;
+    }
+    ul.snapshots li{
+      margin:10px 0;
+    }
+    strong.label{
+      color:#14335f;
+    }
+    @media print{
+      body{background:#fff}
+      .page{max-width:none;margin:0;padding:0}
+      .card{box-shadow:none;border:none;margin:0 0 18px}
+      .hero,.section{padding:18px}
+      h1{font-size:28px}
+      h2{font-size:22px}
+      h3{font-size:18px}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="card">
+      <div class="hero">
+        <h1>Persona Comparisons</h1>
+        <p class="lead">A reader-friendly comparison of Teacher, Balanced, Trickster, and Endgame bot personas across the opening, mid-game, and endgame phases of draughts and checkers play.</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section">
+        <h2>Opening Phase</h2>
+        <p class="intro">In the opening phase, the bots set the tone for the entire match. Here is how each persona handles the first 5–10 moves of a draughts or checkers game:</p>
+        <div class="table-wrap">
+          <table>
+            <colgroup>
+              <col class="feature" />
+              <col class="persona" />
+              <col class="persona" />
+              <col class="persona" />
+              <col class="persona" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Feature</th>
+                <th>Teacher Bot</th>
+                <th>Balanced Bot</th>
+                <th>Trickster Bot</th>
+                <th>Endgame Bot</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Opening Priority</td>
+                <td>Plays “Classical” lines (e.g., the Old Faithful or Apex).</td>
+                <td>Aims for a solid “V” or “Pyramid” formation in the center.</td>
+                <td>Plays “Dyke” or “Asymmetrical” lines to create gaps.</td>
+                <td>Focuses on “The Move” (Opposition) counts early on.</td>
+              </tr>
+              <tr>
+                <td>Development</td>
+                <td>Moves pieces from the back row slowly to show you the “safety” of the base.</td>
+                <td>Develops both wings (Left/Right) equally to maintain board balance.</td>
+                <td>Leaves its “Bridge” (the two middle back-row pieces) open to bait you.</td>
+                <td>Keeps the back row strictly intact to prevent you from crowning early.</td>
+              </tr>
+              <tr>
+                <td>Trade Preference</td>
+                <td>Avoids trades early to keep the board “busy” and instructional.</td>
+                <td>Accepts standard 1-for-1 trades to keep the game “level.”</td>
+                <td>Willingly offers a 1-for-1 trade if it results in an open lane for a “shot.”</td>
+                <td>Only trades if it simplifies the board toward a winning 3-vs-2 endgame.</td>
+              </tr>
+              <tr>
+                <td>Positioning</td>
+                <td>Stays away from the “side-alleys” (edges) to model good habits.</td>
+                <td>Occupies the center to prevent you from splitting its forces.</td>
+                <td>May move to the edges to lure you into “cramping” its position.</td>
+                <td>Positions pieces to eventually “lock” your pieces against the side.</td>
+              </tr>
+              <tr>
+                <td>Pace of Play</td>
+                <td>Slow and steady; focuses on building a “readable” wall.</td>
+                <td>Moderate; responds to your moves with standard defensive theory.</td>
+                <td>Aggressive; tries to force you into a “forced jump” situation by move 6.</td>
+                <td>Methodical; treats the opening simply as a “setup” for the final 10 moves.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Opening Snapshot</h3>
+        <ul class="snapshots">
+          <li><strong class="label">Teacher:</strong> Moves a piece, then waits to see if you respond with the “correct” counter-move. It’s a textbook start.</li>
+          <li><strong class="label">Balanced:</strong> Creates a “diamond” shape in the middle. It’s hard to break through, but it’s not attacking you yet.</li>
+          <li><strong class="label">Trickster:</strong> Might purposefully create a “hole” in its second row, hoping you’ll jump into it and get trapped by its back-row pieces.</li>
+          <li><strong class="label">Endgame:</strong> Moves pieces in a way that minimizes your mobility. It wants to “shrink” the board as fast as possible.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section">
+        <h2>Mid-Game Strategy</h2>
+        <p class="intro">This comparison table illustrates how each persona would approach a typical mid-game scenario in a draughts-type game (e.g., American Checkers or International Draughts).</p>
+        <div class="table-wrap">
+          <table>
+            <colgroup>
+              <col class="feature" />
+              <col class="persona" />
+              <col class="persona" />
+              <col class="persona" />
+              <col class="persona" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Feature</th>
+                <th>Teacher Bot</th>
+                <th>Balanced Bot</th>
+                <th>Trickster Bot</th>
+                <th>Endgame Bot</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Primary Move Choice</td>
+                <td>A safe, “book” move that reinforces a central cluster.</td>
+                <td>A solid move that maintains balance between both flanks.</td>
+                <td>A provocative move that leaves a piece seemingly “hanging.”</td>
+                <td>A maneuvering move that prepares a path to the king row.</td>
+              </tr>
+              <tr>
+                <td>Reaction to Your Attack</td>
+                <td>Retreats or blocks in a way that clearly shows you the defensive “wall.”</td>
+                <td>Makes a 1-for-1 trade to neutralize the threat and simplify the board.</td>
+                <td>Deliberately lets you jump a piece to pull you into a “double jump” trap.</td>
+                <td>Defends stubbornly, prioritizing the protection of its back row.</td>
+              </tr>
+              <tr>
+                <td>Central Control</td>
+                <td>Stays in the center to show you why it’s the strongest position.</td>
+                <td>Fights for the center to avoid being pushed to the weaker edges.</td>
+                <td>May abandon the center temporarily to lure your pieces into an “edge trap.”</td>
+                <td>Uses the center as a launching pad to advance pieces toward promotion.</td>
+              </tr>
+              <tr>
+                <td>Sacrifice Logic</td>
+                <td>Rarely sacrifices, unless it’s to demonstrate a basic “forced jump” rule.</td>
+                <td>Only sacrifices for an immediate and equal piece-for-piece exchange.</td>
+                <td>Constantly seeks “shots” where it gives 1 piece to capture 2 or 3.</td>
+                <td>Will sacrifice a piece only if it guarantees a King or a winning “opposition.”</td>
+              </tr>
+              <tr>
+                <td>Handling Mistakes</td>
+                <td>May ignore a winning tactic of its own to see if you spot your own error.</td>
+                <td>Plays the “best” engine move for its level without being flashy.</td>
+                <td>Punishes every single mistake you make with a rapid, flashy combination.</td>
+                <td>Ignores small tactical skirmishes to focus on the long-term “win.”</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Example Scenario: The “Bait”</h3>
+        <p class="intro">Imagine you have a chance to jump one of the bot’s pieces near the edge:</p>
+        <ul class="snapshots">
+          <li><strong class="label">Teacher</strong> might let you take it to show you that “edge pieces are weak.”</li>
+          <li><strong class="label">Balanced</strong> would likely have protected that piece with another one behind it.</li>
+          <li><strong class="label">Trickster</strong> wants you to take it because that jump lands your piece in a hole where it can jump three of yours.</li>
+          <li><strong class="label">Endgame</strong> would only let you take it if the trade helps it get a King faster on the other side of the board.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section">
+        <h2>End-Game Strategy</h2>
+        <p class="intro">In the endgame of draughts and checkers, the focus shifts from mass formations to the precision of a few pieces—specifically the power of Kings and the technical rule of “The Move” (Opposition).</p>
+        <div class="table-wrap">
+          <table>
+            <colgroup>
+              <col class="feature" />
+              <col class="persona" />
+              <col class="persona" />
+              <col class="persona" />
+              <col class="persona" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Feature</th>
+                <th>Teacher Bot</th>
+                <th>Balanced Bot</th>
+                <th>Trickster Bot</th>
+                <th>Endgame Bot</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Primary Focus</td>
+                <td>Fundamental rules. It lets you practice basic king-trapping.</td>
+                <td>Standard exchanges. It aims for a draw unless you make a major blunder.</td>
+                <td>Baiting traps. It offers “free” pieces that lead to a sudden loss for you.</td>
+                <td>Technical precision. It uses perfect math to force a win.</td>
+              </tr>
+              <tr>
+                <td>King Usage</td>
+                <td>Uses Kings to block your path, showing you how they restrict movement.</td>
+                <td>Uses Kings to guard the center and avoid being cornered.</td>
+                <td>Keeps Kings mobile to strike from across the board when you least expect it.</td>
+                <td>Masters the “Double Diagonal” and “Long Diagonal” to squeeze your pieces.</td>
+              </tr>
+              <tr>
+                <td>“The Move” (Opposition)</td>
+                <td>May explain the concept of having the last move to block you.</td>
+                <td>Counts opposition to ensure it doesn’t get trapped by your King.</td>
+                <td>Willingly loses the “move” if it lures you into a tactical “Shot”.</td>
+                <td>Plays perfectly to win by “Blocking”—leaving you with no legal moves.</td>
+              </tr>
+              <tr>
+                <td>Sacrifice Logic</td>
+                <td>Sacrifices only to help you see a specific tactical finish.</td>
+                <td>Sacrifices only if it results in an immediate 1-for-1 trade to simplify.</td>
+                <td>Uses “Decoy-moves”; sacrifices a piece to pull yours into a losing square.</td>
+                <td>Only sacrifices if it triggers a forced sequence that guarantees a win.</td>
+              </tr>
+              <tr>
+                <td>Goal of Play</td>
+                <td>To ensure you understand how to use a 2-on-1 King advantage.</td>
+                <td>To provide a fair challenge that tests your basic endgame knowledge.</td>
+                <td>To punish “natural-looking” moves with high-level traps like the “Scorpion Sting”.</td>
+                <td>To convert any small advantage into a win using “First Position” theory.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Endgame Snapshots</h3>
+        <ul class="snapshots">
+          <li><strong class="label">Teacher:</strong> It might put its last piece in a corner to see if you know how to use two Kings to trap it.</li>
+          <li><strong class="label">Balanced:</strong> It will trade its last regular piece for yours to reach a standard King-vs-King draw.</li>
+          <li><strong class="label">Trickster:</strong> It might leave a piece “unprotected” near the King row. If you jump it, you might find your piece immediately trapped in a “Back Block” or a “619 Trap”.</li>
+          <li><strong class="label">Endgame:</strong> It calculates the “opposition” 20 moves ahead to ensure that when only three pieces are left, you are the one forced to move into a capture.</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
