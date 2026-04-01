@@ -3,6 +3,8 @@ import { GameController } from "./gameController";
 import { HistoryManager } from "../game/historyManager";
 import type { GameState } from "../game/state";
 import { setBoardFlipped } from "../render/boardFlip";
+import { chessBotPersonaAvatarUrl } from "../shared/chessBotPersonaAvatars";
+import { draughtsBotPersonaAvatarUrl } from "../shared/draughtsBotPersonaAvatars";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -2497,6 +2499,90 @@ describe("GameController local shell identities", () => {
     expect(snapshot.players.W.displayName).toBe("White");
     expect(snapshot.players.B.displayName).toBe("Black");
     expect(onShellSnapshotChange).toHaveBeenCalledTimes(2);
+  });
+
+  it("includes chess bot persona avatar URLs for local chess-style bot seats", () => {
+    const keys = [
+      "lasca.chessbot.white",
+      "lasca.chessbot.black",
+      "lasca.columnsChessBot.white",
+      "stackworks.bot.whitePersona",
+      "stackworks.bot.blackPersona",
+    ] as const;
+    for (const k of keys) localStorage.removeItem(k);
+
+    try {
+      localStorage.setItem("lasca.chessbot.white", "human");
+      localStorage.setItem("lasca.chessbot.black", "medium");
+      localStorage.setItem("stackworks.bot.blackPersona", "trickster");
+
+      const history = new HistoryManager();
+      const s: GameState = {
+        board: new Map([["r1c1", [{ owner: "W", rank: "P" }]]]),
+        toMove: "W",
+        phase: "idle",
+        meta: {
+          variantId: "chess_classic" as any,
+          rulesetId: "chess" as any,
+          boardSize: 8 as any,
+        },
+      };
+      history.push(s);
+      const controller = new GameController(mockSvg, mockPiecesLayer, null, s, history);
+      let snap = controller.getPlayerShellSnapshot();
+      expect(snap.players.W.avatarUrl).toBeNull();
+      expect(snap.players.B.avatarUrl).toBe(chessBotPersonaAvatarUrl("trickster"));
+
+      localStorage.setItem("lasca.columnsChessBot.white", "easy");
+      localStorage.setItem("stackworks.bot.whitePersona", "teacher");
+      const columnsState: GameState = {
+        board: new Map([["r1c1", [{ owner: "W", rank: "P" }]]]),
+        toMove: "W",
+        phase: "idle",
+        meta: {
+          variantId: "columns_chess" as any,
+          rulesetId: "columns_chess" as any,
+          boardSize: 8 as any,
+        },
+      };
+      const historyColumns = new HistoryManager();
+      historyColumns.push(columnsState);
+      const controllerColumns = new GameController(mockSvg, mockPiecesLayer, null, columnsState, historyColumns);
+      snap = controllerColumns.getPlayerShellSnapshot();
+      expect(snap.players.W.avatarUrl).toBe(chessBotPersonaAvatarUrl("teacher"));
+    } finally {
+      for (const k of keys) localStorage.removeItem(k);
+    }
+  });
+
+  it("includes draughts-style bot persona avatar URLs for local lasca.ai bot seats", () => {
+    const keys = ["lasca.ai.white", "lasca.ai.black", "stackworks.bot.blackPersona"] as const;
+    for (const k of keys) localStorage.removeItem(k);
+
+    try {
+      localStorage.setItem("lasca.ai.white", "human");
+      localStorage.setItem("lasca.ai.black", "advanced");
+      localStorage.setItem("stackworks.bot.blackPersona", "balanced");
+
+      const history = new HistoryManager();
+      const s: GameState = {
+        board: new Map([["r1c1", [{ owner: "W", rank: "P" }]]]),
+        toMove: "W",
+        phase: "idle",
+        meta: {
+          variantId: "lasca_7_classic" as any,
+          rulesetId: "lasca" as any,
+          boardSize: 7 as any,
+        },
+      };
+      history.push(s);
+      const controller = new GameController(mockSvg, mockPiecesLayer, null, s, history);
+      const snap = controller.getPlayerShellSnapshot();
+      expect(snap.players.W.avatarUrl).toBeNull();
+      expect(snap.players.B.avatarUrl).toBe(draughtsBotPersonaAvatarUrl("balanced"));
+    } finally {
+      for (const k of keys) localStorage.removeItem(k);
+    }
   });
 
   it("fires a shell snapshot update when a move flips the turn", async () => {

@@ -1,6 +1,7 @@
 import type { PlayerIdentity } from "../../types";
 import { createPlayerAvatar } from "./playerAvatar";
 import { createPlayerStatusBadge } from "./playerStatusBadge";
+import { attachShellAvatarEnlarge } from "./shellAvatarEnlarge";
 
 export interface PlayerIdentityPanelOptions {
   identity: PlayerIdentity;
@@ -37,10 +38,52 @@ export function createPlayerIdentityPanel(opts: PlayerIdentityPanelOptions): Pla
   const identityRow = document.createElement("div");
   identityRow.className = "gameShellPlayerIdentityRow";
 
+  let displayNameForAvatarAlt = opts.identity.displayName;
+
+  const avatarWrap = document.createElement("div");
+  avatarWrap.className = "shellAvatarEnlargeWrap";
+  const avatarTap = document.createElement("button");
+  avatarTap.type = "button";
+  avatarTap.className = "shellAvatarEnlargeTap";
+  avatarTap.setAttribute("aria-label", "View avatar");
+
   let avatar = createPlayerAvatar({
     color: opts.identity.color,
     displayName: opts.identity.displayName,
     isLocal: opts.identity.isLocal,
+  });
+  avatarTap.appendChild(avatar);
+
+  const avatarHover = document.createElement("div");
+  avatarHover.className = "shellAvatarEnlargeHover";
+  avatarHover.hidden = true;
+  const avatarHoverImg = document.createElement("img");
+  avatarHoverImg.className = "shellAvatarEnlargeHoverImg";
+  avatarHoverImg.alt = "";
+  avatarHover.appendChild(avatarHoverImg);
+  avatarWrap.append(avatarTap, avatarHover);
+
+  const syncAvatarEnlargeTap = (): void => {
+    const img = avatar.querySelector(".gameShellPlayerAvatarImage") as HTMLImageElement | null;
+    const ready = Boolean(
+      img?.src && (avatar.dataset.hasImage === "1" || (img.complete && img.naturalWidth > 0)),
+    );
+    avatarTap.disabled = !ready;
+    if (!ready) {
+      avatarHover.hidden = true;
+    }
+    avatarTap.setAttribute("aria-label", ready ? "Enlarge avatar" : "Avatar");
+  };
+
+  attachShellAvatarEnlarge(avatarWrap, {
+    tapButton: avatarTap,
+    getThumbSrc: () => {
+      const img = avatar.querySelector(".gameShellPlayerAvatarImage") as HTMLImageElement | null;
+      if (!img?.src) return null;
+      if (avatar.dataset.hasImage !== "1" && !(img.complete && img.naturalWidth > 0)) return null;
+      return img.currentSrc || img.src;
+    },
+    getThumbAlt: () => displayNameForAvatarAlt.trim() || "Player avatar",
   });
 
   const textBlock = document.createElement("div");
@@ -81,7 +124,7 @@ export function createPlayerIdentityPanel(opts: PlayerIdentityPanelOptions): Pla
   meta.append(sideChip, localChip, activeChip);
   nameRow.append(flag, name);
   textBlock.append(role, nameRow, detail);
-  identityRow.append(avatar, textBlock, meta, badge.element);
+  identityRow.append(avatarWrap, textBlock, meta, badge.element);
   root.append(identityRow);
 
   const update = (identity: PlayerIdentity): void => {
@@ -89,6 +132,8 @@ export function createPlayerIdentityPanel(opts: PlayerIdentityPanelOptions): Pla
     root.dataset.activeTurn = identity.isActiveTurn ? "1" : "0";
     root.dataset.playerStatus = identity.status;
     root.dataset.redundantStatus = isRedundantLocalStatus(identity) ? "1" : "0";
+
+    displayNameForAvatarAlt = identity.displayName;
 
     const nextAvatar = createPlayerAvatar({
       color: identity.color,
@@ -120,6 +165,12 @@ export function createPlayerIdentityPanel(opts: PlayerIdentityPanelOptions): Pla
     localChip.textContent = viewerTag;
     activeChip.hidden = !identity.isActiveTurn;
     activeChip.textContent = getActiveTurnChipText(identity);
+
+    syncAvatarEnlargeTap();
+    const shellImg = avatar.querySelector(".gameShellPlayerAvatarImage") as HTMLImageElement | null;
+    shellImg?.addEventListener("load", syncAvatarEnlargeTap, { once: true });
+    shellImg?.addEventListener("error", syncAvatarEnlargeTap, { once: true });
+    queueMicrotask(syncAvatarEnlargeTap);
   };
 
   update(opts.identity);

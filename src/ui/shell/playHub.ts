@@ -19,6 +19,9 @@ import { buildSessionAuthFetchInit, readAuthSessionUserId } from "../../shared/a
 import { validateOnlineResumeSeatActive } from "../../shared/onlineResumeServerValidation";
 import type { LobbyRoomSummary } from "../../shared/onlineProtocol";
 import { getSideLabelsForRuleset } from "../../shared/sideTerminology";
+import { chessBotPersonaAvatarUrl } from "../../shared/chessBotPersonaAvatars";
+import { draughtsBotPersonaAvatarUrl } from "../../shared/draughtsBotPersonaAvatars";
+import type { ChessBotPersonaId } from "../../bot/chessBotPersonaGameplay";
 import { createTabs } from "../navigation/tabs";
 import { hostPageRequestsDiscardConfirmForNewGame } from "../newGameDiscardConfirm";
 import { buildExplicitLocalModeUrlString } from "./explicitLocalModeNavigation";
@@ -34,6 +37,7 @@ import { scheduleFullBoardChromeReflow } from "../panelLayoutMode";
 import { ONLINE_SUSPEND_CONTINUE_CONFIRM_MESSAGE } from "../startPageConfirm";
 import { getVariantById } from "../../variants/variantRegistry";
 import type { VariantId } from "../../variants/variantTypes";
+import { attachShellAvatarEnlarge } from "../player/shellAvatarEnlarge";
 
 export interface PlayHubAction {
   label: string;
@@ -200,6 +204,13 @@ const BOT_PERSONAS: readonly BotPersonaDefinition[] = [
     meta: "Conversion focus",
   },
 ] as const;
+
+function botPersonaAvatarUrlForVariant(variantId: VariantId, personaId: BotPersona): string {
+  if (variantId === "chess_classic" || variantId === "columns_chess") {
+    return chessBotPersonaAvatarUrl(personaId as ChessBotPersonaId);
+  }
+  return draughtsBotPersonaAvatarUrl(personaId as ChessBotPersonaId);
+}
 
 const COACH_LEVELS: readonly CoachLevelDefinition[] = [
   { id: "new-to-chess", label: "New to chess", description: "Maximum guidance, easy takebacks, and beginner-safe pacing." },
@@ -1429,6 +1440,54 @@ function ensurePlayHubStyles(): void {
       min-width: max-content;
     }
 
+    .playHubBotPersonaRow {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .playHubBotPersonaRow .playHubBotSelect {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .playHubBotPersonaAvatarWrap {
+      flex: 0 0 auto;
+    }
+
+    .playHubBotPersonaAvatarWrap[hidden] {
+      display: none !important;
+    }
+
+    .playHubBotPersonaAvatarTap.shellAvatarEnlargeTap {
+      border-radius: 12px;
+    }
+
+    .playHubBotPersonaAvatar {
+      display: block;
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      object-fit: cover;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    @media (max-width: 400px) {
+      .playHubBotPersonaRow {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .playHubBotPersonaAvatar {
+        width: 72px;
+        height: 72px;
+        margin: 0 auto;
+      }
+    }
+
     .playHubBotControllerIdentity {
       flex: 0 0 auto;
       max-width: 100%;
@@ -2529,6 +2588,32 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     const personaField = document.createElement("label");
     personaField.className = "playHubBotField";
     personaField.innerHTML = `<span class="playHubBotFieldLabel">Persona</span>`;
+    const personaRow = document.createElement("div");
+    personaRow.className = "playHubBotPersonaRow";
+    const personaAvatarWrap = document.createElement("div");
+    personaAvatarWrap.className = "shellAvatarEnlargeWrap playHubBotPersonaAvatarWrap";
+    const personaAvatarTap = document.createElement("button");
+    personaAvatarTap.type = "button";
+    personaAvatarTap.className = "shellAvatarEnlargeTap playHubBotPersonaAvatarTap";
+    personaAvatarTap.setAttribute("aria-label", "Enlarge bot persona avatar");
+    const personaAvatar = document.createElement("img");
+    personaAvatar.className = "playHubBotPersonaAvatar";
+    personaAvatar.dataset.botSeat = seat.key;
+    personaAvatar.dataset.botField = "persona-avatar";
+    personaAvatar.decoding = "async";
+    personaAvatar.loading = "lazy";
+    personaAvatar.hidden = true;
+    personaAvatarTap.appendChild(personaAvatar);
+    personaAvatarWrap.hidden = true;
+    personaAvatarTap.disabled = true;
+    const personaHover = document.createElement("div");
+    personaHover.className = "shellAvatarEnlargeHover";
+    personaHover.hidden = true;
+    const personaHoverImg = document.createElement("img");
+    personaHoverImg.className = "shellAvatarEnlargeHoverImg";
+    personaHoverImg.alt = "";
+    personaHover.appendChild(personaHoverImg);
+    personaAvatarWrap.append(personaAvatarTap, personaHover);
     const personaSelect = document.createElement("select");
     personaSelect.className = "playHubBotSelect";
     personaSelect.dataset.botSeat = seat.key;
@@ -2539,14 +2624,40 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
       element.textContent = option.label;
       return element;
     }));
-    personaField.appendChild(personaSelect);
+    personaRow.append(personaAvatarWrap, personaSelect);
+    personaField.appendChild(personaRow);
 
     controls.append(controllerField, levelField, personaField);
     card.append(header, controls);
     botSeatList.appendChild(card);
 
-    return { seat, controllerSelect, controllerIdentity, levelField, levelSelect, personaField, personaSelect };
+    return {
+      seat,
+      controllerSelect,
+      controllerIdentity,
+      levelField,
+      levelSelect,
+      personaField,
+      personaAvatarWrap,
+      personaAvatarTap,
+      personaHover,
+      personaAvatar,
+      personaSelect,
+    };
   });
+
+  for (const binding of seatBindings) {
+    attachShellAvatarEnlarge(binding.personaAvatarWrap, {
+      tapButton: binding.personaAvatarTap,
+      getThumbSrc: () => {
+        if (binding.personaAvatarWrap.hidden || binding.personaAvatarTap.disabled) return null;
+        const src = binding.personaAvatar.getAttribute("src");
+        if (!src) return null;
+        return binding.personaAvatar.currentSrc || binding.personaAvatar.src;
+      },
+      getThumbAlt: () => binding.personaAvatar.alt || "Bot avatar",
+    });
+  }
 
   syncBotPanel = (): void => {
     if (!hasRequestedSignedInHumanDisplayName && resolveLocalAuthServerBaseUrl()) {
@@ -2571,6 +2682,21 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
       const isBotSeat = state.controller === BotControllerMode.Bot;
       binding.levelField.hidden = !isBotSeat;
       binding.personaField.hidden = !isBotSeat;
+      if (isBotSeat) {
+        const personaId = (binding.personaSelect.value as BotPersona) || defaultBotPersonaForLevel(resolvedBotLevel);
+        binding.personaAvatar.src = botPersonaAvatarUrlForVariant(opts.currentVariantId, personaId);
+        binding.personaAvatar.alt = `${getBotPersonaDefinition(personaId).label} bot avatar`;
+        binding.personaAvatar.hidden = false;
+        binding.personaAvatarWrap.hidden = false;
+        binding.personaAvatarTap.disabled = false;
+      } else {
+        binding.personaAvatar.hidden = true;
+        binding.personaAvatar.removeAttribute("src");
+        binding.personaAvatar.alt = "";
+        binding.personaAvatarWrap.hidden = true;
+        binding.personaAvatarTap.disabled = true;
+        binding.personaHover.hidden = true;
+      }
     }
 
     const bothBots = botPlayState.white.controller === BotControllerMode.Bot && botPlayState.black.controller === BotControllerMode.Bot;

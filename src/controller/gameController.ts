@@ -70,6 +70,9 @@ import { getSideLabelsForRuleset } from "../shared/sideTerminology.ts";
 import { ensureCheckersUsDraw, getCheckersUsDrawStatus } from "../game/checkersUsDraw.ts";
 import { getInternationalDraughtsDrawStatus } from "../game/internationalDraughtsDraw.ts";
 import { clearStoredOnlineResumeRecords } from "../shared/onlineResumeStorage.ts";
+import { chessBotPersonaAvatarUrl } from "../shared/chessBotPersonaAvatars.ts";
+import { draughtsBotPersonaAvatarUrl } from "../shared/draughtsBotPersonaAvatars.ts";
+import { readChessBotPersonaForSide } from "../bot/chessBotPersonaGameplay.ts";
 
 export type HistoryChangeReason = "move" | "undo" | "redo" | "jump" | "newGame" | "loadGame" | "gameOver";
 
@@ -3611,10 +3614,44 @@ export class GameController {
     return this.localShellDisplayNames[color] ?? this.sideLabel(color);
   }
 
+  /** Launcher keys for local bot seats: chess-style vs shared `lasca.ai.*` (Lasca, Dama, Draughts, Damasca, Checkers US, Columns Draughts). */
+  private readLocalBotSeatLauncherValue(rulesetId: string, color: Player): string | null {
+    try {
+      let key: string | null = null;
+      if (rulesetId === "chess") {
+        key = color === "W" ? "lasca.chessbot.white" : "lasca.chessbot.black";
+      } else if (rulesetId === "columns_chess") {
+        key = color === "W" ? "lasca.columnsChessBot.white" : "lasca.columnsChessBot.black";
+      } else {
+        key = color === "W" ? "lasca.ai.white" : "lasca.ai.black";
+      }
+      return window.localStorage.getItem(key)?.trim() ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private isLocalBotSeatFromLauncher(rulesetId: string, color: Player): boolean {
+    const raw = this.readLocalBotSeatLauncherValue(rulesetId, color);
+    return Boolean(raw && raw !== "human");
+  }
+
+  private localBotPersonaAvatarUrlForShell(color: Player): string | null {
+    const rulesetId = String(this.state.meta?.rulesetId ?? "");
+    if (!this.isLocalBotSeatFromLauncher(rulesetId, color)) return null;
+    const persona = readChessBotPersonaForSide(color) ?? "balanced";
+    if (rulesetId === "chess" || rulesetId === "columns_chess") {
+      return chessBotPersonaAvatarUrl(persona);
+    }
+    return draughtsBotPersonaAvatarUrl(persona);
+  }
+
   getPlayerShellSnapshot(): PlayerShellSnapshot {
     const pendingDrawOffer = this.readPendingDrawOffer(this.state);
     const terminalStatus = this.getShellTerminalStatus();
     const hasTerminalStatus = Boolean(terminalStatus);
+    const localBotAvatarW = this.localBotPersonaAvatarUrlForShell("W");
+    const localBotAvatarB = this.localBotPersonaAvatarUrlForShell("B");
     const defaultPlayers: Record<Player, PlayerIdentity> = {
       W: this.createShellPlayerIdentity({
         color: "W",
@@ -3624,6 +3661,7 @@ export class GameController {
         detailText: terminalStatus?.detailText ?? (this.state.toMove === "W" ? "To move." : "Waiting for the next turn."),
         status: "offline",
         statusText: terminalStatus?.statusText ?? "Local play",
+        avatarUrl: localBotAvatarW,
         isLocal: false,
         isActiveTurn: !hasTerminalStatus && this.state.toMove === "W",
       }),
@@ -3635,6 +3673,7 @@ export class GameController {
         detailText: terminalStatus?.detailText ?? (this.state.toMove === "B" ? "To move." : "Waiting for the next turn."),
         status: "offline",
         statusText: terminalStatus?.statusText ?? "Local play",
+        avatarUrl: localBotAvatarB,
         isLocal: false,
         isActiveTurn: !hasTerminalStatus && this.state.toMove === "B",
       }),
@@ -5445,12 +5484,13 @@ export class GameController {
 
     this.rememberMoveTransitionSfx(this.state, next);
     const shouldPlayLocalMoveSfx = true;
+    const sfxOpts = this.driver.mode === "online" ? undefined : { skipOnlineSuppression: true as const };
     if (this.driver.mode === "online") {
       this.suppressOnlineGameplaySfxUntilTurnForColor = this.state.toMove;
     }
     if (shouldPlayLocalMoveSfx) {
-      this.playGameplaySfx(move.kind === "capture" ? "capture" : "move", next, { skipOnlineSuppression: true });
-      if (next.didPromote) this.playGameplaySfx("promote", next, { skipOnlineSuppression: true });
+      this.playGameplaySfx(move.kind === "capture" ? "capture" : "move", next, sfxOpts);
+      if (next.didPromote) this.playGameplaySfx("promote", next, sfxOpts);
     }
 
     const prevForAnim = this.state;

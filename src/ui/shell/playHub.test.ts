@@ -382,6 +382,10 @@ describe("createPlayHub", () => {
 
     expect(window.localStorage.getItem("lasca.ai.white")).toBe("human");
     expect(window.localStorage.getItem("lasca.ai.black")).not.toBe("human");
+
+    document.querySelectorAll('[data-bot-field="persona-avatar"]').forEach((el) => {
+      expect((el as HTMLImageElement).hidden).toBe(true);
+    });
   });
 
   it("offers an online bot room action for human-versus-bot setups", () => {
@@ -499,6 +503,12 @@ describe("createPlayHub", () => {
     const botPlayState = normalizeBotPlayState(persistedState.botPlayState);
     expect(botPlayState?.white.persona).toBe("endgame");
     expect(document.querySelectorAll(".playHubBotProfileTitle")[0]?.textContent).toContain("Endgame bot");
+
+    const whiteAvatar = document.querySelector('[data-bot-seat="white"][data-bot-field="persona-avatar"]') as HTMLImageElement | null;
+    expect(whiteAvatar).toBeTruthy();
+    expect(whiteAvatar?.hidden).toBe(false);
+    expect(whiteAvatar?.getAttribute("src")).toContain("Endgame%20Chess%20bot%20avatar.png");
+    expect(whiteAvatar?.alt).toContain("Endgame");
   });
 
   it("shows the signed-in user name for human bot-profile seats", async () => {
