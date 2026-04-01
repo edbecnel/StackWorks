@@ -358,13 +358,23 @@ export function createThemeManager(svgRoot: SVGSVGElement, opts?: { themeStorage
   // Default to the current palette.
   let glassPaletteId: GlassPaletteId = readSavedGlassPaletteId(glassPaletteStorageKey) ?? "yellow_blue";
 
+  /**
+   * Board code listens on the SVG; shell / cross-cutting UI listens on `document`.
+   * We dispatch both explicitly so Play hub and other `document` listeners always run
+   * (do not rely on bubbling: some environments or future wrappers may block it).
+   */
+  function emitThemeLifecycleEvent(type: typeof THEME_CHANGE_EVENT | typeof THEME_DID_CHANGE_EVENT, detail: { themeId: string }): void {
+    svgRoot.dispatchEvent(new CustomEvent(type, { detail }));
+    document.dispatchEvent(new CustomEvent(type, { detail }));
+  }
+
   function emitThemeVariantChange(): void {
     const themeId = currentId ?? svgRoot.getAttribute("data-theme-id");
     if (!themeId) return;
-    svgRoot.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT, { detail: { themeId } }));
+    emitThemeLifecycleEvent(THEME_CHANGE_EVENT, { themeId });
     // Match setTheme(): consumers may render while raster/CSS settles; refresh again after a paint.
     void nextPaint(1).then(() => {
-      svgRoot.dispatchEvent(new CustomEvent(THEME_DID_CHANGE_EVENT, { detail: { themeId } }));
+      emitThemeLifecycleEvent(THEME_DID_CHANGE_EVENT, { themeId });
     });
   }
 
@@ -463,14 +473,14 @@ export function createThemeManager(svgRoot: SVGSVGElement, opts?: { themeStorage
 
     // Notify listeners (e.g. controller) so they can re-render any <use href="#..."></use>
     // that may be theme-dependent (Wooden variants).
-    svgRoot.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT, { detail: { themeId: theme.id } }));
+    emitThemeLifecycleEvent(THEME_CHANGE_EVENT, { themeId: theme.id });
 
     currentId = theme.id;
     saveThemeId(currentId, themeStorageKey);
     svgRoot.style.visibility = prevVis || "visible";
     // Ensure the newly-applied theme has a chance to paint before consumers hide overlays.
     await nextPaint(1);
-    svgRoot.dispatchEvent(new CustomEvent(THEME_DID_CHANGE_EVENT, { detail: { themeId: theme.id } }));
+    emitThemeLifecycleEvent(THEME_DID_CHANGE_EVENT, { themeId: theme.id });
     return theme;
   }
 

@@ -17,8 +17,9 @@ import {
 } from "../../config/shellState";
 import { buildSessionAuthFetchInit, readAuthSessionUserId } from "../../shared/authSessionClient";
 import { validateOnlineResumeSeatActive } from "../../shared/onlineResumeServerValidation";
-import type { LobbyRoomSummary } from "../../shared/onlineProtocol";
-import { getSideLabelsForRuleset } from "../../shared/sideTerminology";
+import type { LobbyRoomSummary, PlayerColor } from "../../shared/onlineProtocol";
+import { getSideLabelsForRuleset, type SideLabels } from "../../shared/sideTerminology";
+import { THEME_CHANGE_EVENT, THEME_DID_CHANGE_EVENT } from "../../theme/themeManager";
 import { chessBotPersonaAvatarUrl } from "../../shared/chessBotPersonaAvatars";
 import { draughtsBotPersonaAvatarUrl } from "../../shared/draughtsBotPersonaAvatars";
 import type { ChessBotPersonaId } from "../../bot/chessBotPersonaGameplay";
@@ -491,7 +492,12 @@ function formatAgeShort(ms: number): string {
   return `${days}d ago`;
 }
 
-function describeHostedRoom(room: LobbyRoomSummary): { title: string; meta: string; seats: string } {
+function formatLobbySeatList(seats: readonly PlayerColor[], sideLabels: SideLabels): string {
+  if (!seats.length) return "-";
+  return seats.map((color) => (color === "W" ? sideLabels.W : sideLabels.B)).join("/");
+}
+
+function describeHostedRoom(room: LobbyRoomSummary, sideLabels: SideLabels): { title: string; meta: string; seats: string } {
   const createdAtMs = typeof room.createdAt === "string" ? Date.parse(room.createdAt) : NaN;
   const age = Number.isFinite(createdAtMs) ? formatAgeShort(Date.now() - createdAtMs) : "";
   const status = room.status === "game_over"
@@ -503,7 +509,7 @@ function describeHostedRoom(room: LobbyRoomSummary): { title: string; meta: stri
   return {
     title: `${host} · ${room.roomId}`,
     meta: [status, room.visibility === "private" ? "Private" : "Public", age].filter(Boolean).join(" · "),
-    seats: `Open ${room.seatsOpen.length ? room.seatsOpen.join("/") : "-"} · Taken ${room.seatsTaken.length ? room.seatsTaken.join("/") : "-"}`,
+    seats: `Open ${formatLobbySeatList(room.seatsOpen, sideLabels)} · Taken ${formatLobbySeatList(room.seatsTaken, sideLabels)}`,
   };
 }
 
@@ -1714,6 +1720,11 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
   const resumeServerCandidates = readResumeEntries(opts.currentVariantId);
   const persistedShellState = readShellState();
   const variant = getVariantById(opts.currentVariantId);
+  /** Re-render hosted room seat copy when piece-theme side names change (same helper as Bots/Local/Online). */
+  let renderHostedRoomBrowserForSideLabels: (() => void) | null = null;
+
+  const readShellSideLabels = (): SideLabels =>
+    getSideLabelsForRuleset(variant.rulesetId, { boardSize: variant.boardSize });
 
   /** In-page finish for explicit local play on the current variant page (any local seat mix). */
   const finishExplicitLocalStartOnCurrentPage = (botPlayState: BotPlayState): "aborted" | "handled" | "navigate" => {
@@ -1798,7 +1809,6 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
 
     return element;
   };
-  const sideLabels = getSideLabelsForRuleset(variant.rulesetId, { boardSize: variant.boardSize });
   const botOptions = getBotOptionsForVariant(opts.currentVariantId);
   const configuredServerUrl = resolveConfiguredServerUrl();
   let validatedResumeEntries: ResumeEntry[] = [];
@@ -1935,11 +1945,12 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
   const onlineColorTabs = document.createElement("div");
   onlineColorTabs.className = "playHubSidePickerTabs";
   const onlineColorButtons = new Map<"W" | "B", HTMLButtonElement>();
+  const initialOnlineSideLabels = readShellSideLabels();
   for (const color of ["W", "B"] as const) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "playHubSidePickerOption";
-    button.textContent = color === "W" ? sideLabels.W : sideLabels.B;
+    button.textContent = color === "W" ? initialOnlineSideLabels.W : initialOnlineSideLabels.B;
     button.addEventListener("click", () => {
       preferredOnlineColor = color;
       writePreferredOnlineColor(color);
@@ -2343,7 +2354,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
         hostedRoomList.replaceChildren(...hostedBrowserState.rooms.map((room) => {
           const card = document.createElement("article");
           card.className = "playHubHostedRoomCard";
-          const details = describeHostedRoom(room);
+          const details = describeHostedRoom(room, readShellSideLabels());
 
           const title = document.createElement("h5");
           title.className = "playHubHostedRoomTitle";
@@ -2400,6 +2411,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
           return card;
         }));
       };
+      renderHostedRoomBrowserForSideLabels = renderHostedRoomBrowser;
 
       refreshHostedRoomDiscovery = async (force = false): Promise<void> => {
         if (!force && hostedBrowserState.status === "ready" && hostedBrowserState.rooms.length > 0) {
@@ -2538,16 +2550,23 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     syncLocalNamesCard?.();
   };
 
-  const seatBindings = ([
-    { key: "white", label: sideLabels.W, description: `Choose whether ${sideLabels.W.toLowerCase()} is controlled by a person or a bot.` },
-    { key: "black", label: sideLabels.B, description: `Choose whether ${sideLabels.B.toLowerCase()} is controlled by a person or a bot.` },
-  ] as const).map((seat) => {
+  const seatBindings = (["white", "black"] as const).map((seatKey) => {
+    const sl0 = readShellSideLabels();
+    const primaryLabel = seatKey === "white" ? sl0.W : sl0.B;
+    const descriptionText = `Choose whether ${primaryLabel.toLowerCase()} is controlled by a person or a bot.`;
+
     const card = document.createElement("section");
     card.className = "playHubBotSeatCard";
 
     const header = document.createElement("div");
     header.className = "playHubBotSeatHeader";
-    header.innerHTML = `<h3 class="playHubBotSeatTitle">${seat.label}</h3><p class="playHubBotSeatDescription">${seat.description}</p>`;
+    const seatTitleEl = document.createElement("h3");
+    seatTitleEl.className = "playHubBotSeatTitle";
+    seatTitleEl.textContent = primaryLabel;
+    const seatDescEl = document.createElement("p");
+    seatDescEl.className = "playHubBotSeatDescription";
+    seatDescEl.textContent = descriptionText;
+    header.append(seatTitleEl, seatDescEl);
 
     const controls = document.createElement("div");
     controls.className = "playHubBotSeatControls";
@@ -2559,12 +2578,12 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     controllerRow.className = "playHubBotControllerRow";
     const controllerSelect = document.createElement("select");
     controllerSelect.className = "playHubBotSelect";
-    controllerSelect.dataset.botSeat = seat.key;
+    controllerSelect.dataset.botSeat = seatKey;
     controllerSelect.dataset.botField = "controller";
     controllerSelect.innerHTML = '<option value="human">Human</option><option value="bot">Bot</option>';
     const controllerIdentity = document.createElement("span");
     controllerIdentity.className = "playHubBotControllerIdentity";
-    controllerIdentity.dataset.botSeat = seat.key;
+    controllerIdentity.dataset.botSeat = seatKey;
     controllerIdentity.dataset.botField = "controller-identity";
     controllerIdentity.hidden = true;
     controllerRow.append(controllerSelect, controllerIdentity);
@@ -2575,7 +2594,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     levelField.innerHTML = `<span class="playHubBotFieldLabel">Bot level</span>`;
     const levelSelect = document.createElement("select");
     levelSelect.className = "playHubBotSelect";
-    levelSelect.dataset.botSeat = seat.key;
+    levelSelect.dataset.botSeat = seatKey;
     levelSelect.dataset.botField = "level";
     levelSelect.replaceChildren(...botOptions.map((option) => {
       const element = document.createElement("option");
@@ -2598,7 +2617,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     personaAvatarTap.setAttribute("aria-label", "Enlarge bot persona avatar");
     const personaAvatar = document.createElement("img");
     personaAvatar.className = "playHubBotPersonaAvatar";
-    personaAvatar.dataset.botSeat = seat.key;
+    personaAvatar.dataset.botSeat = seatKey;
     personaAvatar.dataset.botField = "persona-avatar";
     personaAvatar.decoding = "async";
     personaAvatar.loading = "lazy";
@@ -2616,7 +2635,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     personaAvatarWrap.append(personaAvatarTap, personaHover);
     const personaSelect = document.createElement("select");
     personaSelect.className = "playHubBotSelect";
-    personaSelect.dataset.botSeat = seat.key;
+    personaSelect.dataset.botSeat = seatKey;
     personaSelect.dataset.botField = "persona";
     personaSelect.replaceChildren(...BOT_PERSONAS.map((option) => {
       const element = document.createElement("option");
@@ -2632,7 +2651,9 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     botSeatList.appendChild(card);
 
     return {
-      seat,
+      seatKey,
+      seatTitleEl,
+      seatDescEl,
       controllerSelect,
       controllerIdentity,
       levelField,
@@ -2666,7 +2687,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     }
 
     for (const binding of seatBindings) {
-      const state = botPlayState[binding.seat.key];
+      const state = botPlayState[binding.seatKey];
       binding.controllerSelect.value = state.controller;
       const resolvedBotLevel = resolveBotLevelForVariantSelect(state.level, botOptions);
       binding.levelSelect.value =
@@ -2705,23 +2726,25 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
       ? '<p class="playHubBotStateTitle">Watch Bots mode ready</p><p class="playHubBotStateText">Both seats are bot-controlled, so this setup can run as a local watch mode while preserving move history and playback.</p>'
       : '<p class="playHubBotStateTitle">Human vs bot</p><p class="playHubBotStateText">Play as human against a bot, or set both seats to bot for watch mode. Two humans are not allowed here—use Local for human versus human.</p>';
 
+    const profileSideLabels = readShellSideLabels();
     botProfiles.replaceChildren();
     for (const seatKey of ["white", "black"] as const) {
       const seatState = botPlayState[seatKey];
       const profile = document.createElement("section");
       profile.className = "playHubBotProfileCard";
+      const sideName = seatKey === "white" ? profileSideLabels.W : profileSideLabels.B;
       if (seatState.controller === BotControllerMode.Bot && seatState.level) {
         const persona = buildBotPersonaMeta(seatState.persona, seatState.level);
         profile.innerHTML = `
-          <div class="playHubBotProfileMeta">${seatKey === "white" ? sideLabels.W : sideLabels.B}</div>
+          <div class="playHubBotProfileMeta">${sideName}</div>
           <h4 class="playHubBotProfileTitle">${persona.title}</h4>
           <p class="playHubBotProfileText">${persona.text}</p>
           <p class="playHubBotProfileMeta">${persona.meta}</p>
         `;
       } else {
-        const humanDisplayName = signedInHumanDisplayName || (seatKey === "white" ? sideLabels.W : sideLabels.B);
+        const humanDisplayName = signedInHumanDisplayName || sideName;
         profile.innerHTML = `
-          <div class="playHubBotProfileMeta">${seatKey === "white" ? sideLabels.W : sideLabels.B}</div>
+          <div class="playHubBotProfileMeta">${sideName}</div>
           <h4 class="playHubBotProfileTitle">${humanDisplayName}</h4>
           <p class="playHubBotProfileText">${signedInHumanDisplayName ? "Signed-in local player for this seat." : "Default local human player for this seat."}</p>
         `;
@@ -2846,7 +2869,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
 
   for (const binding of seatBindings) {
     binding.controllerSelect.addEventListener("change", () => {
-      const key = binding.seat.key;
+      const key = binding.seatKey;
       const otherKey = key === "white" ? "black" : "white";
       const selfIsBot = binding.controllerSelect.value === BotControllerMode.Bot;
       const selfController = selfIsBot ? BotControllerMode.Bot : BotControllerMode.Human;
@@ -2885,7 +2908,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     binding.levelSelect.addEventListener("change", () => {
       const nextState: BotPlayState = {
         ...botPlayState,
-        [binding.seat.key]: {
+        [binding.seatKey]: {
           controller: BotControllerMode.Bot,
           level: resolveBotLevelForVariantSelect(binding.levelSelect.value as BotDifficulty, botOptions),
           persona: (binding.personaSelect.value as BotPersona) || defaultBotPersonaForLevel(binding.levelSelect.value as BotDifficulty),
@@ -2897,7 +2920,7 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
     binding.personaSelect.addEventListener("change", () => {
       const nextState: BotPlayState = {
         ...botPlayState,
-        [binding.seat.key]: {
+        [binding.seatKey]: {
           controller: BotControllerMode.Bot,
           level: resolveBotLevelForVariantSelect(binding.levelSelect.value as BotDifficulty, botOptions),
           persona: (binding.personaSelect.value as BotPersona) || defaultBotPersonaForLevel(binding.levelSelect.value as BotDifficulty),
@@ -2994,22 +3017,23 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
   localPlayersCard.innerHTML = '<p class="playHubSidePickerLabel">Local players</p>';
   const localPlayersFields = document.createElement("div");
   localPlayersFields.className = "playHubHostedFields";
+  const initialLocalSideLabels = readShellSideLabels();
   const localWhiteField = document.createElement("label");
   localWhiteField.className = "playHubHostedField";
-  localWhiteField.innerHTML = `<span class="playHubHostedFieldLabel">${sideLabels.W} name</span>`;
+  localWhiteField.innerHTML = `<span class="playHubHostedFieldLabel">${initialLocalSideLabels.W} name</span>`;
   const localWhiteInput = document.createElement("input");
   localWhiteInput.className = "playHubHostedInput";
   localWhiteInput.type = "text";
   localWhiteInput.maxLength = 40;
-  localWhiteInput.placeholder = `${sideLabels.W} player`;
+  localWhiteInput.placeholder = `${initialLocalSideLabels.W} player`;
   const localBlackField = document.createElement("label");
   localBlackField.className = "playHubHostedField";
-  localBlackField.innerHTML = `<span class="playHubHostedFieldLabel">${sideLabels.B} name</span>`;
+  localBlackField.innerHTML = `<span class="playHubHostedFieldLabel">${initialLocalSideLabels.B} name</span>`;
   const localBlackInput = document.createElement("input");
   localBlackInput.className = "playHubHostedInput";
   localBlackInput.type = "text";
   localBlackInput.maxLength = 40;
-  localBlackInput.placeholder = `${sideLabels.B} player`;
+  localBlackInput.placeholder = `${initialLocalSideLabels.B} player`;
   const localNameSuggestions = document.createElement("datalist");
   localNameSuggestions.id = `playHubLocalNameSuggestions-${opts.currentVariantId}`;
   localWhiteInput.setAttribute("list", localNameSuggestions.id);
@@ -3110,6 +3134,50 @@ export function createPlayHub(opts: PlayHubOptions): PlayHubController {
   variantsSection.append(variantsTitle, variantsList);
   localPanel.append(localPlayersCard, localActions, variantsSection);
   panels.set(PlaySubSection.Local, localPanel);
+
+  const applyPlayHubSideLabelChrome = (): void => {
+    const sl = readShellSideLabels();
+    for (const [color, button] of onlineColorButtons) {
+      button.textContent = color === "W" ? sl.W : sl.B;
+    }
+    for (const binding of seatBindings) {
+      const label = binding.seatKey === "white" ? sl.W : sl.B;
+      binding.seatTitleEl.textContent = label;
+      binding.seatDescEl.textContent = `Choose whether ${label.toLowerCase()} is controlled by a person or a bot.`;
+    }
+    const wSpan = localWhiteField.querySelector(".playHubHostedFieldLabel");
+    const bSpan = localBlackField.querySelector(".playHubHostedFieldLabel");
+    if (wSpan) wSpan.textContent = `${sl.W} name`;
+    if (bSpan) bSpan.textContent = `${sl.B} name`;
+    localWhiteInput.placeholder = `${sl.W} player`;
+    localBlackInput.placeholder = `${sl.B} player`;
+    renderHostedRoomBrowserForSideLabels?.();
+  };
+
+  let playHubThemeRefreshRaf = 0;
+  const schedulePlayHubThemeDerivedUiRefresh = (): void => {
+    if (playHubThemeRefreshRaf) cancelAnimationFrame(playHubThemeRefreshRaf);
+    playHubThemeRefreshRaf = requestAnimationFrame(() => {
+      playHubThemeRefreshRaf = 0;
+      applyPlayHubSideLabelChrome();
+      syncBotPanel?.();
+    });
+  };
+  document.addEventListener(THEME_CHANGE_EVENT, schedulePlayHubThemeDerivedUiRefresh);
+  document.addEventListener(THEME_DID_CHANGE_EVENT, schedulePlayHubThemeDerivedUiRefresh);
+  document.addEventListener(
+    "change",
+    (ev) => {
+      const t = ev.target;
+      if (!(t instanceof HTMLElement)) return;
+      const id = t.id;
+      if (id === "glassPieceColorsSelect" || id === "columnsThemeSelect") {
+        schedulePlayHubThemeDerivedUiRefresh();
+      }
+    },
+    true,
+  );
+  applyPlayHubSideLabelChrome();
 
   const resumePanel = document.createElement("div");
   resumePanel.className = "playHubPanel";

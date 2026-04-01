@@ -15,19 +15,50 @@ function sideLabelsFromThemeNomenclature(themeColorNomenclature: ReturnType<type
   }
 }
 
+/** Prefer the live board SVG that carries `data-theme-id` (set by themeManager.setTheme). */
+function resolveBoardThemeSvg(): SVGSVGElement | null {
+  if (typeof document === "undefined") return null;
+  const withAttr: (SVGSVGElement | null)[] = [
+    document.querySelector("#boardWrap > svg[data-theme-id]") as SVGSVGElement | null,
+    document.querySelector("#boardWrap svg[data-theme-id]") as SVGSVGElement | null,
+    document.querySelector("#boardWithEvalBar svg[data-theme-id]") as SVGSVGElement | null,
+  ];
+  for (const el of withAttr) {
+    if (el?.getAttribute("data-theme-id")?.trim()) return el;
+  }
+  const fallback: (SVGSVGElement | null)[] = [
+    document.querySelector("#boardWrap > svg") as SVGSVGElement | null,
+    document.querySelector("#boardWrap svg") as SVGSVGElement | null,
+    document.querySelector("#boardWithEvalBar svg") as SVGSVGElement | null,
+    document.getElementById("boardSvg") as SVGSVGElement | null,
+  ];
+  for (const el of fallback) {
+    if (el) return el;
+  }
+  return null;
+}
+
 function readThemeIdFromUi(): string {
   if (typeof document === "undefined") return "";
   // Authoritative during theme apply: setTheme() updates this before THEME_CHANGE, while
   // localStorage may not be saved until after synchronous theme listeners run.
-  const boardSvg =
-    (document.querySelector("#boardWrap svg") as SVGSVGElement | null) ??
-    (document.getElementById("boardSvg") as SVGSVGElement | null);
+  const boardSvg = resolveBoardThemeSvg();
   const fromBoard = boardSvg?.getAttribute("data-theme-id")?.trim().toLowerCase() ?? "";
   if (fromBoard) return fromBoard;
 
-  const dropdown = document.getElementById("themeDropdown") as HTMLSelectElement | null;
-  const selected = dropdown?.value?.trim().toLowerCase() ?? "";
-  return selected;
+  const columnsSel = document.getElementById("columnsThemeSelect");
+  if (columnsSel instanceof HTMLSelectElement) {
+    const v = columnsSel.value?.trim().toLowerCase() ?? "";
+    if (v) return v;
+  }
+
+  // `themeDropdown` is a div + custom menu on most pages — not a <select>; ignore unless it is a real select.
+  const themeDropdownEl = document.getElementById("themeDropdown");
+  if (themeDropdownEl instanceof HTMLSelectElement) {
+    const v = themeDropdownEl.value?.trim().toLowerCase() ?? "";
+    if (v) return v;
+  }
+  return "";
 }
 
 function readThemeIdFromStorage(rulesetId: string | null | undefined): string {
