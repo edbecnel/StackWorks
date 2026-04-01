@@ -17,12 +17,17 @@ function sideLabelsFromThemeNomenclature(themeColorNomenclature: ReturnType<type
 
 function readThemeIdFromUi(): string {
   if (typeof document === "undefined") return "";
+  // Authoritative during theme apply: setTheme() updates this before THEME_CHANGE, while
+  // localStorage may not be saved until after synchronous theme listeners run.
+  const boardSvg =
+    (document.querySelector("#boardWrap svg") as SVGSVGElement | null) ??
+    (document.getElementById("boardSvg") as SVGSVGElement | null);
+  const fromBoard = boardSvg?.getAttribute("data-theme-id")?.trim().toLowerCase() ?? "";
+  if (fromBoard) return fromBoard;
+
   const dropdown = document.getElementById("themeDropdown") as HTMLSelectElement | null;
   const selected = dropdown?.value?.trim().toLowerCase() ?? "";
-  if (selected) return selected;
-  const boardSvg = document.getElementById("boardSvg") as SVGSVGElement | null;
-  const fromSvg = boardSvg?.getAttribute("data-theme-id")?.trim().toLowerCase() ?? "";
-  return fromSvg;
+  return selected;
 }
 
 function readThemeIdFromStorage(rulesetId: string | null | undefined): string {

@@ -362,6 +362,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   hudController = controller;
   controller.bind();
   shell.bindController(controller);
+  controller.setThemeVisualRefreshCallback(() => applyBoardCoords());
   // Reveal the board only after the shell has placed player panels and fitted
   // the board width, so it appears at its final size rather than flashing large.
   await nextPaint();
@@ -424,6 +425,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Theme switching can change piece symbol IDs (Wooden variants), so re-render on change.
   svg.addEventListener(THEME_CHANGE_EVENT, () => controller.refreshForThemeChange());
+  // Re-render after visibility is restored and a paint (raster themes / deferred decode).
+  svg.addEventListener(THEME_DID_CHANGE_EVENT, () => controller.refreshForThemeChange());
 
   const startupMsg = consumeStartupMessage();
   if (startupMsg) controller.showStartupMessage(startupMsg);

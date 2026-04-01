@@ -149,7 +149,7 @@ export function drawMiniStackSpine(
     const miniY = innerBottom - miniSize - yOffset;
     const miniX = innerLeft;
 
-    const u = makeUseWithTitle(href, miniX, miniY, miniSize, pieceTooltip(p, { rulesetId }));
+    const u = makeUseWithTitle(href, miniX, miniY, miniSize, pieceTooltip(p, { rulesetId }), themeId);
     if (flipped) {
       const ux = miniX + miniSize / 2;
       const uy = miniY + miniSize / 2;

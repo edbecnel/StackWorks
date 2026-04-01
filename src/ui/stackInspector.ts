@@ -137,7 +137,7 @@ export function createStackInspector(
       );
       const y = columnY + (n - 1 - i) * (miniSize + gap);
       zoomSvg.appendChild(
-        makeUseWithTitle(href, columnX, y, miniSize, pieceTooltip(p, { rulesetId: opts.rulesetId, themeId }))
+        makeUseWithTitle(href, columnX, y, miniSize, pieceTooltip(p, { rulesetId: opts.rulesetId, themeId }), themeId),
       );
 
       if (shouldShowChessPieceCodes(opts.rulesetId)) {

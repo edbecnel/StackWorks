@@ -556,6 +556,9 @@ window.addEventListener("DOMContentLoaded", async () => {
     return a1;
   });
   shell.bindController(controller);
+  controller.setThemeVisualRefreshCallback(() => {
+    syncPairedTheme(svg.getAttribute("data-theme-id"));
+  });
   // Reveal the board only after the shell has placed player panels and fitted
   // the board width, so it appears at its final size rather than flashing large.
   await nextPaint();
@@ -620,6 +623,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Theme switching can change piece symbol IDs (Wooden variants), so re-render on change.
   svg.addEventListener(THEME_CHANGE_EVENT, () => controller.refreshForThemeChange());
+  svg.addEventListener(THEME_DID_CHANGE_EVENT, () => controller.refreshForThemeChange());
 
   const startupMsg = consumeStartupMessage();
   if (startupMsg) controller.showStartupMessage(startupMsg);

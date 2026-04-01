@@ -1,8 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { getSideLabelsForRuleset } from "./sideTerminology";
 
 describe("sideTerminology", () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
   it("uses White/Black for International Draughts by default", () => {
     localStorage.clear();
     expect(getSideLabelsForRuleset("draughts_international")).toEqual({ W: "White", B: "Black" });
@@ -73,5 +76,20 @@ describe("sideTerminology", () => {
     expect(getSideLabelsForRuleset("chess")).toEqual({ W: "White", B: "Black" });
     expect(getSideLabelsForRuleset("chess_classic")).toEqual({ W: "White", B: "Black" });
     expect(getSideLabelsForRuleset("columns_chess")).toEqual({ W: "White", B: "Black" });
+  });
+
+  it("prefers live board data-theme-id over stale storage (theme listener ordering)", () => {
+    localStorage.clear();
+    localStorage.setItem("lasca.variantId", "dama_8");
+    localStorage.setItem("lasca.opt.dama_8.theme", "classic");
+
+    const wrap = document.createElement("div");
+    wrap.id = "boardWrap";
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("data-theme-id", "candy");
+    wrap.appendChild(svg);
+    document.body.appendChild(wrap);
+
+    expect(getSideLabelsForRuleset("dama")).toEqual({ W: "Pink", B: "Violet" });
   });
 });

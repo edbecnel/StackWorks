@@ -344,7 +344,8 @@ export function createThemeManager(svgRoot: SVGSVGElement, opts?: { themeStorage
   const { themeDefs } = ensureDefsStructure(svgRoot);
 
   let currentId: string | null = null;
-  let currentCssHref: string | null = null;
+  /** Canonical theme.css URL (no cache-bust query). Used to detect shared stylesheets across piece themes. */
+  let currentThemeCssCanonical: string | null = null;
 
   let glassPaletteRowEl: HTMLElement | null = null;
   let glassPaletteSelectEl: HTMLSelectElement | null = null;
@@ -361,6 +362,10 @@ export function createThemeManager(svgRoot: SVGSVGElement, opts?: { themeStorage
     const themeId = currentId ?? svgRoot.getAttribute("data-theme-id");
     if (!themeId) return;
     svgRoot.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT, { detail: { themeId } }));
+    // Match setTheme(): consumers may render while raster/CSS settles; refresh again after a paint.
+    void nextPaint(1).then(() => {
+      svgRoot.dispatchEvent(new CustomEvent(THEME_DID_CHANGE_EVENT, { detail: { themeId } }));
+    });
   }
 
   function updateGlassUi(themeId: string | null) {
@@ -388,11 +393,22 @@ export function createThemeManager(svgRoot: SVGSVGElement, opts?: { themeStorage
     }
   }
 
-  async function applyThemeCss(cssUrl: string | URL | null | undefined) {
+  async function applyThemeCss(cssUrl: string | URL | null | undefined, activeThemeId?: string | null) {
     if (!cssUrl) return;
-    const href = String(cssUrl);
-    if (href === currentCssHref) return;
-    const link = ensureThemeCssLink();
+    const canonical = String(cssUrl);
+    const link = ensureThemeCssLink() as HTMLLinkElement & { __stackworksThemeCssApplied?: string };
+
+    // Multiple piece themes reuse the same theme.css (e.g. Candy / Checkers / Neo → classic/theme.css).
+    // Skipping a network load left the old stylesheet cascade attached to the SVG, so <use> / filters
+    // could keep pre-swap colors until something else forced a relayout (e.g. starting play).
+    const sameCanonical = canonical === currentThemeCssCanonical;
+    const linkTarget =
+      sameCanonical && activeThemeId
+        ? `${canonical}${canonical.includes("?") ? "&" : "?"}stackworksTheme=${encodeURIComponent(activeThemeId)}`
+        : canonical;
+
+    if (link.__stackworksThemeCssApplied === linkTarget) return;
+
     await new Promise<void>((resolve) => {
       const onDone = () => {
         link.removeEventListener("load", onDone);
@@ -401,9 +417,10 @@ export function createThemeManager(svgRoot: SVGSVGElement, opts?: { themeStorage
       };
       link.addEventListener("load", onDone);
       link.addEventListener("error", onDone);
-      link.href = href;
+      link.href = linkTarget;
     });
-    currentCssHref = href;
+    link.__stackworksThemeCssApplied = linkTarget;
+    currentThemeCssCanonical = canonical;
   }
 
   async function setTheme(id: string) {
@@ -420,7 +437,7 @@ export function createThemeManager(svgRoot: SVGSVGElement, opts?: { themeStorage
 
     themeDefs.replaceChildren();
     await loadSvgDefsInto(themeDefs, [theme.piecesDefs, theme.boardDefs]);
-    await applyThemeCss(theme.css);
+    await applyThemeCss(theme.css, theme.id);
 
     // Raster piece themes can be substantially slower to decode than vector themes.
     // Do not block app initialization or theme-complete events on those decodes;

@@ -28,7 +28,28 @@ export function makeUse(href: string, x: number, y: number, size: number): SVGUs
   return use;
 }
 
-export function makeUseWithTitle(href: string, x: number, y: number, size: number, titleText: string | null | undefined): SVGUseElement {
+/**
+ * Lock presentation on a live board piece <use> to the active piece theme.
+ * Global theme CSS (e.g. Glass opacity on `#lascaBoard #pieces use`) can otherwise
+ * linger across theme swaps until a later layout (same stylesheet URL, slow cascade, etc.).
+ */
+export function finalizeLivePieceUse(use: SVGUseElement, themeId: string | null | undefined): void {
+  const id = String(themeId ?? "").trim().toLowerCase();
+  if (id === "glass") {
+    use.style.removeProperty("opacity");
+  } else {
+    use.style.setProperty("opacity", "1", "important");
+  }
+}
+
+export function makeUseWithTitle(
+  href: string,
+  x: number,
+  y: number,
+  size: number,
+  titleText: string | null | undefined,
+  liveThemeId?: string | null,
+): SVGUseElement {
   const use = makeUse(href, x, y, size);
   if (titleText) {
     // Prefer our explicit title over the generic Light/Dark fallback.
@@ -36,6 +57,9 @@ export function makeUseWithTitle(href: string, x: number, y: number, size: numbe
     const title = document.createElementNS(SVG_NS, "title");
     title.textContent = titleText;
     use.appendChild(title);
+  }
+  if (liveThemeId !== undefined) {
+    finalizeLivePieceUse(use, liveThemeId);
   }
   return use;
 }

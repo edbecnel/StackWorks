@@ -73,6 +73,7 @@ import { clearStoredOnlineResumeRecords } from "../shared/onlineResumeStorage.ts
 import { chessBotPersonaAvatarUrl } from "../shared/chessBotPersonaAvatars.ts";
 import { draughtsBotPersonaAvatarUrl } from "../shared/draughtsBotPersonaAvatars.ts";
 import { readChessBotPersonaForSide } from "../bot/chessBotPersonaGameplay.ts";
+import { scheduleFullBoardChromeReflow } from "../ui/panelLayoutMode.ts";
 
 export type HistoryChangeReason = "move" | "undo" | "redo" | "jump" | "newGame" | "loadGame" | "gameOver";
 
@@ -150,6 +151,12 @@ export class GameController {
   private inputEnabled: boolean = true;
   private lastInputEnabled: boolean = true;
   private shellStartupPlayLockEnabled: boolean = false;
+  /**
+   * Optional hook (wired from *Main.ts): re-apply checkerboard / coords that are not part of
+   * renderGameState, in the same pass as piece theme refresh. Without this, startup-locked
+   * pre-game boards can keep the previous square/background colors until the next layout/move.
+   */
+  private themeVisualRefreshCallback: (() => void) | null = null;
 
   // Analysis mode: local-only sandbox moves on the current position.
   // When enabled, moves are applied locally and never submitted to the server.
@@ -2428,11 +2435,53 @@ export class GameController {
       // Still refresh so the final position renders under the new theme.
       this.renderAuthoritative();
       this.updatePanel();
+      this.fireShellSnapshotChange();
+      this.finishThemeVisualRefresh();
       return;
     }
 
     this.renderAuthoritative();
     this.updatePanel();
+    this.fireShellSnapshotChange();
+    this.finishThemeVisualRefresh();
+  }
+
+  /** Register board chrome refresh (checkerboard pairing, coords, etc.) from the host *Main.ts. */
+  setThemeVisualRefreshCallback(cb: (() => void) | null): void {
+    this.themeVisualRefreshCallback = cb;
+  }
+
+  private finishThemeVisualRefresh(): void {
+    try {
+      this.themeVisualRefreshCallback?.();
+    } catch {
+      // ignore host hook errors
+    }
+    try {
+      if (typeof window !== "undefined") {
+        this.nudgeSvgCompositorRepaint();
+        scheduleFullBoardChromeReflow();
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  /** Encourage the browser to drop stale composited layers after theme/CSS + defs swap. */
+  private nudgeSvgCompositorRepaint(): void {
+    try {
+      const el = this.svg;
+      el.style.transform = "translateZ(0)";
+      window.requestAnimationFrame(() => {
+        try {
+          el.style.removeProperty("transform");
+        } catch {
+          // ignore
+        }
+      });
+    } catch {
+      // ignore
+    }
   }
 
   setMoveHints(enabled: boolean): void {
@@ -5382,7 +5431,7 @@ export class GameController {
       maybeVariantWoodenPieceHref(this.svg, baseHref, `${nodeId}:ghost`),
       `${nodeId}:ghost`
     );
-    const use = makeUseWithTitle(href, cx - half, cy - half, pieceSize, pieceTooltip(top, { rulesetId }));
+    const use = makeUseWithTitle(href, cx - half, cy - half, pieceSize, pieceTooltip(top, { rulesetId }), themeId);
     if (isBoardFlipped(this.svg)) {
       use.setAttribute("transform", `rotate(180 ${cx} ${cy})`);
     }

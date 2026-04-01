@@ -70,7 +70,8 @@ export function renderStackAtNode(
     resolvedPieceSize,
     coordLabelNow
       ? `${pieceTooltip(top, { rulesetId, themeId })} (${coordLabelNow})`
-      : pieceTooltip(top, { rulesetId, themeId })
+      : pieceTooltip(top, { rulesetId, themeId }),
+    themeId,
   );
   if (isBoardFlipped(svgRoot)) {
     use.setAttribute("transform", `rotate(180 ${cx} ${cy})`);
