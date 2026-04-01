@@ -37,7 +37,7 @@ import type { OnlineGameDriver } from "./driver/gameDriver.ts";
 import { createSfxManager } from "./ui/sfx";
 import { createPrng } from "./shared/prng.ts";
 import { hasConfiguredOnlineLocalBot } from "./shared/onlineLocalSeats.ts";
-import { resolveConfiguredLocalPlayerName } from "./shared/localPlayerNames";
+import { resolveSeatLabelForGameSaveFile } from "./shared/saveSeatLabelForFile";
 import { normalizeLastMoveHighlightStyle, normalizeMoveHintStyle, normalizeSelectionStyle } from "./render/highlightStyles";
 import { createBoardLoadingOverlay } from "./ui/boardLoadingOverlay";
 import { nextPaint } from "./ui/nextPaint";
@@ -106,17 +106,14 @@ function writeStringPref(key: string, value: string): void {
   localStorage.setItem(key, value);
 }
 
-function resolvePlayerLabelForSave(args: {
-  side: "W" | "B";
-  controller: GameController;
-}): string {
-  const configuredName = resolveConfiguredLocalPlayerName(args.side);
-  if (configuredName) return configuredName;
-  const displayName = args.controller.getPlayerShellSnapshot().players[args.side].displayName?.trim() ?? "";
-  const selectId = args.side === "W" ? "aiWhiteSelect" : "aiBlackSelect";
-  const botSetting = (document.getElementById(selectId) as HTMLSelectElement | null)?.value ?? "human";
-  if (botSetting !== "human") return args.side === "W" ? "white" : "black";
-  return displayName || "human";
+function resolvePlayerLabelForSave(args: { side: "W" | "B"; controller: GameController }): string {
+  const v = getVariantById(ACTIVE_VARIANT_ID);
+  return resolveSeatLabelForGameSaveFile({
+    side: args.side,
+    controller: args.controller,
+    rulesetId: v.rulesetId,
+    boardSize: v.boardSize,
+  });
 }
 
 function updatePlayerColorBadge(driver: unknown, rulesetId: string, boardSize: number): void {

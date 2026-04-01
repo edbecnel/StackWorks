@@ -60,7 +60,7 @@ import { initGameShell } from "./ui/shell/gameShell";
 import { GameSection } from "./config/shellState";
 import { consumeShellBotPlayState } from "./shared/consumeShellBotPlayState";
 import { bindChessEvaluationPanel } from "./ui/chessEvaluationPanel.ts";
-import { resolveConfiguredLocalPlayerName } from "./shared/localPlayerNames";
+import { resolveSeatLabelForGameSaveFile } from "./shared/saveSeatLabelForFile";
 import { installPlayerBotSelector, syncPlayerBotSelector } from "./ui/bot/playerBotSelector";
 import type { OnlineGameDriver } from "./driver/gameDriver";
 import { hasConfiguredOnlineLocalBot } from "./shared/onlineLocalSeats";
@@ -120,17 +120,14 @@ function writeStringPref(key: string, value: string): void {
   localStorage.setItem(key, value);
 }
 
-function resolvePlayerLabelForSave(args: {
-  side: "W" | "B";
-  controller: GameController;
-}): string {
-  const configuredName = resolveConfiguredLocalPlayerName(args.side);
-  if (configuredName) return configuredName;
-  const displayName = args.controller.getPlayerShellSnapshot().players[args.side].displayName?.trim() ?? "";
-  const selectId = args.side === "W" ? "botWhiteSelect" : "botBlackSelect";
-  const botSetting = (document.getElementById(selectId) as HTMLSelectElement | null)?.value ?? "human";
-  if (botSetting !== "human") return args.side === "W" ? "white" : "black";
-  return displayName || "human";
+function resolvePlayerLabelForSave(args: { side: "W" | "B"; controller: GameController }): string {
+  const v = getVariantById(ACTIVE_VARIANT_ID);
+  return resolveSeatLabelForGameSaveFile({
+    side: args.side,
+    controller: args.controller,
+    rulesetId: v.rulesetId,
+    boardSize: v.boardSize,
+  });
 }
 
 type ColMoveHintStyle = "classic" | "chesscom" | "classic-squares";

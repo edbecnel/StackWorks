@@ -78,6 +78,7 @@ import {
   hasAnyLocalBotSide,
   resolveActiveLocalSeatDisplayNames,
 } from "./shared/localPlayerNames";
+import { resolveSeatLabelForGameSaveFile } from "./shared/saveSeatLabelForFile";
 import { readOpenVariantPageOnlinePreview } from "./shared/openVariantPageIntent";
 import { resolveExportPlayerName } from "./shared/playerExportNames";
 import { isShellNewGameConfirmSuppressed, markShellNewGameConfirmCancelled } from "./ui/shell/shellNewGameBypass";
@@ -673,20 +674,14 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   };
 
-  const resolvedPlayerNameForSave = (side: "W" | "B"): string => {
-    const names = resolveActiveLocalSeatDisplayNames({
-      root: document,
+  const resolvedPlayerNameForSave = (side: "W" | "B"): string =>
+    resolveSeatLabelForGameSaveFile({
+      side,
+      controller,
+      rulesetId: variant.rulesetId,
+      boardSize: variant.boardSize,
       signedInDisplayName: signedInHumanDisplayName,
-      sideLabels: { W: "White", B: "Black" },
-      savePinnedSeatNames: {
-        W: controller.getSavePinnedSeatDisplayName("W"),
-        B: controller.getSavePinnedSeatDisplayName("B"),
-      },
     });
-    const fromSession = names[side].trim();
-    if (fromSession) return fromSession;
-    return resolvedPlayerNameForExport(side);
-  };
 
   /** Build the "White vs. Black (result)" portion of a filename. */
   const playerNameFilePart = (resultSuffix?: string): string => {
