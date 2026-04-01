@@ -393,6 +393,69 @@ function checkAutomaticDraw(board: Board): { isDraw: boolean; reason: string } {
 
 Draughts bots can **loop** (e.g. a king moving back and forth between two squares). Implement **threefold repetition**: if the **exact same board position** (piece locations **and** side to move) occurs **three times**, declare a draw.
 
+### Zobrist hashing for fast repetition checks (TypeScript sketch)
+
+To track repetitions efficiently in TypeScript, use **Zobrist hashing**: map each distinct position to a **64-bit** fingerprint instead of deep-comparing board arrays. On a move, **XOR** out the old square/piece entry and XOR in the new one. If the **same hash** appears **three times** in your history, treat it as a draw.
+
+**Important:** Fold **side to move** (and any rule-relevant state your variant needs) into the hash with extra random keys, or XOR a dedicated **turn** key when the side changes — otherwise positions that differ only by who is to move will be misclassified.
+
+#### 1. Initialize the Zobrist table
+
+Generate random **64-bit** values for each **(square, piece type)** pair. Use a **seeded PRNG** or persist the table so hashes are stable across runs.
+
+```typescript
+// Example: 32 dark squares (English draughts); align indices with your board model
+const BOARD_SQUARES = 32;
+const PIECE_TYPES = 5; // e.g. [None, Black, White, BlackKing, WhiteKing] — match your encoding
+const zobristTable: bigint[][] = [];
+
+function initZobrist() {
+  for (let i = 0; i < BOARD_SQUARES; i++) {
+    zobristTable[i] = [];
+    for (let j = 0; j < PIECE_TYPES; j++) {
+      zobristTable[i][j] =
+        (BigInt(Math.floor(Math.random() * 0x1_0000_0000)) << 32n) |
+        BigInt(Math.floor(Math.random() * 0x1_0000_0000));
+    }
+  }
+}
+```
+
+#### 2. Update the hash during a move
+
+When a piece moves from `from` to `to`, update incrementally: XOR out the piece on the old square, XOR in on the new square. On **promotion**, XOR out the man type and XOR in the king type on `to`.
+
+```typescript
+function updateHash(currentHash: bigint, fromIndex: number, toIndex: number, pieceType: number): bigint {
+  let newHash = currentHash;
+  newHash ^= zobristTable[fromIndex][pieceType];
+  newHash ^= zobristTable[toIndex][pieceType];
+  return newHash;
+}
+```
+
+#### 3. Check for threefold repetition
+
+Track how many times each hash has occurred.
+
+```typescript
+const positionHistory = new Map<bigint, number>();
+
+function recordPosition(hash: bigint): boolean {
+  const count = (positionHistory.get(hash) ?? 0) + 1;
+  positionHistory.set(hash, count);
+  return count >= 3;
+}
+```
+
+### Persona application
+
+- **Balanced bot:** Accept a **threefold** draw when evaluation is **dead even** (~0.0).
+- **Endgame bot:** If **lost** (e.g. down a piece), may **oscillate** safely to **trigger** repetition when the rules award a draw.
+- **Teacher bot:** Alert: *You are repeating moves — in a real game this would be a draw; try a different path.*
+
+Strong engines (e.g. **Stockfish**) use the same idea to keep repetition detection cheap at high node rates.
+
 ---
 
 ## Cross-reference
@@ -402,4 +465,3 @@ Draughts bots can **loop** (e.g. a king moving back and forth between two square
 - Draughts-style avatar paths: `src/shared/draughtsBotPersonaAvatars.ts` and `public/icons/bots/`.
 
 When engine and coaching behavior land, update this doc with concrete module links and variant-specific caveats (Lasca vs 10x10 international rules, etc.).
-
