@@ -36,8 +36,10 @@ Scope boundaries:
 13. [13-risks-tech-debt-and-gaps.md](./13-risks-tech-debt-and-gaps.md)
 14. [14-variant-delta-matrix.md](./14-variant-delta-matrix.md)
 15. [15-api-surface-current.md](./15-api-surface-current.md)
-16. [Reviewer checklist template](./templates/architecture-doc-review-checklist.md)
-17. ADR index — [ADR-0001: Living Documentation Baseline](./adr/ADR-0001-documentation-baseline.md), [ADR-0002: Server-Authoritative Online State](./adr/ADR-0002-server-authoritative-online-state.md), [ADR-0003: Multi-Entry Client With Shell Migration](./adr/ADR-0003-multi-entry-client-with-shell-migration.md), [ADR-0004: Shared Rules Engine Across Client and Server](./adr/ADR-0004-shared-rules-engine-across-client-and-server.md)
+16. [16-feature-to-code-index.md](./16-feature-to-code-index.md)
+17. [18-quick-triage-guide.md](./18-quick-triage-guide.md)
+18. [Reviewer checklist template](./templates/architecture-doc-review-checklist.md)
+19. ADR index — [ADR-0001: Living Documentation Baseline](./adr/ADR-0001-documentation-baseline.md), [ADR-0002: Server-Authoritative Online State](./adr/ADR-0002-server-authoritative-online-state.md), [ADR-0003: Multi-Entry Client With Shell Migration](./adr/ADR-0003-multi-entry-client-with-shell-migration.md), [ADR-0004: Shared Rules Engine Across Client and Server](./adr/ADR-0004-shared-rules-engine-across-client-and-server.md)
 
 ## Status Legend
 

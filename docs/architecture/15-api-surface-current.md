@@ -30,6 +30,10 @@ Scope rule for this document:
 
 ## Group A: Health and Stockfish Service Status
 
+<a id="table-15-1"></a>
+
+Table cross-reference: [Rendered table view](./tables-only.html#table-15-1)
+
 | Method | Path                  | Purpose                                               | Main handler file(s) | Downstream service file(s)       | Auth requirement | Current status |
 | ------ | --------------------- | ----------------------------------------------------- | -------------------- | -------------------------------- | ---------------- | -------------- |
 | GET    | /api/health           | Basic server liveliness check                         | `server/src/app.ts`  | None                             | None             | Implemented    |
@@ -45,6 +49,10 @@ Scope rule for this document:
 - Confidence: **High**
 
 ## Group B: Auth and Profile Core
+
+<a id="table-15-2"></a>
+
+Table cross-reference: [Rendered table view](./tables-only.html#table-15-2)
 
 | Method | Path                     | Purpose                                   | Main handler file(s) | Downstream service file(s)                                                                                                         | Auth requirement     | Current status |
 | ------ | ------------------------ | ----------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------- | -------------- |
@@ -71,6 +79,10 @@ Note:
 
 ## Group C: Realtime and Room Access
 
+<a id="table-15-3"></a>
+
+Table cross-reference: [Rendered table view](./tables-only.html#table-15-3)
+
 | Method | Path                         | Purpose                                                    | Main handler file(s) | Downstream service file(s)                                                                       | Auth requirement     | Current status |
 | ------ | ---------------------------- | ---------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------ | -------------------- | -------------- |
 | WS     | /api/ws                      | WebSocket realtime snapshot stream (JOIN message required) | `server/src/app.ts`  | Room state in `server/src/app.ts`                                                                | Room View Capability | Implemented    |
@@ -89,6 +101,10 @@ Note:
 - Confidence: **Medium**
 
 ## Group D: Room Lifecycle and Gameplay Actions
+
+<a id="table-15-4"></a>
+
+Table cross-reference: [Rendered table view](./tables-only.html#table-15-4)
 
 | Method | Path                      | Purpose                                            | Main handler file(s) | Downstream service file(s)                                                                     | Auth requirement | Current status |
 | ------ | ------------------------- | -------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------- | ---------------- | -------------- |
@@ -112,6 +128,10 @@ Note:
 - Confidence: **Medium**
 
 ## Group E: Lobby, Replay, and Published Eval
+
+<a id="table-15-5"></a>
+
+Table cross-reference: [Rendered table view](./tables-only.html#table-15-5)
 
 | Method | Path                     | Purpose                                           | Main handler file(s) | Downstream service file(s)                            | Auth requirement     | Current status |
 | ------ | ------------------------ | ------------------------------------------------- | -------------------- | ----------------------------------------------------- | -------------------- | -------------- |

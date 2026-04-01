@@ -895,3 +895,75 @@ When using chess.com play screens as visual references, translate them into Stac
 - [ ] On desktop/laptop layouts, the shell uses left/right panel pairs instead of a persistent top game header above the board
 - [ ] The old UI is fully phased out: no user-facing legacy start page, no legacy desktop header layout, and no permanent `Legacy panels` fallback exposed in production
 - [ ] All essential old-UI capabilities are preserved, but non-essential old-UI presentation clutter has been removed or demoted behind secondary surfaces
+
+---
+
+## Bot Personas Reference
+
+### Scope
+
+- Persona tuning currently affects move-search behavior for `chess_classic` and `columns_chess`.
+- Other variants may show persona names/avatars in shell UI, but do not currently apply persona-specific search tuning.
+
+### Persona IDs
+
+- `teacher`
+- `balanced`
+- `trickster`
+- `endgame`
+
+Source: `src/bot/chessBotPersonaGameplay.ts`, `src/config/shellState.ts`
+
+### Storage
+
+- White seat: `stackworks.bot.whitePersona`
+- Black seat: `stackworks.bot.blackPersona`
+
+Primary read/write paths:
+
+- `src/ui/shell/playHub.ts`
+- `src/bot/chessBotPersonaGameplay.ts`
+
+### Runtime Behavior
+
+Every bot move starts from a tier/sublevel preset in `src/bot/presets.ts`, then persona modifiers apply via `applyChessBotPersonaToMoveSearch()`:
+
+- **Teacher**: `skill -= 2`, `movetime *= 0.9`
+- **Balanced**: no change
+- **Trickster**: `movetime *= 1.14`
+- **Endgame**:
+  - Endgame-rich position (`pieceCount <= 12`): `skill += 1`, `movetime *= 1.1`
+  - Otherwise: `skill -= 1`, `movetime *= 0.93`
+
+Guardrails:
+
+- Skill clamped to `[0, 20]`
+- Movetime clamped to `>= 10ms`
+
+Applied in:
+
+- `src/bot/chessBotManager.ts`
+- `src/bot/columnsChessBotManager.ts`
+
+### UI, Naming, and Avatars
+
+- Persona labels/titles are defined in `src/ui/shell/playHub.ts`
+- Persona-based seat naming for saves/shell:
+  - `src/shared/localPlayerNames.ts`
+  - `src/shared/saveSeatLabelForFile.ts`
+- Avatar sets:
+  - Chess: `src/shared/chessBotPersonaAvatars.ts`
+  - Draughts: `src/shared/draughtsBotPersonaAvatars.ts`
+
+### Current Limits
+
+- Endgame detection is heuristic (piece count), not a full phase model.
+- Personas are lightweight parameter transforms over Stockfish presets, not distinct engine models.
+
+### Coverage
+
+- Core tuning tests: `src/bot/chessBotPersonaGameplay.test.ts`
+- Wiring/state tests include:
+  - `src/ui/shell/playHub.test.ts`
+  - `src/controller/gameController.test.ts`
+  - `src/shared/localPlayerNames.test.ts`

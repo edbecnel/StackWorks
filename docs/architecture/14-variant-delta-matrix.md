@@ -35,6 +35,10 @@ Purpose:
 
 ## Delta Matrix
 
+<a id="table-14-1"></a>
+
+Table cross-reference: [Rendered table view](./tables-only.html#table-14-1)
+
 | Variant / Group                                             | Entry and Mapping                                                | Shared                                              | Specialized                                                                                       | Overridden                                                         | Duplicated                                                                                | Still Unclear                                                          |
 | ----------------------------------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | Start Page Launcher (all variants)                          | `src/indexMain.ts` + `src/index.html`                            | Variant registry, shell state, auth/session helpers | Launch parameter synthesis, lobby/account/start UX                                                | Per-variant launch preference keys and visibility of options       | Large amount of per-variant branching in one module                                       | Long-term split between launcher state and shell state ownership       |

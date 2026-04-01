@@ -1,0 +1,925 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>StackWorks Architecture Tables Only</title>
+    <style>
+      :root {
+        --bg: #f7f8fb;
+        --panel: #ffffff;
+        --text: #1c2430;
+        --muted: #5c6a7b;
+        --line: #d8dee8;
+        --head: #eaf0f8;
+        --link: #0b5bd3;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--text);
+        background: linear-gradient(180deg, #f4f6fa 0%, #eef2f8 100%);
+      }
+      main {
+        max-width: 1500px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 28px;
+      }
+      p {
+        margin: 6px 0;
+        color: var(--muted);
+      }
+      .toc {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin: 16px 0 20px;
+      }
+      .toc ul {
+        margin: 0;
+        padding-left: 20px;
+        columns: 2;
+      }
+      .toc li {
+        margin: 5px 0;
+        break-inside: avoid;
+      }
+      .block {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px;
+        margin: 14px 0;
+        overflow: auto;
+      }
+      .meta {
+        display: flex;
+        gap: 16px;
+        align-items: baseline;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+      }
+      .meta h2 {
+        margin: 0;
+        font-size: 18px;
+      }
+      .meta a {
+        color: var(--link);
+        text-decoration: none;
+        font-size: 14px;
+      }
+      .meta a:hover {
+        text-decoration: underline;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        min-width: 980px;
+        font-size: 14px;
+        line-height: 1.35;
+      }
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 8px 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: var(--head);
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      code {
+        background: #f1f4fa;
+        border: 1px solid #dee5f0;
+        border-radius: 4px;
+        padding: 0 4px;
+        white-space: nowrap;
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 12px;
+      }
+      @media (max-width: 900px) {
+        .toc ul {
+          columns: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Architecture Tables Only</h1>
+      <p>
+        Single-page rendered view of Markdown tables from architecture docs.
+      </p>
+      <p>Each table includes a backlink to its source Markdown anchor.</p>
+
+      <section class="toc">
+        <strong>Table Index</strong>
+        <ul>
+          <li><a href="#table-14-1">table-14-1 - Variant Delta Matrix</a></li>
+          <li><a href="#table-15-1">table-15-1 - API Group A</a></li>
+          <li><a href="#table-15-2">table-15-2 - API Group B</a></li>
+          <li><a href="#table-15-3">table-15-3 - API Group C</a></li>
+          <li><a href="#table-15-4">table-15-4 - API Group D</a></li>
+          <li><a href="#table-15-5">table-15-5 - API Group E</a></li>
+          <li>
+            <a href="#table-16-1"
+              >table-16-1 - Feature-to-Code Quick Navigation</a
+            >
+          </li>
+          <li><a href="#table-18-1">table-18-1 - Quick Triage Map</a></li>
+        </ul>
+      </section>
+
+      <section class="block" id="table-14-1">
+        <div class="meta">
+          <h2>table-14-1: Variant Delta Matrix</h2>
+          <a href="14-variant-delta-matrix.md#table-14-1"
+            >Source markdown: 14-variant-delta-matrix.md#table-14-1</a
+          >
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Variant / Group</th>
+              <th>Entry and Mapping</th>
+              <th>Shared</th>
+              <th>Specialized</th>
+              <th>Overridden</th>
+              <th>Duplicated</th>
+              <th>Still Unclear</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Start Page Launcher (all variants)</td>
+              <td>
+                <code>src/indexMain.ts</code> + <code>src/index.html</code>
+              </td>
+              <td>Variant registry, shell state, auth/session helpers</td>
+              <td>Launch parameter synthesis, lobby/account/start UX</td>
+              <td>
+                Per-variant launch preference keys and visibility of options
+              </td>
+              <td>Large amount of per-variant branching in one module</td>
+              <td>
+                Long-term split between launcher state and shell state ownership
+              </td>
+            </tr>
+            <tr>
+              <td>Lasca 7x7 (classic)</td>
+              <td>
+                <code>src/main.ts</code>, <code>src/lasca.html</code>,
+                <code>src/variants/activeVariant.ts</code>
+              </td>
+              <td>Core controller/render/driver stack</td>
+              <td>Lasca board asset wiring, Lasca-specific labels/options</td>
+              <td>
+                Uses active variant indirection (<code>activeVariant.ts</code>)
+              </td>
+              <td>Pattern overlaps with other non-chess variants</td>
+              <td>
+                Whether activeVariant indirection remains or is normalized
+              </td>
+            </tr>
+            <tr>
+              <td>Lasca 8x8</td>
+              <td>
+                <code>src/lasca8x8Main.ts</code>, <code>src/lasca8x8.html</code>
+              </td>
+              <td>Same baseline as Lasca 7x7</td>
+              <td>8x8 board and option defaults, variant-specific LS keys</td>
+              <td>Variant constant differs from classic Lasca path</td>
+              <td>Similar bootstrap logic to <code>src/main.ts</code></td>
+              <td>
+                Possible consolidation with other draughts-family bootstraps
+              </td>
+            </tr>
+            <tr>
+              <td>Dama + US Checkers + International Draughts</td>
+              <td><code>src/damaMain.ts</code>, <code>src/dama.html</code></td>
+              <td>Shared baseline and non-chess controller paths</td>
+              <td>
+                Runtime variant selection among dama/checkers/international;
+                international numbering options
+              </td>
+              <td>
+                Ruleset-specific coord/notation/render options in one entry
+                module
+              </td>
+              <td>
+                Substantial overlap with
+                <code>src/columnsDraughtsMain.ts</code> and
+                <code>src/damascaMain.ts</code> bootstraps
+              </td>
+              <td>
+                Whether this cluster should split or keep one multi-variant
+                entry
+              </td>
+            </tr>
+            <tr>
+              <td>Damasca (classic + international)</td>
+              <td>
+                <code>src/damascaMain.ts</code>, <code>src/damasca.html</code>
+              </td>
+              <td>Shared baseline</td>
+              <td>
+                Runtime switch between <code>damasca_8_classic</code> and
+                <code>damasca_8</code>; stacking-capture-specific UI behavior
+              </td>
+              <td>Variant-select and save-label logic specific to Damasca</td>
+              <td>Bootstrap resembles Lasca/Dama structures</td>
+              <td>
+                Future relationship with Columns Draughts module boundaries
+              </td>
+            </tr>
+            <tr>
+              <td>Columns Draughts 10x10</td>
+              <td>
+                <code>src/columnsDraughtsMain.ts</code>,
+                <code>src/columnsDraughts.html</code>
+              </td>
+              <td>Shared non-chess baseline</td>
+              <td>
+                Fixed 10x10 columns-draughts variant and international-style
+                board options
+              </td>
+              <td>Uses dedicated active variant constant and 10x10 assets</td>
+              <td>
+                Significant overlap with <code>src/damaMain.ts</code> structure
+              </td>
+              <td>
+                Whether shared 10x10 non-chess bootstrap abstraction will be
+                extracted
+              </td>
+            </tr>
+            <tr>
+              <td>Classic Chess</td>
+              <td>
+                <code>src/chessMain.ts</code>, <code>src/chess.html</code>
+              </td>
+              <td>Shared shell/driver/controller scaffolding</td>
+              <td>
+                Chess bot manager, evaluation panel behavior, chess notation and
+                PGN annotations
+              </td>
+              <td>
+                Chess-specific move preview, selectors, board visualization
+                tools
+              </td>
+              <td>Some overlap with Columns Chess startup patterns</td>
+              <td>
+                Whether chess/columns-chess can share a tighter boot abstraction
+              </td>
+            </tr>
+            <tr>
+              <td>Columns Chess</td>
+              <td>
+                <code>src/columnsChessMain.ts</code>,
+                <code>src/columnsChess.html</code>
+              </td>
+              <td>Shared shell/driver/controller stack</td>
+              <td>
+                Columns-chess bot manager and columns-specific option keys
+              </td>
+              <td>
+                Theme/checkerboard migrations and columns-specific selectors
+              </td>
+              <td>
+                Startup and option wiring similar to
+                <code>src/chessMain.ts</code>
+              </td>
+              <td>
+                Final split of shared chess-family bootstrap vs separate files
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Admin Tools (non-game variant but architecture-significant)
+              </td>
+              <td>
+                <code>src/adminMain.ts</code>, <code>src/admin.html</code>
+              </td>
+              <td>Shared protocol types, common UI helpers</td>
+              <td>
+                Admin token handling, room delete UX, lobby admin controls
+              </td>
+              <td>Admin-specific API query params and error handling</td>
+              <td>
+                Some identity chip rendering duplicated from user-facing lobby
+                contexts
+              </td>
+              <td>
+                Long-term product location and exposure policy for admin UI
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="table-15-1">
+        <div class="meta">
+          <h2>table-15-1: API Group A - Health and Stockfish Service Status</h2>
+          <a href="15-api-surface-current.md#table-15-1"
+            >Source markdown: 15-api-surface-current.md#table-15-1</a
+          >
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Path</th>
+              <th>Purpose</th>
+              <th>Main handler file(s)</th>
+              <th>Downstream service file(s)</th>
+              <th>Auth requirement</th>
+              <th>Current status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>GET</td>
+              <td>/api/health</td>
+              <td>Basic server liveliness check</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>None</td>
+              <td>None</td>
+              <td>Implemented</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td>/api/stockfish/health</td>
+              <td>Engine health/status for integrated stockfish service</td>
+              <td><code>server/src/app.ts</code></td>
+              <td><code>server/src/stockfishService.ts</code></td>
+              <td>None</td>
+              <td>Implemented</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="table-15-2">
+        <div class="meta">
+          <h2>table-15-2: API Group B - Auth and Profile Core</h2>
+          <a href="15-api-surface-current.md#table-15-2"
+            >Source markdown: 15-api-surface-current.md#table-15-2</a
+          >
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Path</th>
+              <th>Purpose</th>
+              <th>Main handler file(s)</th>
+              <th>Downstream service file(s)</th>
+              <th>Auth requirement</th>
+              <th>Current status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>POST</td>
+              <td>/api/auth/register</td>
+              <td>Create account and establish session</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>
+                <code>server/src/auth/authStore.ts</code>,
+                <code>server/src/auth/password.ts</code>,
+                <code>server/src/auth/sessionStore.ts</code>,
+                <code>server/src/auth/httpCookies.ts</code>
+              </td>
+              <td>None</td>
+              <td>Implemented</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td>/api/auth/login</td>
+              <td>Authenticate and establish session</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>
+                <code>server/src/auth/authStore.ts</code>,
+                <code>server/src/auth/password.ts</code>,
+                <code>server/src/auth/sessionStore.ts</code>,
+                <code>server/src/auth/httpCookies.ts</code>
+              </td>
+              <td>None</td>
+              <td>Implemented</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td>/api/auth/logout</td>
+              <td>Clear session</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>
+                <code>server/src/auth/sessionStore.ts</code>,
+                <code>server/src/auth/httpCookies.ts</code>
+              </td>
+              <td>Session (if present)</td>
+              <td>Implemented</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td>/api/auth/me</td>
+              <td>Get current authenticated user (or null)</td>
+              <td><code>server/src/app.ts</code></td>
+              <td><code>server/src/auth/authStore.ts</code></td>
+              <td>None</td>
+              <td>Implemented</td>
+            </tr>
+            <tr>
+              <td>PATCH</td>
+              <td>/api/auth/me</td>
+              <td>Update profile fields</td>
+              <td><code>server/src/app.ts</code></td>
+              <td><code>server/src/auth/authStore.ts</code></td>
+              <td>Session</td>
+              <td>In Progress</td>
+            </tr>
+            <tr>
+              <td>PUT</td>
+              <td>/api/auth/me/avatar</td>
+              <td>Upload avatar bytes and update avatar URL</td>
+              <td><code>server/src/app.ts</code></td>
+              <td><code>server/src/auth/authStore.ts</code></td>
+              <td>Session</td>
+              <td>In Progress</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td>/api/auth/avatar/:fileId</td>
+              <td>Serve stored avatar asset</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>Auth avatar filesystem under auth dir</td>
+              <td>None</td>
+              <td>Implemented</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="table-15-3">
+        <div class="meta">
+          <h2>table-15-3: API Group C - Realtime and Room Access</h2>
+          <a href="15-api-surface-current.md#table-15-3"
+            >Source markdown: 15-api-surface-current.md#table-15-3</a
+          >
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Path</th>
+              <th>Purpose</th>
+              <th>Main handler file(s)</th>
+              <th>Downstream service file(s)</th>
+              <th>Auth requirement</th>
+              <th>Current status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>WS</td>
+              <td>/api/ws</td>
+              <td>
+                WebSocket realtime snapshot stream (JOIN message required)
+              </td>
+              <td><code>server/src/app.ts</code></td>
+              <td>Room state in <code>server/src/app.ts</code></td>
+              <td>Room View Capability</td>
+              <td>Implemented</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td>/api/stream/:roomId</td>
+              <td>SSE realtime snapshot stream</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>Room state in <code>server/src/app.ts</code></td>
+              <td>Room View Capability</td>
+              <td>Implemented</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td>/api/room/:roomId</td>
+              <td>Fetch latest authoritative room snapshot</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>
+                <code>server/src/persistence.ts</code> (indirect through room
+                lifecycle), room state in <code>server/src/app.ts</code>
+              </td>
+              <td>Room View Capability</td>
+              <td>Implemented</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td>/api/room/:roomId/meta</td>
+              <td>Fetch room metadata for routing/join decisions</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>Room state in <code>server/src/app.ts</code></td>
+              <td>None</td>
+              <td>Implemented</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td>/api/room/:roomId/watchToken</td>
+              <td>Get private-room watch token for seated player</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>Room state in <code>server/src/app.ts</code></td>
+              <td>Seat Capability</td>
+              <td>Implemented</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="table-15-4">
+        <div class="meta">
+          <h2>table-15-4: API Group D - Room Lifecycle and Gameplay Actions</h2>
+          <a href="15-api-surface-current.md#table-15-4"
+            >Source markdown: 15-api-surface-current.md#table-15-4</a
+          >
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Path</th>
+              <th>Purpose</th>
+              <th>Main handler file(s)</th>
+              <th>Downstream service file(s)</th>
+              <th>Auth requirement</th>
+              <th>Current status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>POST</td>
+              <td>/api/create</td>
+              <td>Create authoritative room with initial snapshot</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>
+                <code>server/src/persistence.ts</code>,
+                <code>src/shared/wireState.ts</code>
+              </td>
+              <td>None</td>
+              <td>Implemented</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td>/api/join</td>
+              <td>Join or rejoin room and receive snapshot</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>
+                <code>server/src/persistence.ts</code>,
+                <code>src/shared/wireState.ts</code>
+              </td>
+              <td>None</td>
+              <td>Implemented</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td>/api/submitMove</td>
+              <td>Apply move intent authoritatively</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>
+                <code>src/game/applyMove.ts</code>,
+                <code>server/src/persistence.ts</code>
+              </td>
+              <td>Seat Capability</td>
+              <td>Implemented</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td>/api/finalizeCaptureChain</td>
+              <td>Finalize capture-chain step for supported rulesets</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>
+                <code>src/game/damaCaptureChain.ts</code>,
+                <code>src/game/damascaCaptureChain.ts</code>,
+                <code>server/src/persistence.ts</code>
+              </td>
+              <td>Seat Capability</td>
+              <td>Implemented</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td>/api/endTurn</td>
+              <td>End turn after applicable move/capture sequence</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>
+                <code>src/game/endTurn.ts</code>,
+                <code>server/src/persistence.ts</code>
+              </td>
+              <td>Seat Capability</td>
+              <td>Implemented</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td>/api/claimDraw</td>
+              <td>Claim draw when allowed (e.g., threefold)</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>
+                draw/repetition logic in <code>server/src/app.ts</code>,
+                <code>server/src/persistence.ts</code>
+              </td>
+              <td>Seat Capability</td>
+              <td>Implemented</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td>/api/offerDraw</td>
+              <td>Offer draw</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>
+                draw-offer state in <code>server/src/app.ts</code>,
+                <code>server/src/persistence.ts</code>
+              </td>
+              <td>Seat Capability</td>
+              <td>Implemented</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td>/api/respondDrawOffer</td>
+              <td>Accept/decline pending draw offer</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>
+                draw-offer state in <code>server/src/app.ts</code>,
+                <code>server/src/persistence.ts</code>
+              </td>
+              <td>Seat Capability</td>
+              <td>Implemented</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td>/api/resign</td>
+              <td>Resign and force game-over</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>
+                game-over paths in <code>server/src/app.ts</code>,
+                <code>server/src/persistence.ts</code>
+              </td>
+              <td>Seat Capability</td>
+              <td>Implemented</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="table-15-5">
+        <div class="meta">
+          <h2>table-15-5: API Group E - Lobby, Replay, and Published Eval</h2>
+          <a href="15-api-surface-current.md#table-15-5"
+            >Source markdown: 15-api-surface-current.md#table-15-5</a
+          >
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Path</th>
+              <th>Purpose</th>
+              <th>Main handler file(s)</th>
+              <th>Downstream service file(s)</th>
+              <th>Auth requirement</th>
+              <th>Current status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>GET</td>
+              <td>/api/lobby</td>
+              <td>List discoverable rooms with metadata</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>
+                <code>server/src/persistence.ts</code> (persisted-room fallback)
+              </td>
+              <td>None</td>
+              <td>Implemented</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td>/api/room/:roomId/replay</td>
+              <td>Read replay events for room</td>
+              <td><code>server/src/app.ts</code></td>
+              <td><code>server/src/persistence.ts</code></td>
+              <td>Room View Capability</td>
+              <td>Implemented</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td>/api/publishEval</td>
+              <td>Publish evaluation for current room state version</td>
+              <td><code>server/src/app.ts</code></td>
+              <td>room state in <code>server/src/app.ts</code></td>
+              <td>Seat Capability</td>
+              <td>Implemented</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="table-16-1">
+        <div class="meta">
+          <h2>table-16-1: Feature-to-Code Quick Navigation Matrix</h2>
+          <a href="16-feature-to-code-index.md#table-16-1"
+            >Source markdown: 16-feature-to-code-index.md#table-16-1</a
+          >
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Feature/Concern</th>
+              <th>Start Here</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Session create/join/rejoin</td>
+              <td>
+                <code>src/indexMain.ts</code>,
+                <code>src/driver/createDriver.ts</code>,
+                <code>src/driver/remoteDriver.ts</code>,
+                <code>server/src/app.ts</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Board render/layout glitches</td>
+              <td>
+                <code>src/render/renderGameState.ts</code>,
+                <code>src/render/boardViewport.ts</code>,
+                <code>src/ui/panelLayoutMode.ts</code>,
+                <code>src/ui/shell/gameShell.ts</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Input click/drag/shortcut behavior</td>
+              <td>
+                <code>src/controller/gameController.ts</code>,
+                <code>src/ui/holdDrag.ts</code>,
+                <code>src/ui/gameShortcuts.ts</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Move legality/rules regression</td>
+              <td>
+                <code>src/game/movegen.ts</code>,
+                <code>src/game/applyMove.ts</code>, variant-specific
+                <code>src/game/movegen*.ts</code>/<code>applyMove*.ts</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Online desync/reconnect issues</td>
+              <td>
+                <code>src/driver/remoteDriver.ts</code>,
+                <code>server/src/app.ts</code>,
+                <code>src/shared/wireState.ts</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Realtime presence/timeouts</td>
+              <td>
+                <code>server/src/app.ts</code>,
+                <code>src/driver/remoteDriver.ts</code>, presence tests
+              </td>
+            </tr>
+            <tr>
+              <td>Bot move/eval behavior</td>
+              <td>
+                <code>src/bot/*</code>, <code>src/ai/*</code>,
+                <code>server/src/stockfishService.ts</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Variant launch/routing mismatch</td>
+              <td>
+                <code>src/variants/variantRegistry.ts</code>,
+                <code>src/indexMain.ts</code>, variant <code>src/*Main.ts</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Preference key drift</td>
+              <td>
+                <code>src/indexMain.ts</code>,
+                <code>src/config/shellState.ts</code>, <code>src/*Main.ts</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Save/replay/persistence failures</td>
+              <td>
+                <code>server/src/persistence.ts</code>,
+                <code>src/game/saveLoad.ts</code>,
+                <code>src/shared/wireState.ts</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Error fallback UX</td>
+              <td>
+                <code>server/src/app.ts</code>,
+                <code>src/driver/remoteDriver.ts</code>,
+                <code>src/ui/*</code> status controls
+              </td>
+            </tr>
+            <tr>
+              <td>Shell migration seams</td>
+              <td>
+                <code>src/ui/shell/*</code>,
+                <code>src/ui/panelLayoutMode.ts</code>,
+                <code>src/indexMain.ts</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Auth/session/profile behavior</td>
+              <td>
+                <code>server/src/auth/*</code>, <code>server/src/app.ts</code>,
+                <code>src/shared/authSessionClient.ts</code>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="table-18-1">
+        <div class="meta">
+          <h2>table-18-1: Quick Triage Fast Triage Map</h2>
+          <a href="18-quick-triage-guide.md#table-18-1"
+            >Source markdown: 18-quick-triage-guide.md#table-18-1</a
+          >
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Symptom Category</th>
+              <th>Start Here First</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>App fails to start</td>
+              <td>
+                <code>src/indexMain.ts</code>,
+                <code>src/driver/createDriver.ts</code>, variant
+                <code>src/*Main.ts</code>
+              </td>
+            </tr>
+            <tr>
+              <td>UI looks wrong/partial</td>
+              <td>
+                <code>src/ui/shell/gameShell.ts</code>,
+                <code>src/ui/panelLayoutMode.ts</code>,
+                <code>src/render/boardViewport.ts</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Input/interaction broken</td>
+              <td>
+                <code>src/controller/gameController.ts</code>,
+                <code>src/ui/holdDrag.ts</code>,
+                <code>src/ui/gameShortcuts.ts</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Move/action fails</td>
+              <td>
+                <code>src/controller/gameController.ts</code>,
+                <code>src/game/applyMove.ts</code>,
+                <code>server/src/app.ts</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Desync/reconnect issues</td>
+              <td>
+                <code>src/driver/remoteDriver.ts</code>,
+                <code>server/src/app.ts</code>,
+                <code>src/shared/wireState.ts</code>
+              </td>
+            </tr>
+            <tr>
+              <td>API route behavior wrong</td>
+              <td>
+                <code>server/src/app.ts</code>,
+                <code>src/shared/onlineProtocol.ts</code>,
+                <code>src/shared/authProtocol.ts</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Auth/session issues</td>
+              <td>
+                <code>server/src/auth/sessionStore.ts</code>,
+                <code>server/src/app.ts</code>,
+                <code>src/shared/authSessionClient.ts</code>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>
