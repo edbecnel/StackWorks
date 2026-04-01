@@ -113,6 +113,24 @@
     strong.label{
       color:#14335f;
     }
+    .note-box{
+      margin-top:18px;
+      padding:18px 20px;
+      background:#f8fbff;
+      border:1px solid #cfdced;
+      border-left:5px solid var(--accent);
+      border-radius:12px;
+    }
+    .note-box h3{
+      margin-top:0;
+    }
+    .config-table col.persona-name{width:14%}
+    .config-table col.metric{width:16%}
+    .config-table col.logic{width:38%}
+    .mono{
+      font-family:Consolas, "Courier New", monospace;
+      font-size:.96em;
+    }
     @media print{
       body{background:#fff}
       .page{max-width:none;margin:0;padding:0}
@@ -347,6 +365,133 @@
           <li><strong class="label">Trickster:</strong> It might leave a piece “unprotected” near the King row. If you jump it, you might find your piece immediately trapped in a “Back Block” or a “619 Trap”.</li>
           <li><strong class="label">Endgame:</strong> It calculates the “opposition” 20 moves ahead to ensure that when only three pieces are left, you are the one forced to move into a capture.</li>
         </ul>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section">
+        <h2>How to Configure Your Personas</h2>
+        <p class="intro">These settings provide a practical way to tune each persona’s evaluation priorities and move-selection behavior.</p>
+        <div class="table-wrap">
+          <table class="config-table">
+            <colgroup>
+              <col class="persona-name" />
+              <col class="metric" />
+              <col class="metric" />
+              <col class="metric" />
+              <col class="logic" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Persona</th>
+                <th><span class="mono">materialWeight</span></th>
+                <th><span class="mono">centerWeight</span></th>
+                <th><span class="mono">riskFactor</span></th>
+                <th>Selection Logic</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Teacher</td>
+                <td>1.0 (Standard)</td>
+                <td>2.0 (High)</td>
+                <td>0.0</td>
+                <td>Picks the 2nd or 3rd best move 20% of the time.</td>
+              </tr>
+              <tr>
+                <td>Balanced</td>
+                <td>1.0 (Standard)</td>
+                <td>1.0 (Standard)</td>
+                <td>0.1</td>
+                <td>Always picks the top evaluated move.</td>
+              </tr>
+              <tr>
+                <td>Trickster</td>
+                <td>0.5 (Low)</td>
+                <td>0.5 (Low)</td>
+                <td>3.0 (High)</td>
+                <td>Picks moves with high volatility scores.</td>
+              </tr>
+              <tr>
+                <td>Endgame</td>
+                <td>5.0 (Extreme)</td>
+                <td>0.5 (Low)</td>
+                <td>0.0</td>
+                <td>Prioritizes Kings and piece reduction.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note-box">
+          <h3>The “Teacher” Selection Logic</h3>
+          <p class="intro">For the Teacher bot, don’t just pick the best move returned by minimax. Instead, get a list of all legal moves, sort them by their evaluation score, and if a move is “too crushing” (for example, leading to an immediate +5 advantage), have the bot purposely select a “solid but non-lethal” move to keep the game readable for the student.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section">
+        <h2>Classic Endgame Positions</h2>
+        <p class="intro">In draughts and checkers, endgames are defined by five classic “Positions” that represent technical benchmarks for a player’s skill. For your Endgame and Teacher bots, recognizing these is essential for either forcing a win or demonstrating a drawing technique.</p>
+
+        <h3>Classic Endgame Positions</h3>
+        <ul class="snapshots">
+          <li><strong class="label">First Position:</strong> The most famous winning scenario. It typically involves two Kings against a King and a single man (regular piece). The winning side uses its Kings to “capture” the opposing man by forcing it into a position where it must be jumped, resulting in a 2-on-1 King endgame that is technically won.</li>
+          <li><strong class="label">Second Position:</strong> A more complex variation that often occurs when the defending side has a piece on a specific square (such as square 5 in American Checkers). It tests the attacker’s ability to maneuver their Kings to “squeeze” the opponent without allowing a draw by repetition.</li>
+          <li><strong class="label">Third Position:</strong> Often involves a “man-down” scenario where the side with the advantage must use “The Move” (Opposition) to force a win. It is a critical lesson for a Teacher bot to show how a single piece advantage can be converted.</li>
+          <li><strong class="label">Fourth Position:</strong> Focuses on the defense of a single piece (often on square 21) against a more mobile opponent. It is a “drawing position” if played correctly, making it a perfect test for a Balanced bot.</li>
+        </ul>
+
+        <h3>Common Endgame Pitfalls for Bots to Monitor</h3>
+        <div class="table-wrap">
+          <table class="pitfalls-table">
+            <colgroup>
+              <col style="width:20%" />
+              <col style="width:45%" />
+              <col style="width:35%" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Pitfall</th>
+                <th>Description</th>
+                <th>Bot Application</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Losing the Move</td>
+                <td>Being forced to move into a capture or a “block” because of incorrect counting.</td>
+                <td>Endgame bot calculates this perfectly to finish the game.</td>
+              </tr>
+              <tr>
+                <td>The “In-and-Out” Shot</td>
+                <td>Being forced to jump into the King row and immediately out again, losing the King’s mobility for a turn.</td>
+                <td>Trickster bot sets this up to “de-king” the human.</td>
+              </tr>
+              <tr>
+                <td>Cornering Yourself</td>
+                <td>Moving pieces into the corners where they have zero mobility.</td>
+                <td>Teacher bot flags this as a “cramping” error for the student.</td>
+              </tr>
+              <tr>
+                <td>Back Row Neglect</td>
+                <td>Moving the back row too early, allowing the opponent an easy path to a King.</td>
+                <td>Teacher bot keeps its back row intact to show its defensive value.</td>
+              </tr>
+              <tr>
+                <td>Post Scouppe</td>
+                <td>A specific drawing setup in International Draughts where the side with more pieces cannot win due to the geometry of the board.</td>
+                <td>Endgame bot identifies this early to avoid “spoiled wins”.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note-box">
+          <h3>Implementation Strategy</h3>
+          <p class="intro">To implement these, your Endgame bot should check its current FEN (board state) against a small library of these “Positions.” If it detects First Position, it should switch its heuristic from general material counting to a “Distance to Piece” metric to force the final capture.</p>
+        </div>
       </div>
     </section>
   </div>
