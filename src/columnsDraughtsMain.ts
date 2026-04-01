@@ -542,6 +542,13 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const controller = new GameController(svg, piecesLayer, inspector, state, history, driver);
   hudController = controller;
+  // Apply startup lock before bind() so initial turn/bot toasts are suppressed
+  // until local/online play is explicitly started.
+  {
+    const queryMode = new URLSearchParams(window.location.search).get("mode");
+    const hasExplicitPlayMode = queryMode === "local" || queryMode === "online";
+    if (!hasExplicitPlayMode) controller.setShellStartupPlayLockEnabled(true);
+  }
   controller.bind();
   controller.setCoordLabelProvider((nodeId: string): string | null => {
     if (!boardCoordsToggle?.checked) return null;

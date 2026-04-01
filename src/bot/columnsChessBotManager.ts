@@ -749,6 +749,11 @@ export class ColumnsChessBotManager {
   }
 
   private syncPausedTurnToastNow(): void {
+    if (this.controller.isShellStartupPlayLockEnabled()) {
+      this.controller.clearStickyToast(ColumnsChessBotManager.PAUSED_TURN_TOAST_KEY);
+      return;
+    }
+
     if (this.lastHistoryReason === "jump" && this.isViewingPastInHistory()) {
       this.controller.clearStickyToast(ColumnsChessBotManager.PAUSED_TURN_TOAST_KEY);
       return;

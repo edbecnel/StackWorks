@@ -472,6 +472,13 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const controller = new GameController(svg, piecesLayer, orientedInspector as any, state, history, driver);
   hudController = controller;
+  // Apply startup lock before bind() so initial turn toasts are suppressed
+  // when entering the variant page without an explicit started mode.
+  {
+    const queryMode = new URLSearchParams(window.location.search).get("mode");
+    const hasExplicitPlayMode = queryMode === "local" || queryMode === "online";
+    if (!hasExplicitPlayMode) controller.setShellStartupPlayLockEnabled(true);
+  }
   controller.bind();
   shell.bindController(controller);
   const startupMsg = consumeStartupMessage();
