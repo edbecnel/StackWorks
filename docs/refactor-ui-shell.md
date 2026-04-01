@@ -127,6 +127,14 @@ Use chess.com settings as a structural reference: group options into a small num
   - [ ] Glass palette
   - [ ] Board coordinates
   - [ ] Coordinates inside squares
+  - [ ] **Square numbering (draughts-family variants)** — **Reference:** International Draughts (10×10) already wires an **International square numbering** toggle and, when it is on, **forces coordinates inside squares** and **disables** the inside/outside control (see `damaMain.ts`: `boardCoordsInternationalNumbers`, `ensureInternationalDraughtsCoordsOption`, `forceInSquares` logic). Settings hub migration should preserve this behavior and generalize it where noted below.
+    - **Numbering schemes (implementation / help text):**
+      - **International Draughts (10×10):** Playable squares **1–50** (existing).
+      - **American / English Checkers (8×8, `checkers_us`):** Playable squares **1–32** on dark cells. Unlike the 10×10 international grid, numbering conventionally starts from **Black’s double-corner** (often rendered **top-right** from Black’s perspective or **top-left** from White’s, depending on which diagram standard the product adopts—pick one, keep SVG/board flip consistent, and document it in rules/help).
+      - **Lasca (7×7 or standard 8×8 checkerboard using 32 dark squares):** Follow **English draughts 1–32** or **algebraic** coordinates as appropriate to the variant; **do not** apply the **International 1–50** system (that belongs to the 10×10 international board).
+    - [ ] **Checkers (`checkers_us` / 8×8 pages):** Under **Show board coordinates**, add the same **International square numbering** checkbox row used for International Draughts (reuse or generalize the existing helper and a per-variant storage key, e.g. `lasca.opt.<variantId>.boardCoordsInternationalNumbers` pattern).
+    - [ ] **Checkers:** When **International square numbering** is **checked**, **force** **Coordinates inside squares** **on** and **disable** the **Coordinates inside squares** checkbox (user cannot turn off in-square placement while numeric labels are shown).
+    - [ ] **Lasca (both 7×7 and 8×8 variant entry pages):** Apply the same **International square numbering** checkbox under **Show board coordinates** and the same **force inside squares + disable** behavior when it is enabled.
   - [ ] Flip board
   - [ ] Show player names
   - [ ] Board viewport / framed vs playable view
