@@ -339,6 +339,62 @@ function evaluateEndgame(board: Board, persona: Persona): number {
 
 ---
 
+## Automatic draw detection (endgame loop hygiene)
+
+In a draughts engine, detecting a **draw** is as important as detecting a **win**, so the bot does not **shuffle** forever in dead positions. A **1-on-1 king** ending is often a **theoretical draw** unless one king can be **captured on the very next move** (rare on a full board in many variants).
+
+**Variant caveat:** Rules differ (Lasca, 10×10 international, mandatory capture, flying kings, etc.). Treat the sketch below as a **template** and wire `canCaptureOnNextMove`, piece types, and draw rules to your **real** rule module. Trigger `checkAutomaticDraw` from the **game loop** when evaluating terminal or near-terminal states.
+
+### TypeScript: 1-on-1 king draw detector (sketch)
+
+```typescript
+function checkAutomaticDraw(board: Board): { isDraw: boolean; reason: string } {
+  const aiPieces = board.getPieces(Player.AI);
+  const humanPieces = board.getPieces(Player.Human);
+
+  // 1. Basic 1-on-1 king check
+  if (aiPieces.length === 1 && humanPieces.length === 1) {
+    const p1 = aiPieces[0];
+    const p2 = humanPieces[0];
+
+    if (p1.isKing && p2.isKing) {
+      // In most draughts variants, 1v1 king is an instant draw
+      // unless one can be captured on the very next move.
+      if (!board.canCaptureOnNextMove()) {
+        return { isDraw: true, reason: "Draw: 1-on-1 kings (technical draw)" };
+      }
+    }
+  }
+
+  // 2. Insufficient material (e.g. 1 regular piece vs 1 regular piece)
+  if (aiPieces.length === 1 && humanPieces.length === 1) {
+    if (!aiPieces[0].isKing && !humanPieces[0].isKing) {
+      return { isDraw: true, reason: "Draw: insufficient material to force a win" };
+    }
+  }
+
+  // 3. The "40-move rule" (optional but recommended)
+  // If 40 half-moves pass without a capture or a promotion to king.
+  if (board.halfMoveClock >= 40) {
+    return { isDraw: true, reason: "Draw: 40-move rule (no progress)" };
+  }
+
+  return { isDraw: false, reason: "" };
+}
+```
+
+### Persona behavior at the endgame
+
+- **Teacher bot:** If this returns true, the bot can show: *We have reached a theoretical draw. Neither of us has enough power to trap the other!*
+- **Endgame bot:** Recognize this state **5–10 moves** before it crystallizes. If **losing**, steer toward a **1-on-1 king** (or other book draw) to **steal** a draw when the rules allow.
+- **Balanced bot:** Offer a **draw** in the UI once this state is reached instead of shuffling.
+
+### Pro tip: repetition detection
+
+Draughts bots can **loop** (e.g. a king moving back and forth between two squares). Implement **threefold repetition**: if the **exact same board position** (piece locations **and** side to move) occurs **three times**, declare a draw.
+
+---
+
 ## Cross-reference
 
 - [Persona-Comparisons.html](Persona-Comparisons.html) — opening, middlegame, and endgame persona comparison tables.
