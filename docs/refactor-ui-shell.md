@@ -862,6 +862,12 @@ When using chess.com play screens as visual references, translate them into Stac
 
 ---
 
+## Low priority backlog
+
+- [ ] **Light UI theme mode** — Today the app shell uses a fixed dark palette via duplicated `:root` CSS custom properties (`--page-bg`, `--panel-*`, `--themeMenu*`, etc.) on each HTML entry. Add a maintainable light mode by centralizing those tokens (shared stylesheet or single source), defining a light variable set (e.g. `data-ui-theme`, class on `html`, and/or `prefers-color-scheme`), and surfacing an explicit preference in **Settings** (e.g. under **Layout & Panels** or **Accessibility**) when product-ready. Reconcile per-board `src/assets/themes/*/theme.css` rules that set `body` backgrounds so a light shell is not overridden or clashed with by board themes.
+
+---
+
 ## Non-Goals
 
 - [ ] ~~Engine rewrite~~
