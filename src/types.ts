@@ -14,6 +14,7 @@ export interface PlayerIdentity {
 	status: PresenceState;
 	statusText: string;
 	avatarUrl?: string | null;
+	hideAvatar?: boolean;
 	countryCode?: string | null;
 	countryName?: string | null;
 	isLocal: boolean;

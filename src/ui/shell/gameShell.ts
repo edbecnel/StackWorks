@@ -2099,7 +2099,12 @@ export function initGameShell(opts: GameShellOptions): GameShellController {
             ...identity,
             displayName: identity.sideLabel,
             roleLabel: identity.sideLabel,
+            detailText: "Static placeholder board.",
+            statusText: "Preview",
+            avatarUrl: null,
+            hideAvatar: true,
             isLocal: false,
+            isActiveTurn: false,
             viewerTag: undefined,
           };
         }

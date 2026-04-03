@@ -114,6 +114,32 @@ const LS_OPT_KEYS = {
   moveHistoryNotation: `lasca.opt.${ACTIVE_VARIANT_ID}.moveHistoryNotation`,
 };
 
+const SHARED_OPT_SUFFIXES = new Set([
+  "showResizeIcon",
+  "boardCoords",
+  "boardCoordsInSquares",
+  "flipBoard",
+  "highlightSquares",
+  "movePreviewMode",
+  "checkerboardTheme",
+  "lastMoveHighlights",
+  "lastMoveHighlightStyle",
+  "moveHints",
+  "moveHintStyle",
+  "analysisSquareHighlightStyle",
+  "selectionStyle",
+  "showPlayerNames",
+  "moveHistoryNotation",
+]);
+
+function resolveSharedOptKey(key: string): string | null {
+  const prefix = `lasca.opt.${ACTIVE_VARIANT_ID}.`;
+  if (!key.startsWith(prefix)) return null;
+  const suffix = key.slice(prefix.length);
+  if (!SHARED_OPT_SUFFIXES.has(suffix)) return null;
+  return `lasca.opt.${suffix}`;
+}
+
 const EVAL_BAR_GAP_PX = 3;
 const EVAL_BAR_PLAYABLE_SHIFT_LEFT_PX = 0;
 
@@ -136,7 +162,10 @@ function normalizeChessMoveHistoryNotation(value: string | null | undefined): Ch
 }
 
 function readOptionalBoolPref(key: string): boolean | null {
-  const raw = localStorage.getItem(key);
+  const raw = (() => {
+    const sharedKey = resolveSharedOptKey(key);
+    return (sharedKey ? localStorage.getItem(sharedKey) : null) ?? localStorage.getItem(key);
+  })();
   if (raw == null) return null;
   if (raw === "1" || raw === "true") return true;
   if (raw === "0" || raw === "false") return false;
@@ -144,11 +173,17 @@ function readOptionalBoolPref(key: string): boolean | null {
 }
 
 function writeBoolPref(key: string, value: boolean): void {
-  localStorage.setItem(key, value ? "1" : "0");
+  const persisted = value ? "1" : "0";
+  localStorage.setItem(key, persisted);
+  const sharedKey = resolveSharedOptKey(key);
+  if (sharedKey) localStorage.setItem(sharedKey, persisted);
 }
 
 function readOptionalStringPref(key: string): string | null {
-  const raw = localStorage.getItem(key);
+  const raw = (() => {
+    const sharedKey = resolveSharedOptKey(key);
+    return (sharedKey ? localStorage.getItem(sharedKey) : null) ?? localStorage.getItem(key);
+  })();
   if (raw == null) return null;
   const s = String(raw).trim();
   return s.length > 0 ? s : null;
@@ -156,6 +191,8 @@ function readOptionalStringPref(key: string): string | null {
 
 function writeStringPref(key: string, value: string): void {
   localStorage.setItem(key, value);
+  const sharedKey = resolveSharedOptKey(key);
+  if (sharedKey) localStorage.setItem(sharedKey, value);
 }
 
 function deriveLegacyChessMovePreviewMode(): ChessMovePreviewMode {
@@ -233,13 +270,13 @@ window.addEventListener("DOMContentLoaded", async () => {
     boardSize: variant.boardSize,
   });
 
-  // Checkerboard background theme (Classic/Green)
+  // Checkerboard background theme
   const checkerboardThemeSelect = document.getElementById(
     "checkerboardThemeSelect",
   ) as HTMLSelectElement | null;
 
   const readCheckerboardTheme = (): CheckerboardThemeId =>
-    normalizeCheckerboardThemeId(readOptionalStringPref(LS_OPT_KEYS.checkerboardTheme));
+    normalizeCheckerboardThemeId(readOptionalStringPref(LS_OPT_KEYS.checkerboardTheme) ?? "blue");
 
   const applyCheckerboard = (id: CheckerboardThemeId) => {
     applyCheckerboardTheme(svg, id);
@@ -283,8 +320,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const boardCoordsToggle = document.getElementById("boardCoordsToggle") as HTMLInputElement | null;
   const savedBoardCoords = readOptionalBoolPref(LS_OPT_KEYS.boardCoords);
-  if (boardCoordsToggle && savedBoardCoords !== null) {
-    boardCoordsToggle.checked = savedBoardCoords;
+  if (boardCoordsToggle) {
+    boardCoordsToggle.checked = savedBoardCoords ?? true;
   }
 
   const boardCoordsInSquaresToggle = document.getElementById(
@@ -726,7 +763,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (v === "staunton_glyphs" || v === "tournament") return "staunton_glyphs";
     if (v === "raster2d" || v === "2d") return "raster2d";
     if (v === "raster3d" || v === "3d") return "raster3d";
-    return "raster3d";
+    return "neo";
   };
   const savedTheme = (() => {
     try {
@@ -984,7 +1021,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   controller.setSfxManager(sfx);
   const soundToggle = document.getElementById("soundToggle") as HTMLInputElement | null;
   const savedSfx = readOptionalBoolPref(LS_OPT_KEYS.sfx);
-  if (soundToggle && savedSfx !== null) soundToggle.checked = savedSfx;
+  if (soundToggle) soundToggle.checked = savedSfx ?? true;
   sfx.setEnabled(Boolean(soundToggle?.checked ?? false));
   if (soundToggle) {
     soundToggle.addEventListener("change", () => {
@@ -1960,7 +1997,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   const MOVE_HISTORY_LAYOUT_KEY = "lasca.moveHistoryLayout";
   const readMoveHistoryLayout = (): MoveHistoryLayout => {
     const raw = String(window.localStorage.getItem(MOVE_HISTORY_LAYOUT_KEY) ?? "").trim();
-    return raw === "two" || raw === "single" ? (raw as MoveHistoryLayout) : "single";
+    return raw === "two" || raw === "single" ? (raw as MoveHistoryLayout) : "two";
   };
   const writeMoveHistoryLayout = (layout: MoveHistoryLayout) => {
     try {

@@ -23,7 +23,7 @@ const LS_KEY_EVAL_BAR = "lasca.chessEvaluation.showEvalBar";
 
 function clampMode(v: string | null): ChessEvaluationMode {
   if (v === "material" || v === "mobility" || v === "center" || v === "threats" || v === "engine") return v;
-  return "material";
+  return "engine";
 }
 
 /** Maps centipawns (White-perspective) to a 0–1 win-probability for the eval bar. */
@@ -474,6 +474,8 @@ export function bindChessEvaluationPanel(controller: GameController, bot?: Engin
   const savedShowEvalBar = localStorage.getItem(LS_KEY_EVAL_BAR);
   if (showEvalBarToggleEl && savedShowEvalBar !== null) {
     showEvalBarToggleEl.checked = savedShowEvalBar === "1";
+  } else if (showEvalBarToggleEl) {
+    showEvalBarToggleEl.checked = true;
   }
 
   const clearGraphRetry = () => {

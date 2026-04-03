@@ -3614,6 +3614,7 @@ export class GameController {
     status: PresenceState;
     statusText: string;
     avatarUrl?: string | null;
+    hideAvatar?: boolean;
     countryCode?: string | null;
     countryName?: string | null;
     isLocal: boolean;
@@ -3628,6 +3629,7 @@ export class GameController {
       status: args.status,
       statusText: args.statusText,
       avatarUrl: args.avatarUrl ?? null,
+      hideAvatar: args.hideAvatar ?? false,
       countryCode: args.countryCode ?? null,
       countryName: args.countryName ?? null,
       isLocal: args.isLocal,

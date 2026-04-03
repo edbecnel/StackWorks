@@ -64,6 +64,12 @@ export function createPlayerIdentityPanel(opts: PlayerIdentityPanelOptions): Pla
   avatarWrap.append(avatarTap, avatarHover);
 
   const syncAvatarEnlargeTap = (): void => {
+    if (avatarWrap.hidden) {
+      avatarTap.disabled = true;
+      avatarHover.hidden = true;
+      avatarTap.setAttribute("aria-label", "Avatar");
+      return;
+    }
     const img = avatar.querySelector(".gameShellPlayerAvatarImage") as HTMLImageElement | null;
     const ready = Boolean(
       img?.src && (avatar.dataset.hasImage === "1" || (img.complete && img.naturalWidth > 0)),
@@ -132,6 +138,7 @@ export function createPlayerIdentityPanel(opts: PlayerIdentityPanelOptions): Pla
     root.dataset.activeTurn = identity.isActiveTurn ? "1" : "0";
     root.dataset.playerStatus = identity.status;
     root.dataset.redundantStatus = isRedundantLocalStatus(identity) ? "1" : "0";
+    avatarWrap.hidden = Boolean(identity.hideAvatar);
 
     displayNameForAvatarAlt = identity.displayName;
 

@@ -131,6 +131,71 @@ function getVariantBoard8x8CheckeredStorageKey(variantId: VariantId): string {
   return `lasca.opt.${variantId}.board8x8Checkered`;
 }
 
+function seedStartPageDefaults(): void {
+  const setIfMissing = (key: string, value: string): void => {
+    try {
+      const current = localStorage.getItem(key);
+      if (current == null || String(current).trim() === "") localStorage.setItem(key, value);
+    } catch {
+      // ignore storage failures
+    }
+  };
+  const setBoolIfMissing = (key: string, value: boolean): void => setIfMissing(key, value ? "1" : "0");
+
+  // Shared UX defaults
+  setIfMissing("lasca.ui.panelLayout", "panels");
+  setIfMissing("lasca.ui.boardViewport", "playable");
+  setBoolIfMissing(LS_KEYS.optShowPlayerNames, true);
+  setBoolIfMissing(LS_KEYS.optBoardCoords, true);
+  setBoolIfMissing(LS_KEYS.optBoardCoordsInSquares, true);
+  setBoolIfMissing(LS_KEYS.optSfx, true);
+  setBoolIfMissing(LS_KEYS.optLastMoveHighlights, true);
+  setIfMissing(LS_KEYS.optLastMoveHighlightStyle, "chesscom");
+  setBoolIfMissing(LS_KEYS.optMoveHints, true);
+  setIfMissing(LS_KEYS.optMoveHintStyle, "chesscom");
+  setIfMissing(LS_KEYS.optChessMovePreviewMode, "chesscom");
+  setBoolIfMissing(LS_KEYS.optChessHighlightSquares, true);
+  setIfMissing(LS_KEYS.optChessSelectionStyle, "chesscom");
+  setIfMissing(LS_KEYS.optChessAnalysisSquareHighlightStyle, "chesscom");
+  setIfMissing(LS_KEYS.optColumnsAnalysisSquareHighlightStyle, "chesscom");
+  setIfMissing("lasca.moveHistoryLayout", "two");
+  setIfMissing("lasca.chessEvaluation.mode", "engine");
+  setBoolIfMissing("lasca.chessEvaluation.showEvalBar", true);
+
+  // Chess-family defaults
+  setIfMissing(LS_KEYS.chessTheme, "neo");
+  setIfMissing(LS_KEYS.optChessClassicTheme, "neo");
+  setIfMissing(getVariantThemeStorageKey("chess_classic"), "neo");
+  setIfMissing(LS_KEYS.optChessClassicCheckerboardTheme, "blue");
+  setIfMissing(getVariantCheckerboardThemeStorageKey("chess_classic"), "blue");
+
+  setIfMissing(LS_KEYS.columnsChessTheme, "neo");
+  setIfMissing(LS_KEYS.optColumnsChessTheme, "neo");
+  setIfMissing(getVariantThemeStorageKey("columns_chess"), "neo");
+  setIfMissing(LS_KEYS.optColumnsChessCheckerboardTheme, "blue");
+  setIfMissing(getVariantCheckerboardThemeStorageKey("columns_chess"), "blue");
+
+  // Non-chess defaults
+  const nonChessVariants: VariantId[] = [
+    "lasca_7_classic",
+    "lasca_8_dama_board",
+    "dama_8_classic_standard",
+    "dama_8_classic_international",
+    "damasca_8_classic",
+    "damasca_8",
+    "checkers_8_us",
+    "draughts_10_international",
+    "columns_draughts_10",
+  ];
+  for (const variantId of nonChessVariants) {
+    setIfMissing(getVariantThemeStorageKey(variantId), "classic");
+    setIfMissing(getVariantCheckerboardThemeStorageKey(variantId), "classic");
+  }
+
+  // Lasca 8x8 specific
+  setBoolIfMissing(getVariantBoard8x8CheckeredStorageKey("lasca_8_dama_board"), true);
+}
+
 function normalizeChessMovePreviewMode(value: string | null | undefined): ChessMovePreviewMode {
   switch (value) {
     case "off":
@@ -661,6 +726,7 @@ function prefetchGamePage(gameSelect: HTMLSelectElement): void {
 
 window.addEventListener("DOMContentLoaded", () => {
   maybeResetCheckersThemePrefs();
+  seedStartPageDefaults();
   const finalizeSplash = initStartSplash();
   initStartPageCollapsibleSections();
 
@@ -2538,7 +2604,7 @@ window.addEventListener("DOMContentLoaded", () => {
         : isClassicChess
           ? (localStorage.getItem(LS_KEYS.optChessClassicCheckerboardTheme) ?? localStorage.getItem(LS_KEYS.optCheckerboardTheme))
           : (localStorage.getItem(variantCheckerboardThemeKey) ?? localStorage.getItem(LS_KEYS.optCheckerboardTheme));
-      const next = normalizeCheckerboardThemeId(raw ?? (isCheckers ? "checkers" : null));
+      const next = normalizeCheckerboardThemeId(raw ?? "classic");
       elColumnsChessBoardTheme.value = next;
       if (isCheckers && !raw) {
         try {
@@ -2587,7 +2653,7 @@ window.addEventListener("DOMContentLoaded", () => {
       elTheme.disabled = false;
       if (isCheckers) {
         const raw = localStorage.getItem(variantThemeKey) ?? localStorage.getItem(LS_KEYS.checkersTheme);
-        const next = (raw && getThemeById(raw) && !getThemeById(raw)?.hidden) ? raw : "checkers";
+        const next = (raw && getThemeById(raw) && !getThemeById(raw)?.hidden) ? raw : "classic";
         elTheme.value = next;
         if (!raw || raw !== next) {
           try {

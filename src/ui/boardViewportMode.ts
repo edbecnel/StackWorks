@@ -8,7 +8,7 @@ export const STACKWORKS_BOARD_CHROME_REFLOW_DONE_EVENT = "stackworks:boardChrome
 const LS_KEY = "lasca.ui.boardViewport";
 
 function detectDefaultBoardViewportMode(): BoardViewportMode {
-  return "framed";
+  return "playable";
 }
 
 export function readBoardViewportMode(): BoardViewportMode {

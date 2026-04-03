@@ -97,6 +97,30 @@ const LS_OPT_KEYS = {
   selectionStyle: `lasca.opt.${ACTIVE_VARIANT_ID}.selectionStyle`,
 };
 
+const SHARED_OPT_SUFFIXES = new Set([
+  "moveHints",
+  "moveHintStyle",
+  "animations",
+  "lastMoveHighlights",
+  "lastMoveHighlightStyle",
+  "showResizeIcon",
+  "boardCoords",
+  "boardCoordsInSquares",
+  "boardCoordsInternationalNumbers",
+  "flipBoard",
+  "checkerboardTheme",
+  "threefold",
+  "selectionStyle",
+]);
+
+function resolveSharedOptKey(key: string): string | null {
+  const prefix = `lasca.opt.${ACTIVE_VARIANT_ID}.`;
+  if (!key.startsWith(prefix)) return null;
+  const suffix = key.slice(prefix.length);
+  if (!SHARED_OPT_SUFFIXES.has(suffix)) return null;
+  return `lasca.opt.${suffix}`;
+}
+
 type NcMoveHintStyle = "classic" | "chesscom" | "classic-squares";
 function normalizeNcMoveHintStyle(v: string | null | undefined): NcMoveHintStyle {
   if (v === "classic" || v === "chesscom" || v === "classic-squares") return v;
@@ -104,7 +128,10 @@ function normalizeNcMoveHintStyle(v: string | null | undefined): NcMoveHintStyle
 }
 
 function readOptionalBoolPref(key: string): boolean | null {
-  const raw = localStorage.getItem(key);
+  const raw = (() => {
+    const sharedKey = resolveSharedOptKey(key);
+    return (sharedKey ? localStorage.getItem(sharedKey) : null) ?? localStorage.getItem(key);
+  })();
   if (raw == null) return null;
   if (raw === "1" || raw === "true") return true;
   if (raw === "0" || raw === "false") return false;
@@ -112,11 +139,17 @@ function readOptionalBoolPref(key: string): boolean | null {
 }
 
 function writeBoolPref(key: string, value: boolean): void {
-  localStorage.setItem(key, value ? "1" : "0");
+  const persisted = value ? "1" : "0";
+  localStorage.setItem(key, persisted);
+  const sharedKey = resolveSharedOptKey(key);
+  if (sharedKey) localStorage.setItem(sharedKey, persisted);
 }
 
 function readOptionalStringPref(key: string): string | null {
-  const raw = localStorage.getItem(key);
+  const raw = (() => {
+    const sharedKey = resolveSharedOptKey(key);
+    return (sharedKey ? localStorage.getItem(sharedKey) : null) ?? localStorage.getItem(key);
+  })();
   if (raw == null) return null;
   const s = String(raw).trim();
   return s.length > 0 ? s : null;
@@ -124,6 +157,8 @@ function readOptionalStringPref(key: string): string | null {
 
 function writeStringPref(key: string, value: string): void {
   localStorage.setItem(key, value);
+  const sharedKey = resolveSharedOptKey(key);
+  if (sharedKey) localStorage.setItem(sharedKey, value);
 }
 
 function resolvePlayerLabelForSave(args: { side: "W" | "B"; controller: GameController }): string {
@@ -321,7 +356,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (checkerboardThemeSelect) checkerboardThemeSelect.disabled = false;
 
   const readCheckerboardTheme = (): CheckerboardThemeId =>
-    normalizeCheckerboardThemeId(readOptionalStringPref(LS_OPT_KEYS.checkerboardTheme));
+    normalizeCheckerboardThemeId(readOptionalStringPref(LS_OPT_KEYS.checkerboardTheme) ?? "classic");
   const applyCheckerboard = (id: CheckerboardThemeId) => {
     applyCheckerboardTheme(svg, id);
   };
@@ -362,16 +397,16 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const boardCoordsToggle = document.getElementById("boardCoordsToggle") as HTMLInputElement | null;
   const savedBoardCoords = readOptionalBoolPref(LS_OPT_KEYS.boardCoords);
-  if (boardCoordsToggle && savedBoardCoords !== null) {
-    boardCoordsToggle.checked = savedBoardCoords;
+  if (boardCoordsToggle) {
+    boardCoordsToggle.checked = savedBoardCoords ?? true;
   }
 
   // Columns Draughts always uses a 10×10 checkerboard; in-square coords are always available.
   const canUseInSquareCoords = true;
   const inSquaresUI = ensureBoardCoordsInSquaresOption(boardCoordsToggle);
   const savedBoardCoordsInSquares = readOptionalBoolPref(LS_OPT_KEYS.boardCoordsInSquares);
-  if (inSquaresUI.toggle && savedBoardCoordsInSquares !== null) {
-    inSquaresUI.toggle.checked = savedBoardCoordsInSquares;
+  if (inSquaresUI.toggle) {
+    inSquaresUI.toggle.checked = savedBoardCoordsInSquares ?? true;
   }
   const internationalCoordsUI = ensureInternationalDraughtsCoordsOption(inSquaresUI.hint ?? inSquaresUI.row);
   const savedInternationalCoords = readOptionalBoolPref(LS_OPT_KEYS.boardCoordsInternationalNumbers);
@@ -388,7 +423,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       if (inSquaresUI.row) inSquaresUI.row.style.opacity = forceInSquares ? "0.45" : "";
       if (!forceInSquares) {
         const saved = readOptionalBoolPref(LS_OPT_KEYS.boardCoordsInSquares);
-        inSquaresUI.toggle.checked = saved ?? false;
+        inSquaresUI.toggle.checked = saved ?? true;
       }
     }
     if (internationalCoordsUI.row) internationalCoordsUI.row.style.display = "flex";
@@ -443,7 +478,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   initSplitLayout();
 
   const themeDropdown = document.getElementById("themeDropdown") as HTMLElement | null;
-  const themeManager = createThemeManager(svg, { themeStorageKey: `lasca.opt.${ACTIVE_VARIANT_ID}.theme` });
+  const themeStorageKey = `lasca.opt.${ACTIVE_VARIANT_ID}.theme`;
+  if (!readOptionalStringPref(themeStorageKey)) {
+    writeStringPref(themeStorageKey, "classic");
+  }
+  const themeManager = createThemeManager(svg, { themeStorageKey });
   await themeManager.bindThemeDropdown(themeDropdown, async (themeId) => {
     syncPairedTheme(themeId);
   });
@@ -584,8 +623,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   controller.setSfxManager(sfx);
   const soundToggle = document.getElementById("soundToggle") as HTMLInputElement | null;
   const savedSfx = readOptionalBoolPref(LS_OPT_KEYS.sfx);
-  if (soundToggle && savedSfx !== null) {
-    soundToggle.checked = savedSfx;
+  if (soundToggle) {
+    soundToggle.checked = savedSfx ?? true;
   }
   sfx.setEnabled(Boolean(soundToggle?.checked ?? false));
   if (soundToggle) {
